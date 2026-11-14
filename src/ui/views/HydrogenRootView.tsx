@@ -35,6 +35,7 @@ import { registerThirdroomGlobalFn, registerThirdroomGlobalVar } from "../../eng
 import { CoverScreen } from "./components/cover-screen/CoverScreen";
 import { downloadFile } from "../../engine/utils/downloadFile";
 import configData from "../../../config.json";
+import { installMediaAuthResponder } from "../utils/mediaAuth";
 
 function allowsChild(parent: Segment, child: Segment) {
   const parentType = parent.type;
@@ -133,13 +134,8 @@ function initHydrogen() {
     },
   };
 
-  const oidcClientId = document.location.hostname === "thirdroom.io" ? "thirdroom" : "thirdroom_dev";
-
+  // Buzzar: no hard-coded OIDC clients. Third Room's Keycloak (id.thirdroom.io) and its guest login are gone.
   const config = { ...configData };
-  config.staticOidcClients["https://id.thirdroom.io/realms/thirdroom/"] = {
-    client_id: oidcClientId,
-    guestKeycloakIdpHint: "guest",
-  };
 
   const options = {
     development: false, //import.meta.env.DEV,
@@ -163,6 +159,15 @@ function initHydrogen() {
   };
 
   registerThirdroomGlobalVar("hydrogen", hydrogenInstance);
+
+  // Buzzar: let the service worker fetch authenticated media for the active session (see sw.ts).
+  installMediaAuthResponder(async () => {
+    const sessionId = client.sessionId;
+    if (!sessionId) return undefined;
+    const info = await platform.sessionInfoStorage.get(sessionId);
+    if (!info?.accessToken) return undefined;
+    return { homeserver: info.homeserver ?? info.homeServer, accessToken: info.accessToken };
+  });
   registerThirdroomGlobalFn("openCallLogs", () => {
     const logViewer = window.open("/logviewer", "__blank");
 

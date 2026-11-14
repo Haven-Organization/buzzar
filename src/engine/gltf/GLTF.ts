@@ -1,3 +1,6 @@
+import type { GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
+import type { GLTFAvatarPedestalExtension } from "../../plugins/avatar-pedestals/pedestals.game";
+
 export type GLTFId = number;
 
 export type GLTFExtensions = { [key: string]: unknown };
@@ -533,6 +536,8 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     OMI_physics_body?: GLTFPhysicsBody;
     MX_portal?: GLTFPortal;
     OMI_link?: GLTFLink;
+    HAVEN_mirror?: GLTFMirrorExtension;
+    HAVEN_avatar_pedestal?: GLTFAvatarPedestalExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;
@@ -566,6 +571,8 @@ export interface GLTFNodeAudioRef extends GLTFProperty {
 }
 
 export interface GLTFHubsComponents extends GLTFProperty {
+  /** Hubs mirror: a 1×1 plane scaled by the node transform, always on. */
+  mirror?: { color?: string };
   "spawn-point"?: {};
   waypoint?: {
     canBeSpawnPoint: boolean;

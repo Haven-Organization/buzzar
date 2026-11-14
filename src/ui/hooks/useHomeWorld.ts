@@ -33,9 +33,8 @@ async function createHomeWorld(session: Session) {
         "org.matrix.msc3401.call.member": 0,
         "org.matrix.msc3815.member.world": 0,
       },
-      users: {
-        [session.userId]: 100,
-      },
+      // Buzzar: no `users` entry. The server already gives the creator PL 100, and room v12 (matrix.org's
+      // current default) rejects power levels that list a creator.
     },
     initialState: [
       {

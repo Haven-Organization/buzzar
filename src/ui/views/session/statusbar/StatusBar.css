@@ -35,3 +35,14 @@
     background-color: var(--bg-world-active);
   }
 }
+
+/* Buzzar: notification bell with an unread badge */
+.StatusBar__bell {
+  position: relative;
+  display: inline-flex;
+}
+.StatusBar__bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+}

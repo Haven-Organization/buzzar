@@ -13,6 +13,7 @@ import { addFlyControls, FlyControls } from "./FlyCharacterController";
 import { getAvatar } from "./getAvatar";
 import { getCamera } from "./getCamera";
 import { KinematicControls } from "./KinematicCharacterController";
+import { setAvatarHiddenFromMainCamera } from "./avatarLayers";
 
 export enum CharacterControllerType {
   FirstPerson = "first-person",
@@ -77,7 +78,7 @@ function swapToThirdPerson(ctx: GameContext, node: RemoteNode) {
   camera.parent!.position[0] = 0.4;
 
   const avatar = getAvatar(ctx, node);
-  avatar.visible = true;
+  setAvatarHiddenFromMainCamera(avatar, false);
 }
 
 function swapToFirstPerson(ctx: GameContext, node: RemoteNode) {
@@ -87,7 +88,7 @@ function swapToFirstPerson(ctx: GameContext, node: RemoteNode) {
   camera.parent!.position[0] = 0;
 
   const avatar = getAvatar(ctx, node);
-  avatar.visible = false;
+  setAvatarHiddenFromMainCamera(avatar, true);
 }
 
 export function EnableCharacterControllerSystem(ctx: GameContext) {

@@ -3,6 +3,8 @@ import { glMatrix, mat4, quat } from "gl-matrix";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, SkinnedMesh } from "three";
 
+import { addMirror, addMirrorToggleNode, GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
+import { addAvatarPedestal } from "../../plugins/avatar-pedestals/pedestals.game";
 import { SpawnPoint } from "../component/SpawnPoint";
 import { addChild, traverse, updateMatrix, updateMatrixWorld } from "../component/transform";
 import { GameContext, RemoteResourceManager, World } from "../GameTypes";
@@ -140,6 +142,8 @@ export interface LoadGLTFOptions {
    * AbortSignal to use to cancel loading glTF resource
    */
   signal?: AbortSignal;
+  /** Buzzar: download progress for this file (bytes loaded / total, total 0 if unknown). */
+  onProgress?: (loaded: number, total: number) => void;
 }
 
 /**
@@ -223,9 +227,16 @@ export function GLTFResourceDisposalSystem(ctx: GameContext) {
   }
 }
 
-export function createNodeFromGLTFURI(ctx: GameContext, uri: string): RemoteNode {
+export function createNodeFromGLTFURI(
+  ctx: GameContext,
+  uri: string,
+  onLoaded?: (node: RemoteNode) => void
+): RemoteNode {
   const node = new RemoteNode(ctx.resourceManager);
-  loadGLTF(ctx, uri).then((resource) => loadDefaultGLTFScene(ctx, resource, { existingNode: node }));
+  loadGLTF(ctx, uri).then((resource) => {
+    loadDefaultGLTFScene(ctx, resource, { existingNode: node });
+    onLoaded?.(node);
+  });
   return node;
 }
 
@@ -256,7 +267,7 @@ async function loadGLTFResource(
   url: string,
   options?: LoadGLTFOptions
 ) {
-  const res = await fetchWithProgress(ctx, url, { signal: options?.signal });
+  const res = await fetchWithProgress(ctx, url, { signal: options?.signal }, options?.onProgress);
 
   const buffer = await res.arrayBuffer();
 
@@ -403,6 +414,13 @@ export interface GLTFLoaderOptions {
   audioOutput?: AudioEmitterOutput;
   createDefaultMeshColliders?: boolean;
   rootIsStatic?: boolean;
+  /**
+   * Buzzar: called once the three.js object graph used for animation has been built (rest pose, before any
+   * animation runs). Returns extra clips to add to the mixer (e.g. retargeted avatar locomotion). Clips whose
+   * name matches one of the glTF's own animations are ignored, so avatars can ship their own Idle/Walk/etc.
+   * Providing this forces the animation graph to be built even when the glTF has no animations.
+   */
+  extraAnimationClips?: (loaderCtx: GLTFLoaderContext, rootObj: Object3D, ownClips: AnimationClip[]) => AnimationClip[];
 }
 
 /**
@@ -562,7 +580,7 @@ function loadGLTFSceneAnimations(loaderCtx: GLTFLoaderContext, remoteSceneOrNode
   const { ctx, resource } = loaderCtx;
   const animationDefs = resource.root.animations || [];
 
-  if (animationDefs.length > 0) {
+  if (animationDefs.length > 0 || loaderCtx.extraAnimationClips) {
     const world = ctx.world;
     const joints = new Set<number>();
     const nodeToObject3D = loaderCtx.nodeToObject3D;
@@ -628,6 +646,29 @@ function loadGLTFSceneAnimations(loaderCtx: GLTFLoaderContext, remoteSceneOrNode
       action.enabled = false;
       actionMap.set(animation.name, action);
       actions.push(action);
+    }
+
+    if (loaderCtx.extraAnimationClips) {
+      const ownClips = animations.map((animation) => animation.clip as AnimationClip);
+      // Extra clips may animate nodes that aren't skin joints (e.g. rigid, segmented avatars); those also
+      // need their animated transforms synced back to the RemoteNodes.
+      const objectToNode = new Map<string, RemoteNode>();
+      for (const [node, obj] of nodeToObject3D) objectToNode.set(obj.uuid, node);
+
+      for (const clip of loaderCtx.extraAnimationClips(loaderCtx, rootObj, ownClips)) {
+        if (actionMap.has(clip.name)) continue;
+        for (const track of clip.tracks) {
+          const node = objectToNode.get(track.name.slice(0, track.name.lastIndexOf(".")));
+          if (node && node !== remoteSceneOrNode && !BoneComponent.has(node.eid)) {
+            addComponent(world, BoneComponent, node.eid);
+            BoneComponent.set(node.eid, nodeToObject3D.get(node) as Bone);
+          }
+        }
+        const action = mixer.clipAction(clip).play();
+        action.enabled = false;
+        actionMap.set(clip.name, action);
+        actions.push(action);
+      }
     }
     addComponent(world, AnimationComponent, remoteSceneOrNode.eid);
     AnimationComponent.set(remoteSceneOrNode.eid, {
@@ -728,7 +769,7 @@ const loadGLTFScene = createInstancedSubresourceLoader(
       }
     }
 
-    if (resource.root.animations && resource.root.animations.length > 0) {
+    if ((resource.root.animations && resource.root.animations.length > 0) || loaderCtx.extraAnimationClips) {
       loadGLTFSceneAnimations(loaderCtx, remoteSceneOrNode);
     }
 
@@ -1033,6 +1074,24 @@ function loadGLTFPortal({ ctx }: GLTFLoaderContext, node: RemoteNode, extension:
   addPortalComponent(ctx, node, { uri: extension.uri });
 }
 
+function loadGLTFMirror(loaderCtx: GLTFLoaderContext, node: RemoteNode, extension: GLTFMirrorExtension) {
+  addMirror(loaderCtx.ctx, node, extension);
+
+  if (extension.toggles && extension.toggles.length > 0) {
+    // Toggle nodes may not have run their own post-load (colliders/physics) yet; defer until they have.
+    loaderCtx.postLoadCallbacks.push(() => {
+      for (const toggleIndex of extension.toggles!) {
+        const toggleNode = loaderCtx.nodeMap.get(toggleIndex);
+        if (toggleNode) {
+          addMirrorToggleNode(loaderCtx.ctx, toggleNode, node);
+        } else {
+          console.warn(`HAVEN_mirror on "${node.name}": toggle node ${toggleIndex} not found`);
+        }
+      }
+    });
+  }
+}
+
 const loadGLTFNode = createInstancedSubresourceLoader(
   "node",
   (root) => root.nodes,
@@ -1152,6 +1211,18 @@ const loadGLTFNode = createInstancedSubresourceLoader(
 
       if (extensions?.MX_portal) {
         loadGLTFPortal(loaderCtx, node, extensions.MX_portal);
+      }
+
+      if (extensions?.HAVEN_avatar_pedestal) {
+        const pedestal = extensions.HAVEN_avatar_pedestal;
+        const image = pedestal.image !== undefined ? loadGLTFImage(resource, pedestal.image) : undefined;
+        addAvatarPedestal(loaderCtx.ctx, node, pedestal, resource.url, image);
+      }
+
+      if (extensions?.HAVEN_mirror) {
+        loadGLTFMirror(loaderCtx, node, extensions.HAVEN_mirror);
+      } else if (extensions?.MOZ_hubs_components?.mirror) {
+        addMirror(loaderCtx.ctx, node, { defaultState: "high" });
       }
 
       if (extensions?.MX_static) {
@@ -1462,7 +1533,7 @@ const GLTFAccessorTypeToAccessorType: { [key: string]: AccessorType } = {
   MAT4: AccessorType.MAT4,
 };
 
-const loadGLTFAccessor = createCachedSubresourceLoader(
+export const loadGLTFAccessor = createCachedSubresourceLoader(
   "accessor",
   (root) => root.accessors,
   (
@@ -1567,9 +1638,11 @@ const loadGLTFSkin = createInstancedSubresourceLoader(
     { name, inverseBindMatrices: inverseBindMatricesIndex, skeleton: skeletonIndex, joints: jointIndices },
     index
   ) => {
-    const inverseBindMatrices = inverseBindMatricesIndex
-      ? loadGLTFAccessor(loaderCtx.resource, inverseBindMatricesIndex)
-      : undefined;
+    // Buzzar: accessor index 0 is valid (upstream treated it as "no inverse bind matrices").
+    const inverseBindMatrices =
+      inverseBindMatricesIndex !== undefined
+        ? loadGLTFAccessor(loaderCtx.resource, inverseBindMatricesIndex)
+        : undefined;
 
     const joints = jointIndices.map((index) => {
       const joint = loaderCtx.nodeMap.get(index);

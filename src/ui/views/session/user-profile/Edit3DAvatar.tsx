@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+import { useAtomValue } from "jotai";
 
 import { Modal } from "../../../atoms/modal/Modal";
 import { ModalContent } from "../../../atoms/modal/ModalContent";
@@ -18,43 +19,109 @@ import { AutoFileUpload, AutoUploadInfo } from "../../components/AutoFileUpload"
 import { Label } from "../../../atoms/text/Label";
 import { Icon } from "../../../atoms/icon/Icon";
 import UploadIC from "../../../../../res/ic/upload.svg";
+import { worldAtom } from "../../../state/world";
+import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
+import {
+  AvatarContent,
+  BUILTIN_AVATARS,
+  BuiltinAvatar,
+  fetchProfileAvatar,
+  getBuiltinAvatarContent,
+  getSessionAuth,
+  setProfileAvatar,
+  setWorldAvatar,
+} from "../../../utils/avatarMatrix";
 
 interface Edit3DAvatarProps {
-  renderTrigger: (openModal: () => void) => ReactNode;
+  renderTrigger?: (openModal: () => void) => ReactNode;
+  /** Controlled mode (e.g. opened from a dropdown menu that unmounts). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function Edit3DAvatar({ renderTrigger }: Edit3DAvatarProps) {
-  const { session, profileRoom } = useHydrogen(true);
-  const [isOpen, setIsOpen] = useState(false);
+export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatarProps) {
+  const { session, profileRoom, client, platform } = useHydrogen(true);
+  const world = useAtomValue(worldAtom);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isOpen = open ?? uncontrolledOpen;
+  const setIsOpen = (value: boolean) => {
+    setUncontrolledOpen(value);
+    onOpenChange?.(value);
+  };
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
-
   const [avatarInfo, setAvatarInfo] = useState<AutoUploadInfo>({});
   const [previewInfo, setPreviewInfo] = useState<AutoUploadInfo>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>();
+  const inWorld = world.entered && !!world.worldId;
 
-  const saveChanges = () => {
-    if (!avatarInfo.mxc && !previewInfo.mxc) return;
-    const update = (avatarUrl: string, previewUrl: string) => {
-      session.hsApi.sendState(profileRoom.id, "org.matrix.msc3815.world.profile", "", {
-        avatar_url: avatarUrl,
-        avatar_preview_url: previewUrl,
-      });
+  /** Merge newly uploaded files with the current default avatar. */
+  const buildContent = async (): Promise<AvatarContent | undefined> => {
+    const auth = await getSessionAuth(platform, client.sessionId);
+    const current = auth ? await fetchProfileAvatar(auth, session.userId) : undefined;
+    const url = avatarInfo.mxc ?? current?.url;
+    if (!url) return undefined;
+    const name = avatarInfo.blob?.nativeBlob?.name as string | undefined;
+    return {
+      url,
+      preview_url: previewInfo.mxc ?? (avatarInfo.mxc ? undefined : current?.preview_url),
+      // Advisory only: the engine detects VRM 0.x/1.0 from the file itself.
+      format: avatarInfo.mxc ? (name?.toLowerCase().endsWith(".vrm") ? undefined : "glb") : current?.format,
+      name: name ?? current?.name,
     };
-    if (avatarInfo.mxc && previewInfo.mxc) {
-      update(avatarInfo.mxc, previewInfo.mxc);
-    } else {
-      profileRoom.getStateEvent("org.matrix.msc3815.world.profile").then((event) => {
-        const avatarUrl: string = event?.event.content.avatar_url;
-        const avatarPreviewUrl: string = event?.event.content.avatar_preview_url;
-        update(avatarInfo.mxc ?? avatarUrl, previewInfo.mxc ?? avatarPreviewUrl);
-      });
-    }
-    closeModal();
   };
+
+  /** `content` undefined = reset to the built-in default avatar. */
+  const apply = async (scope: "default" | "world", getContent: () => Promise<AvatarContent | undefined>) => {
+    setSaving(true);
+    setError(undefined);
+    try {
+      const auth = await getSessionAuth(platform, client.sessionId);
+      if (!auth) throw new Error("Not signed in");
+      const content = await getContent();
+
+      if (scope === "default") {
+        await setProfileAvatar(auth, session.userId, content);
+        // Keep Third Room's legacy (private) profile state in sync for compatibility, when that room exists.
+        if (profileRoom && content) {
+          await session.hsApi.sendState(profileRoom.id, "org.matrix.msc3815.world.profile", "", {
+            avatar_url: content.url,
+            avatar_preview_url: content.preview_url,
+          });
+        }
+      }
+      // Profile changes aren't pushed to other clients live, so also update the world we're in.
+      if (inWorld) {
+        await setWorldAvatar(auth, world.worldId!, session.userId, content);
+        refreshWorldAvatar(session.userId);
+      }
+      closeModal();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const save = (scope: "default" | "world") =>
+    apply(scope, async () => {
+      const content = await buildContent();
+      if (!content) throw new Error("Upload an avatar first");
+      return content;
+    });
+
+  const applyBuiltin = (avatar: BuiltinAvatar | undefined) =>
+    apply(inWorld ? "world" : "default", async () => {
+      if (!avatar) return undefined;
+      const auth = await getSessionAuth(platform, client.sessionId);
+      if (!auth) throw new Error("Not signed in");
+      return getBuiltinAvatarContent(auth, session.userId, avatar);
+    });
 
   return (
     <>
-      {renderTrigger(openModal)}
+      {renderTrigger?.(openModal)}
       <Modal open={isOpen} onOpenChange={setIsOpen}>
         <Content className="grow">
           <ModalContent
@@ -64,9 +131,30 @@ export function Edit3DAvatar({ renderTrigger }: Edit3DAvatarProps) {
                 children={
                   <Scroll>
                     <div className="Edit3DAvatar__content">
+                      <SettingTile className="grow basis-0" label={<Label>Built-in Avatars</Label>}>
+                        <div className="flex gap-xs items-center">
+                          <Button fill="outline" disabled={saving} onClick={() => applyBuiltin(undefined)}>
+                            Default
+                          </Button>
+                          {BUILTIN_AVATARS.map((avatar) => (
+                            <Button
+                              key={avatar.id}
+                              fill="outline"
+                              disabled={saving}
+                              onClick={() => applyBuiltin(avatar)}
+                            >
+                              {avatar.name}
+                            </Button>
+                          ))}
+                        </div>
+                        <Text variant="b3" color="surface-low">
+                          {inWorld ? "Switches your avatar in this world right away." : "Sets your default avatar."}{" "}
+                          Built-in avatars by Polygonal Mind (CC0).
+                        </Text>
+                      </SettingTile>
                       <SettingTile className="grow basis-0" label={<Label>Avatar</Label>}>
                         <AutoFileUpload
-                          mimeType=".glb"
+                          mimeType=".glb,.vrm"
                           onUploadInfo={setAvatarInfo}
                           renderButton={(pickFile) => (
                             <Button onClick={pickFile}>
@@ -99,9 +187,28 @@ export function Edit3DAvatar({ renderTrigger }: Edit3DAvatarProps) {
                       </Button>
                     }
                     right={
-                      <Button onClick={saveChanges} disabled={!avatarInfo.mxc && !previewInfo.mxc}>
-                        Save
-                      </Button>
+                      <div className="flex gap-xs items-center">
+                        {error && (
+                          <Text variant="b3" color="danger">
+                            {error}
+                          </Text>
+                        )}
+                        {inWorld && (
+                          <Button
+                            fill="outline"
+                            onClick={() => save("world")}
+                            disabled={saving || (!avatarInfo.mxc && !previewInfo.mxc)}
+                          >
+                            Use Only in This World
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => save("default")}
+                          disabled={saving || (!avatarInfo.mxc && !previewInfo.mxc)}
+                        >
+                          {saving ? "Saving..." : "Save as Default"}
+                        </Button>
+                      </div>
                     }
                   />
                 }

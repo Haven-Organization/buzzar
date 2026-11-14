@@ -1,6 +1,7 @@
 import { addComponent, defineQuery, exitQuery, hasComponent, Not, removeComponent } from "bitecs";
 import { mat4, quat, vec3 } from "gl-matrix";
 
+import { isAvatarLoading } from "../avatar/placeholder.game";
 import { FlyControls } from "../player/FlyCharacterController";
 import { addXRRaycaster } from "../../plugins/interaction/XRInteractionSystem";
 import { KinematicControls } from "../player/KinematicCharacterController";
@@ -206,7 +207,9 @@ export function WebXRAvatarRigSystem(ctx: GameContext) {
     const avatar = tryGetRemoteResource<RemoteNode>(ctx, avatarEid);
 
     // regular avatar is hidden for XR participants
-    avatar.visible = !(theirXRMode === XRMode.ImmersiveAR || theirXRMode === XRMode.ImmersiveVR);
+    // (Buzzar: stays hidden while their loading placeholder is shown.)
+    avatar.visible =
+      !(theirXRMode === XRMode.ImmersiveAR || theirXRMode === XRMode.ImmersiveVR) && !isAvatarLoading(node);
 
     // re-scale if the remote avatar is visible and we are AR
     if (avatar.visible && ourXRMode === XRMode.ImmersiveAR) {

@@ -15,15 +15,26 @@ function reportStatus(ctx: GameContext, status: { loaded: number; total: number 
   });
 }
 
-export async function fetchWithProgress(ctx: GameContext, url: string, options?: RequestInit): Promise<Response> {
+/**
+ * @param onProgress Buzzar: report progress to this callback instead of the world loading screen (e.g. for
+ *   avatar downloads, which have their own in-world progress bar).
+ */
+export async function fetchWithProgress(
+  ctx: GameContext,
+  url: string,
+  options?: RequestInit,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<Response> {
   const status = { loaded: 0, total: 0 };
+  const report = (s: { loaded: number; total: number }) =>
+    onProgress ? onProgress(s.loaded, s.total) : reportStatus(ctx, s);
 
   const response = await fetch(url, options);
   const contentLength = response.headers.get("content-length");
   const total = parseInt(contentLength || "0", 10);
 
   status.total = total;
-  reportStatus(ctx, status);
+  report(status);
 
   let loaded = 0;
 
@@ -37,7 +48,7 @@ export async function fetchWithProgress(ctx: GameContext, url: string, options?:
             if (done) break;
             loaded += value.byteLength;
             status.loaded = loaded;
-            reportStatus(ctx, status);
+            report(status);
             controller.enqueue(value);
           }
         controller.close();

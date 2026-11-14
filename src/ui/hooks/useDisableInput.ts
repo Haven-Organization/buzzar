@@ -35,9 +35,10 @@ export function useDisableInput(state = true) {
         inputModule.disableInputStack.splice(index, 1);
       }
 
-      if (inputModule.disableInputStack.length === 0 && !cameraRigModule.orbiting && mainThread.canvas.isConnected) {
-        mainThread.canvas.requestPointerLock();
-      }
+      // Buzzar: don't re-capture the pointer from code here. This runs after clicking UI buttons (overlay, world
+      // selection), and in Chromium a pointer lock taken that way left the page receiving no keyboard events
+      // until the window was refocused ("stuck, can't move"). The user clicks the world to capture it instead
+      // (WorldView shows a "Click to play" prompt).
     };
   }, [state, mainThread]);
 }

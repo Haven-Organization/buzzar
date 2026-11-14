@@ -53,6 +53,11 @@ import { WebSGNetworkModule } from "./network/scripting.game";
 import { WebSGUIModule } from "./ui/ui.game";
 import { PlayerModule } from "./player/Player.game";
 import { ActionBarSystem } from "../plugins/thirdroom/action-bar.game";
+import { MirrorSystem } from "../plugins/mirrors/mirrors.game";
+import { InteractableHighlightSystem } from "../plugins/interaction/highlight.game";
+import { AvatarPedestalModule, AvatarPedestalSystem } from "../plugins/avatar-pedestals/pedestals.game";
+import { AvatarModule, AvatarSystem } from "./avatar/avatar.game";
+import { AvatarPlaceholderSystem } from "./avatar/placeholder.game";
 import { EnableCharacterControllerSystem } from "./player/CharacterController";
 import { CameraRigSystem } from "./player/CameraRig";
 
@@ -75,6 +80,8 @@ export default defineConfig<GameContext>({
     InteractionModule,
     SpawnablesModule,
     NametagModule,
+    AvatarModule,
+    AvatarPedestalModule,
     WebSGNetworkModule,
     WebSGUIModule,
   ],
@@ -97,6 +104,9 @@ export default defineConfig<GameContext>({
     SetWebXRReferenceSpaceSystem,
     InteractionSystem,
     XRInteractionSystem,
+    InteractableHighlightSystem,
+    MirrorSystem,
+    AvatarPedestalSystem,
     ActionBarSystem,
     EnableCharacterControllerSystem,
 
@@ -108,6 +118,8 @@ export default defineConfig<GameContext>({
 
     ScriptingSystem,
 
+    AvatarSystem,
+    AvatarPlaceholderSystem,
     AnimationSystem,
 
     UpdateMatrixWorldSystem,

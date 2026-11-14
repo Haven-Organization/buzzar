@@ -75,9 +75,8 @@ export function useUserProfile(client: Client, session?: Session) {
             state_default: 100,
             events_default: 100,
             users_default: 0,
-            users: {
-              [session.userId]: 100,
-            },
+            // Buzzar: no `users` entry. The server already gives the creator PL 100, and room v12 (matrix.org's
+            // current default) rejects power levels that list a creator.
           },
         });
 

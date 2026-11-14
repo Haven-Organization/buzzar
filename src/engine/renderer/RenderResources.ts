@@ -41,6 +41,7 @@ import {
 import { PrimitiveObject3D, MeshPrimitiveAttributeToThreeAttribute } from "./mesh";
 import { getModule } from "../module/module.common";
 import { ReflectionProbe } from "./ReflectionProbe";
+import { Mirror } from "./Mirror";
 import { RendererModule, RenderContext } from "./renderer.render";
 import { removeUndefinedProperties } from "../utils/removeUndefinedProperties";
 import { RenderImageData, RenderImageDataType } from "./textures";
@@ -73,6 +74,7 @@ import {
   MeshResource,
   NodeResource,
   ReflectionProbeResource,
+  MirrorResource,
   SceneResource,
   SkinResource,
   TextureResource,
@@ -158,6 +160,8 @@ export class RenderReflectionProbe extends defineLocalResourceClass(ReflectionPr
   declare reflectionProbeTexture: RenderTexture | undefined;
   textureArrayIndex = 0;
 }
+
+export class RenderMirror extends defineLocalResourceClass(MirrorResource) {}
 
 export class RenderMaterial extends defineLocalResourceClass(MaterialResource) {
   declare baseColorTexture: RenderTexture | undefined;
@@ -672,6 +676,7 @@ export class RenderNode extends defineLocalResourceClass(NodeResource) {
   declare skin: RenderSkin | undefined;
   declare light: RenderLight | undefined;
   declare reflectionProbe: RenderReflectionProbe | undefined;
+  declare mirror: RenderMirror | undefined;
   declare camera: RenderCamera | undefined;
   declare audioEmitter: RenderAudioEmitter | undefined;
   declare tilesRenderer: RenderTilesRenderer | undefined;
@@ -694,6 +699,8 @@ export class RenderNode extends defineLocalResourceClass(NodeResource) {
   currentReflectionProbeResourceId = 0;
   currentUICanvasResourceId = 0;
   reflectionProbeObject?: ReflectionProbe;
+  currentMirrorResourceId = 0;
+  mirrorObject?: Mirror;
   object3DVisible = true;
   needsUpdate = true;
   object3DWorldMatrix = new Matrix4();
@@ -729,6 +736,12 @@ export class RenderNode extends defineLocalResourceClass(NodeResource) {
 
     if (this.reflectionProbeObject) {
       this.reflectionProbeObject.parent?.remove(this.reflectionProbeObject);
+    }
+
+    if (this.mirrorObject) {
+      this.mirrorObject.parent?.remove(this.mirrorObject);
+      this.mirrorObject.dispose();
+      this.mirrorObject = undefined;
     }
 
     if (this.tilesRendererObject) {
@@ -835,6 +848,7 @@ const {
   RenderInstancedMesh,
   RenderLightMap,
   RenderReflectionProbe,
+  RenderMirror,
   RenderTilesRenderer,
   RenderAnimation,
   RenderAnimationChannel,

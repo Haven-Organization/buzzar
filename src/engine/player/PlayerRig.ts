@@ -39,6 +39,7 @@ import { teleportEntity } from "../utils/teleportEntity";
 import { addCameraRig, CameraRigType } from "./CameraRig";
 import { SceneCharacterControllerComponent, CharacterControllerType } from "./CharacterController";
 import { AvatarRef } from "./components";
+import { applyAvatarLayers } from "./avatarLayers";
 import { embodyAvatar } from "./embodyAvatar";
 import { addFlyControls } from "./FlyCharacterController";
 import { addKinematicControls } from "./KinematicCharacterController";
@@ -59,7 +60,8 @@ export function registerPlayerPrefabs(ctx: GameContext) {
       const spawnPoints = spawnPointQuery(ctx.world);
 
       const container = new RemoteNode(ctx.resourceManager);
-      const rig = createNodeFromGLTFURI(ctx, "/gltf/full-animation-rig.glb");
+      const rig = createNodeFromGLTFURI(ctx, "/gltf/full-animation-rig.glb", applyAvatarLayers);
+      applyAvatarLayers(rig);
 
       addChild(container, rig);
 

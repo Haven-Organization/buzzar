@@ -1,0 +1,415 @@
+/**
+ * Buzzar: custom avatars (game worker).
+ *
+ * The main thread resolves which avatar each peer wants (Matrix member event / profile field, see
+ * src/ui/utils/avatars.ts) and sends SetPeerAvatar. This module loads the file, validates it (humanoid,
+ * within limits), retargets the built-in locomotion clips onto its skeleton and swaps it into the peer's
+ * player container. Anything that fails keeps the default avatar.
+ */
+import { removeComponent } from "bitecs";
+import { quat } from "gl-matrix";
+import { AnimationClip, Matrix4, Object3D, Quaternion, Vector3 } from "three";
+
+import { AnimationComponent } from "../animation/animation.game";
+import { addChild, removeChild } from "../component/transform";
+import { GameContext } from "../GameTypes";
+import {
+  GLTFLoaderContext,
+  GLTFLoaderOptions,
+  loadDefaultGLTFScene,
+  loadGLTF,
+  loadGLTFAccessor,
+} from "../gltf/gltf.game";
+import { getAccessorArrayView } from "../common/accessor";
+import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
+import { NetworkModule } from "../network/network.game";
+import { applyAvatarLayers, isAvatarHiddenFromMainCamera, setAvatarHiddenFromMainCamera } from "../player/avatarLayers";
+import { AvatarRef } from "../player/components";
+import { getCamera } from "../player/getCamera";
+import { getNametag } from "../player/nametags.game";
+import { ourPlayerQuery } from "../player/Player";
+import { RemoteNode } from "../resource/RemoteResources";
+import { getRemoteResource } from "../resource/resource.game";
+import {
+  AvatarStatusMessage,
+  AvatarStatusMessageType,
+  LOCAL_AVATAR_PEER,
+  SetPeerAvatarMessage,
+  SetPeerAvatarMessageType,
+} from "./avatar.common";
+import { checkAvatarLimits, computeAvatarStats, getHumanoidMapping, HumanoidMapping, HumanBone } from "./humanoid";
+import { applyBindPose, captureRestTransforms, estimateEyeHeight, retargetClip, RetargetRig } from "./retarget";
+import {
+  hideAvatarPlaceholder,
+  hideRigWhileLoading,
+  isAvatarLoading,
+  setAvatarPlaceholderProgress,
+  showAvatarPlaceholder,
+} from "./placeholder.game";
+
+export const DEFAULT_AVATAR_URL = "/gltf/full-animation-rig.glb";
+const NAMETAG_ABOVE_EYES = 0.35;
+/** Matches the default rig's camera anchor (AVATAR_HEIGHT - camera offset in PlayerRig.ts). */
+const DEFAULT_EYE_HEIGHT = 1.64;
+const MIN_EYE_HEIGHT = 0.2;
+const MAX_EYE_HEIGHT = 5;
+
+interface SourceRig {
+  rig: RetargetRig;
+  clips: AnimationClip[];
+}
+
+interface DesiredAvatar {
+  /** undefined = default avatar */
+  url?: string;
+  name?: string;
+}
+
+/** How long to show "Looking up avatar…" for a newly joined player before falling back to the default. */
+const LOOKUP_TIMEOUT_MS = 15_000;
+const ERROR_DISPLAY_MS = 4_000;
+
+interface AvatarModuleState {
+  /** peerId → avatar the main thread resolved for them */
+  desired: Map<string, DesiredAvatar>;
+  /** container → url currently applied or being loaded (undefined = default) */
+  applied: WeakMap<RemoteNode, string | undefined>;
+  /** containers with a swap in flight */
+  loading: WeakSet<RemoteNode>;
+  /** containers waiting for the main thread to resolve their avatar → since when */
+  lookupSince: WeakMap<RemoteNode, number>;
+  sourceRig?: Promise<SourceRig>;
+}
+
+export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
+  name: "avatar",
+  create() {
+    return { desired: new Map(), applied: new WeakMap(), loading: new WeakSet(), lookupSince: new WeakMap() };
+  },
+  init(ctx) {
+    return registerMessageHandler(ctx, SetPeerAvatarMessage, onSetPeerAvatar);
+  },
+});
+
+function onSetPeerAvatar(ctx: GameContext, message: SetPeerAvatarMessageType) {
+  getModule(ctx, AvatarModule).desired.set(message.peerId, { url: message.url, name: message.name });
+}
+
+/** The avatar URL currently shown (or loading) for a player container; undefined = default avatar. */
+export function getAppliedAvatarUrl(ctx: GameContext, container: RemoteNode): string | undefined {
+  return getModule(ctx, AvatarModule).applied.get(container);
+}
+
+function sendStatus(ctx: GameContext, status: Omit<AvatarStatusMessageType, "type">) {
+  ctx.sendMessage<AvatarStatusMessageType>(Thread.Main, { type: AvatarStatusMessage, ...status });
+}
+
+function findContainer(ctx: GameContext, peerId: string): RemoteNode | undefined {
+  const network = getModule(ctx, NetworkModule);
+  let eid = network.peerIdToEntityId.get(peerId);
+  if (eid === undefined && (peerId === LOCAL_AVATAR_PEER || peerId === network.peerId)) {
+    eid = ourPlayerQuery(ctx.world)[0];
+  }
+  if (eid === undefined) return undefined;
+  const node = getRemoteResource<RemoteNode>(ctx, eid);
+  return node && AvatarRef.eid[node.eid] ? node : undefined;
+}
+
+export function AvatarSystem(ctx: GameContext) {
+  const avatars = getModule(ctx, AvatarModule);
+  const network = getModule(ctx, NetworkModule);
+  const now = performance.now();
+
+  // Players whose avatar we haven't resolved yet (just joined): show the placeholder while we look it up.
+  for (const [peerId, eid] of network.peerIdToEntityId) {
+    if (avatars.desired.has(peerId)) continue;
+    const container = getRemoteResource<RemoteNode>(ctx, eid);
+    if (!container || !AvatarRef.eid[container.eid]) continue;
+    const since = avatars.lookupSince.get(container);
+    if (since === undefined) {
+      avatars.lookupSince.set(container, now);
+      showAvatarPlaceholder(ctx, container, "Loading avatar");
+      setAvatarPlaceholderProgress(container, undefined, "Looking up avatar…");
+    } else if (now - since > LOOKUP_TIMEOUT_MS && isAvatarLoading(container) && !avatars.loading.has(container)) {
+      hideAvatarPlaceholder(ctx, container); // give up and keep the default avatar
+    }
+  }
+
+  for (const [peerId, { url, name }] of avatars.desired) {
+    const container = findContainer(ctx, peerId);
+    if (!container) continue;
+    const current = avatars.applied.has(container) ? avatars.applied.get(container) : undefined;
+    if (current === url) {
+      // Resolved to what's already shown (e.g. the default avatar): drop a lookup placeholder.
+      if (!avatars.loading.has(container) && isAvatarLoading(container) && avatars.lookupSince.has(container)) {
+        avatars.lookupSince.delete(container);
+        hideAvatarPlaceholder(ctx, container);
+      }
+      continue;
+    }
+
+    avatars.applied.set(container, url);
+    avatars.loading.add(container);
+    avatars.lookupSince.delete(container);
+    swapAvatar(ctx, peerId, container, url, name)
+      .catch((error) => {
+        console.error(`Failed to load avatar for ${peerId}:`, error);
+        sendStatus(ctx, { peerId, url, status: "error", reason: String(error?.message ?? error) });
+        setAvatarPlaceholderProgress(container, undefined, "Couldn't load this avatar");
+        hideAvatarPlaceholder(ctx, container, ERROR_DISPLAY_MS);
+      })
+      .finally(() => {
+        if (avatars.applied.get(container) === url) avatars.loading.delete(container);
+      });
+  }
+}
+
+function loadIntoNode(
+  ctx: GameContext,
+  resource: Awaited<ReturnType<typeof loadGLTF>>,
+  options?: GLTFLoaderOptions
+): RemoteNode {
+  const node = new RemoteNode(ctx.resourceManager);
+  loadDefaultGLTFScene(ctx, resource, { ...options, existingNode: node });
+  return node;
+}
+
+// --- Rig building -------------------------------------------------------------------------------
+
+const Y180 = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
+
+function buildRetargetRig(
+  loaderCtx: GLTFLoaderContext,
+  rootObj: Object3D,
+  mapping: HumanoidMapping,
+  align: Quaternion
+): RetargetRig {
+  const bones = new Map<HumanBone, Object3D>();
+  for (const [bone, nodeIndex] of mapping.bones) {
+    const node = loaderCtx.nodeMap.get(nodeIndex);
+    const obj = node && loaderCtx.nodeToObject3D.get(node);
+    if (obj) bones.set(bone, obj);
+  }
+  const rest = captureRestTransforms(rootObj);
+  applyBindPose(rest, rootObj, getJointBindWorldMatrices(loaderCtx, rootObj));
+  return { root: rootObj, bones, rest, align };
+}
+
+/**
+ * Bind pose of every skin joint relative to the rig root.
+ *
+ * Per the glTF spec, bindWorld = meshWorld · IBM⁻¹. Some exporters (including the one that produced the
+ * built-in rig) write IBMs that ignore the mesh node's own transform, i.e. bindWorld = IBM⁻¹. Both appear in
+ * the wild, so for each skin we pick whichever interpretation puts the joints closest to their node
+ * positions (node rotations may be posed, but positions are close to the bind pose).
+ */
+function getJointBindWorldMatrices(loaderCtx: GLTFLoaderContext, rootObj: Object3D): Map<Object3D, Matrix4> {
+  const { root } = loaderCtx.resource;
+  const result = new Map<Object3D, Matrix4>();
+  const objectForNode = (index: number) => {
+    const node = loaderCtx.nodeMap.get(index);
+    return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
+  };
+
+  rootObj.updateMatrixWorld(true);
+  const rootInverse = new Matrix4().copy(rootObj.matrixWorld).invert();
+  const nodeWorld = (obj: Object3D) => new Matrix4().copy(rootInverse).multiply(obj.matrixWorld);
+  const position = new Vector3();
+  const nodePosition = new Vector3();
+
+  (root.skins ?? []).forEach((skin, skinIndex) => {
+    if (skin.inverseBindMatrices === undefined) return;
+    const meshNodeIndex = (root.nodes ?? []).findIndex((node) => node.skin === skinIndex);
+    const meshObj = meshNodeIndex >= 0 ? objectForNode(meshNodeIndex) : undefined;
+    const meshWorld = meshObj ? nodeWorld(meshObj) : new Matrix4();
+
+    const ibms = getAccessorArrayView(loadGLTFAccessor(loaderCtx.resource, skin.inverseBindMatrices)) as Float32Array;
+    const joints: { obj: Object3D; spec: Matrix4; worldSpace: Matrix4 }[] = [];
+    let specError = 0;
+    let worldSpaceError = 0;
+
+    skin.joints.forEach((jointIndex, j) => {
+      const obj = objectForNode(jointIndex);
+      if (!obj || result.has(obj)) return;
+      const inverseIbm = new Matrix4().fromArray(ibms, j * 16).invert();
+      const spec = meshWorld.clone().multiply(inverseIbm);
+      nodePosition.setFromMatrixPosition(nodeWorld(obj));
+      specError += position.setFromMatrixPosition(spec).distanceTo(nodePosition);
+      worldSpaceError += position.setFromMatrixPosition(inverseIbm).distanceTo(nodePosition);
+      joints.push({ obj, spec, worldSpace: inverseIbm });
+    });
+
+    const useSpec = specError <= worldSpaceError;
+    for (const joint of joints) result.set(joint.obj, useSpec ? joint.spec : joint.worldSpace);
+  });
+
+  return result;
+}
+
+/** Loads the built-in Mixamo rig once, keeping its clips + rest pose as the retargeting source. */
+function getSourceRig(ctx: GameContext): Promise<SourceRig> {
+  const avatars = getModule(ctx, AvatarModule);
+  if (!avatars.sourceRig) {
+    avatars.sourceRig = (async () => {
+      const resource = await loadGLTF(ctx, DEFAULT_AVATAR_URL);
+      const mapping = getHumanoidMapping(resource.root);
+      if (!mapping) throw new Error("default avatar has no humanoid rig");
+
+      let captured: SourceRig | undefined;
+      const template = loadIntoNode(ctx, resource, {
+        extraAnimationClips: (loaderCtx, rootObj, ownClips) => {
+          captured = { rig: buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion()), clips: ownClips };
+          return [];
+        },
+      });
+
+      // The template is never added to the world; stop the animation system from driving it.
+      template.visible = false;
+      removeComponent(ctx.world, AnimationComponent, template.eid);
+
+      if (!captured) throw new Error("default avatar animations were not built");
+      return captured;
+    })();
+  }
+  return avatars.sourceRig;
+}
+
+// --- Swapping ------------------------------------------------------------------------------------
+
+type LoadProgress = (progress: number | undefined, status: string) => void;
+
+async function loadCustomAvatar(
+  ctx: GameContext,
+  url: string,
+  onProgress?: LoadProgress
+): Promise<{ rig: RemoteNode; eyeHeight?: number }> {
+  const source = await getSourceRig(ctx);
+  onProgress?.(0, "Downloading…");
+  const resource = await loadGLTF(ctx, url, {
+    onProgress: (loaded, total) =>
+      onProgress?.(
+        total > 0 ? loaded / total : undefined,
+        total > 0
+          ? `Downloading ${Math.round((loaded / total) * 100)}% (${(total / 1048576).toFixed(1)} MB)`
+          : `Downloading ${(loaded / 1048576).toFixed(1)} MB`
+      ),
+  });
+  onProgress?.(1, "Preparing avatar…");
+  // Let a frame go out so the "Preparing" stage is visible before the (blocking) parse + retarget.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  let fileBytes = 0;
+  for (const buffer of resource.buffers.values()) fileBytes += buffer.byteLength;
+  const reasons = checkAvatarLimits(computeAvatarStats(resource.root, fileBytes));
+  if (reasons.length > 0) throw new AvatarRejectedError(`over limits: ${reasons.join(", ")}`);
+
+  const mapping = getHumanoidMapping(resource.root);
+  if (!mapping) throw new AvatarRejectedError("not a humanoid avatar (no VRM, Mixamo or CATS bone names found)");
+
+  let eyeHeight: number | undefined;
+  const rig = loadIntoNode(ctx, resource, {
+    extraAnimationClips: (loaderCtx, rootObj) => {
+      const target = buildRetargetRig(loaderCtx, rootObj, mapping, mapping.facesNegativeZ ? Y180 : new Quaternion());
+      eyeHeight = estimateEyeHeight({ ...target, align: new Quaternion() });
+      return source.clips.map((clip) => retargetClip(clip, source.rig, target));
+    },
+  });
+
+  // Mixamo / VRM 1.0 face +Z and need turning to face the player's forward (-Z); VRM 0.x already faces -Z.
+  if (!mapping.facesNegativeZ) quat.fromEuler(rig.quaternion, 0, 180, 0);
+
+  return { rig, eyeHeight };
+}
+
+export class AvatarRejectedError extends Error {}
+
+/**
+ * Loads an avatar (or the built-in default when `url` is undefined) as a rig node facing -Z, with retargeted
+ * locomotion clips. Throws AvatarRejectedError for files that aren't usable avatars.
+ */
+export async function loadAvatarRig(
+  ctx: GameContext,
+  url: string | undefined,
+  onProgress?: LoadProgress
+): Promise<{ rig: RemoteNode; eyeHeight?: number }> {
+  if (url) return loadCustomAvatar(ctx, url, onProgress);
+  const resource = await loadGLTF(ctx, DEFAULT_AVATAR_URL);
+  const rig = loadIntoNode(ctx, resource);
+  quat.fromEuler(rig.quaternion, 0, 180, 0);
+  return { rig, eyeHeight: DEFAULT_EYE_HEIGHT };
+}
+
+async function swapAvatar(
+  ctx: GameContext,
+  peerId: string,
+  container: RemoteNode,
+  url: string | undefined,
+  name: string | undefined
+) {
+  const avatars = getModule(ctx, AvatarModule);
+  const stillWanted = () =>
+    avatars.applied.get(container) === url && getRemoteResource(ctx, container.eid) === container;
+
+  if (url) {
+    showAvatarPlaceholder(ctx, container, name ? `Loading ${name}` : "Loading avatar");
+  }
+  const onProgress: LoadProgress = (progress, status) => {
+    if (stillWanted()) setAvatarPlaceholderProgress(container, progress, status);
+  };
+
+  let rig: RemoteNode;
+  let eyeHeight: number | undefined;
+
+  try {
+    ({ rig, eyeHeight } = await loadAvatarRig(ctx, url, onProgress));
+  } catch (error) {
+    if (error instanceof AvatarRejectedError) {
+      sendStatus(ctx, { peerId, url, status: "rejected", reason: error.message });
+      if (stillWanted()) {
+        setAvatarPlaceholderProgress(container, undefined, `Avatar hidden: ${error.message}`);
+        hideAvatarPlaceholder(ctx, container, ERROR_DISPLAY_MS);
+      }
+      return;
+    }
+    throw error;
+  }
+
+  // The world may have changed (or they switched again) while we were loading.
+  if (!stillWanted()) return;
+
+  const oldRig = getRemoteResource<RemoteNode>(ctx, AvatarRef.eid[container.eid]);
+  const hidden = oldRig ? isAvatarHiddenFromMainCamera(oldRig) : false;
+
+  addChild(container, rig);
+  AvatarRef.eid[container.eid] = rig.eid;
+  if (oldRig) {
+    rig.visible = oldRig.visible;
+    removeChild(container, oldRig);
+  }
+  setAvatarHiddenFromMainCamera(rig, hidden);
+  applyAvatarLayers(rig);
+
+  applyEyeHeight(ctx, container, eyeHeight);
+  hideRigWhileLoading(container, rig);
+  hideAvatarPlaceholder(ctx, container);
+
+  sendStatus(ctx, { peerId, url, status: "loaded" });
+}
+
+function applyEyeHeight(ctx: GameContext, container: RemoteNode, eyeHeight: number | undefined) {
+  if (eyeHeight === undefined || !Number.isFinite(eyeHeight)) return;
+  const height = Math.min(Math.max(eyeHeight, MIN_EYE_HEIGHT), MAX_EYE_HEIGHT);
+
+  try {
+    const anchor = getCamera(ctx, container).parent;
+    if (anchor) anchor.position[1] = height;
+  } catch {
+    // remote players have no camera
+  }
+
+  try {
+    getNametag(ctx, container).position[1] = height + NAMETAG_ABOVE_EYES;
+  } catch {
+    // our own player has no nametag
+  }
+}

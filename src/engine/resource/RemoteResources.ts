@@ -16,6 +16,7 @@ import {
   ImageResource,
   TextureResource,
   ReflectionProbeResource,
+  MirrorResource,
   MaterialResource,
   LightResource,
   CameraResource,
@@ -81,6 +82,8 @@ export class RemoteTexture extends defineRemoteResourceClass(TextureResource) {
 export class RemoteReflectionProbe extends defineRemoteResourceClass(ReflectionProbeResource) {
   declare reflectionProbeTexture: RemoteTexture | undefined;
 }
+
+export class RemoteMirror extends defineRemoteResourceClass(MirrorResource) {}
 
 export class RemoteMaterial extends defineRemoteResourceClass(MaterialResource) {
   declare baseColorTexture: RemoteTexture | undefined;
@@ -199,6 +202,7 @@ export class RemoteNode extends defineRemoteResourceClass(NodeResource) {
   declare skin: RemoteSkin | undefined;
   declare light: RemoteLight | undefined;
   declare reflectionProbe: RemoteReflectionProbe | undefined;
+  declare mirror: RemoteMirror | undefined;
   declare camera: RemoteCamera | undefined;
   declare audioEmitter: RemoteAudioEmitter | undefined;
   declare tilesRenderer: RemoteTilesRenderer | undefined;

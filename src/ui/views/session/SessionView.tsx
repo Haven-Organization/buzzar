@@ -20,7 +20,6 @@ import { overlayVisibilityAtom } from "../../state/overlayVisibility";
 import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
 import { useAccountManagementAction, useLandingPageAction, useUserProfileAction } from "./cmd-panel/actions";
 import { editorEnabledAtom } from "../../state/editor";
-import { WhatsNew } from "./whats-new/WhatsNew";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 
 function RegisterKBarActions() {
@@ -66,7 +65,7 @@ export default function SessionView() {
               {overlayVisible && <Overlay />}
               {!editorEnabled && <StatusBar />}
               <FirefoxPerfAlert />
-              <WhatsNew />
+              {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}
             </MainThreadContextProvider>
           ) : (
             <LoadingScreen message="Initializing engine..." />

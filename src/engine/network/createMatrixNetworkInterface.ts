@@ -15,6 +15,7 @@ import { setLocalMediaStream } from "../audio/audio.main";
 import { MainContext } from "../MainThread";
 import { addPeer, disconnect, hasPeer, removePeer, setHost } from "./network.main";
 import { getRoomCall } from "../../ui/utils/matrixUtils";
+import { startAvatarSync } from "../avatar/avatar.main";
 
 export interface MatrixNetworkInterface {
   dispose: () => void;
@@ -96,6 +97,9 @@ export async function createMatrixNetworkInterface(
 
   const initialHostId = await getInitialHost(groupCall, userId);
   await joinWorld(groupCall, userId, initialHostId === userId);
+
+  // Buzzar: resolve custom avatars for us and every peer in the call.
+  const avatarSync = startAvatarSync(ctx, { session, platform, sessionId: client.sessionId, world, groupCall });
 
   function getInitialHost(groupCall: GroupCall, userId: string): Promise<string> {
     // Of the all group call members find the one whose member event is oldest
@@ -204,6 +208,7 @@ export async function createMatrixNetworkInterface(
 
   return {
     dispose: () => {
+      avatarSync.dispose();
       disconnect(ctx);
 
       exitWorld(ctx);

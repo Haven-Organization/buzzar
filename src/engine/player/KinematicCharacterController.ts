@@ -7,7 +7,7 @@ import { GameContext } from "../GameTypes";
 import { enableActionMap } from "../input/ActionMappingSystem";
 import { ActionMap, ActionState, ActionType, BindingType, ButtonActionState } from "../input/ActionMap";
 import { InputModule } from "../input/input.game";
-import { defineModule, getModule } from "../module/module.common";
+import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { PhysicsModule, PhysicsModuleState } from "../physics/physics.game";
 import { tryGetRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
@@ -101,6 +101,8 @@ export const KinematicCharacterControllerModule = defineModule<GameContext, Kine
   init(ctx) {
     const input = getModule(ctx, InputModule);
     enableActionMap(input, KinematicCharacterControllerActionMap);
+    // Buzzar debug: `thirdroom.playerDebug()` in the console logs the local player's movement state.
+    return registerMessageHandler(ctx, PlayerDebugMessage, () => logPlayerDebug(ctx));
   },
 });
 
@@ -204,12 +206,21 @@ export function updateKinematicControls(
   _acceleration.y = physicsWorld.gravity.y * 1.5;
 
   // TODO: Check to see if velocity matches orientation before sliding
-  if (crouch.pressed && speed > minSlideSpeed && isGrounded && !isSliding && ctx.dt > lastSlideTime + slideCooldown) {
+  // Buzzar: upstream compared ctx.dt (seconds per frame) with a timestamp (ms), so sliding could only start on a
+  // >1 s frame hitch (e.g. while a world/avatar loads) and then never time out, only ending on releasing crouch.
+  const nowSeconds = ctx.elapsed / 1000;
+  if (
+    crouch.pressed &&
+    speed > minSlideSpeed &&
+    isGrounded &&
+    !isSliding &&
+    nowSeconds > lastSlideTime + slideCooldown
+  ) {
     _slideForce.set(0, 0, (speed + 1) * -slideModifier).applyQuaternion(_q);
     _acceleration.add(_slideForce);
     isSliding = true;
-    lastSlideTime = ctx.elapsed;
-  } else if (crouch.released || ctx.dt > lastSlideTime + slideCooldown) {
+    lastSlideTime = nowSeconds;
+  } else if (crouch.released || nowSeconds > lastSlideTime + slideCooldown) {
     isSliding = false;
   }
 
@@ -279,8 +290,11 @@ export function updateKinematicControls(
 }
 
 function createCharacterController(physics: PhysicsModuleState, eid: number) {
+  // New player rig (world load / respawn): don't inherit slide state from the previous one.
+  isSliding = false;
   const characterController = physics.physicsWorld.createCharacterController(0.01);
-  characterController.enableAutostep(0.1, 0.1, true);
+  // Buzzar: step up to 30 cm (kerbs, stairs) instead of 10 cm, which left players stuck on UK City kerbs.
+  characterController.enableAutostep(0.3, 0.05, true);
   characterController.enableSnapToGround(0.1);
   characterController.setCharacterMass(100);
   characterController.setApplyImpulsesToDynamicBodies(true);
@@ -315,3 +329,52 @@ export const KinematicCharacterControllerSystem = (ctx: GameContext) => {
     updateKinematicControls(ctx, physics, input.actionStates, node, body);
   }
 };
+
+/** Buzzar debug: main thread asks the game worker to log the local player's movement state. */
+export const PlayerDebugMessage = "software.haven.debug.player";
+export const PlayerDebugResultMessage = "software.haven.debug.player.result";
+
+function logPlayerDebug(ctx: GameContext) {
+  const physics = getModule(ctx, PhysicsModule);
+  const input = getModule(ctx, InputModule);
+  const rigs = kinematicControlsQuery(ctx.world);
+  const moveVec = input.actionStates.get(KinematicCharacterControllerActions.Move) as Float32Array | undefined;
+  for (let i = 0; i < rigs.length; i++) {
+    const node = tryGetRemoteResource<RemoteNode>(ctx, rigs[i]);
+    const body = node.physicsBody?.body;
+    const controller = physics.eidTocharacterController.get(node.eid);
+    const collisions: string[] = [];
+    if (controller) {
+      for (let c = 0; c < controller.numComputedCollisions(); c++) {
+        const hit = controller.computedCollision(c);
+        const eid = hit?.collider ? physics.handleToEid.get(hit.collider.handle) : undefined;
+        const other = eid ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
+        collisions.push(other?.name ?? `collider ${hit?.collider?.handle}`);
+      }
+    }
+    const data = {
+      eid: node.eid,
+      position: Array.from(node.position).map((v) => +v.toFixed(3)),
+      bodyTranslation: body ? Object.values(body.translation()).map((v) => +(v as number).toFixed(3)) : null,
+      bodyType: body?.bodyType(),
+      linvel: body ? Object.values(body.linvel()).map((v) => +(v as number).toFixed(3)) : null,
+      moveVec: moveVec ? Array.from(moveVec) : null,
+      grounded: controller?.computedGrounded(),
+      hasController: !!controller,
+      isSliding,
+      collisions,
+      // Keys/buttons the game currently believes are held.
+      heldRaw: Object.entries(input.raw)
+        .filter(
+          ([path, value]) => value && (path.startsWith("Keyboard/") || path === "Mouse/Left" || path === "Mouse/Right")
+        )
+        .map(([path]) => path),
+    };
+    console.info("[player-debug] " + JSON.stringify(data));
+    ctx.sendMessage(Thread.Main, { type: PlayerDebugResultMessage, data });
+  }
+  if (rigs.length === 0) {
+    console.info("[player-debug] no kinematic player rig (fly mode?)");
+    ctx.sendMessage(Thread.Main, { type: PlayerDebugResultMessage, data: { noRig: true } });
+  }
+}

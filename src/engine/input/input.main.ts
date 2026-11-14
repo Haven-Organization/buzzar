@@ -1,6 +1,8 @@
+import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
 import { MainContext } from "../MainThread";
-import { defineModule, getModule, Thread } from "../module/module.common";
+import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { codeToKeyCode } from "./KeyCodes";
+import { getStats } from "../stats/stats.main";
 import { PlayerModule } from "../player/Player.main";
 import { InitializeInputStateMessage, InputComponentId, InputMessageType, InputSourceId } from "./input.common";
 import { enqueueInputRingBuffer, InputRingBuffer } from "../common/InputRingBuffer";
@@ -41,6 +43,122 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     const { canvas } = ctx;
 
     const lastKeyMap: { [key: string]: boolean } = {};
+    const debugCounts = { keyDown: 0, keyEnqueued: 0, dropped: { disabled: 0, notLocked: 0 } };
+
+    registerThirdroomGlobalFn("playerDebug", () =>
+      ctx.sendMessage(Thread.Game, { type: "software.haven.debug.player" })
+    );
+
+    // Buzzar debug: movement/focus tracing. Enable with `?debugMovement=1` in the URL (persists; `=0` turns it
+    // off). Logs raw keyboard/focus/pointer-lock events plus input + player state every 2 s to the console and,
+    // under `vite dev`, to `.buzzar-debug.log` in the project (see src/vite/debug-log.ts).
+    let debugMovement = false;
+    try {
+      const param = new URLSearchParams(location.search).get("debugMovement");
+      if (param === "1") localStorage.setItem("software.haven.debug.movement", "1");
+      if (param === "0") localStorage.removeItem("software.haven.debug.movement");
+      debugMovement = localStorage.getItem("software.haven.debug.movement") === "1";
+    } catch {
+      // storage unavailable
+    }
+    const debugDisposers: (() => void)[] = [];
+    if (debugMovement) {
+      const buffer: string[] = [];
+      const t0 = Date.now();
+      const log = (kind: string, data: object) => {
+        const line = JSON.stringify({ t: Date.now() - t0, kind, ...data });
+        console.info(`[movement-debug] ${line}`);
+        buffer.push(line);
+      };
+      const describe = (target: EventTarget | null) =>
+        target instanceof Element
+          ? `${target.tagName}${target.id ? "#" + target.id : ""}${
+              target.className ? "." + String(target.className).split(" ")[0] : ""
+            }`
+          : target === window
+          ? "window"
+          : target === document
+          ? "document"
+          : String(target);
+      const onAny = (event: Event) => {
+        const e = event as KeyboardEvent & MouseEvent;
+        log(event.type, {
+          target: describe(event.target),
+          code: e.code,
+          repeat: e.repeat,
+          button: e.button,
+          active: describe(document.activeElement),
+          locked: document.pointerLockElement === canvas,
+          hasFocus: document.hasFocus(),
+        });
+      };
+      const types = [
+        "keydown",
+        "keyup",
+        "focus",
+        "blur",
+        "focusin",
+        "focusout",
+        "mousedown",
+        "pointerlockchange",
+        "pointerlockerror",
+        "visibilitychange",
+      ];
+      for (const type of types) {
+        const target = type.startsWith("pointerlock") || type === "visibilitychange" ? document : window;
+        target.addEventListener(type, onAny, true);
+        debugDisposers.push(() => target.removeEventListener(type, onAny, true));
+      }
+      log("start", { url: location.href, userAgent: navigator.userAgent });
+
+      const unregister = registerMessageHandler(ctx, "software.haven.debug.player.result", (_, message: any) =>
+        log("player", message.data)
+      );
+      debugDisposers.push(unregister);
+
+      const timer = window.setInterval(() => {
+        log("state", {
+          locked: document.pointerLockElement === canvas,
+          active: describe(document.activeElement),
+          hasFocus: document.hasFocus(),
+          visibility: document.visibilityState,
+          stack: inputModule.disableInputStack.length,
+          heldKeys: Object.keys(lastKeyMap).filter((k) => lastKeyMap[k]),
+          counts: debugCounts,
+        });
+        try {
+          const stats = getStats(ctx);
+          log("perf", {
+            fps: stats.fps,
+            frameMs: stats.frameDuration,
+            gameMs: stats.gameDuration,
+            gameTime: stats.gameTime,
+            staleFrames: stats.staleFrames,
+            drawCalls: stats.drawCalls,
+            triangles: stats.triangles,
+            textures: stats.textures,
+          });
+        } catch {
+          // stats not ready yet
+        }
+        ctx.sendMessage(Thread.Game, { type: "software.haven.debug.player" });
+        if (buffer.length) {
+          const body = buffer.splice(0).join("\n");
+          fetch("/__buzzar/debug-log", { method: "POST", body, keepalive: true }).catch(() => {});
+        }
+      }, 2000);
+      debugDisposers.push(() => window.clearInterval(timer));
+    }
+
+    // Buzzar debug helper: `thirdroom.inputState()` in the console.
+    registerThirdroomGlobalFn("inputState", () => ({
+      disableInputStack: [...inputModule.disableInputStack],
+      pointerLocked: document.pointerLockElement === canvas,
+      orbiting: camRigModule.orbiting,
+      activeElement: document.activeElement?.tagName,
+      heldKeys: Object.keys(lastKeyMap).filter((k) => lastKeyMap[k]),
+      counts: debugCounts,
+    }));
 
     function enqueue(
       inputSourceId: number,
@@ -52,7 +170,19 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       wAxis: number,
       state: number
     ) {
+      // Buzzar: always deliver releases. Dropping a key-up / mouse-up while the pointer wasn't locked (loading,
+      // overlay, before the first click) left the game thinking the key was still held — e.g. a phantom "S"
+      // cancelling W — until a window blur reset everything. A release can never cause unwanted input.
+      const isRelease =
+        (inputSourceId === InputSourceId.Keyboard && componentId === InputComponentId.KeyboardButton && button === 0) ||
+        (inputSourceId === InputSourceId.Mouse && componentId === InputComponentId.MouseButtons && state === 0);
+      if (isRelease) {
+        forceEnqueue(inputSourceId, componentId, button, xAxis, yAxis, zAxis, wAxis, state);
+        return;
+      }
+
       if (inputModule.disableInputStack.length > 0) {
+        if (inputSourceId === InputSourceId.Keyboard) debugCounts.dropped.disabled++;
         return;
       }
 
@@ -69,8 +199,10 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       }
 
       if (!pointerLocked && !orbiting) {
+        if (inputSourceId === InputSourceId.Keyboard) debugCounts.dropped.notLocked++;
         return;
       }
+      if (inputSourceId === InputSourceId.Keyboard) debugCounts.keyEnqueued++;
 
       if (!enqueueInputRingBuffer(irb, inputSourceId, componentId, button, xAxis, yAxis, zAxis, wAxis, state)) {
         console.warn("input ring buffer full");
@@ -112,6 +244,7 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     }
 
     function onKeyDown({ code }: KeyboardEvent) {
+      debugCounts.keyDown++;
       if (lastKeyMap[code]) return;
       lastKeyMap[code] = true;
 
@@ -142,6 +275,15 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     function onPointerLockChange() {
       if (document.pointerLockElement !== canvas) {
         resetAllInputs();
+      } else {
+        // Buzzar: on gaining the pointer, start from a clean slate: release every key the game might think is held
+        // (anything stuck from before — a dropped key-up, or a key-up that never reached the page because of
+        // Alt-Tab or a navigation). Keys physically held now just need pressing again.
+        for (const code in lastKeyMap) {
+          lastKeyMap[code] = false;
+          forceEnqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(code));
+        }
+        forceEnqueue(InputSourceId.Mouse, InputComponentId.MouseButtons, 0, 0, 0, 0, 0, 0);
       }
     }
 
@@ -157,7 +299,20 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
 
     document.addEventListener("pointerlockchange", onPointerLockChange);
 
+    if (debugMovement) {
+      console.info("[movement-debug] input listeners attached");
+    }
+
     return () => {
+      if (debugMovement) {
+        // A dispose without a fresh init would leave the page deaf to the keyboard; make that visible.
+        fetch("/__buzzar/debug-log", {
+          method: "POST",
+          body: JSON.stringify({ t: Date.now(), kind: "input-module-disposed" }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+      for (const dispose of debugDisposers) dispose();
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("mouseleave", onMouseLeave);

@@ -261,6 +261,8 @@ const MAX_FOCUS_DISTANCE = 3.3;
 const MIN_HELD_DISTANCE = 1.5;
 const MAX_HELD_DISTANCE = 8;
 export const GRAB_DISTANCE = 3.3;
+/** Buzzar: how close (metres) you must be to focus/press an interactable (~arm's length plus a step). */
+export const INTERACTION_DISTANCE = 3;
 const HELD_MOVE_SPEED = 10;
 const THROW_FORCE = 10;
 
@@ -446,9 +448,11 @@ function hitscan(physics: PhysicsModuleState, node: RemoteNode, collisionGroup: 
   const worldMatrix = node.worldMatrix;
   getRotationNoAlloc(_worldQuat, worldMatrix);
 
+  // Buzzar: cast with a unit direction and maxToi = distance so `hit.toi` is in metres. Upstream scaled the
+  // direction by `distance` and used maxToi 10, so the cast reached 10× too far and every
+  // `toi <= interactionDistance` check compared a time factor rather than metres.
   const target = vec3.set(_target, 0, 0, -1);
   vec3.transformQuat(target, target, _worldQuat);
-  vec3.scale(target, target, distance);
 
   const source = mat4.getTranslation(_source, worldMatrix);
 
@@ -462,7 +466,7 @@ function hitscan(physics: PhysicsModuleState, node: RemoteNode, collisionGroup: 
     shapeCastRotation,
     t,
     colliderShape,
-    10.0,
+    distance,
     true,
     0,
     collisionGroup
@@ -904,7 +908,8 @@ export function addInteractableComponent(
   const eid = node.eid;
   addComponent(ctx.world, Interactable, eid);
   Interactable.type[eid] = interactableType;
-  Interactable.interactionDistance[eid] = interactableType === InteractableType.Interactable ? 10 : 1;
+  // Metres. Focus (highlight + key prompt) and presses only happen within this distance.
+  Interactable.interactionDistance[eid] = INTERACTION_DISTANCE;
 
   node.interactable = new RemoteInteractable(ctx.resourceManager, { type: interactableType });
 
@@ -950,4 +955,11 @@ export function removeInteractableComponent(ctx: GameContext, physics: PhysicsMo
 
     collider.setCollisionGroups(collisionGroups);
   }
+}
+
+/** Buzzar: the entity our own player is currently pointing at (0 = nothing). Used for hover highlights. */
+export function getOurFocusedEntity(ctx: GameContext): number {
+  const rigEid = ourPlayerQuery(ctx.world)[0];
+  if (!rigEid || !hasComponent(ctx.world, FocusComponent, rigEid)) return 0;
+  return FocusComponent.focusedEntity[rigEid];
 }

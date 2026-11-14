@@ -70,6 +70,7 @@ export enum ResourceType {
   UIElement,
   Collider,
   PhysicsBody,
+  Mirror,
 }
 
 export enum QueryModifier {
@@ -229,6 +230,32 @@ export const ReflectionProbeResource = defineResource("reflection-probe", Resour
   name: PropType.string({ default: "ReflectionProbe", script: true }),
   reflectionProbeTexture: PropType.ref(TextureResource, { script: true, mutable: false }),
   size: PropType.vec3({ script: true }),
+});
+
+/**
+ * Buzzar: planar mirror (glTF `HAVEN_mirror`).
+ * `state` is local to each user (VRChat convention): toggling a mirror never changes it for other people.
+ */
+export enum MirrorState {
+  Off,
+  /** Reflects avatars only (no world geometry) — cheap. */
+  Low,
+  /** Reflects everything. */
+  High,
+}
+
+export const MirrorResource = defineResource("mirror", ResourceType.Mirror, {
+  name: PropType.string({ default: "Mirror", script: true }),
+  /** Plane size in the node's local XY plane; the mirror faces local +Z. */
+  width: PropType.f32({ default: 1, script: true }),
+  height: PropType.f32({ default: 1, script: true }),
+  state: PropType.enum(MirrorState, { default: MirrorState.Off, script: true }),
+  /** Multiplier on the viewport resolution for the reflection render target. */
+  resolutionScale: PropType.f32({ default: 1, script: true }),
+  /** Beyond this distance (metres) from the viewer, the reflection isn't rendered. */
+  maxDistance: PropType.f32({ default: 30, script: true }),
+  /** Background colour used by Low quality (avatars-only) reflections. */
+  backgroundColor: PropType.rgb({ default: [0.1, 0.1, 0.12], script: true }),
 });
 
 export enum MaterialAlphaMode {
@@ -695,6 +722,7 @@ export const NodeResource = defineResource("node", ResourceType.Node, {
   skin: PropType.ref(SkinResource, { script: true }),
   light: PropType.ref(LightResource, { script: true }),
   reflectionProbe: PropType.ref(ReflectionProbeResource, { script: true }),
+  mirror: PropType.ref(MirrorResource, { script: true }),
   camera: PropType.ref(CameraResource, { script: true }),
   audioEmitter: PropType.ref(AudioEmitterResource, { script: true }),
   tilesRenderer: PropType.ref(TilesRendererResource, { script: true }),

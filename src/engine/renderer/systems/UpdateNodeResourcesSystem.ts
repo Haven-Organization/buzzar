@@ -45,6 +45,8 @@ import { MatrixMaterial } from "../materials/MatrixMaterial";
 import { MeshPrimitiveAttributeToThreeAttribute, PrimitiveObject3D } from "../mesh";
 import { setTransformFromNode, updateTransformFromNode } from "../node";
 import { ReflectionProbe } from "../ReflectionProbe";
+import { Mirror } from "../Mirror";
+import { Layer } from "../../common/Layers";
 import { RenderContext, RendererModule } from "../renderer.render";
 
 export function UpdateNodeResourcesSystem(ctx: RenderContext) {
@@ -59,6 +61,12 @@ export function UpdateNodeResourcesSystem(ctx: RenderContext) {
 
     if (forceUpdate) {
       node.needsUpdate = true;
+    }
+
+    // Mirror on/off/quality lives on the mirror resource (local per-user state), so it must be applied
+    // even for static nodes that otherwise skip updates.
+    if (node.mirror || node.mirrorObject) {
+      updateNodeMirror(ctx, scene, node);
     }
 
     const needsUpdate = node.needsUpdate || !node.isStatic;
@@ -253,6 +261,8 @@ function updateNodeLight(ctx: RenderContext, scene: Scene, node: RenderNode) {
 
   if (light) {
     updateTransformFromNode(ctx, node, light);
+    // three.js only applies lights whose layers match the camera; avatars-only mirrors still need lighting.
+    light.layers.enable(Layer.Lights);
   }
 
   node.lightObject = light;
@@ -280,6 +290,29 @@ function updateNodeReflectionProbe(ctx: RenderContext, scene: Scene, node: Rende
   }
 
   node.reflectionProbeObject.update(ctx, node);
+}
+
+function updateNodeMirror(ctx: RenderContext, scene: Scene, node: RenderNode) {
+  const nextMirrorResourceId = node.mirror?.eid || 0;
+
+  if (nextMirrorResourceId !== node.currentMirrorResourceId && node.mirrorObject) {
+    scene.remove(node.mirrorObject);
+    node.mirrorObject.dispose();
+    node.mirrorObject = undefined;
+  }
+
+  node.currentMirrorResourceId = nextMirrorResourceId;
+
+  if (!node.mirror) {
+    return;
+  }
+
+  if (!node.mirrorObject) {
+    node.mirrorObject = new Mirror(node.mirror);
+    scene.add(node.mirrorObject);
+  }
+
+  node.mirrorObject.update(ctx, node);
 }
 
 function updateNodeMesh(ctx: RenderContext, node: RenderNode) {

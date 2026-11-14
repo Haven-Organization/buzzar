@@ -7,6 +7,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import path from "path";
 
 import { mpaRouter } from "./src/vite/mpa-router";
+import { buzzarDebugLog } from "./src/vite/debug-log";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -18,6 +19,7 @@ export default defineConfig({
   },
   plugins: [
     mpaRouter(),
+    buzzarDebugLog(),
     react(),
     crossOriginIsolation(),
     serviceWorkerPlugin({

@@ -71,3 +71,16 @@
 .WorldView__toast--shown {
   opacity: 1;
 }
+
+/* Buzzar: shown while the pointer isn't captured; clicks pass through to the canvas. */
+.WorldView__click-to-play {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-xs) var(--sp-md);
+  border-radius: var(--br-lg);
+  background-color: rgb(0 0 0 / 55%);
+  pointer-events: none;
+  z-index: 1;
+}

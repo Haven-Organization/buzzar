@@ -15,8 +15,7 @@ import { Button } from "../../atoms/button/Button";
 import { Label } from "../../atoms/text/Label";
 import { SettingTile } from "../components/setting-tile/SettingTile";
 import { useHydrogen } from "../../hooks/useHydrogen";
-import { Icon } from "../../atoms/icon/Icon";
-import PlanetIC from "../../../../res/ic/planet.svg";
+import LogoSVG from "../../../../res/svg/logo.svg";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Dots } from "../../atoms/loading/Dots";
 import { IconButton } from "../../atoms/button/IconButton";
@@ -280,9 +279,9 @@ export default function LoginView() {
     <div className="LoginView flex justify-center items-start">
       <div className="LoginView__card grow flex flex-column gap-xl">
         <div className="flex items-center gap-sm">
-          <Icon src={PlanetIC} size="lg" />
+          <img src={LogoSVG} alt="" width={40} height={40} />
           <Text variant="h2" weight="bold">
-            Third Room
+            Buzzar
           </Text>
         </div>
         <form ref={formRef} className="LoginView__form flex flex-column gap-md" onSubmit={handleLogin}>

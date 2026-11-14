@@ -8,6 +8,7 @@ import { PhysicsModuleState } from "../physics/physics.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { tryGetRemoteResource } from "../resource/resource.game";
 import { AvatarRef } from "./components";
+import { setAvatarHiddenFromMainCamera } from "./avatarLayers";
 import { getCamera } from "./getCamera";
 import { getNametag, NametagAnchor } from "./nametags.game";
 import { OurPlayer } from "./Player";
@@ -20,11 +21,11 @@ export function embodyAvatar(ctx: GameContext, physics: PhysicsModuleState, inpu
     removeComponent(ctx.world, NametagAnchor, nametag.eid);
   } catch {}
 
-  // hide our avatar
+  // hide our avatar from the first-person camera (it stays visible in mirrors)
   try {
     const avatarEid = AvatarRef.eid[node.eid];
     const avatar = tryGetRemoteResource<RemoteNode>(ctx, avatarEid);
-    avatar.visible = false;
+    setAvatarHiddenFromMainCamera(avatar, true);
   } catch {}
 
   // mark entity as our player entity

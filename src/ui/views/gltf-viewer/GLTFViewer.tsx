@@ -25,6 +25,15 @@ import { InteractableType } from "../../../engine/resource/schema";
 import { Reticle } from "../session/reticle/Reticle";
 import { InteractionState, useWorldInteraction } from "../../hooks/useWorldInteraction";
 import { getMxIdUsername } from "../../utils/matrixUtils";
+import {
+  AvatarPedestalSelectedMessage,
+  AvatarPedestalSelectedMessageType,
+  AvatarStatusMessage,
+  AvatarStatusMessageType,
+  LOCAL_AVATAR_PEER,
+  SetPeerAvatarMessage,
+  SetPeerAvatarMessageType,
+} from "../../../engine/avatar/avatar.common";
 
 export default function GLTFViewer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +46,29 @@ export default function GLTFViewer() {
   const { session } = useContext(HydrogenContext) || {};
 
   const [params] = useSearchParams();
+
+  // Buzzar dev convenience: /viewer?src=/gltf/test/mirror-room.glb loads a same-origin file, no login needed.
+  useEffect(() => {
+    const src = params.get("src");
+    if (!src || !mainThread) return;
+
+    let environmentUrl: string;
+    try {
+      const url = new URL(src, location.origin);
+      if (url.origin !== location.origin) throw new Error("cross-origin");
+      environmentUrl = url.href;
+    } catch {
+      setLoadState({ loading: false, loaded: false, error: "src must be a same-origin path" });
+      return;
+    }
+
+    setLoadState({ loading: true, loaded: false });
+    mainThread.sendMessage<LoadWorldMessage>(Thread.Game, {
+      type: ThirdRoomMessageType.LoadWorld,
+      environmentUrl,
+      id: 1,
+    });
+  }, [mainThread, params]);
 
   useEffect(() => {
     const mxcUrl = params.get("url");
@@ -87,14 +119,41 @@ export default function GLTFViewer() {
             id: message.id,
           });
 
+          // Buzzar dev convenience: /viewer?src=…&avatar=/gltf/mixamo-y.glb loads a same-origin avatar.
+          const avatar = params.get("avatar");
+          if (avatar) {
+            const url = new URL(avatar, location.origin);
+            if (url.origin === location.origin) {
+              ctx.sendMessage<SetPeerAvatarMessageType>(Thread.Game, {
+                type: SetPeerAvatarMessage,
+                peerId: LOCAL_AVATAR_PEER,
+                url: url.href,
+              });
+            }
+          }
+
           setLoadState({ loading: false, loaded: true });
         }),
+        // No Matrix session here: pedestals just change the local avatar.
+        registerMessageHandler(
+          mainThread,
+          AvatarPedestalSelectedMessage,
+          (ctx, message: AvatarPedestalSelectedMessageType) =>
+            ctx.sendMessage<SetPeerAvatarMessageType>(Thread.Game, {
+              type: SetPeerAvatarMessage,
+              peerId: LOCAL_AVATAR_PEER,
+              url: message.url,
+            })
+        ),
+        registerMessageHandler(mainThread, AvatarStatusMessage, (ctx, message: AvatarStatusMessageType) =>
+          console.info(`[avatar] ${message.peerId}: ${message.status}${message.reason ? ` — ${message.reason}` : ""}`)
+        ),
         registerMessageHandler(mainThread, ThirdRoomMessageType.WorldLoadError, (ctx, message: WorldLoadErrorMessage) =>
           setLoadState({ loading: false, loaded: true, error: message.error })
         ),
       ]);
     }
-  }, [mainThread]);
+  }, [mainThread, params]);
 
   const onClickCanvas = useCallback(() => {
     if (canvasRef.current) {

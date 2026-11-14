@@ -63,8 +63,19 @@ function ActiveMemberTile({
 export function MemberListDialog({ room, requestClose }: MemberListDialogProps) {
   const { session, platform } = useHydrogen(true);
 
-  const { active, invited, joined, leaved, banned } = useRoomMembers(room) ?? {};
+  const { active: callMembersActive, invited, joined, leaved, banned } = useRoomMembers(room) ?? {};
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  const calls = useCalls(session);
+  const groupCall = useRoomCall(calls, room.id);
+
+  // Buzzar: Hydrogen's groupCall.members only contains *other* participants, so you always appeared as
+  // "Disconnected" in your own member list. Count yourself as connected while you're in the world's call.
+  const self = joined?.find((member) => member.userId === session.userId);
+  const active =
+    groupCall?.hasJoined && self && !callMembersActive?.some((m) => m.userId === self.userId)
+      ? [self, ...(callMembersActive ?? [])]
+      : callMembersActive;
 
   const isWorld = room.type === "org.matrix.msc3815.world";
   const filteredJoined = joined?.filter((member) => !active?.find((m) => m.userId === member.userId));
@@ -93,8 +104,6 @@ export function MemberListDialog({ room, requestClose }: MemberListDialogProps) 
   const engine = useMainThreadContext();
   const toggleMute = (userId: string) => toggleMutePeer(engine, userId);
 
-  const calls = useCalls(session);
-  const groupCall = useRoomCall(calls, room.id);
   const callMembers = Array.from(new Map(groupCall?.members).values());
 
   const isSpeaking = (userId: string) => {

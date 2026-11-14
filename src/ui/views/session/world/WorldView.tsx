@@ -61,6 +61,13 @@ export function WorldView({ world }: WorldViewProps) {
   const [worldChatVisible, setWorldChatVisibility] = useAtom(worldChatVisibilityAtom);
   const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
   const [editorEnabled, setEditorEnabled] = useAtom(editorEnabledAtom);
+  const [pointerLocked, setPointerLocked] = useState(document.pointerLockElement === mainThread.canvas);
+
+  useEffect(() => {
+    const update = () => setPointerLocked(document.pointerLockElement === mainThread.canvas);
+    document.addEventListener("pointerlockchange", update);
+    return () => document.removeEventListener("pointerlockchange", update);
+  }, [mainThread]);
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
@@ -149,13 +156,26 @@ export function WorldView({ world }: WorldViewProps) {
   );
 
   useEffect(() => {
-    mainThread.canvas.requestPointerLock();
+    // Buzzar: make sure keyboard input goes to the game, not a leftover focused button/input from the UI.
+    if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
+    // No requestPointerLock() here: a lock taken from code after a menu click left keyboard input dead in
+    // Chromium. The "Click to play" prompt asks for a click on the world instead.
   }, [mainThread]);
 
   if (isPresenting) return null;
 
   return (
     <div className="WorldView">
+      {isWorldEntered && !pointerLocked && !overlayVisible && !worldChatVisible && !editorEnabled && (
+        // Buzzar: the pointer is only captured by clicking the world (see useDisableInput for why).
+        <div className="WorldView__click-to-play">
+          <Text color="world" weight="semi-bold">
+            Click to play
+          </Text>
+        </div>
+      )}
       <MuteButtonAction activeCall={activeCall} showToast={showToast} />
       <MembersDialogAction world={world} />
       <ShortcutDialogAction />

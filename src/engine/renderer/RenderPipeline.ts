@@ -110,6 +110,12 @@ export class RenderPipeline {
 
     this.outlineLayers = new Layers();
     this.outlineLayers.set(Layer.EditorSelection);
+    this.outlineLayers.enable(Layer.InteractableHighlight);
+    // Light-blue hover outline (VRChat-style); also used for editor selection.
+    this.outlinePass.visibleEdgeColor.set(0x7fd4ff);
+    this.outlinePass.hiddenEdgeColor.set(0x1f5f80);
+    this.outlinePass.edgeStrength = 4;
+    this.outlinePass.edgeThickness = 1.5;
 
     if (this.quality === RenderQuality.Low) {
       this.renderer.setPixelRatio(0.75);

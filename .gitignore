@@ -10,3 +10,6 @@ coverage
 src/scripting/build/scripting-runtime.wat
 docs/.vitepress/cache
 docs/websg-js
+# Buzzar: local browser-automation artifacts (may contain Matrix room dumps)
+.playwright-mcp/
+.buzzar-debug.log

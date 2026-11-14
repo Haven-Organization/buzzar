@@ -35,6 +35,7 @@ import {
   NodeResource,
   PhysicsBodyResource,
   ReflectionProbeResource,
+  MirrorResource,
   ResourceType,
   SamplerResource,
   SceneResource,
@@ -175,6 +176,8 @@ export class MainReflectionProbe extends defineLocalResourceClass(ReflectionProb
   declare reflectionProbeTexture: MainTexture | undefined;
 }
 
+export class MainMirror extends defineLocalResourceClass(MirrorResource) {}
+
 export class MainMaterial extends defineLocalResourceClass(MaterialResource) {
   declare baseColorTexture: MainTexture | undefined;
   declare metallicRoughnessTexture: MainTexture | undefined;
@@ -276,6 +279,7 @@ export class MainNode extends defineLocalResourceClass(NodeResource) {
   declare skin: MainSkin | undefined;
   declare light: MainLight | undefined;
   declare reflectionProbe: MainReflectionProbe | undefined;
+  declare mirror: MainMirror | undefined;
   declare camera: MainCamera | undefined;
   declare audioEmitter: MainAudioEmitter | undefined;
   declare tilesRenderer: MainTilesRenderer | undefined;
@@ -379,6 +383,7 @@ const {
   MainInstancedMesh,
   MainLightMap,
   MainReflectionProbe,
+  MainMirror,
   MainTilesRenderer,
   MainAnimationChannel,
   MainAnimationSampler,

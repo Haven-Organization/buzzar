@@ -14,6 +14,9 @@ import { enterWorld, loadWorld, reloadWorld } from "../../plugins/thirdroom/thir
 import { worldAtom } from "../state/world";
 import { useHydrogen } from "./useHydrogen";
 import { useMainThreadContext } from "./useMainThread";
+import { Thread } from "../../engine/module/module.common";
+import { getSessionAuth } from "../utils/avatarMatrix";
+import { MediaConfigMessage, MediaConfigMessageType } from "../../engine/avatar/avatar.common";
 
 export interface WorldLoader {
   loadAndEnterWorld: (
@@ -66,6 +69,13 @@ export function useWorldLoader(): WorldLoader {
 
       try {
         setActiveMatrixRoom(mainThread, session, world.id);
+
+        // Buzzar: lets world content (e.g. avatar pedestals) resolve mxc:// URIs. Must precede LoadWorld.
+        const auth = await getSessionAuth(platform, client.sessionId);
+        mainThread.sendMessage<MediaConfigMessageType>(Thread.Game, {
+          type: MediaConfigMessage,
+          homeserver: auth?.homeserver,
+        });
 
         const [matrixNetworkInterface] = await Promise.all([
           createMatrixNetworkInterface(mainThread, client, platform, world),
