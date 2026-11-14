@@ -1,7 +1,7 @@
 <div align="center">
   <img
-    src="docs/assets/logo.png"
-    alt="Third Room"
+    src="res/svg/logo-full.svg"
+    alt="Buzzar"
     width="420px"
     padding="40px"
   />
@@ -11,28 +11,36 @@
 
 [![Matrix](https://img.shields.io/matrix/thirdroom-dev:matrix.org)](https://matrix.to/#/#thirdroom-dev:matrix.org)
 
-Third Room is a platform for shared virtual worlds built on top of [Matrix](https://matrix.org). Third Room aims to
+Buzzar is a platform for shared virtual worlds built on top of [Matrix](https://matrix.org). Buzzar aims to
 make it easy to discover, create, and share 3D worlds with others.
+
+Buzzar is a fork of [Third Room](https://github.com/matrix-org/thirdroom), the Matrix.org Foundation's virtual world
+client, whose development was paused in 2023. Buzzar picks up where Third Room left off, working toward VRChat-level
+features (custom avatars, mirrors, scripted worlds, full VR support, world moderation tools) while staying as close
+to a standard Matrix client as possible and remaining compatible with existing Third Room
+([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)) worlds. Third Room's full commit history is
+preserved in this repository. See [docs/buzzar](./docs/buzzar/) for the roadmap and feature-parity checklist.
 
 ## Getting Started
 
-Visit [thirdroom.io](https://thirdroom.io)
+Buzzar isn't publicly hosted yet; see [Local Development](#local-development) to run it against any Matrix
+homeserver. (Third Room's own hosted instance at thirdroom.io is no longer running.)
 
 ## Homeserver Requirements
 
-Your homeserver should be on [Synapse version 1.62 or higher](https://github.com/matrix-org/synapse/releases). This is due to Third Room's requirement of the `Cross-Origin-Resource-Policy: cross-origin` header for the media repository's download route. Third Room uses SharedArrayBuffers which require us to [run in a secure-context](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#security_requirements).
+Your homeserver should be on [Synapse version 1.62 or higher](https://github.com/matrix-org/synapse/releases). This is due to Buzzar's (and Third Room's) requirement of the `Cross-Origin-Resource-Policy: cross-origin` header for the media repository's download route. Buzzar uses SharedArrayBuffers which require us to [run in a secure-context](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#security_requirements).
 
 You also should have a TURN server set up with your homeserver. More info on how to do that [here](https://matrix-org.github.io/synapse/develop/turn-howto.html).
 
-## About Third Room
+## About Buzzar
 
-Third Room enables people to discover and create virtual worlds while protecting their privacy and giving them ownership over their data. We use open standards to ensure that both the 3d content and social networking data is portable and interoperable with other platforms. We empower creators to design and program rich and interactive virtual worlds and avatars using a wide variety of 3D content creation tools and harnessing the power of the glTF file format.
+Buzzar enables people to discover and create virtual worlds while protecting their privacy and giving them ownership over their data. We use open standards to ensure that both the 3d content and social networking data is portable and interoperable with other platforms. We empower creators to design and program rich and interactive virtual worlds and avatars using a wide variety of 3D content creation tools and harnessing the power of the glTF file format.
 
-The Third Room client developed in this repository is only one implementation of a possible Third Room client and we welcome additional web or native clients to implement the protocols we design together. Third Room itself is designed around the Matrix protocol, but pieces of this project can be utilized in other 3D web applications including other virtual world platforms. We intend to build the client in a modular fashion, improving the overall landscape for the 3D web ecosystem and being a good participant in the open source community that we are benefitting from.
+The Buzzar client developed in this repository is only one implementation of a possible Matrix virtual world client and we welcome additional web or native clients to implement the protocols we design together. Buzzar itself is designed around the Matrix protocol, but pieces of this project can be utilized in other 3D web applications including other virtual world platforms. We intend to build the client in a modular fashion, improving the overall landscape for the 3D web ecosystem and being a good participant in the open source community that we are benefitting from.
 
-We will be a good participant in the immersive web. Third Room is just one piece of the overall immersive web. We believe platforms that intend to create their own "metaverse" are missing the point of that term. There is only one metaverse just as there is only one internet. We will embrace and encourage interoperability instead of accepting fragmentation.
+We will be a good participant in the immersive web. Buzzar is just one piece of the overall immersive web. We believe platforms that intend to create their own "metaverse" are missing the point of that term. There is only one metaverse just as there is only one internet. We will embrace and encourage interoperability instead of accepting fragmentation.
 
-Third Room at its core is focused on creating spaces for people and communities to feel safe. We will foster an open community that is kind, respectful, and accepting of others. We will utilize Matrix's existing moderation tools and extend them to best protect our community members against trolls and harassment. We will put users in control of their own privacy and always design with a privacy and safety first mindset.
+Buzzar at its core is focused on creating spaces for people and communities to feel safe. We will foster an open community that is kind, respectful, and accepting of others. We will utilize Matrix's existing moderation tools and extend them to best protect our community members against trolls and harassment. We will put users in control of their own privacy and always design with a privacy and safety first mindset.
 
 ## Problems
 
@@ -44,7 +52,7 @@ Third Room at its core is focused on creating spaces for people and communities 
 
 ## The Pitch
 
-- Third Room will be built on top of the Matrix protocol allowing for decentralized hosting of virtual worlds.
+- Buzzar is built on top of the Matrix protocol allowing for decentralized hosting of virtual worlds.
 - Worlds can be traversed quickly by changing rooms.
 - Your identity, network, and other shared data will be brought with you between these worlds.
 - Worlds will have spatial voice chat and game networking that can be made end-to-end encrypted so that you know you are only sending data to the people in the room.
@@ -54,24 +62,25 @@ Third Room at its core is focused on creating spaces for people and communities 
 
 ### Matrix
 
-Third Room is built on top of the Matrix group VoIP spec
+Buzzar, like Third Room, is built on top of the Matrix group VoIP spec
 ([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md))
 where WebRTC connections for voice and game networking are established over Matrix. Matrix is also used for hosting
 the 3D assets for these virtual worlds and your avatars as well as providing decentralized identity, end to end
-encryption, text chat, room permissions, and more. We've also started work on a Matrix spec for virtual worlds
-([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)).
+encryption, text chat, room permissions, and more. Third Room started work on a Matrix spec for virtual worlds
+([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)); Buzzar plans to propose a successor MSC
+that forks it while keeping existing MSC3815 worlds working.
 
 ### Open Source / License
 
-Third Room is completely open source under the [Apache 2.0 license](./LICENSE). You can check out this repository, fork
-it, and modify it as you please. The project is governed by the Matrix.org Foundation and all our work is done in the
-open. We're still getting the foundation of the project set up and don't have a streamlined flow of taking on external
-contributors right now. If you are interested in helping out you can join us in the
-[#thirdroom-dev:matrix.org](https://matrix.to/#/%23thirdroom-dev:matrix.org) Matrix room.
+Buzzar is completely open source under the [Apache 2.0 license](./LICENSE), the same license as Third Room. You can
+check out this repository, fork it, and modify it as you please. Third Room, the project Buzzar is forked from, was
+governed by the Matrix.org Foundation and developed in the open; its original development discussion took place in the
+[#thirdroom-dev:matrix.org](https://matrix.to/#/%23thirdroom-dev:matrix.org) Matrix room. Buzzar is developed at
+[Haven-Organization/buzzar](https://github.com/Haven-Organization/buzzar).
 
 ## Manifold Engine
 
-Manifold, Third Room's engine, lives under the [/src/engine](./src/engine/) directory of this project. It is developed
+Manifold, the engine Buzzar inherits from Third Room, lives under the [/src/engine](./src/engine/) directory of this project. It is developed
 with the bitECS and Three.js libraries. It is eventually intended to be published as a standalone project for use with
 or without Matrix, but it is currently under active development and not ready for a public release yet.
 
@@ -115,8 +124,8 @@ to advancements in browser technology.
 
 ### Rendering
 
-Manifold uses Three.js as its rendering library. However, the Three.js API is not intended to be used directly by Third
-Room developers. We've built a multi-threaded scene graph API with a similar shape to the
+Manifold uses Three.js as its rendering library. However, the Three.js API is not intended to be used directly by Buzzar
+developers. We've built a multi-threaded scene graph API with a similar shape to the
 [glTF](https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html) data model. Our intention is for glTF content to
 be loaded on the game thread, passed to the render thread via the
 [MessageChannel](https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel) `postMessage` API, and then
@@ -194,7 +203,7 @@ and third party libraries such as [Oddio](https://github.com/Ralith/oddio).
 
 ### Networking
 
-Manifold uses WebRTC DataChannels for game networking. Third Room establishes these DataChannels via Matrix
+Manifold uses WebRTC DataChannels for game networking. Buzzar (like Third Room) establishes these DataChannels via Matrix
 ([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md)),
 however Manifold has an interface to connect your own network interface. Currently we are working with ordered and
 reliable DataChannels, but we intend to utilize unreliable DataChannels for fast changing data like transforms.
@@ -229,11 +238,11 @@ iframes, and more.
 
 ### User Generated Content and Sandboxed Scripting
 
-Third Room worlds and avatars are owned by their creators. Worlds and avatars are published as glTF files hosted on the
+Buzzar worlds and avatars are owned by their creators. Worlds and avatars are published as glTF files hosted on the
 Matrix network or elsewhere. Creators will also be able to embed WebAssembly scripts inside their glTF content,
 enabling custom behaviors. Manifold's APIs are built around the ability to safely provide performant manipulation of a
 glTF scene graph from a WebAssembly module. This enables us to run partially untrusted scripts safely in your
-Third Room client as you navigate from world to world.
+Buzzar client as you navigate from world to world.
 
 We hope to standardize this WebAssembly Scene Graph API as a member of the Open Metaverse Interoperability Group's
 [Scripting Working Group](https://github.com/omigroup/omi-scripting-group).
@@ -242,13 +251,13 @@ We hope to standardize this WebAssembly Scene Graph API as a member of the Open 
 
 ## Creating Your Own Scenes
 
-Third Room is built on top of the glTF standard 3D file format, you can technically use any tool that exports glTF to create Third Room scenes. However, not all of the glTF extensions Third Room uses are supported by every tool. We've created the Third Room Unity Exporter for easily creating Third Room scenes from Unity.
+Buzzar is built on top of the glTF standard 3D file format, you can technically use any tool that exports glTF to create Buzzar scenes. However, not all of the glTF extensions Buzzar uses are supported by every tool. The Third Room project created the Third Room Unity Exporter for easily creating Third Room (and therefore Buzzar) scenes from Unity.
 
 Learn more [here](https://github.com/matrix-org/thirdroom-unity-exporter).
 
 ## Local Development
 
-The Third Room client can be ran locally against any Matrix homeserver in development.
+The Buzzar client can be ran locally against any Matrix homeserver in development.
 
 After you've installed node.js locally, run the following commands.
 
@@ -268,14 +277,14 @@ Open http://localhost:3000
 
 ## Deployment
 
-The Third Room client can be deployed to any static web host with the ability for wildcard routing for single page web
+The Buzzar client can be deployed to any static web host with the ability for wildcard routing for single page web
 apps and adding HTTP headers.
 
-We currently deploy Third Room to Netlify via a custom GitHub actions deploy script. If you fork our repository and
+Third Room was deployed to Netlify via a custom GitHub actions deploy script, which this repository still contains. If you fork our repository and
 set the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` secrets in your GitHub configuration, this setup should work for you
 as well. Every PR will be built and deployed as a preview deploy and every commit / merge to `main` will be deployed to
 your Netlify site.
 
-When deploying to thirdroom.io, the [testing procedure](./docs/testing-procedure.md) should be completed before deploying.
+Before deploying, the [testing procedure](./docs/testing-procedure.md) should be completed before deploying.
 
 To setup OIDC login client configs needs to be added in `config.json`. Client configs includes `client_id` and `uris` issued by OIDC Provider.
