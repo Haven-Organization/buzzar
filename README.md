@@ -9,8 +9,6 @@
   <br/>
 </div>
 
-[![Matrix](https://img.shields.io/matrix/thirdroom-dev:matrix.org)](https://matrix.to/#/#thirdroom-dev:matrix.org)
-
 Buzzar is a platform for shared virtual worlds built on top of [Matrix](https://matrix.org). Buzzar aims to
 make it easy to discover, create, and share 3D worlds with others.
 
