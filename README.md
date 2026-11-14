@@ -1,6 +1,6 @@
 <div align="center">
   <img
-    src="res/svg/logo-full.svg"
+    src="res/brand/banner-purple.svg"
     alt="Buzzar"
     width="420px"
     padding="40px"

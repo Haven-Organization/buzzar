@@ -1,6 +1,8 @@
 # Generates res/svg/logo-full.svg (bee logomark + "buzzar" wordmark).
 # Letters are Noto Sans Bold (SIL OFL 1.1) converted to outlines; the bee matches res/svg/logo.svg.
-# Usage: python -m venv .venv && .venv/bin/pip install fonttools && .venv/bin/python scripts/buzzar/make-wordmark.py res/svg/logo-full.svg
+# Writes res/brand/{wordmark-black,wordmark-white,banner-purple}.svg (copy wordmark-black.svg to
+# res/svg/logo-full.svg for the app). See res/brand/README.md.
+# Usage: python -m venv .venv && .venv/bin/pip install fonttools && .venv/bin/python scripts/buzzar/make-wordmark.py [out_dir]
 import sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -61,25 +63,58 @@ bee = f'''
       <clipPath id="bee-body"><ellipse cx="0" cy="0" rx="15.5" ry="11"/></clipPath>
     </defs>
     <g mask="url(#bee-gap)">
-      <ellipse cx="-5.5" cy="-19" rx="9.4" ry="5.5" transform="rotate(-62 -5.5 -19)" stroke="black" stroke-width="4.7"/>
-      <ellipse cx="7.2" cy="-17.5" rx="9.4" ry="5.5" transform="rotate(-26 7.2 -17.5)" stroke="black" stroke-width="4.7"/>
+      <ellipse cx="-5.5" cy="-19" rx="9.4" ry="5.5" transform="rotate(-62 -5.5 -19)" stroke="{{INK}}" stroke-width="4.7"/>
+      <ellipse cx="7.2" cy="-17.5" rx="9.4" ry="5.5" transform="rotate(-26 7.2 -17.5)" stroke="{{INK}}" stroke-width="4.7"/>
     </g>
     <g mask="url(#head-gap)"><g transform="rotate(-14)">
       <g clip-path="url(#bee-body)">
-        <rect x="-5" y="-15" width="4.7" height="30" fill="black"/>
-        <rect x="4.4" y="-15" width="4.7" height="30" fill="black"/>
+        <rect x="-5" y="-15" width="4.7" height="30" fill="{{INK}}"/>
+        <rect x="4.4" y="-15" width="4.7" height="30" fill="{{INK}}"/>
       </g>
-      <ellipse cx="0" cy="0" rx="15.5" ry="11" stroke="black" stroke-width="5.8"/>
-      <path d="M17.8 0 L23 0" stroke="black" stroke-width="4.2" stroke-linecap="round"/>
+      <ellipse cx="0" cy="0" rx="15.5" ry="11" stroke="{{INK}}" stroke-width="5.8"/>
+      <path d="M17.8 0 L23 0" stroke="{{INK}}" stroke-width="4.2" stroke-linecap="round"/>
     </g></g>
-    <circle cx="-19.5" cy="5.5" r="5.8" fill="black"/>
-    <path d="M-22.3 0.5 C-23.4 -2.8 -25.6 -5 -27.8 -5.6" stroke="black" stroke-width="3" stroke-linecap="round"/>
-    <path d="M-17.9 0 C-17.9 -3.3 -19 -6.1 -20.6 -8.3" stroke="black" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="-19.5" cy="5.5" r="5.8" fill="{{INK}}"/>
+    <path d="M-22.3 0.5 C-23.4 -2.8 -25.6 -5 -27.8 -5.6" stroke="{{INK}}" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-17.9 0 C-17.9 -3.3 -19 -6.1 -20.6 -8.3" stroke="{{INK}}" stroke-width="3" stroke-linecap="round"/>
   </g>'''
 
 height = bottom - top
-svg = f'''<svg width="{width:.0f}" height="{height:.0f}" viewBox="0 {top:.2f} {width:.2f} {height:.2f}" fill="none" xmlns="http://www.w3.org/2000/svg">
-{''.join(f'  <path d="{d}" fill="black"/>' + chr(10) for d in paths)}{bee}
-</svg>
-'''
-open(sys.argv[1], "w").write(svg)
+PURPLE = "#7000FF"  # same as the favicon (res/svg/logo.svg)
+
+
+def wordmark_body(ink):
+    letters = "".join(f'  <path d="{d}" fill="{ink}"/>\n' for d in paths)
+    return letters + bee.replace("{INK}", ink)
+
+
+def wordmark_svg(ink):
+    return (
+        f'<svg width="{width:.0f}" height="{height:.0f}" viewBox="0 {top:.2f} {width:.2f} {height:.2f}" '
+        f'fill="none" xmlns="http://www.w3.org/2000/svg">\n{wordmark_body(ink)}\n</svg>\n'
+    )
+
+
+def banner_svg(pad_x=26.0, pad_y=16.0, radius=12.0):
+    w, h = width + 2 * pad_x, height + 2 * pad_y
+    return (
+        f'<svg width="{w * 4:.0f}" height="{h * 4:.0f}" viewBox="0 0 {w:.2f} {h:.2f}" fill="none" '
+        f'xmlns="http://www.w3.org/2000/svg">\n'
+        f'  <rect width="{w:.2f}" height="{h:.2f}" rx="{radius}" fill="{PURPLE}"/>\n'
+        f'  <g transform="translate({pad_x:.2f} {pad_y - top:.2f})">\n{wordmark_body("white")}  </g>\n</svg>\n'
+    )
+
+
+out_dir = sys.argv[1] if len(sys.argv) > 1 else "res/brand"
+import os
+
+os.makedirs(out_dir, exist_ok=True)
+outputs = {
+    "wordmark-black.svg": wordmark_svg("black"),
+    "wordmark-white.svg": wordmark_svg("white"),
+    "banner-purple.svg": banner_svg(),
+}
+for name, content in outputs.items():
+    with open(os.path.join(out_dir, name), "w") as f:
+        f.write(content)
+    print("wrote", os.path.join(out_dir, name), file=sys.stderr)
