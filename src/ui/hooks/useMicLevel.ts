@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** RMS level (0–1) above which we treat the mic as picking up speech. */
 export const SPEAKING_LEVEL = 0.04;
@@ -44,16 +44,29 @@ export function useMicLevel(stream: MediaStream | undefined): number {
   return level;
 }
 
-/** Whether a level reads as speech, with a short hold so the indicator doesn't flicker between words. */
+/**
+ * Whether a level reads as speech, with a short hold so the indicator doesn't flicker between words.
+ * Only loud samples reset the hold: the level changes many times a second even when quiet, so a timer that
+ * restarted on every change would never run out and the indicator would stay on.
+ */
 export function useSpeaking(level: number, holdMs = 300): boolean {
   const [speaking, setSpeaking] = useState(false);
+  const lastLoud = useRef(0);
+
   useEffect(() => {
     if (level >= SPEAKING_LEVEL) {
+      lastLoud.current = Date.now();
       setSpeaking(true);
-      return;
     }
-    const timer = window.setTimeout(() => setSpeaking(false), holdMs);
-    return () => window.clearTimeout(timer);
-  }, [level, holdMs]);
+  }, [level]);
+
+  useEffect(() => {
+    if (!speaking) return;
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastLoud.current > holdMs) setSpeaking(false);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [speaking, holdMs]);
+
   return speaking;
 }
