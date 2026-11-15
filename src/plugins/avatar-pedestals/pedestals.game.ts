@@ -144,6 +144,9 @@ export function addAvatarPedestal(
       size: [PANEL_SIZE[0], clickableHeight, 0.7],
       offset: [0, clickableHeight / 2, 0],
       activeEvents: RAPIER.ActiveEvents.COLLISION_EVENTS,
+      // A sensor: clickable, but players can still walk or jump onto the podium. As a solid box it pushed
+      // anyone standing on the podium back off.
+      isTrigger: true,
     })
   );
   addPhysicsBody(
