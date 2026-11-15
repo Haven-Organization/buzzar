@@ -28,9 +28,9 @@ infrastructure and can't scale to VRChat-sized instances.
 
 - [ ] ❌ **L** Replace Hydrogen (`@thirdroom/hydrogen-view-sdk` 0.1.2, unmaintained, libolm) with
       **matrix-js-sdk** (Rust crypto WASM). This touches all of `src/ui` and `src/engine/matrix`.
-- [ ] ❌ **S** Authenticated media (`/_matrix/client/v1/media/*`). Hydrogen builds legacy URLs, so new
+- [x] ✅ **S** Authenticated media (`/_matrix/client/v1/media/*`), done in `src/ui/utils/mediaAuth.ts`. Hydrogen builds legacy URLs, so new
       scenes, avatars and scripts fail on modern homeservers. *Note: the reference rooms loaded fine through matrix.org's authenticated endpoint.*
-- [ ] ❌ **S** Room v12 compatibility. World, home and profile creation puts the creator in
+- [x] ✅ **S** Room v12 compatibility (done: no `users` entry in power-level overrides; Backrooms on glowers.club is a v12 world). World, home and profile creation puts the creator in
       `power_levels.users` (`CreateWorldForm.tsx:129`, `useHomeWorld.ts`, `useUserProfile.ts`), which v12
       rejects. Treat creators as having infinite power. Room IDs no longer contain a server name. *Verify with an integration test.*
 - [ ] ❌ **XL** 🅼 **Move voice and data to MatrixRTC (MSC4143) + LiveKit (MSC4195).** This replaces the
@@ -52,7 +52,7 @@ infrastructure and can't scale to VRChat-sized instances.
       - the string/binary flag bug (`network/scripting.game.ts:48`).
 - [ ] ❌ **M** Instances (VRChat Public/Friends+/Invite/Group). One world room, many concurrent
       instances, each a MatrixRTC slot with a capacity and a join queue. 🅼
-- [ ] ❌ **S** Rebrand: package name, manifest, `config.json` homeserver defaults, landing page.
+- [ ] 🟡 **S** Rebrand: package name, app text and help links done; `/landing` kept as Third Room's page on purpose; `config.json` homeserver defaults.
       Keep the `upstream` remote for cherry-picks.
 - [ ] 🟡 **M** Tests. Today there are unit tests only. Add:
       - headless multi-client integration tests against a local Synapse;
@@ -286,12 +286,12 @@ Notes and open questions:
 
 - [x] ✅ `OMI_link` portals with `matrix:r/` URIs, click-to-activate (reference worlds).
 - [ ] ❌ **S** Destination preview card (name, scene_preview, members, instance count).
-- [ ] ❌ **S** Dead-destination handling (`#mars:thirdroom.dev` no longer resolves), plus following tombstones.
-- [ ] ❌ **S** Accept `matrix:roomid/…?via=` and `https://matrix.to/#/…`.
+- [x] ✅ **S** Dead-destination handling (`#mars:thirdroom.dev` no longer resolves), plus following tombstones.
+- [x] ✅ **S** Accept `matrix:roomid/…?via=` and `https://matrix.to/#/…`. Web-link portals now ask first and open in a new tab.
 - [ ] ❌ **S** Optional walk-through activation (world opt-in).
 - [ ] ❌ **M** 🅼 User-placed portals (see §4), moderator removal, world allow/deny.
 - [ ] ❌ **S** 🅼 Moderator override of scene-baked portals (disable/retarget without re-upload).
-- [ ] ❌ **M** World discovery: Third Room uses `msc3948.repository_room.*` in `#repository-room:thirdroom.io`.
+- [ ] 🟡 **M** World discovery (Explore tab reads any server's room directory with the world room-type filter): Third Room uses `msc3948.repository_room.*` in `#repository-room:thirdroom.io`.
       Replace it with Spaces/room directory + `software.haven.*` metadata; keep reading the old format.
 
 ## 7. Script security, consent and external servers

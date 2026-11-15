@@ -18,6 +18,65 @@ import { PlayerModule } from "../../../../engine/player/Player.main";
 import { Reticle } from "../reticle/Reticle";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
+import { useHydrogen } from "../../../hooks/useHydrogen";
+import { getSessionAuth } from "../../../utils/avatarMatrix";
+import { joinRoomVia, MatrixRequestError, serverNameOf } from "../../../utils/worldDirectory";
+
+const MAX_TOMBSTONE_HOPS = 3;
+const JOIN_SYNC_TIMEOUT_MS = 30000;
+
+/**
+ * Buzzar: a portal to a web page used to replace the whole app with that page, silently. A world can put any link
+ * in a portal, so ask first (with a browser dialog the world can't draw over) and open it in a new tab.
+ */
+function openExternalPortal(url: URL) {
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error(`Portals can't open ${url.protocol} links.`);
+  }
+  document.exitPointerLock();
+  const ok = window.confirm(`This portal leads to a website outside Buzzar:\n\n${url.href}\n\nOpen it in a new tab?`);
+  if (ok) window.open(url.href, "_blank", "noopener,noreferrer");
+}
+
+/** Explains a failed portal join in words, instead of a raw server error. */
+function describePortalJoinError(err: unknown, target: string) {
+  if (err instanceof MatrixRequestError) {
+    if (err.errcode === "M_NOT_FOUND" || err.status === 404) {
+      return new Error(`This world no longer exists (${target} couldn't be found).`);
+    }
+    if (err.errcode === "M_FORBIDDEN" || err.status === 403) {
+      return new Error("You can't join this world. It may be invite-only, or you may be banned.");
+    }
+    if (err.status === 502 || err.status === 504) {
+      return new Error("The server hosting this world couldn't be reached.");
+    }
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
+/** Resolves once a room we just joined has synced in as joined. */
+async function waitForJoinedRoom(session: Session, roomId: string): Promise<Room> {
+  const existing = session.rooms.get(roomId);
+  if (existing) return existing;
+  const observer = await session.observeRoomStatus(roomId);
+  return new Promise((resolve, reject) => {
+    let unsubscribe: (() => void) | undefined = undefined;
+    const check = (status: RoomStatus) => {
+      const room = session.rooms.get(roomId);
+      if (!room || status !== RoomStatus.Joined) return false;
+      clearTimeout(timer);
+      unsubscribe?.();
+      resolve(room);
+      return true;
+    };
+    const timer = setTimeout(() => {
+      unsubscribe?.();
+      reject(new Error("Joined, but the world took too long to load. Try again from your world list."));
+    }, JOIN_SYNC_TIMEOUT_MS);
+    unsubscribe = observer.subscribe(check);
+    check(observer.get());
+  });
+}
 
 export interface IPortalProcess {
   joining?: boolean;
@@ -32,6 +91,7 @@ interface WorldInteractionProps {
 
 export function WorldInteraction({ session, world, activeCall }: WorldInteractionProps) {
   const mainThread = useMainThreadContext();
+  const { platform, client } = useHydrogen(true);
   const camRigModule = getModule(mainThread, PlayerModule);
 
   const [activeEntity, setActiveEntity] = useMemoizedState<InteractionState | undefined>();
@@ -44,9 +104,7 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
   const isMounted = useIsMounted();
 
   const handlePortalGrab = useCallback(
-    async (interaction) => {
-      let unSubStatusObserver: () => void | undefined;
-
+    async (interaction: InteractionState) => {
       try {
         setPortalProcess({});
         const { uri } = interaction;
@@ -54,58 +112,56 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
 
         const parsedUri = parseMatrixUri(uri);
         if (parsedUri instanceof URL) {
-          window.location.href = parsedUri.href;
+          openExternalPortal(parsedUri);
           return;
         }
+        if (parsedUri.mxid1.startsWith("@")) throw new Error("This portal points to a person, not a world.");
 
-        const roomIdOrAlias = parsedUri.mxid1;
-        const roomId = roomIdOrAlias.startsWith("#") ? aliasToRoomId(session.rooms, parsedUri.mxid1) : parsedUri.mxid1;
+        let target = parsedUri.mxid1;
+        let via = parsedUri.via;
+        // Follow upgraded rooms (m.room.tombstone) to their replacement, a few hops at most.
+        for (let hop = 0; ; hop++) {
+          const knownId = target.startsWith("#") ? aliasToRoomId(session.rooms, target) : target;
+          let room = knownId ? session.rooms.get(knownId) : undefined;
 
-        if (!roomId) {
-          setPortalProcess({ joining: true });
-          const rId = await session.joinRoom(roomIdOrAlias);
+          if (!room) {
+            setPortalProcess({ joining: true });
+            const auth = await getSessionAuth(platform, client.sessionId);
+            if (!auth) throw new Error("Not signed in");
+            let roomId: string;
+            try {
+              roomId = await joinRoomVia(auth, target, via);
+            } catch (err) {
+              throw describePortalJoinError(err, target);
+            }
+            room = await waitForJoinedRoom(session, roomId);
+            if (!isMounted()) return;
+          }
+
+          const tombstone = (await room.getStateEvent("m.room.tombstone"))?.event;
+          const replacement = tombstone?.content?.replacement_room;
+          if (typeof replacement === "string" && replacement !== room.id && hop < MAX_TOMBSTONE_HOPS) {
+            target = replacement;
+            via = tombstone?.sender ? [serverNameOf(tombstone.sender)] : [];
+            continue;
+          }
+
+          const worldEvent = await room.getStateEvent("org.matrix.msc3815.world");
+          if (!worldEvent?.event.content) throw new Error(`${room.name || target} is a chat room, not a world.`);
           if (!isMounted()) return;
 
           setPortalProcess({});
-          const roomStatusObserver = await session.observeRoomStatus(rId);
-          unSubStatusObserver = roomStatusObserver.subscribe(async (roomStatus) => {
-            const newWorld = session.rooms.get(rId);
-            if (!newWorld || roomStatus !== RoomStatus.Joined) return;
-
-            const stateEvent = await newWorld.getStateEvent("org.matrix.msc3815.world");
-            const content = stateEvent?.event.content;
-            if (!content) return;
-
-            selectWorld(roomId);
-
-            exitWorld();
-            navigateEnterWorld(newWorld);
-          });
-
-          return;
-        }
-
-        const newWorld = session.rooms.get(roomId);
-        if (newWorld) {
-          const stateEvent = await newWorld.getStateEvent("org.matrix.msc3815.world");
-          const content = stateEvent?.event.content;
-          if (!content) return;
-
-          selectWorld(roomId);
-
+          selectWorld(room.id);
           exitWorld();
-          navigateEnterWorld(newWorld);
+          navigateEnterWorld(room);
           return;
         }
       } catch (err) {
         if (!isMounted()) return;
         setPortalProcess({ error: err as Error });
       }
-      return () => {
-        unSubStatusObserver?.();
-      };
     },
-    [session, selectWorld, exitWorld, navigateEnterWorld, isMounted, setPortalProcess]
+    [session, platform, client, selectWorld, exitWorld, navigateEnterWorld, isMounted, setPortalProcess]
   );
 
   const handleInteraction = useCallback(

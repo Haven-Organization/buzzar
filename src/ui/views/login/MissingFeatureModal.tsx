@@ -68,8 +68,8 @@ export function MissingFeatureModal({ missingFeatures }: { missingFeatures: Miss
           <Footer
             center={
               <Text type="div" variant="b2">
-                <a href="https://matrix.to/#/#thirdroom-dev:matrix.org" target="_blank">
-                  Get help in our Matrix room.
+                <a href="https://github.com/Haven-Organization/buzzar/issues" target="_blank" rel="noreferrer noopener">
+                  Get help or report a problem on GitHub.
                 </a>
               </Text>
             }

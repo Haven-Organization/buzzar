@@ -65,17 +65,41 @@ export async function fetchWorldDirectory(
   return { worlds, nextBatch: body.next_batch, skipped: chunk.length - worlds.length };
 }
 
-/** Joins a world found in `viaServer`'s directory, routing the join through that server if needed. */
-export async function joinDirectoryWorld(auth: MatrixAuth, world: DirectoryWorld, viaServer?: string) {
-  const target = world.canonical_alias ?? world.room_id;
-  const via = viaServer ? `?server_name=${encodeURIComponent(viaServer)}` : "";
-  const res = await fetch(`${base(auth)}/_matrix/client/v3/join/${encodeURIComponent(target)}${via}`, {
+/** A failed Matrix request, keeping the spec error code (e.g. M_NOT_FOUND) so callers can explain it. */
+export class MatrixRequestError extends Error {
+  constructor(message: string, readonly status: number, readonly errcode?: string) {
+    super(message);
+  }
+}
+
+async function requestError(prefix: string, res: Response) {
+  let errcode: string | undefined;
+  let detail = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    errcode = body?.errcode;
+    if (body?.error) detail = `${body.error} (${res.status})`;
+  } catch {
+    // not JSON
+  }
+  return new MatrixRequestError(`${prefix}: ${detail}`, res.status, errcode);
+}
+
+/** Joins a room by ID or alias, routing the join through `via` servers (needed for rooms your server isn't in). */
+export async function joinRoomVia(auth: MatrixAuth, roomIdOrAlias: string, via: string[] = []) {
+  const query = via.length ? `?${via.map((server) => `server_name=${encodeURIComponent(server)}`).join("&")}` : "";
+  const res = await fetch(`${base(auth)}/_matrix/client/v3/join/${encodeURIComponent(roomIdOrAlias)}${query}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${auth.accessToken}`, "Content-Type": "application/json" },
     body: "{}",
   });
-  if (!res.ok) throw new Error(`Couldn't join: ${await errorText(res)}`);
+  if (!res.ok) throw await requestError("Couldn't join", res);
   return ((await res.json()) as { room_id: string }).room_id;
+}
+
+/** Joins a world found in `viaServer`'s directory, routing the join through that server if needed. */
+export function joinDirectoryWorld(auth: MatrixAuth, world: DirectoryWorld, viaServer?: string) {
+  return joinRoomVia(auth, world.canonical_alias ?? world.room_id, viaServer ? [viaServer] : []);
 }
 
 /** The server part of a Matrix user ID (`@alice:example.org` → `example.org`). */

@@ -1,0 +1,10 @@
+{
+  "name": "buzzar-gltf-tools",
+  "private": true,
+  "description": "Command-line helpers for turning downloaded 3D models into Buzzar worlds (glTF-Transform v4).",
+  "type": "module",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@gltf-transform/cli": "^4.1.1"
+  }
+}

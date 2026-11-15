@@ -145,6 +145,8 @@ export interface ParsedMatrixURI {
   authority?: string;
   mxid1: string;
   mxid2?: string;
+  /** Servers to join through (`?via=` in matrix: URIs and matrix.to links). */
+  via: string[];
 }
 
 const SegmentToSigil: { [key: string]: string } = {
@@ -155,9 +157,44 @@ const SegmentToSigil: { [key: string]: string } = {
   roomid: "!",
 };
 
+const SIGILS = ["@", "#", "!"];
+
+function decodeSegment(segment: string) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
+ * Buzzar: matrix.to links (`https://matrix.to/#/#world:example.org?via=example.org`, also with a `/$event` suffix)
+ * are the most common way rooms are shared, so treat them as Matrix links rather than web pages.
+ */
+function parseMatrixToUrl(url: URL, uri: string): ParsedMatrixURI {
+  const fragment = url.hash.replace(/^#\/?/, "");
+  const queryStart = fragment.indexOf("?");
+  const path = queryStart === -1 ? fragment : fragment.slice(0, queryStart);
+  const query = new URLSearchParams(queryStart === -1 ? "" : fragment.slice(queryStart + 1));
+  const [first, second] = path.split("/").map(decodeSegment);
+  if (!first || !SIGILS.includes(first[0]) || first.length < 2) {
+    throw new Error(`Invalid matrix.to link "${uri}"`);
+  }
+  return {
+    protocol: "matrix:",
+    mxid1: first,
+    mxid2: second?.startsWith("$") ? second : undefined,
+    via: query.getAll("via").filter(Boolean),
+  };
+}
+
 // https://github.com/matrix-org/matrix-spec-proposals/blob/main/proposals/2312-matrix-uri.md
 export function parseMatrixUri(uri: string): ParsedMatrixURI | URL {
   const url = new URL(uri, window.location.href);
+
+  if ((url.protocol === "https:" || url.protocol === "http:") && url.hostname === "matrix.to") {
+    return parseMatrixToUrl(url, uri);
+  }
 
   if (url.protocol === "matrix:") {
     const matches = url.pathname.match(/^(\/\/.+\/)?(.+)$/);
@@ -178,7 +215,7 @@ export function parseMatrixUri(uri: string): ParsedMatrixURI | URL {
       throw new Error(`Invalid matrix uri "${uri}": No path provided`);
     }
 
-    const segments = path.split("/");
+    const segments = path.split("/").map(decodeSegment);
 
     if (segments.length !== 2 && segments.length !== 4) {
       throw new Error(`Invalid matrix uri "${uri}": Invalid number of segments`);
@@ -206,7 +243,7 @@ export function parseMatrixUri(uri: string): ParsedMatrixURI | URL {
       }
     }
 
-    return { protocol: "matrix:", authority, mxid1, mxid2 };
+    return { protocol: "matrix:", authority, mxid1, mxid2, via: url.searchParams.getAll("via").filter(Boolean) };
   }
 
   return url;

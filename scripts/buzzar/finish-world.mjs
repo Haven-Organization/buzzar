@@ -3,7 +3,7 @@
 // engine (every mesh becomes a static trimesh when the scene declares no OMI_collider).
 //
 // Pairs with an optimisation pass for heavy downloads (draw-call merging, texture resizing), e.g. the
-// gltf-transform v4 steps described in docs/buzzar/importing-worlds.md.
+// helpers in scripts/buzzar/gltf-tools/ (see its README).
 //
 // Usage:
 //   node scripts/buzzar/finish-world.mjs <in.glb> --out <out.glb> --ground <y> [--spawn x,z,yawDeg]
