@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
@@ -26,7 +25,6 @@ export function UserMenu() {
   const [copied, setCopied] = useState(false);
   const [bugReport, setBugReport] = useState(false);
   const [avatarEditor, setAvatarEditor] = useState(false);
-  const navigate = useNavigate();
 
   const handleCopy = () => {
     if (copied) return;
@@ -68,7 +66,6 @@ export function UserMenu() {
               {accountManagementUrl && (
                 <DropdownMenuItem onSelect={() => window.open(accountManagementUrl)}>Manage Account</DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={() => navigate("/landing")}>Landing Page</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setBugReport(true)}>Report Bug</DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {

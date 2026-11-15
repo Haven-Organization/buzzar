@@ -73,27 +73,6 @@ export const useAccountManagementAction = () => {
   );
 };
 
-export const useLandingPageAction = () => {
-  useRegisterActions(
-    [
-      {
-        id: "landing-page",
-        name: "Landing Page",
-        shortcut: undefined,
-        keywords: "landing home preview",
-        section: ActionSection.Global,
-        icon: undefined,
-        subtitle: undefined,
-        perform: () => {
-          document.location = "/landing";
-        },
-        parent: undefined,
-      },
-    ],
-    []
-  );
-};
-
 export const MuteButtonAction = ({
   activeCall,
   showToast,

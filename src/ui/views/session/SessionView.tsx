@@ -15,14 +15,13 @@ import { useUnknownWorldPath } from "../../hooks/useWorld";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
 import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
-import { useAccountManagementAction, useLandingPageAction, useUserProfileAction } from "./cmd-panel/actions";
+import { useAccountManagementAction, useUserProfileAction } from "./cmd-panel/actions";
 import { editorEnabledAtom } from "../../state/editor";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 
 function RegisterKBarActions() {
   useUserProfileAction();
   useAccountManagementAction();
-  useLandingPageAction();
   return null;
 }
 

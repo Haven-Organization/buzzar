@@ -116,7 +116,7 @@ server {
         try_files $uri $uri.html $uri/ =404;
     }
 
-    # Client-side routes (/world/…, /landing, …) all load the app.
+    # Client-side routes (/world/…, /login, …) all load the app.
     location / {
         try_files $uri $uri/ /index.html;
     }

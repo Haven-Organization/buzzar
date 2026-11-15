@@ -17,7 +17,7 @@ import { DropdownMenu } from "../atoms/menu/DropdownMenu";
 
 export function Logo() {
   return (
-    <a className="inline-flex flex-column items-end gap-xxs Logo" href="/landing">
+    <a className="inline-flex flex-column items-end gap-xxs Logo" href="https://haven.software/buzzar/">
       <img height={24} src={LogoFullSVG} alt="Buzzar" />
     </a>
   );

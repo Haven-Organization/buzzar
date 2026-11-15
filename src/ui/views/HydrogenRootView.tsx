@@ -416,7 +416,6 @@ export function HydrogenRootView() {
     [client, platform, navigation, containerEl, urlRouter, logger, session, profileRoom, login, logout]
   );
 
-  const landingPath = useMatch({ path: "/landing" });
   const loginPath = useMatch({ path: "/login" });
 
   const href = window.location.href;
@@ -426,7 +425,7 @@ export function HydrogenRootView() {
     localStorage.setItem("on_login_redirect_uri", href);
   }
 
-  if (sessionInfo && !loading && !session && !landingPath) {
+  if (sessionInfo && !loading && !session) {
     loadInitialSession(sessionInfo);
   }
 
@@ -449,12 +448,13 @@ export function HydrogenRootView() {
     return <Navigate to="/login" replace={true} />;
   }
 
-  if (!landingPath && !loginPath && !session && !sessionInfo) {
-    return <Navigate to="/landing" replace={true} />;
+  // Buzzar: no in-app landing page (it lives at haven.software/buzzar/); signed-out visitors go straight to login.
+  if (!loginPath && !session && !sessionInfo) {
+    return <Navigate to="/login" replace={true} />;
   }
 
   const onLoginRedirectPath = localStorage.getItem("on_login_redirect_uri")?.match(WORLD_PATH_REG)?.[1];
-  if (sessionInfo && !landingPath && onLoginRedirectPath) {
+  if (sessionInfo && onLoginRedirectPath) {
     localStorage.removeItem("on_login_redirect_uri");
     return <Navigate to={onLoginRedirectPath} />;
   }

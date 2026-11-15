@@ -32,7 +32,6 @@ function FocusOutlineManager() {
   return <></>;
 }
 
-const LandingPage = lazy(() => import("./site/LandingPage"));
 const PreviewBlog = lazy(() => import("./site/PreviewBlog"));
 const LoginView = lazy(() => import("./views/login/LoginView"));
 const GLTFViewer = lazy(() => import("./views/gltf-viewer/GLTFViewer"));
@@ -47,14 +46,6 @@ export function App() {
       <FocusOutlineManager />
       <SentryRoutes>
         <Route element={<HydrogenRootView />}>
-          <Route
-            path="/landing"
-            element={
-              <Suspense fallback={<SplashScreen />}>
-                <LandingPage />
-              </Suspense>
-            }
-          />
           <Route
             path="/login"
             element={
