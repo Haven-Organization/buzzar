@@ -18,6 +18,7 @@ Each script prints its usage in the comment at the top of the file.
 | `add-roof.mjs` | Adds a downward-facing roof over a rectangle so gaps in a ceiling don't show sky. |
 | `heightmap.mjs` | Top-down height map (PGM + JSON) for finding floors, spawn points and gaps. |
 | `raycast.mjs` | Casts rays from a point and reports the first hit's material, distance and facing; for checking enclosures. |
+| `fix-ripped-avatar.py` | Python: makes a game-ripped Sketchfab avatar usable (3ds Max Biped body + separate accessory skeletons): attaches accessories to the body, drops bones that move nothing, renames body bones to CATS names. `python3 -I fix-ripped-avatar.py in.glb out.glb`, then `gltf-transform prune`. |
 | `check-normals.mjs` | Finds NaN / zero-length normals (they show as black bloom blow-outs) and can repair them. |
 
 Typical order: export → `optimize-world` → `tune-lights` (Blender scenes) → `add-ground` / `add-walls` /

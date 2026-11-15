@@ -49,6 +49,7 @@ import {
   TextureFormat,
   ColliderType,
   PhysicsBodyType,
+  MAX_SKIN_JOINTS,
 } from "../resource/schema";
 import { toSharedArrayBuffer } from "../utils/arraybuffer";
 import {
@@ -1679,6 +1680,12 @@ const loadGLTFSkin = createInstancedSubresourceLoader(
 
       return joint;
     });
+
+    if (joints.length > MAX_SKIN_JOINTS) {
+      console.warn(
+        `Skin "${name ?? index}" has ${joints.length} joints; only the first ${MAX_SKIN_JOINTS} can move vertices.`
+      );
+    }
 
     return new RemoteSkin(loaderCtx.resource.manager, {
       name,

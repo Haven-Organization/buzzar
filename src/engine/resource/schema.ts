@@ -469,10 +469,14 @@ export const TilesRendererResource = defineResource("tiles-renderer", ResourceTy
   uri: PropType.string({ mutable: false, required: true, script: true }),
 });
 
+/** Joints one skin can use; joints beyond this can't be skinned. */
+export const MAX_SKIN_JOINTS = 512;
+
 export const SkinResource = defineResource("skin", ResourceType.Skin, {
   name: PropType.string({ default: "Skin", script: true }),
-  // Use a fixed size array of 128 joints. Three.js supports up to 1024
-  joints: PropType.refArray("node", { size: 128, script: true, mutable: false }),
+  // Fixed-size array of joints (three.js supports up to 1024 with its bone texture). Buzzar: was 128, which
+  // silently dropped the rest, so avatars with hair and cloth bones collapsed into spikes (avatar limit is 400).
+  joints: PropType.refArray("node", { size: MAX_SKIN_JOINTS, script: true, mutable: false }),
   inverseBindMatrices: PropType.ref(AccessorResource, { script: true }),
 });
 

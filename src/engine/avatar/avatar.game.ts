@@ -358,7 +358,8 @@ async function loadCustomAvatar(
       hips = hipsNodeFor(loaderCtx, mapping);
       const target = buildRetargetRig(loaderCtx, rootObj, mapping, mapping.facesNegativeZ ? Y180 : new Quaternion());
       eyeHeight = estimateEyeHeight({ ...target, align: new Quaternion() });
-      return source.clips.map((clip) => retargetClip(clip, source.rig, target));
+      // Avatars bound in an A-pose (common for game and VRChat models) get their limbs corrected to the clips' T-pose.
+      return source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
     },
   });
 

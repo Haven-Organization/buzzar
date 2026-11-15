@@ -205,3 +205,42 @@ describe("buildSitClip", () => {
     expect(thigh.x).toBeLessThan(0);
   });
 });
+
+describe("normalizeRestPose", () => {
+  function armDirection(rig: RetargetRig) {
+    rig.root.updateMatrixWorld(true);
+    const a = new Vector3().setFromMatrixPosition(rig.bones.get("leftUpperArm")!.matrixWorld);
+    const b = new Vector3().setFromMatrixPosition(rig.bones.get("leftLowerArm")!.matrixWorld);
+    return b.sub(a).normalize();
+  }
+
+  test("an A-pose avatar follows a T-pose clip's arm directions", () => {
+    const source = buildRig(sourceSpecs);
+    // Same skeleton, but bound with the upper arm angled 40° down (an A-pose).
+    const target = buildRig(
+      sourceSpecs.map(([name, parent, position, euler]) =>
+        name === "leftUpperArm" ? [name, parent, position, [0, 0, -40]] : [name, parent, position, euler]
+      ) as Spec[]
+    );
+    const clip = makeSourceClip(source);
+    const retargeted = retargetClip(clip, source, target, { normalizeRestPose: true });
+    for (const time of [0, 0.5, 1]) {
+      pose(source, clip, time);
+      pose(target, retargeted, time);
+      expect(armDirection(target).dot(armDirection(source))).toBeCloseTo(1, 4);
+    }
+  });
+
+  test("without it, the A-pose offset carries into the animation", () => {
+    const source = buildRig(sourceSpecs);
+    const target = buildRig(
+      sourceSpecs.map(([name, parent, position, euler]) =>
+        name === "leftUpperArm" ? [name, parent, position, [0, 0, -40]] : [name, parent, position, euler]
+      ) as Spec[]
+    );
+    const clip = makeSourceClip(source);
+    pose(source, clip, 0);
+    pose(target, retargetClip(clip, source, target), 0);
+    expect(armDirection(target).dot(armDirection(source))).toBeLessThan(0.8);
+  });
+});

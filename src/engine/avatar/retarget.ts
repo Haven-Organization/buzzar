@@ -14,6 +14,11 @@
  * b, which handles skeletons that skip bones (e.g. no upperChest) without accumulating error.
  *
  * Hips translation is transferred as a world-space offset from rest, scaled by relative hip height.
+ *
+ * Buzzar: rests that aren't a T-pose (e.g. game avatars bound in an A-pose, arms 40° down) are corrected per limb:
+ * fix(b) rotates the target's rest bone direction onto the source's, and C_t(b) = fix(b) · R'_t(b) replaces R'_t(b)
+ * above. Hands/feet and fingers/toes take the fix of their limb; the spine and head take none. A target node
+ * between mapped bones moves rigidly with its mapped ancestor a, so its corrected rest is fix(a) · R'_t(node).
  */
 import {
   AnimationClip,
@@ -146,6 +151,11 @@ function makeSampler(track: KeyframeTrack): TrackSampler {
 export interface RetargetOptions {
   /** Include hips translation (bobbing, root motion). Default true. */
   hipsTranslation?: boolean;
+  /**
+   * Correct limbs whose rest pose differs from the source's (A-pose avatars under T-pose animations): each limb
+   * bone's rest direction is rotated onto the source's before transferring rotations. Default false.
+   */
+  normalizeRestPose?: boolean;
 }
 
 export function retargetClip(
@@ -169,6 +179,14 @@ export function retargetClip(
   }
 
   const tracks: KeyframeTrack[] = [];
+  const restFix = options.normalizeRestPose ? computeRestFixes(source, target) : new Map<HumanBone, Quaternion>();
+  const fixFor = (bone: HumanBone | undefined): Quaternion => {
+    if (!bone) return IDENTITY;
+    const direct = restFix.get(bone);
+    if (direct) return direct;
+    const limb = nearestMappedAncestor(bone, restFix);
+    return (limb && restFix.get(limb)) || IDENTITY;
+  };
 
   const _a = new Quaternion();
   const _b = new Quaternion();
@@ -204,15 +222,22 @@ export function retargetClip(
     const sourceAncestor = ancestorBone ? source.bones.get(ancestorBone) : undefined;
 
     // Constant factors:
-    //   q_t = R'_t(pt)⁻¹ · R_s(a) · chain_s(a→b, t) · R_s(b)⁻¹ · R'_t(b)
-    // With no ancestor, R_s(a) = identity and the chain runs from the source root (includes align).
+    //   q_t = R'_t(pt)⁻¹ · fix(a)⁻¹ · R_s(a) · chain_s(a→b, t) · R_s(b)⁻¹ · fix(b) · R'_t(b)
+    // With no ancestor, R_s(a) = fix(a) = identity and the chain runs from the source root (includes align).
     const targetParentRestWorldInv = targetObj.parent
       ? restWorldQuat(target, targetObj.parent, new Quaternion()).invert()
       : new Quaternion();
     const left = sourceAncestor
-      ? targetParentRestWorldInv.clone().multiply(restWorldQuat(source, sourceAncestor, _a))
+      ? targetParentRestWorldInv
+          .clone()
+          .multiply(fixFor(ancestorBone).clone().invert())
+          .multiply(restWorldQuat(source, sourceAncestor, _a))
       : targetParentRestWorldInv.clone();
-    const right = restWorldQuat(source, sourceObj, _b).clone().invert().multiply(restWorldQuat(target, targetObj));
+    const right = restWorldQuat(source, sourceObj, _b)
+      .clone()
+      .invert()
+      .multiply(fixFor(humanBone))
+      .multiply(restWorldQuat(target, targetObj));
 
     const times = sampler.times;
     const values = new Float32Array(times.length * 4);
@@ -254,6 +279,29 @@ export function retargetClip(
   }
 
   return new AnimationClip(clip.name, clip.duration, tracks);
+}
+
+const IDENTITY = new Quaternion();
+
+/**
+ * Per-limb rotations that turn the target's rest pose into the source's (e.g. A-pose arms → T-pose arms): for each
+ * limb bone, the shortest rotation from the target's rest bone direction to the source's.
+ */
+export function computeRestFixes(source: RetargetRig, target: RetargetRig): Map<HumanBone, Quaternion> {
+  const fixes = new Map<HumanBone, Quaternion>();
+  const position = (rig: RetargetRig, obj: Object3D) => new Vector3().setFromMatrixPosition(restWorldMatrix(rig, obj));
+  for (const [bone, child] of Object.entries(POSE_DIRECTION_CHILD) as [HumanBone, HumanBone][]) {
+    const sb = source.bones.get(bone);
+    const sc = source.bones.get(child);
+    const tb = target.bones.get(bone);
+    const tc = target.bones.get(child);
+    if (!sb || !sc || !tb || !tc) continue;
+    const sourceDir = position(source, sc).sub(position(source, sb));
+    const targetDir = position(target, tc).sub(position(target, tb));
+    if (sourceDir.lengthSq() < 1e-10 || targetDir.lengthSq() < 1e-10) continue;
+    fixes.set(bone, new Quaternion().setFromUnitVectors(targetDir.normalize(), sourceDir.normalize()));
+  }
+  return fixes;
 }
 
 /** World-space eye height (metres above the rig root) estimated from the head bone. */
