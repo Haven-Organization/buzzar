@@ -13,3 +13,6 @@ docs/websg-js
 # Buzzar: local browser-automation artifacts (may contain Matrix room dumps)
 .playwright-mcp/
 .buzzar-debug.log
+
+# Buzzar: local world previews for /viewer?src=… (not for commit)
+public/gltf/test/_tmp-*
