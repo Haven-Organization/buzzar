@@ -107,7 +107,7 @@ export function WorldChat({ room, open }: IWorldChat) {
           </Text>
         ) : open && roomViewModel ? (
           <>
-            <WorldChatComposer composerViewModel={roomViewModel.composerViewModel} />
+            <WorldChatComposer composerViewModel={roomViewModel.composerViewModel} roomId={room.id} />
             <Text variant="b3" color="world" weight="bold" className="uppercase">
               Enter
             </Text>

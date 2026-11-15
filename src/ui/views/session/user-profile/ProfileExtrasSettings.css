@@ -1,0 +1,10 @@
+.ProfileExtrasSettings__banner {
+  height: 72px;
+  border-radius: var(--br-sm, 8px);
+  background-color: rgb(127 127 127 / 15%);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

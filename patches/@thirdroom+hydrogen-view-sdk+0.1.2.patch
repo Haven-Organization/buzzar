@@ -1,5 +1,5 @@
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
-index 6af6033..bc731ab 100644
+index 6af6033..1703158 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
 @@ -12244,7 +12244,9 @@ class DOMWebRTC {
@@ -13,7 +13,22 @@ index 6af6033..bc731ab 100644
        iceCandidatePoolSize
      });
      return new Proxy(peerConn, {
-@@ -22300,7 +22302,7 @@ class PeerCall {
+@@ -14607,6 +14609,14 @@ class Sync {
+         const membershipSection = roomsSection[membership];
+         if (membershipSection) {
+           for (const [roomId, roomResponse] of Object.entries(membershipSection)) {
++            // Buzzar: Hydrogen drops ephemeral events (typing notifications); hand them to the app.
++            if (membership === "join" && roomResponse.ephemeral && roomResponse.ephemeral.events && roomResponse.ephemeral.events.length && typeof window !== "undefined") {
++              try {
++                window.dispatchEvent(new CustomEvent("buzzar:ephemeral", { detail: { roomId, events: roomResponse.ephemeral.events } }));
++              } catch (err) {
++                console.warn("buzzar:ephemeral", err);
++              }
++            }
+             if (isInitialSync && timelineIsEmpty(roomResponse)) {
+               continue;
+             }
+@@ -22300,7 +22310,7 @@ class PeerCall {
      this.peerConnection = options.webRTC.createPeerConnection(this.options.forceTURN, [this.options.turnServer.get()], 0);
      this.disposables.track(this.options.turnServer.subscribe((turnServer) => {
        this.logItem.log({ l: "updating turn server", turnServer });
@@ -22,7 +37,7 @@ index 6af6033..bc731ab 100644
      }));
      const listen = (type, listener, options2) => {
        const newListener = (e) => {
-@@ -32897,3 +32899,6 @@ exports.makeTxnId = makeTxnId;
+@@ -32897,3 +32907,6 @@ exports.makeTxnId = makeTxnId;
  exports.submitLogsToRageshakeServer = submitLogsToRageshakeServer;
  exports.tileClassForEntry = tileClassForEntry;
  exports.viewClassForTile = viewClassForTile;
@@ -30,7 +45,7 @@ index 6af6033..bc731ab 100644
 +// Buzzar: device verification (SAS) before secret storage is unlocked needs the CrossSigning class.
 +exports.CrossSigning = CrossSigning;
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
-index 139e0d5..08818ed 100644
+index 139e0d5..4c132b3 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
 @@ -12215,7 +12215,9 @@ class DOMWebRTC {
@@ -44,7 +59,22 @@ index 139e0d5..08818ed 100644
        iceCandidatePoolSize
      });
      return new Proxy(peerConn, {
-@@ -22271,7 +22273,7 @@ class PeerCall {
+@@ -14578,6 +14580,14 @@ class Sync {
+         const membershipSection = roomsSection[membership];
+         if (membershipSection) {
+           for (const [roomId, roomResponse] of Object.entries(membershipSection)) {
++            // Buzzar: Hydrogen drops ephemeral events (typing notifications); hand them to the app.
++            if (membership === "join" && roomResponse.ephemeral && roomResponse.ephemeral.events && roomResponse.ephemeral.events.length && typeof window !== "undefined") {
++              try {
++                window.dispatchEvent(new CustomEvent("buzzar:ephemeral", { detail: { roomId, events: roomResponse.ephemeral.events } }));
++              } catch (err) {
++                console.warn("buzzar:ephemeral", err);
++              }
++            }
+             if (isInitialSync && timelineIsEmpty(roomResponse)) {
+               continue;
+             }
+@@ -22271,7 +22281,7 @@ class PeerCall {
      this.peerConnection = options.webRTC.createPeerConnection(this.options.forceTURN, [this.options.turnServer.get()], 0);
      this.disposables.track(this.options.turnServer.subscribe((turnServer) => {
        this.logItem.log({ l: "updating turn server", turnServer });
@@ -53,7 +83,7 @@ index 139e0d5..08818ed 100644
      }));
      const listen = (type, listener, options2) => {
        const newListener = (e) => {
-@@ -32791,4 +32793,4 @@ class RootViewModel extends ViewModel {
+@@ -32791,4 +32801,4 @@ class RootViewModel extends ViewModel {
      return this._sessionLoadViewModel;
    }
  }

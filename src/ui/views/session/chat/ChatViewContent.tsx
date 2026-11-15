@@ -34,7 +34,7 @@ export function ChatViewContent({ room }: ChatViewContentProps) {
             {tombstone ? (
               <RoomUpgradedBanner room={room} />
             ) : (
-              <ChatComposer composerViewModel={roomViewModel.composerViewModel!} />
+              <ChatComposer composerViewModel={roomViewModel.composerViewModel!} roomId={room.id} />
             )}
           </div>
         </>
