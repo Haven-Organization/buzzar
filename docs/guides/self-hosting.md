@@ -1,32 +1,38 @@
-# Self Hosting Third Room
+# Self Hosting Buzzar
 
-Third Room can be self-hosted, giving you even more control over the user experience and content distribution. By self-hosting, you can customize the client to meet your specific needs and requirements while still benefiting from the core functionality of Third Room.
+Buzzar isn't publicly hosted yet, so self-hosting is how you run it. You can also customize the client to fit your community.
 
-Third Room is a single page web app (SPA) and can be hosted on any static web server. You do not need to host your own Matrix homeserver in order to customize or self-host your own Third Room client.
+Buzzar is a single page web app (SPA) and can be hosted on any static web server. You do not need your own Matrix homeserver to host the client; it works with accounts on any homeserver.
 
-If you also want to self-host a Matrix homeserver, please refer to the [Synapse documentation](https://matrix-org.github.io/synapse/develop/welcome_and_overview.html).
+If you also want to self-host a Matrix homeserver, see the [Synapse documentation](https://element-hq.github.io/synapse/latest/welcome_and_overview.html).
+
+## Homeserver requirements
+
+- Synapse 1.62 or newer (for the `Cross-Origin-Resource-Policy: cross-origin` header on media downloads), or another homeserver that sends it.
+- A TURN server, so voice and world networking connect from any network (see the tip below).
+- Room versions: Buzzar creates worlds in your server's default room version, including v12.
 
 ::: tip
-Third Room uses Matrix's Group VoIP Calls feature to enable networking and voice chat in virtual worlds.
-In order for WebRTC calls to connect in all networking scenarios, you should set up a TURN server such as Coturn. You can find more information on configuring Coturn in Synapse [here](https://matrix-org.github.io/synapse/develop/turn-howto.html).
+Buzzar uses Matrix's Group VoIP Calls feature to enable networking and voice chat in virtual worlds.
+In order for WebRTC calls to connect in all networking scenarios, you should set up a TURN server such as Coturn. You can find more information on configuring Coturn in Synapse [here](https://element-hq.github.io/synapse/latest/turn-howto.html).
 :::
 
 ## Prerequisites
 
-To build the Third Room client you'll need [Node](https://nodejs.org) (version 16+) and [yarn](https://classic.yarnpkg.com) (v1) installed on your system.
+To build the Buzzar client you'll need [Node](https://nodejs.org) (version 18+) and [yarn](https://classic.yarnpkg.com) (v1) installed on your system.
 
-You'll also need to clone the Third Room repository:
+You'll also need to clone the Buzzar repository:
 
 ```bash
-git clone https://github.com/matrix-org/thirdroom.git
+git clone https://github.com/Haven-Organization/buzzar.git
 ```
 
 ## Building the Client
 
-First ensure that you are in the thirdroom root directory
+First ensure that you are in the buzzar root directory
 
-```back
-cd thirdroom
+```bash
+cd buzzar
 ```
 
 Then install the dependencies:
@@ -68,7 +74,7 @@ localhost:3000 {
 
   handle {
     root * ./path/to/dist
-    try_files {path} {path}/index.html /index.html
+    try_files {path} {path}.html {path}/index.html /index.html
     file_server
     header Cross-Origin-Opener-Policy "same-origin"
     header Cross-Origin-Embedder-Policy "require-corp"
@@ -86,9 +92,42 @@ You should now be able to access the client at `http://localhost:3000`.
 
 You can change `localhost:3000` to whatever domain you're hosting the client on.
 
+### Nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name buzzar.example.org;
+    root /var/www/buzzar;
+    index index.html;
+
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Embedder-Policy "require-corp" always;
+
+    # The service worker must never be served stale, or new builds won't take over.
+    location = /sw.js {
+        add_header Cache-Control "no-cache" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+    }
+
+    # These docs (built into dist/docs).
+    location /docs/ {
+        try_files $uri $uri.html $uri/ =404;
+    }
+
+    # Client-side routes (/world/…, /landing, …) all load the app.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+`scripts/buzzar/nginx-buzzar.conf` and `scripts/buzzar/deploy-local.sh` in the repository set up the same thing for a local build at `http://localhost:8090`.
+
 ## Required Headers
 
-Third Room requires the following headers to be set in order to function correctly:
+Buzzar requires the following headers to be set in order to function correctly. The engine's worker threads share memory (`SharedArrayBuffer`), which browsers only allow on cross-origin isolated pages:
 
 ```http
 Cross-Origin-Opener-Policy "same-origin"
@@ -103,4 +142,4 @@ Configuration options can be found in the `/config.json` file. You can change th
 
 If you're hosting your own homeserver on the same domain as the client, you'll also want to adjust the files in the `./well-known` directory to point to your homeserver.
 
-Other client modifications and configuration are up to you. We've left them undocumented for now and encourage you to explore the codebase to see what's possible. However, if you're looking to extensively modify the client's runtime behavior, we suggest you look to see if it's possible with the existing WebSG APIs first. For content to be interoperable across clients, it's important that we all use the same APIs and protocols. If you're interested in getting involved in shaping the future of the glTF or WebSG standards please get in touch with us on [Matrix](https://matrix.to/#/#thirdroom-dev:matrix.org).
+Other client modifications and configuration are up to you. We've left them undocumented for now and encourage you to explore the codebase to see what's possible. However, if you're looking to extensively modify the client's runtime behavior, we suggest you look to see if it's possible with the existing WebSG APIs first. For content to be interoperable across clients, it's important that we all use the same APIs and protocols. If you're interested in getting involved in shaping the future of the glTF or WebSG standards please open an issue on [GitHub](https://github.com/Haven-Organization/buzzar/issues).

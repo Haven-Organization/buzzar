@@ -1,9 +1,11 @@
+/* Buzzar purple (#7000FF), from the logo. */
 :root {
-  --vp-c-brand: hsl(209deg 93% 53%);
-  --vp-c-brand-light: hsl(209deg 93% 60%);
-  --vp-c-brand-lighter: hsl(209deg 93% 65%);
-  --vp-c-brand-dark: hsl(209deg 93% 45%);
-  --vp-c-brand-darker: hsl(209deg 93% 40%);
+  --vp-c-brand: #7000ff;
+  --vp-c-brand-light: #8a33ff;
+  --vp-c-brand-lighter: #a366ff;
+  --vp-c-brand-dark: #5c00d1;
+  --vp-c-brand-darker: #4a00a8;
+  --vp-home-hero-name-color: #7000ff;
 }
 
 .dark {
@@ -12,6 +14,6 @@
   --vp-c-brand-lighter: hsl(266deg 100% 75%);
   --vp-c-brand-dark: hsl(266deg 100% 50%);
   --vp-c-brand-darker: hsl(266deg 100% 45%);
-  --vp-home-hero-name-color: hsl(266deg 100% 60%);
-  --vp-button-brand-bg: hsl(266deg 100% 60%);
+  --vp-home-hero-name-color: hsl(266deg 100% 72%);
+  --vp-button-brand-bg: #7000ff;
 }

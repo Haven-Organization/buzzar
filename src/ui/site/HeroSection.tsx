@@ -1,28 +1,19 @@
-import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "../atoms/button/Button";
 import { Text } from "../atoms/text/Text";
 import "./HeroSection.css";
 import { Icon } from "../atoms/icon/Icon";
-import { IconButton } from "../atoms/button/IconButton";
 import ArrowForwardIC from "../../../res/ic/arrow-forward.svg";
-import PlayIC from "../../../res/ic/play.svg";
 import { isMobileDevice } from "../utils/common";
 
 function HeroBanner() {
   return (
     <div className="HeroSection_Banner flex items-center gap-xxs">
       <Text color="surface" weight="bold">
-        🔥 The Creator Update is here! Web Scene Graph API, WebXR, and more!
+        Buzzar continues Third Room, the Matrix.org Foundation&apos;s virtual world client.
       </Text>
-      <Button
-        fill="none"
-        size="sm"
-        onClick={() =>
-          window.open("https://matrix.org/blog/2023/06/07/introducing-third-room-tp-2-the-creator-update", "_blank")
-        }
-      >
+      <Button fill="none" size="sm" onClick={() => window.open("/docs/guides/third-room", "_blank")}>
         <Text color="primary" weight="bold">
           Read More
         </Text>
@@ -31,34 +22,15 @@ function HeroBanner() {
   );
 }
 
-function PreviewVideoPlayer() {
-  const preview = "https://matrix.thirdroom.io/_matrix/media/r0/download/matrix.org/eCIGHgUqQWmJrVdzUpTwrGbp";
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [play, setPlay] = useState(false);
-
-  const playVideo = () => {
-    if (videoRef.current === null) return;
-    videoRef.current.play();
-    setPlay(true);
-  };
-
+function HeroPreview() {
   return (
     <div className="PreviewVideoPlayer">
-      <video ref={videoRef} controls={play} preload="none" autoPlay={false} poster="/landing/Hero.jpg">
-        <source src={preview} type="video/mp4" />
-      </video>
-      {!play && (
-        <div className="PreviewVideoPlayer__play-btn flex justify-center items-center">
-          <IconButton
-            onClick={playVideo}
-            className="flex justify-center items-center"
-            size="xl"
-            iconSrc={PlayIC}
-            variant="primary"
-            label="Play Video"
-          />
-        </div>
-      )}
+      <img
+        src="/landing/BuzzarHome.jpg"
+        alt="The Buzzar Home world: a campfire clearing with log seats, trees and avatar pedestals"
+        width={1400}
+        height={788}
+      />
     </div>
   );
 }
@@ -71,7 +43,7 @@ export function HeroSection() {
       <HeroBanner />
       <div className="HeroSection__main flex flex-column items-center justify-center">
         <Text className="HeroSection__heading" variant="h2">
-          Open, decentralized, immersive worlds built on Matrix
+          Shared virtual worlds on Matrix
         </Text>
         <Button size="xl" onClick={() => navigate("/login")} disabled={isMobileDevice()}>
           <Text color="on-primary" weight="semi-bold">
@@ -81,7 +53,7 @@ export function HeroSection() {
         </Button>
       </div>
       <div className="HeroSection__video">
-        <PreviewVideoPlayer />
+        <HeroPreview />
       </div>
       <div className="HeroSection__curve">
         <svg viewBox="0 0 1742 318" fill="none" xmlns="http://www.w3.org/2000/svg">

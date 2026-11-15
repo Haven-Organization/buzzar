@@ -31,6 +31,16 @@ export function CreateMenuItems() {
           Documentation
         </Text>
       </a>
+      <a className="MenuItem MenuItem--surface truncate" href="/docs/guides/importing-worlds">
+        <Text variant="b2" weight="medium" type="span">
+          Importing Worlds
+        </Text>
+      </a>
+      <a className="MenuItem MenuItem--surface truncate" href="/docs/guides/avatars">
+        <Text variant="b2" weight="medium" type="span">
+          Avatars
+        </Text>
+      </a>
       <a className="MenuItem MenuItem--surface truncate" href="/docs/websg-js/">
         <Text variant="b2" weight="medium" type="span">
           Web Scene Graph API
@@ -48,24 +58,19 @@ export function CreateMenuItems() {
 export function CommunityMenuItems() {
   return (
     <>
-      <a className="MenuItem MenuItem--surface truncate" href="https://matrix.to/#/#thirdroom-dev:matrix.org">
+      <a className="MenuItem MenuItem--surface truncate" href="https://github.com/Haven-Organization/buzzar">
         <Text variant="b2" weight="medium" type="span">
-          Matrix
+          GitHub
         </Text>
       </a>
-      <a className="MenuItem MenuItem--surface truncate" href="https://github.com/matrix-org/thirdroom/">
+      <a className="MenuItem MenuItem--surface truncate" href="https://github.com/Haven-Organization/buzzar/issues">
         <Text variant="b2" weight="medium" type="span">
-          Github
+          Report a Problem
         </Text>
       </a>
-      <a className="MenuItem MenuItem--surface truncate" href="https://mastodon.matrix.org/@thirdroom">
+      <a className="MenuItem MenuItem--surface truncate" href="https://haven.software/buzzar/">
         <Text variant="b2" weight="medium" type="span">
-          Mastodon
-        </Text>
-      </a>
-      <a className="MenuItem MenuItem--surface truncate" href="https://twitter.com/thirdroomio">
-        <Text variant="b2" weight="medium" type="span">
-          Twitter
+          Haven Software
         </Text>
       </a>
     </>

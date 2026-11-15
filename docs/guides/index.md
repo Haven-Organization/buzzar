@@ -1,55 +1,71 @@
 # Getting Started
 
-![Image of two avatars in a sci-fi world](/images/ThirdRoomIntro.jpg)
+![The Buzzar Home world: a campfire clearing with log seats and avatar pedestals](/images/BuzzarHome.jpg)
 
-Welcome to Third Room, an open-source social platform built on the Matrix protocol, designed to provide a user-friendly, secure, and decentralized communication experience in fully immersive 3D worlds with support for desktop and XR. This documentation will guide you through the basics of Third Room, helping you get started and familiarize yourself with the platform.
+Welcome to Buzzar, an open-source platform for shared virtual worlds built on the Matrix protocol. You can visit 3D worlds together on desktop or in VR, talk with spatial voice, and chat with anyone on Matrix. This guide covers the basics.
 
-## What is Third Room?
+## What is Buzzar?
 
-Third Room is a social platform that leverages the Matrix protocol, a decentralized and open communication standard that enables secure, real-time communication. It provides an accessible interface for users to communicate and collaborate in a fully 3D environment that values privacy and data ownership.
+Buzzar is a Matrix client for 3D worlds. Every world is a Matrix room, so your account, friends and chats come with you from world to world, and the people in a world can talk to you from any Matrix app, like Element.
+
+Buzzar continues [Third Room](/guides/third-room), the Matrix.org Foundation's virtual world client, whose development stopped in 2023. It keeps Third Room's full history and still opens Third Room worlds, and it's adding what Third Room didn't get to: custom avatars, mirrors, seats, things you can pick up, scripted worlds, VR, and moderation tools for worlds.
 
 ## Key Features
 
-- :globe_with_meridians: **3D Worlds**: Create and join public or private worlds for various purposes, such as discussions, project collaborations, or event organizations.
-- :link: **Decentralized**: Third Room is built on Matrix, ensuring that your data is not controlled by a single entity. Instead, it is distributed across various servers, known as homeservers, promoting data ownership and security.
-- :lock: **End-to-end encryption**: Communication in Third Room is protected by end-to-end encryption, ensuring that your messages and files can only be accessed by the intended recipients.
-- :magic_wand: **User-friendly interface**: Third Room is designed to be intuitive and easy to use, making it accessible even for users who are new to decentralized communication platforms.
-- :handshake: **Interoperability**: The Matrix protocol allows for seamless communication between different platforms, making Third Room a versatile tool that can connect you to various other communication services.
+- :globe_with_meridians: **3D worlds**: Join public worlds or make your own, for hanging out, events or projects.
+- :link: **Decentralized**: Your data lives on your homeserver, not with one company. Anyone can run a homeserver.
+- :bust_in_silhouette: **Your own avatar**: Wear the same avatar everywhere, or a different one per world. See [Avatars](/guides/avatars).
+- :house: **A home world**: Every account gets its own Home world to start in.
+- :handshake: **Interoperable**: Worlds are ordinary Matrix rooms, and Buzzar reads Third Room's world format and glTF extensions.
 
 ## Getting Started
 
-### 1. Sign up
+### 1. Sign in
 
-![Screenshot of the ThirdRoom signup page](/images/SignUp.png)
+![Screenshot of the sign-in page](/images/SignUp.png)
 
-To start using Third Room, you can use a guest account to try things out, or you can create an account. Visit the Third Room website, click on the "Login" button and follow the steps from there.
+Buzzar isn't publicly hosted yet. To try it, run it yourself (see [Self Hosting](/guides/self-hosting)) and sign in with an account on any Matrix homeserver, such as matrix.org or your own.
 
-When signing up, you'll be prompted to choose a homeserver. This is the server where your account data will be stored. You can either choose the default homeserver provided by Third Room or select a different one from the list of available servers. You also have the option to set up your own homeserver if you prefer to have more control over your data.
+Your homeserver is where your account data is stored. The sign-in page lets you pick one from a list or type in your own.
 
 ### 2. Join or create worlds
 
-![Screenshot of the ThirdRoom room list with create world menu open](/images/CreateWorld.png)
+![Screenshot of the world list with the create world menu open](/images/CreateWorld.png)
 
-Once you've signed in, you can start exploring Third Room by joining existing worlds or creating new ones. To join a world, click on any of the worlds listed in the panel on the left. To create a new world: click the plus sign on the top of the left navgation panel and click "Create World".
+After you sign in you start in your Home world. Your worlds are listed in the panel on the left; click one to go there.
 
-### 3. Invite users and manage world settings
+- **Discover** (the compass button) lists public worlds from a server's room directory. Search your own server or type another server's name to see its worlds.
+- **Create a world** with the plus button at the top of the left panel. New worlds start with a starter scene you can replace with your own (see [Importing Worlds](/guides/importing-worlds)).
+- **Portals** in a world take you to another world when you walk up to them and press E or click.
 
-![Screenshot of the ThirdRoom invitation modal](/images/InviteUsers.png)
+### 3. Get around
 
-After creating a world, you can invite other users to join by sending them an invitation or sharing the world's unique link. As the world creator, you have the ability to manage the world's settings, such as changing the world's name, description, or privacy settings. You can also assign roles and permissions to other users in the world, allowing them to help with moderation or other tasks.
+| Action                        | Keyboard and mouse                           |
+| ----------------------------- | -------------------------------------------- |
+| Move                          | W A S D                                      |
+| Look                          | Mouse (click the world to capture the mouse) |
+| Jump                          | Space                                        |
+| Run                           | Left Shift                                   |
+| Crouch                        | C                                            |
+| First / third person          | V                                            |
+| Interact, sit, enter a portal | E or left click                              |
+| Free the mouse                | Tab                                          |
+| Menu                          | Escape                                       |
 
-### 4. Customize your profile
+### 4. Invite people and manage your world
 
-![Screenshot of the ThirdRoom room list with the profile menu open](/images/ViewProfile.png)
+![Screenshot of the invite dialog](/images/InviteUsers.png)
 
-Personalize your Third Room experience by customizing your profile. Click on your profile picture in the bottom left corner and select "View Profile" to add a display name and profile picture.
+Invite people to a world, or share its link. As the creator you can change the world's name, scene and privacy settings, and give others roles to help moderate.
+
+### 5. Set up your profile
+
+![Screenshot of the profile menu](/images/ViewProfile.png)
+
+Click your profile picture in the bottom left corner and choose "View Profile" to set your display name, picture and avatar.
 
 ---
 
-Remember that Third Room is built on Matrix, which means that you can also communicate with users on other platforms that support the Matrix protocol, making it a versatile tool for collaboration and communication.
+Because Buzzar is built on Matrix, you can talk with people on any Matrix app, in or out of a world.
 
-As you continue using Third Room, you may discover additional features and settings that cater to your specific needs or preferences. The platform is continually being developed and improved, so stay tuned for updates and new features that enhance your Third Room experience.
-
-If you have questions, need support, or want to provide feedback, visit the [Third Room chat](https://matrix.to/#/%23thirdroom-dev:matrix.org). Your input is valuable to us as we work to create a user-friendly and secure platform for decentralized communication.
-
-Happy exploring, and welcome to the Third Room community!
+If you have questions or find a problem, open an issue on [GitHub](https://github.com/Haven-Organization/buzzar/issues).

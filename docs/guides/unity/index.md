@@ -2,6 +2,10 @@
 
 Export Third Room scenes from Unity. Powered by UnityGLTF.
 
+::: info
+This is Third Room's exporter. It hasn't been updated since Third Room stopped in 2023, but the scenes it makes still load in Buzzar, because Buzzar reads the same glTF extensions. For Blender or downloaded models, see [Importing Worlds](/guides/importing-worlds). Buzzar-only features (seats, grabbables, mirrors, avatar pedestals) aren't in the exporter; add them as described in the [glTF extension specs](/gltf/).
+:::
+
 ## Contents
 
 - [Installation](#installation)
@@ -66,7 +70,7 @@ Whether you're working with an existing scene or starting one from scratch there
 
 ![Project Settings](./images/ProjectSettings.png)
 
-If these settings aren't set, your lighting may look fine in Unity, but it'll look off when exporting and importing into Third Room.
+If these settings aren't set, your lighting may look fine in Unity, but it'll look off when exporting and importing into Buzzar.
 
 ### Render Pipeline Settings
 
@@ -98,7 +102,7 @@ To do so change the shader on the selected material to `UnityGLTF/PBRGraph`.
 
 For all new materials, set the `UnityGLTF/PBRGraph` shader before you start setting properties.
 
-Note that Third Room does not yet have support for the following extensions:
+Note that Buzzar does not yet have support for the following extensions:
 
 - KHR_matrials_irridescence
 - KHR_materials_specular
@@ -110,11 +114,11 @@ More information on UnityGLTF's materials can be found [here](https://github.com
 
 ## Exporting a Scene
 
-Once you have a scene ready to be exported to Third Room follow these steps to export it and test it out:
+Once you have a scene ready to be exported to Buzzar follow these steps to export it and test it out:
 
 1. Click `Assets > UnityGLTF > Export active scene as glTF`
 2. Pick an output directory
-3. Open https://thirdroom.io/viewer in your browser.
+3. Open `/viewer` on your Buzzar site in your browser (for example `http://localhost:3000/viewer`).
 4. Drag and drop the entire contents of the output directory into the viewer.
 
 You should see your output scene in the viewer. If you haven't placed a spawn point yet you'll be flying around the space. It may also be lit incorrectly and be very expensive to render. In the following sections we'll go over all of the supported features of the Third Room Unity Exporter.
@@ -151,7 +155,7 @@ Colliders can be easily exported with the Third Room Unity Exporter. The followi
 - Capsule Collider
 - Mesh Collider
 
-Physic materials and the `Is Trigger` properties are not yet supported. And all colliders will be static rigid bodies when they are imported into Third Room (they don't move). This does mean that your player will collide with them and can walk around on them though.
+Physic materials and the `Is Trigger` properties are not yet supported. And all colliders will be static rigid bodies when they are imported into Buzzar (they don't move). This does mean that your player will collide with them and can walk around on them though.
 
 Typically you should pick the simplest collider for your meshes instead of using a complex mesh collider. Try creating approximations of mesh colliders out of multiple primitive colliders like boxes, spheres, and capsules.
 
@@ -185,7 +189,7 @@ The thirdroom-unity-exporter package contains a default portal prefab in the sam
 1. In the Project go to the `Samples > Third Room Unity Exporter > x.x.x > Sample Scenes > Prefabs` directory.
 2. Drag the `Portal` prefab into your scene where you want to place it.
 3. Select the `Portal Target` object inside the Portal GameObject you just placed in the `Hierarchy` panel.
-4. In the inspector there is a component `MX Portal Behaviour` with a single property `Uri`. You can change this to any Matrix Room URI (we'll explain the URI format below). For now you can keep this set to `matrix:r/terra-1:thirdroom.io` which represents a link to the room `#terra-1:thirdroom.io`
+4. In the inspector there is a component `MX Portal Behaviour` with a single property `Uri`. You can change this to any Matrix Room URI (we'll explain the URI format below). For now you can keep this set to `matrix:r/terra-1:thirdroom.io` which represents a link to the room `#terra-1:thirdroom.io`. That room no longer exists since thirdroom.io shut down, so change it to one of your own worlds. Portal URIs can also be `https://matrix.to/#/...` links, and `?via=server` tells Buzzar which server to join through.
 5. Replace the thumbnail of the portal by replacing the material on the prefab's `Portal Thumbnail` object. We recommend that you set the `Render Face` to `Both` and set both a `Base Color Map` and `Emissive Map` so that the portal can be seen from both sides and seems to glow even in dark environments.
 
 ![Portal Hierarchy](./images/PortalHierarchy.png)
@@ -261,7 +265,7 @@ The Third Room Unity Exporter has native support for exporting Unity's lightmaps
 
 Realtime, mixed, and dynamic lights are supported. The current supported light types are:
 
-- Directional Light (Only one is supported in Third Room and currently the position matters)
+- Directional Light (Only one is supported and currently the position matters)
 - Spot Light
 - Point Light
 
@@ -269,7 +273,7 @@ All lights currently cast shadows so that setting has no effect for realtime lig
 
 The preferred workflow for lighting is baked lighting.
 
-If you're new to baked lighting in Unity you can read more on the process [here](https://docs.unity3d.com/2018.4/Documentation/Manual/LightMode-Baked.html). Third Room will include the baked lightmaps on export and place lightmap UVs on the second UV set. Third Room needs a few lightmap settings to be set correctly for the exported lightmap to work correctly.
+If you're new to baked lighting in Unity you can read more on the process [here](https://docs.unity3d.com/2018.4/Documentation/Manual/LightMode-Baked.html). The exporter will include the baked lightmaps on export and place lightmap UVs on the second UV set. Buzzar needs a few lightmap settings to be set correctly for the exported lightmap to work correctly.
 
 ### Lightmap Settings
 
@@ -291,12 +295,12 @@ Unity's reflection probes are also exported with the scene.
 Reflection probes should have the following settings set:
 
 - Type: `Baked`
-- Box Projection: Should be unchecked, Third Room doesn't support it.
-- Box Offset: Should be set to 0,0,0 Third Room doesn't support it.
+- Box Projection: Should be unchecked, Buzzar doesn't support it.
+- Box Offset: Should be set to 0,0,0, Buzzar doesn't support it.
 - Resolution: `128` recommended for performance, you can change the resolution, but the important thing is that they are all the same.
 - HDR: Must be checked
 
-Third Room also uses the Environment Reflections settings in the Lighting window under the Environment tab. They should be set to:
+Buzzar also uses the Environment Reflections settings in the Lighting window under the Environment tab. They should be set to:
 
 - Source: `Skybox`
 - Resolution: `128` or whatever you set for all the other reflection probes.
@@ -311,7 +315,7 @@ We support exporting your global Unity Postprocessing settings. Currently we onl
 
 ## Optimization and Uploading
 
-Third Room uses a custom glTF-Transform pipeline to apply optimizations to the final glTF files. These optimizations include:
+Buzzar uses a custom glTF-Transform pipeline to apply optimizations to the final glTF files. These optimizations include:
 
 - Removing unused glTF accessors, images, materials, and meshes
 - Resizing textures: 2048x2048 for baseColorTexture and emissiveTexture, 1024x1024 for metallicRoughnessTexture, occlusionTexture, and normalTexture
@@ -322,14 +326,14 @@ To optimize you assets follow these steps:
 
 1. Export your glTF scene by clicking `Assets > UnityGLTF > Export active scene as glTF`
 2. Select your output directory
-3. Open https://thirdroom.io/pipeline
+3. Open `/pipeline` on your Buzzar site
 4. Drag and drop the files from your output directory onto the pipeline page
 5. Open your browser's console to see the optimization pipeline's logs
 6. Wait a while... compressing textures takes a while. It's multithreaded, using WASM, but it's still going to take time.
 7. Find the final optimized file in your download folder.
-8. Test it out on https://thirdroom.io/viewer
+8. Test it out at `/viewer` on your Buzzar site
 9. If you're satisfied with the results create a new world or change the scene of one of your worlds using the output .glb file.
 
 ## Getting Help
 
-This exporter and our asset pipeline in general has yet to be put through its paces. Especially outside our team. If you find a bug, please report it here in GitHub issues. If you're having a hard time figuring something out and need help, join us in the Third Room Matrix Room [here](https://matrix.to/#/#thirdroom-dev:matrix.org). Also, we'd love to see progress of your work! Send us your progress shots in the Matrix Room or tag us on Twitter (@thirdroomio).
+This exporter and our asset pipeline in general has yet to be put through its paces. Especially outside our team. If you find a bug in how Buzzar loads an exported scene, or need help, open an issue on [GitHub](https://github.com/Haven-Organization/buzzar/issues).

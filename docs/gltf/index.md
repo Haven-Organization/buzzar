@@ -38,3 +38,12 @@ Below is a list of the currently supported glTF extensions in Third Room and the
 - [MX_static](./MX_static/README)
 - [MX_texture_rgbm](./MX_texture_rgbm/README)
 - [MX_tiles_renderer](./MX_tiles_renderer/README)
+
+## Buzzar Extensions
+
+Extensions defined by Buzzar. They are experimental, and Third Room and other clients ignore them, so a world using them still loads elsewhere without the extra behavior.
+
+- [HAVEN_avatar_pedestal](./HAVEN_avatar_pedestal/README)
+- [HAVEN_grabbable](./HAVEN_grabbable/README)
+- [HAVEN_mirror](./HAVEN_mirror/README)
+- [HAVEN_seat](./HAVEN_seat/README)

@@ -49,8 +49,11 @@
   overflow: hidden;
   position: relative;
 
-  & > video {
+  & > video,
+  & > img {
     width: 100%;
+    height: auto;
+    display: block;
   }
 }
 .PreviewVideoPlayer__play-btn {

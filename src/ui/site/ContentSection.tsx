@@ -30,9 +30,9 @@ export function ContentSection() {
             content={
               <div className="flex flex-column gap-md">
                 <Text variant="s1" weight="medium">
-                  Third Room is a virtual space for your community to gather, share, and collaborate. Your own worlds
-                  for you to customize as you see fit. Host events and meetups, just hang out and chat, or dive into
-                  rich 3D experiences together.
+                  Buzzar is a place for your community to gather, share and hang out in 3D. Make your own worlds and
+                  shape them however you like. Host events and meetups, chat by the campfire, or explore worlds
+                  together, on desktop or in VR.
                 </Text>
               </div>
             }
@@ -42,42 +42,42 @@ export function ContentSection() {
           <LeftRightContent
             title={
               <Text variant="h1" weight="bold">
-                Add a third dimension to the conversation
+                Be whoever you want to be
               </Text>
             }
             content={
               <div className="flex flex-column gap-md">
                 <Text variant="s1" weight="medium">
-                  Whether you’re on your laptop or in an VR or AR headset, Third Room makes communicating 3D concepts
-                  easy.
+                  Wear your own VRM or glTF avatar in every world, or pick a different one for each world. Try avatars
+                  on from pedestals, check how you look in a mirror, and take a seat by the fire.
                 </Text>
                 <div className="flex flex-column gap-xs">
                   <Text variant="s1" weight="semi-bold">
-                    Architecture and Civil Engineering
+                    Your avatar, your account
                   </Text>
                   <Text variant="s1" weight="medium">
-                    Use Third Room’s support for Cesium’s 3D Tiles to bring in massive geospatial datasets.
+                    Your avatar is stored on your own Matrix homeserver and follows you from world to world.
                   </Text>
                 </div>
                 <div className="flex flex-column gap-xs">
                   <Text variant="s1" weight="semi-bold">
-                    Industrial Design and Manufacturing
+                    Worlds with things to do
                   </Text>
                   <Text variant="s1" weight="medium">
-                    Get up close and personal with a 3D design in AR or VR. Hop in and out of your virtual meeting room
-                    with your colleagues.
+                    Seats, objects you can pick up and throw, mirrors and avatar pedestals, all described in open glTF
+                    extensions.
                   </Text>
                 </div>
-                <a href="https://try.element.io/contact-sales" rel="noopener" className="flex items-center gap-xxs">
+                <a href="/docs/guides/avatars" className="flex items-center gap-xxs">
                   <Text color="primary" type="span" weight="medium">
-                    Contact Sales
+                    Avatars Guide
                   </Text>
                   <Icon color="primary" src={ArrowForwardIC} />
                 </a>
               </div>
             }
-            imgSrc="/landing/flightdeck.jpg"
-            imgAlt="A person in an AR headset looking at a 3D model of airplanes on a map"
+            imgSrc="/landing/BuzzarAvatars.jpg"
+            imgAlt="A devil avatar on a pedestal with a card reading: Devil, by Polygonal Mind, click the avatar to wear it"
           />
           <LeftRightContent
             flipped
@@ -89,16 +89,16 @@ export function ContentSection() {
             content={
               <div className="flex flex-column gap-md">
                 <Text variant="s1" weight="medium">
-                  Third Room is built on Matrix: an open network for secure, decentralized communication.
+                  Buzzar is built on Matrix: an open network for secure, decentralized communication.
                 </Text>
                 <div className="flex flex-column gap-xs">
                   <Text variant="s1" weight="semi-bold">
                     Self Sovereign
                   </Text>
                   <Text variant="s1" weight="medium">
-                    Third Room worlds are replicated across homeservers. There is no single point of control or failure
-                    in the Matrix network. Every server has total self-sovereignty over its users data and anyone can
-                    run a Matrix homeserver.
+                    Buzzar worlds are replicated across homeservers. There is no single point of control or failure in
+                    the Matrix network. Every server has total self-sovereignty over its users data and anyone can run a
+                    Matrix homeserver.
                   </Text>
                 </div>
                 <div className="flex flex-column gap-xs">
@@ -116,9 +116,9 @@ export function ContentSection() {
                     Interoperable
                   </Text>
                   <Text variant="s1" weight="medium">
-                    Third Room is just another Matrix client. You can chat with people in Third Room worlds from Element
-                    on your phone or use your Matrix chat bot in your world. We’re active participants in improving
-                    realtime communication on Matrix.
+                    Buzzar is just another Matrix client. You can chat with people in Buzzar worlds from Element on your
+                    phone or use your Matrix chat bot in your world. Worlds made in Third Room open in Buzzar, and the
+                    other way around.
                   </Text>
                 </div>
 
@@ -147,9 +147,9 @@ export function ContentSection() {
             content={
               <div className="flex flex-column gap-md">
                 <Text variant="s1" weight="medium">
-                  Use the Web Scene Graph (WebSG) API to add interactions and behaviors to Third Room worlds. You can
-                  write scripts in any language that compiles to WebAssembly, including JavaScript via QuickJS.
-                  WebAssembly provides a fast, safe and interoperable runtime for user generated content.
+                  Use the Web Scene Graph (WebSG) API to add interactions and behaviors to Buzzar worlds. You can write
+                  scripts in any language that compiles to WebAssembly, including JavaScript via QuickJS. WebAssembly
+                  provides a fast, safe and interoperable runtime for user generated content.
                 </Text>
                 <a href="/docs/guides/websg/" rel="noopener" className="flex items-center gap-xxs">
                   <Text color="primary" type="span" weight="medium">
@@ -166,13 +166,14 @@ export function ContentSection() {
             flipped
             title={
               <Text variant="h1" weight="bold">
-                Create and render photorealistic graphics
+                Bring worlds from the tools you use
               </Text>
             }
             content={
               <div className="flex flex-column gap-md">
                 <Text variant="s1" weight="medium">
-                  Harness the power of Unity’s editor and Third Room’s high performance WebGL engine.
+                  Turn Blender scenes and downloaded models into worlds with Buzzar's glTF tools, or build in Unity with
+                  the Third Room exporter. Buzzar's multithreaded WebGL engine renders them in any modern browser.
                 </Text>
                 <div className="ContentSection__realGraphicFeatures flex gap-md">
                   <div className="grow basis-0 flex flex-column gap-xs">
@@ -261,10 +262,16 @@ export function ContentSection() {
                       </Text>
                       <Icon color="primary" src={ArrowForwardIC} />
                     </a>
+                    <a href="/docs/guides/importing-worlds" className="flex items-center gap-xxs">
+                      <Text color="primary" type="span" weight="medium">
+                        Importing Worlds from Blender and More
+                      </Text>
+                      <Icon color="primary" src={ArrowForwardIC} />
+                    </a>
                   </div>
                   <div className="grow basis-0 flex flex-column gap-xs">
                     <Text variant="s1" weight="semi-bold">
-                      Manifold Engine
+                      Engine (from Third Room)
                     </Text>
                     <FeatureItem
                       icon={
@@ -316,7 +323,7 @@ export function ContentSection() {
                     >
                       <Text weight="medium">Rapier Physics</Text>
                     </FeatureItem>
-                    <a href="https://github.com/matrix-org/thirdroom" className="flex items-center gap-xxs">
+                    <a href="https://github.com/Haven-Organization/buzzar" className="flex items-center gap-xxs">
                       <Text color="primary" type="span" weight="medium">
                         GitHub Repository
                       </Text>
@@ -338,8 +345,7 @@ export function ContentSection() {
               Pushing the immersive web forward
             </Text>
             <Text variant="h2" weight="medium">
-              We’re continuously shipping features to make Third Room the best virtual world platform out there. Here’s
-              what’s coming soon:
+              Buzzar picks up where Third Room left off. Here’s what we’re working on next:
             </Text>
             <div className="flex flex-column gap-md text-start" style={{ maxWidth: 526 }}>
               <FeatureItem
@@ -353,9 +359,12 @@ export function ContentSection() {
                 }
               >
                 <Text variant="s1" weight="medium">
-                  Realtime Collaborative Editor
+                  World Rules and Moderation
                 </Text>
-                <Text>Create virtual worlds with your teammates without leaving your browser.</Text>
+                <Text>
+                  Roles, rules and gatekeepers for worlds, built on Matrix power levels so any client or bot can enforce
+                  them.
+                </Text>
               </FeatureItem>
               <FeatureItem
                 icon={
@@ -375,10 +384,11 @@ export function ContentSection() {
                 }
               >
                 <Text variant="s1" weight="medium">
-                  WebRTC Cascading SFU
+                  Bigger Worlds with MatrixRTC
                 </Text>
                 <Text>
-                  Scale up the capacity of your worlds while maintaining the resiliency of Matrix’s federated network.
+                  Move voice and networking to MatrixRTC and LiveKit, so worlds hold dozens of people instead of a
+                  handful.
                 </Text>
               </FeatureItem>
               <FeatureItem
@@ -399,12 +409,9 @@ export function ContentSection() {
                 }
               >
                 <Text variant="s1" weight="medium">
-                  Customizable Avatars
+                  Full VR
                 </Text>
-                <Text>
-                  Your virtual identity is just as important as your physical one. Be whoever you want to be in Third
-                  Room.
-                </Text>
+                <Text>Play in a headset with hand controllers, or seated with a gamepad, in every world.</Text>
               </FeatureItem>
               <FeatureItem
                 icon={
@@ -417,7 +424,7 @@ export function ContentSection() {
                 }
               >
                 <Text variant="s1" weight="medium">
-                  Scriptable Objects
+                  Scriptable Props
                 </Text>
                 <Text>
                   Create and share objects with behaviors. Gift a friend a working arcade cabinet or virtual pet.
@@ -434,7 +441,7 @@ export function ContentSection() {
                 }
               >
                 <Text variant="s1" weight="medium">
-                  Decentralized Marketplace
+                  A Marketplace for Creators
                 </Text>
                 <Text>
                   Buy, sell, and trade virtual goods over the Matrix network. No walled gardens or cryptocurrency

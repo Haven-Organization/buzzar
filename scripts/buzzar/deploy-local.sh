@@ -12,6 +12,8 @@ WEB=${BUZZAR_WEB_ROOT:-/usr/share/nginx/html/buzzar}
 cd "$ROOT"
 if [ "${1:-}" != "--no-build" ]; then
   yarn -s vite build
+  # The developer docs (VitePress) build into dist/docs, served at /docs.
+  yarn -s docs:build
 fi
 
 if [ -d "$WEB" ]; then

@@ -10,8 +10,6 @@ import { Icon } from "../atoms/icon/Icon";
 import { Text } from "../atoms/text/Text";
 import MatrixLogoSVG from "../../../res/svg/matrix-logo.svg";
 import GithubLogoSVG from "../../../res/svg/github-logo.svg";
-import TwitterLogoSVG from "../../../res/svg/twitter-logo.svg";
-import MastodonLogoSVG from "../../../res/svg/mastodon-logo.svg";
 import ArrowForwardIC from "../../../res/ic/arrow-forward.svg";
 import { isMobileDevice } from "../utils/common";
 
@@ -34,45 +32,61 @@ export function FooterSection() {
         </div>
         <div className="flex flex-wrap gap-lg">
           <FooterMenu>
-            <Label className="uppercase">Join our community</Label>
-            <a href="https://matrix.to/#/#thirdroom-dev:matrix.org" className="flex items-center gap-xs">
-              <Icon size="sm" src={MatrixLogoSVG} />
-              <Text variant="b2" type="span">
-                Matrix
-              </Text>
-            </a>
-            <a href="https://github.com/matrix-org/thirdroom/" className="flex items-center gap-xs">
+            <Label className="uppercase">Community</Label>
+            <a href="https://github.com/Haven-Organization/buzzar" className="flex items-center gap-xs">
               <Icon size="sm" src={GithubLogoSVG} />
               <Text variant="b2" type="span">
-                Github
+                GitHub
               </Text>
             </a>
-            <a rel="me" href="https://mastodon.matrix.org/@thirdroom" className="flex items-center gap-xs">
-              <Icon size="sm" src={MastodonLogoSVG} />
+            <a href="https://matrix.org" className="flex items-center gap-xs">
+              <Icon size="sm" src={MatrixLogoSVG} />
               <Text variant="b2" type="span">
-                Mastodon
+                Built on Matrix
               </Text>
             </a>
-            <a href="https://twitter.com/thirdroomio" className="flex items-center gap-xs">
-              <Icon size="sm" src={TwitterLogoSVG} />
+            <a href="https://haven.software/buzzar/" className="flex items-center gap-xs">
               <Text variant="b2" type="span">
-                Twitter
+                Haven Software
               </Text>
             </a>
           </FooterMenu>
           <FooterMenu>
-            <Label className="uppercase">Blog</Label>
-            <a href="/preview" className="flex items-center gap-xs">
-              Introducing Third Room
+            <Label className="uppercase">Docs</Label>
+            <a href="/docs/guides/">
+              <Text variant="b2" type="span">
+                Getting Started
+              </Text>
+            </a>
+            <a href="/docs/guides/importing-worlds">
+              <Text variant="b2" type="span">
+                Importing Worlds
+              </Text>
+            </a>
+            <a href="/docs/guides/self-hosting">
+              <Text variant="b2" type="span">
+                Self Hosting
+              </Text>
+            </a>
+          </FooterMenu>
+          <FooterMenu>
+            <Label className="uppercase">From Third Room</Label>
+            <a href="/preview">
+              <Text variant="b2" type="span">
+                Introducing Third Room
+              </Text>
+            </a>
+            <a href="/docs/guides/third-room">
+              <Text variant="b2" type="span">
+                Coming from Third Room
+              </Text>
             </a>
           </FooterMenu>
         </div>
         <div className="FooterSection__copyright">
           <Text variant="b2">
-            {"Copyright © 2023 Element • "}
-            <a href="https://element.io/legal">Legal</a>
-            {" • "}
-            <a href="https://element.io/privacy">Privacy</a>
+            {"Buzzar is open source under the Apache-2.0 license • Third Room © 2023 Element • "}
+            <a href="https://github.com/Haven-Organization/buzzar/blob/develop/LICENSE">License</a>
           </Text>
         </div>
       </div>
