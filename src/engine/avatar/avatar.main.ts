@@ -178,7 +178,11 @@ export function startAvatarSync(
   }, PEER_POLL_INTERVAL_MS);
 
   const sync: AvatarSync = {
-    refresh,
+    refresh(userId) {
+      // Called after the user changed their avatar in the editor: their profile may have changed too.
+      profileCache.delete(userId);
+      refresh(userId);
+    },
     dispose() {
       disposed = true;
       if (activeSync === sync) activeSync = undefined;

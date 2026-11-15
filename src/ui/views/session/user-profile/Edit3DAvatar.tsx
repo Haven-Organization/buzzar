@@ -28,6 +28,7 @@ import {
   BuiltinAvatar,
   fetchAvatarCollection,
   fetchProfileAvatar,
+  fetchWorldAvatar,
   removeFromAvatarCollection,
   SavedAvatar,
   saveToAvatarCollection,
@@ -61,6 +62,8 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
   const [error, setError] = useState<string>();
   const inWorld = world.entered && !!world.worldId;
   const [collection, setCollection] = useState<AvatarCollection>();
+  /** What you're wearing: your default (profile) avatar, and this world's own choice that overrides it. */
+  const [wearing, setWearing] = useState<{ profile?: AvatarContent; world?: AvatarContent }>();
 
   // Buzzar: the personal collection of uploaded avatars (account data), so earlier uploads can be worn again.
   useEffect(() => {
@@ -69,13 +72,19 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
     (async () => {
       const auth = await getSessionAuth(platform, client.sessionId);
       if (!auth) return;
-      const loaded = await fetchAvatarCollection(auth, session.userId).catch(() => undefined);
-      if (!cancelled && loaded) setCollection(loaded);
+      const [loaded, profile, worldAvatar] = await Promise.all([
+        fetchAvatarCollection(auth, session.userId).catch(() => undefined),
+        fetchProfileAvatar(auth, session.userId).catch(() => undefined),
+        inWorld ? fetchWorldAvatar(auth, world.worldId!, session.userId).catch(() => undefined) : undefined,
+      ]);
+      if (cancelled) return;
+      if (loaded) setCollection(loaded);
+      setWearing({ profile, world: worldAvatar });
     })();
     return () => {
       cancelled = true;
     };
-  }, [isOpen, platform, client, session]);
+  }, [isOpen, platform, client, session, inWorld, world.worldId]);
 
   /** Merge newly uploaded files with the current default avatar. */
   const buildContent = async (): Promise<AvatarContent | undefined> => {
@@ -91,6 +100,25 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
       format: avatarInfo.mxc ? (name?.toLowerCase().endsWith(".vrm") ? undefined : "glb") : current?.format,
       name: name ?? current?.name,
     };
+  };
+
+  const avatarLabel = (avatar?: AvatarContent) => avatar?.name || (avatar ? "Uploaded avatar" : "Built-in default");
+
+  /** Drops this world's own avatar choice, so your default avatar applies here again. */
+  const clearWorldAvatar = async () => {
+    setSaving(true);
+    setError(undefined);
+    try {
+      const auth = await getSessionAuth(platform, client.sessionId);
+      if (!auth) throw new Error("Not signed in");
+      await setWorldAvatar(auth, world.worldId!, session.userId, undefined);
+      refreshWorldAvatar(session.userId);
+      setWearing((w) => ({ ...w, world: undefined }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   };
 
   /** `content` undefined = reset to the built-in default avatar. */
@@ -174,6 +202,32 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
                 children={
                   <Scroll>
                     <div className="Edit3DAvatar__content">
+                      <SettingTile className="grow basis-0" label={<Label>Wearing</Label>}>
+                        {wearing ? (
+                          <div className="flex flex-column gap-xs">
+                            <Text variant="b2">Default: {avatarLabel(wearing.profile)}</Text>
+                            {inWorld && wearing.world && wearing.world.url !== wearing.profile?.url && (
+                              <div className="flex items-center gap-xs">
+                                <Text className="grow" variant="b2">
+                                  This world only: {avatarLabel(wearing.world)}
+                                </Text>
+                                <Button size="sm" fill="outline" disabled={saving} onClick={clearWorldAvatar}>
+                                  Use Default Here
+                                </Button>
+                              </div>
+                            )}
+                            <Text variant="b3" color="surface-low">
+                              {inWorld
+                                ? "Changes here apply to this world right away; Save as Default also changes your default."
+                                : "Worlds where you chose an avatar just for that world keep it until you change it there."}
+                            </Text>
+                          </div>
+                        ) : (
+                          <Text variant="b3" color="surface-low">
+                            Loading…
+                          </Text>
+                        )}
+                      </SettingTile>
                       <SettingTile className="grow basis-0" label={<Label>Built-in Avatars</Label>}>
                         <div className="flex gap-xs items-center">
                           <Button fill="outline" disabled={saving} onClick={() => applyBuiltin(undefined)}>
