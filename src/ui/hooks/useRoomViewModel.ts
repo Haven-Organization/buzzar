@@ -17,6 +17,7 @@ import {
 } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect } from "react";
 
+import { TombstoneTile } from "../views/session/chat/tiles/TombstoneTile";
 import { useAsync } from "./useAsync";
 import { useHydrogen } from "./useHydrogen";
 
@@ -47,6 +48,8 @@ export function chatTileClassForEntry(entry: TimelineEntry): TileConstructor | u
       }
       case "m.room.member":
         return RoomMemberTile;
+      case "m.room.tombstone":
+        return entry.content?.replacement_room ? (TombstoneTile as unknown as TileConstructor) : undefined;
       case "m.room.encrypted":
         if (entry.isRedacted) {
           return undefined;
@@ -82,6 +85,8 @@ export function worldChatTileClassForEntry(entry: TimelineEntry): TileConstructo
       }
       case "m.room.member":
         return RoomMemberTile;
+      case "m.room.tombstone":
+        return entry.content?.replacement_room ? (TombstoneTile as unknown as TileConstructor) : undefined;
       case "m.room.encrypted":
         if (entry.isRedacted) {
           return undefined;

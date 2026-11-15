@@ -10,6 +10,7 @@ import { Icon } from "../../../atoms/icon/Icon";
 import MessageIC from "../../../../../res/ic/message.svg";
 import { useRecentMessage } from "../../../hooks/useRecentMessage";
 import { usePreviousState } from "../../../hooks/usePreviousState";
+import { useTombstone } from "../../../hooks/useTombstone";
 
 function useRecentMessages(room?: Room, maxCount = 5) {
   const eventsRef = useRef<any[]>([]);
@@ -44,6 +45,8 @@ interface IWorldChat {
 export function WorldChat({ room, open }: IWorldChat) {
   const { loading, roomViewModel, error } = useRoomViewModel(room, worldChatTileClassForEntry);
   const events = useRecentMessages(open ? undefined : room, 5);
+  // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
+  const upgraded = !!useTombstone(room);
 
   const renderTimeline = () =>
     error ? (
@@ -81,7 +84,11 @@ export function WorldChat({ room, open }: IWorldChat) {
       {open ? renderTimeline() : renderTimelinePreview()}
       <div className="WorldChat__input flex items-center">
         <Icon color="world" src={MessageIC} size="sm" />
-        {open && roomViewModel ? (
+        {upgraded ? (
+          <Text variant="b2" color="world">
+            This world has been upgraded. Chat continues in the new world.
+          </Text>
+        ) : open && roomViewModel ? (
           <>
             <WorldChatComposer composerViewModel={roomViewModel.composerViewModel} />
             <Text variant="b3" color="world" weight="bold" className="uppercase">

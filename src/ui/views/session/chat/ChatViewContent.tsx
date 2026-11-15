@@ -4,6 +4,8 @@ import { useRoomViewModel, chatTileClassForEntry } from "../../../hooks/useRoomV
 import { ChatTimeline } from "./ChatTimeline";
 import { ChatComposer } from "./ChatComposer";
 import { Dots } from "../../../atoms/loading/Dots";
+import { useTombstone } from "../../../hooks/useTombstone";
+import { RoomUpgradedBanner } from "./RoomUpgradedBanner";
 
 interface ChatViewContentProps {
   room: Room;
@@ -12,6 +14,8 @@ interface ChatViewContentProps {
 export function ChatViewContent({ room }: ChatViewContentProps) {
   setTimeout(() => room.clearUnread(), 1000);
   const { loading, roomViewModel, error } = useRoomViewModel(room, chatTileClassForEntry);
+  // Buzzar: an upgraded room is read-only; point to the room that replaced it instead of the composer.
+  const tombstone = useTombstone(room);
 
   return (
     <>
@@ -27,7 +31,11 @@ export function ChatViewContent({ room }: ChatViewContentProps) {
             <ChatTimeline timelineViewModel={roomViewModel.timelineViewModel!} />
           </div>
           <div className="shrink-0">
-            <ChatComposer composerViewModel={roomViewModel.composerViewModel!} />
+            {tombstone ? (
+              <RoomUpgradedBanner room={room} />
+            ) : (
+              <ChatComposer composerViewModel={roomViewModel.composerViewModel!} />
+            )}
           </div>
         </>
       )}

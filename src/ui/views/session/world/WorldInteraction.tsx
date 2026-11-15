@@ -1,4 +1,4 @@
-import { GroupCall, Room, RoomStatus, Session } from "@thirdroom/hydrogen-view-sdk";
+import { GroupCall, Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 import { useCallback, useState } from "react";
 
@@ -20,10 +20,10 @@ import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
+import { waitForJoinedRoom } from "../../../utils/roomUpgrade";
 import { joinRoomVia, MatrixRequestError, serverNameOf } from "../../../utils/worldDirectory";
 
 const MAX_TOMBSTONE_HOPS = 3;
-const JOIN_SYNC_TIMEOUT_MS = 30000;
 
 /**
  * Buzzar: a portal to a web page used to replace the whole app with that page, silently. A world can put any link
@@ -52,30 +52,6 @@ function describePortalJoinError(err: unknown, target: string) {
     }
   }
   return err instanceof Error ? err : new Error(String(err));
-}
-
-/** Resolves once a room we just joined has synced in as joined. */
-async function waitForJoinedRoom(session: Session, roomId: string): Promise<Room> {
-  const existing = session.rooms.get(roomId);
-  if (existing) return existing;
-  const observer = await session.observeRoomStatus(roomId);
-  return new Promise((resolve, reject) => {
-    let unsubscribe: (() => void) | undefined = undefined;
-    const check = (status: RoomStatus) => {
-      const room = session.rooms.get(roomId);
-      if (!room || status !== RoomStatus.Joined) return false;
-      clearTimeout(timer);
-      unsubscribe?.();
-      resolve(room);
-      return true;
-    };
-    const timer = setTimeout(() => {
-      unsubscribe?.();
-      reject(new Error("Joined, but the world took too long to load. Try again from your world list."));
-    }, JOIN_SYNC_TIMEOUT_MS);
-    unsubscribe = observer.subscribe(check);
-    check(observer.get());
-  });
 }
 
 export interface IPortalProcess {
@@ -134,7 +110,11 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
             } catch (err) {
               throw describePortalJoinError(err, target);
             }
-            room = await waitForJoinedRoom(session, roomId);
+            room = await waitForJoinedRoom(
+              session,
+              roomId,
+              "Joined, but the world took too long to load. Try again from your world list."
+            );
             if (!isMounted()) return;
           }
 

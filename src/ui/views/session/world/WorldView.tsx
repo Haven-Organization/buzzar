@@ -42,6 +42,7 @@ import {
 } from "../cmd-panel/actions";
 import { inputFocused } from "../../../utils/common";
 import { useDisableInput } from "../../../hooks/useDisableInput";
+import { WorldUpgradedDialog } from "./WorldUpgradedDialog";
 import { editorEnabledAtom } from "../../../state/editor";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
@@ -221,6 +222,7 @@ export function WorldView({ world }: WorldViewProps) {
       {isWebXRSupported && <EnterWebXRAction enter={enterXR} />}
 
       <WorldOnboarding world={world} />
+      {!("isBeingCreated" in world) && <WorldUpgradedDialog world={world} />}
       <Stats statsEnabled={statsEnabled} />
       <div className={classNames("WorldView__chat flex", { "WorldView__chat--open": worldChatVisible })}>
         {!("isBeingCreated" in world) && !editorEnabled && <WorldChat open={worldChatVisible} room={world} />}
