@@ -2,15 +2,20 @@ import { defineConfig } from "vitepress";
 import { vitepressPluginTypedoc } from "./plugins/vitepress-plugin-typedoc";
 import typedocSidebar from "../websg-js/typedoc-sidebar.json";
 
+// Where the docs are served. Inside the app it's /docs (dist/docs); scripts/buzzar/deploy-docs-haven.sh builds a
+// copy for https://haven.software/buzzar/docs/ with DOCS_BASE=/buzzar/docs/ DOCS_OUT=../dist-docs-haven.
+const base = (process.env.DOCS_BASE ?? "/docs/").replace(/\/?$/, "/");
+const outDir = process.env.DOCS_OUT ?? "../dist/docs";
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Buzzar",
   description: "Documentation for Buzzar, shared virtual worlds on Matrix",
   // Buzzar's internal planning and research notes live in docs/buzzar/ and aren't part of the site.
   srcExclude: ["buzzar/**"],
-  head: [["link", { rel: "icon", type: "image/svg+xml", href: "/docs/icon.svg" }]],
-  base: "/docs",
-  outDir: "../dist/docs",
+  head: [["link", { rel: "icon", type: "image/svg+xml", href: `${base}icon.svg` }]],
+  base,
+  outDir,
   themeConfig: {
     siteTitle: false,
     logo: { light: "/light-logo-full.svg", dark: "/dark-logo-full.svg", alt: "Buzzar" },

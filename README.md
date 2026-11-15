@@ -17,7 +17,8 @@ client, whose development was paused in 2023. Buzzar picks up where Third Room l
 features (custom avatars, mirrors, scripted worlds, full VR support, world moderation tools) while staying as close
 to a standard Matrix client as possible and remaining compatible with existing Third Room
 ([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)) worlds. Third Room's full commit history is
-preserved in this repository. See [docs/buzzar](./docs/buzzar/) for the roadmap and feature-parity checklist.
+preserved in this repository. User and developer documentation: **[haven.software/buzzar/docs](https://haven.software/buzzar/docs/)**.
+See [docs/buzzar](./docs/buzzar/) for the roadmap and feature-parity checklist.
 
 ## Getting Started
 
