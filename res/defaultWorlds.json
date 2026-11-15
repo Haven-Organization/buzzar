@@ -1,30 +1,23 @@
 {
   "home": {
-    "version": 7,
-    "sceneUrl": "mxc://thirdroom.io/FLGnLihOjpOWWddGwWPJBSBB",
-    "scenePreviewUrl": "mxc://thirdroom.io/OvtWlQFZzTTvEMoQbYnNtVec",
+    "version": 9,
+    "sceneUrl": "/worlds/home/home.glb",
+    "scenePreviewUrl": "/worlds/home/home-preview.jpg",
     "defaultAvatar": {
+      "url": "/worlds/home/home-avatar.png",
       "info": {
+        "w": 512,
         "h": 512,
-        "mimetype": "image/png",
-        "size": 307589,
-        "w": 512
-      },
-      "url": "mxc://thirdroom.io/aQuXXENLaYnfAZdwJVgRpfUT"
+        "mimetype": "image/png"
+      }
     }
   },
   "scenes": [
     {
-      "sceneName": "Terra",
-      "sceneUrl": "mxc://thirdroom.io/fgVQdOhEiMWfvxWaRXbEvmpV",
-      "scenePreviewUrl": "mxc://thirdroom.io/OvtWlQFZzTTvEMoQbYnNtVec",
-      "defaultRoomAvatarUrl": "mxc://thirdroom.io/aQuXXENLaYnfAZdwJVgRpfUT"
-    },
-    {
-      "sceneName": "UK City",
-      "sceneUrl": "mxc://thirdroom.io/cwDzwFqxknpmMEljfYPqfmkE",
-      "scenePreviewUrl": "mxc://thirdroom.io/VnHYowXiIytpeJAxIkYCTygh",
-      "defaultRoomAvatarUrl": "mxc://thirdroom.io/yWBfCCFEHMdjAPOYSQoIAeOZ"
+      "sceneName": "Campfire Clearing",
+      "sceneUrl": "/worlds/home/home.glb",
+      "scenePreviewUrl": "/worlds/home/home-preview.jpg",
+      "defaultRoomAvatarUrl": "/worlds/home/home-avatar.png"
     }
   ]
 }

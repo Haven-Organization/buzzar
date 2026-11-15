@@ -30,13 +30,13 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
     get_js_source(destPtr: number) {
       try {
         if (!wasmCtx.encodedJSSource) {
-          console.error("Thirdroom: No JS source set.");
+          console.error("Buzzar: No JS source set.");
           return -1;
         }
 
         return writeEncodedString(wasmCtx, destPtr, wasmCtx.encodedJSSource);
       } catch (error) {
-        console.error("Thirdroom: Error getting JS source:", error);
+        console.error("Buzzar: Error getting JS source:", error);
         return -1;
       }
     },
@@ -75,7 +75,7 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
           const thumbnail = readResourceRef(wasmCtx, RemoteImage);
 
           if (!thumbnail) {
-            throw new Error("Thirdroom: No thumbnail set for action bar item");
+            throw new Error("Buzzar: No thumbnail set for action bar item");
           }
 
           thirdroom.actionBarItems.push({
@@ -92,7 +92,7 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
 
         return 0;
       } catch (error) {
-        console.error("Thirdroom: Error setting action bar items:", error);
+        console.error("Buzzar: Error setting action bar items:", error);
         return -1;
       }
     },
@@ -111,7 +111,7 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
       const index = actionBarListeners.findIndex((l) => l.id === listenerId);
 
       if (index === -1) {
-        console.error("Thirdroom: No action bar listener with id", listenerId);
+        console.error("Buzzar: No action bar listener with id", listenerId);
         return -1;
       }
 
@@ -123,7 +123,7 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
       const listener = wasmCtx.resourceManager.actionBarListeners.find((l) => l.id === listenerId);
 
       if (!listener) {
-        console.error("Thirdroom: No action bar listener with id", listenerId);
+        console.error("Buzzar: No action bar listener with id", listenerId);
         return -1;
       }
 
@@ -139,7 +139,7 @@ export function createThirdroomModule(ctx: GameContext, wasmCtx: WASMModuleConte
       const listener = wasmCtx.resourceManager.actionBarListeners.find((l) => l.id === listenerId);
 
       if (!listener) {
-        console.error("Thirdroom: No action bar listener with id", listenerId);
+        console.error("Buzzar: No action bar listener with id", listenerId);
         return -1;
       }
 

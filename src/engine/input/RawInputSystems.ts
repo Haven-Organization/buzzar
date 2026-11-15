@@ -105,15 +105,17 @@ function applyMouseButtons(raw: { [path: string]: number }, o: InputComponentSta
 }
 
 function applyMouseMovement(raw: { [path: string]: number }, o: InputComponentState) {
-  raw["Mouse/movementX"] = o.xAxis;
-  raw["Mouse/movementY"] = o.yAxis;
+  // Buzzar: add up every mousemove of this tick (reset in ResetRawInputSystem). Upstream kept only the last event's
+  // movement, so on fast mice or busy frames most of the motion was lost and the camera skipped.
+  raw["Mouse/movementX"] = (raw["Mouse/movementX"] ?? 0) + o.xAxis;
+  raw["Mouse/movementY"] = (raw["Mouse/movementY"] ?? 0) + o.yAxis;
   raw["Mouse/screenX"] = o.zAxis;
   raw["Mouse/screenY"] = o.wAxis;
 }
 
 function applyMouseScroll(raw: { [path: string]: number }, o: InputComponentState) {
   // TODO: Split into x and y axes
-  raw["Mouse/Scroll"] = o.yAxis;
+  raw["Mouse/Scroll"] = (raw["Mouse/Scroll"] ?? 0) + o.yAxis;
 }
 
 function applyKeyboardButton(raw: { [path: string]: number }, o: InputComponentState) {

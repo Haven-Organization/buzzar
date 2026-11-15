@@ -3,6 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { RawCharacterCollision } from "@dimforge/rapier3d-compat/raw";
 import { Quaternion, Vector3 } from "three";
 
+import { SeatedEntities } from "../animation/animation.game";
 import { GameContext } from "../GameTypes";
 import { enableActionMap } from "../input/ActionMappingSystem";
 import { ActionMap, ActionState, ActionType, BindingType, ButtonActionState } from "../input/ActionMap";
@@ -255,7 +256,9 @@ export function updateKinematicControls(
 
   const collider = body.collider(0);
 
-  characterController.computeColliderMovement(collider, _linearVelocity);
+  // Buzzar: sensors (seat and other click areas) are for interaction only; without this filter Rapier treats
+  // them as solid, so invisible boxes blocked walking.
+  characterController.computeColliderMovement(collider, _linearVelocity, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS);
 
   const corrected = characterController.computedMovement();
 
@@ -326,6 +329,9 @@ export const KinematicCharacterControllerSystem = (ctx: GameContext) => {
       continue;
     }
 
+    // Buzzar: a seated player is positioned by the seats plugin, not by input or gravity.
+    if (SeatedEntities.has(eid)) continue;
+
     updateKinematicControls(ctx, physics, input.actionStates, node, body);
   }
 };
@@ -343,13 +349,25 @@ function logPlayerDebug(ctx: GameContext) {
     const node = tryGetRemoteResource<RemoteNode>(ctx, rigs[i]);
     const body = node.physicsBody?.body;
     const controller = physics.eidTocharacterController.get(node.eid);
-    const collisions: string[] = [];
+    const collisions: unknown[] = [];
     if (controller) {
+      const r = (v: { x: number; y: number; z: number } | undefined) =>
+        v ? [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)] : null;
       for (let c = 0; c < controller.numComputedCollisions(); c++) {
         const hit = controller.computedCollision(c);
-        const eid = hit?.collider ? physics.handleToEid.get(hit.collider.handle) : undefined;
+        const col = hit?.collider;
+        const eid = col ? physics.handleToEid.get(col.handle) : undefined;
         const other = eid ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
-        collisions.push(other?.name ?? `collider ${hit?.collider?.handle}`);
+        // Buzzar debug: enough to identify an obstacle even when it has no node (scene trimeshes).
+        collisions.push({
+          name: other?.name ?? null,
+          shape: col ? RAPIER.ShapeType[col.shapeType()] : null,
+          sensor: col?.isSensor() ?? null,
+          body: col?.parent() ? RAPIER.RigidBodyType[col.parent()!.bodyType()] : null,
+          at: r(col?.translation()),
+          point: r(hit?.witness1),
+          normal: r(hit?.normal1),
+        });
       }
     }
     const data = {
@@ -361,6 +379,8 @@ function logPlayerDebug(ctx: GameContext) {
       moveVec: moveVec ? Array.from(moveVec) : null,
       grounded: controller?.computedGrounded(),
       hasController: !!controller,
+      // Buzzar debug: total colliders in the physics world (leaks show up as growth across world switches).
+      worldColliders: physics.physicsWorld.colliders.len(),
       isSliding,
       collisions,
       // Keys/buttons the game currently believes are held.

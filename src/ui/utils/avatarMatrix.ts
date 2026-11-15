@@ -8,6 +8,7 @@
  *
  * Resolution order for a player in a world: member event key → profile field → built-in default.
  */
+import type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
 export const AVATAR_KEY = "software.haven.avatar";
 
 export type AvatarFormat = "vrm0" | "vrm1" | "glb";
@@ -151,13 +152,8 @@ export async function uploadMedia(auth: MatrixAuth, blob: Blob, filename: string
   return uri;
 }
 
-/** CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). */
-export const BUILTIN_AVATARS = [
-  { id: "devil", name: "Devil", path: "/avatars/031_Devil.vrm", credit: "Polygonal Mind (CC0)" },
-  { id: "rose", name: "Rose", path: "/avatars/057_Rose.vrm", credit: "Polygonal Mind (CC0)" },
-] as const;
-
-export type BuiltinAvatar = (typeof BUILTIN_AVATARS)[number];
+export { BUILTIN_AVATARS } from "../../engine/avatar/avatar.common";
+export type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
 
 /**
  * Built-in avatars still have to live on the homeserver so every client can load them by mxc URI. Upload once

@@ -267,3 +267,98 @@ export function estimateEyeHeight(rig: RetargetRig): number | undefined {
   // Head bone is at the base of the skull; eyes are ~8 cm above it on an adult.
   return eyeY(head) + 0.08;
 }
+
+// --- Procedural poses ---------------------------------------------------------------------------
+
+/** Humanoid child used to measure each posed bone's direction (the bone "points" at this child). */
+const POSE_DIRECTION_CHILD: Partial<Record<HumanBone, HumanBone>> = {
+  leftUpperLeg: "leftLowerLeg",
+  rightUpperLeg: "rightLowerLeg",
+  leftLowerLeg: "leftFoot",
+  rightLowerLeg: "rightFoot",
+  leftUpperArm: "leftLowerArm",
+  rightUpperArm: "rightLowerArm",
+  leftLowerArm: "leftHand",
+  rightLowerArm: "rightHand",
+};
+
+/**
+ * Bone directions for a seated pose, in a rig space facing +Z with the character's left on +X. Thighs point
+ * forward along the seat, shins hang down, upper arms hang by the sides and forearms rest on the thighs.
+ */
+const SIT_DIRECTIONS: Partial<Record<HumanBone, [number, number, number]>> = {
+  leftUpperLeg: [0.12, -0.08, 1],
+  rightUpperLeg: [-0.12, -0.08, 1],
+  leftLowerLeg: [0.04, -1, 0.12],
+  rightLowerLeg: [-0.04, -1, 0.12],
+  leftUpperArm: [0.28, -0.92, 0.22],
+  rightUpperArm: [-0.28, -0.92, 0.22],
+  leftLowerArm: [0.15, -0.4, 1],
+  rightLowerArm: [-0.15, -0.4, 1],
+};
+
+/**
+ * Builds a static "Sit" clip for a rig from its rest pose (Buzzar seats, see plugins/seats). Each posed bone is
+ * swung from its current direction to the target direction; every other bone keeps its rest *local* rotation,
+ * so the spine, head and hands follow naturally. Built on the source rig, it retargets to any avatar like the
+ * locomotion clips.
+ *
+ * The rig must face +Z in its own space (true for the built-in Mixamo rig, whose `align` is identity).
+ */
+export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
+  const objToBone = new Map<Object3D, HumanBone>();
+  for (const [bone, obj] of rig.bones) objToBone.set(obj, bone);
+
+  const restPos = (obj: Object3D) => new Vector3().setFromMatrixPosition(restWorldMatrix(rig, obj));
+
+  // Mirror X if this rig's left side is on -X.
+  const hips = rig.bones.get("hips");
+  const leftLeg = rig.bones.get("leftUpperLeg");
+  const sideSign = hips && leftLeg && restPos(leftLeg).x < restPos(hips).x ? -1 : 1;
+
+  const desiredWorld = new Map<Object3D, Quaternion>();
+  const tracks: KeyframeTrack[] = [];
+  const restWorld = new Quaternion();
+  const current = new Quaternion();
+  const swing = new Quaternion();
+  const direction = new Vector3();
+  const target = new Vector3();
+
+  rig.root.traverse((obj) => {
+    if (obj === rig.root || !rig.rest.has(obj)) return;
+
+    const parent = obj.parent;
+    const parentWorld =
+      !parent || parent === rig.root
+        ? rig.align.clone()
+        : desiredWorld.get(parent) ?? restWorldQuat(rig, parent, new Quaternion());
+
+    // Where the bone ends up if it keeps its rest local rotation under the (possibly posed) parent.
+    current.copy(parentWorld).multiply(restLocal(rig, obj).quaternion);
+
+    const bone = objToBone.get(obj);
+    const goal = bone ? SIT_DIRECTIONS[bone] : undefined;
+    const childBone = bone ? POSE_DIRECTION_CHILD[bone] : undefined;
+    const child = childBone ? rig.bones.get(childBone) : undefined;
+
+    if (goal && child) {
+      // Rest direction to the child, carried along by the parent's change from rest.
+      direction.copy(restPos(child)).sub(restPos(obj)).normalize();
+      restWorldQuat(rig, obj, restWorld);
+      direction.applyQuaternion(current.clone().multiply(restWorld.invert()));
+      target.set(goal[0] * sideSign, goal[1], goal[2]).normalize();
+      swing.setFromUnitVectors(direction, target);
+      current.premultiply(swing);
+    }
+
+    desiredWorld.set(obj, current.clone());
+
+    if (bone) {
+      const local = parentWorld.clone().invert().multiply(current);
+      const values = [...local.toArray(), ...local.toArray()];
+      tracks.push(new QuaternionKeyframeTrack(`${obj.uuid}.quaternion`, [0, 1], values));
+    }
+  });
+
+  return new AnimationClip(name, 1, tracks);
+}

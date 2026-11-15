@@ -321,6 +321,15 @@ function setYaw(node: RemoteNode, value: number) {
   quat.rotateY(quaternion, quaternion, -value);
 }
 
+/**
+ * Buzzar: mouse look is a fixed angle per pixel of movement (1:1 with the hand), not scaled by frame time.
+ * Upstream multiplied by ctx.dt, so the same movement turned more on slow ticks and less on fast ones: uneven,
+ * and hitches made the view jump. The constant keeps upstream's feel at its 60 Hz tick (sensitivity 100 ≈ 0.1°/px).
+ */
+function radiansPerPixel(sensitivity: number | undefined) {
+  return ((sensitivity || DEFAULT_SENSITIVITY) / 1000) * (1 / 60);
+}
+
 function applyYaw(ctx: GameContext, input: GameInputModule, rigYaw: YawComponent) {
   const node = tryGetRemoteResource<RemoteNode>(ctx, rigYaw.target);
 
@@ -339,10 +348,8 @@ function applyYaw(ctx: GameContext, input: GameInputModule, rigYaw: YawComponent
     rigYaw.snapTurnDisabled = false;
   }
 
-  if (Math.abs(look) >= 1) {
-    const sensitivity = rigYaw.sensitivity || 1;
-    const newYaw = (look / (1000 / (sensitivity || 1))) * ctx.dt;
-    setYaw(node, newYaw);
+  if (look !== 0) {
+    setYaw(node, look * radiansPerPixel(rigYaw.sensitivity));
   }
 }
 
@@ -366,14 +373,8 @@ function applyPitch(ctx: GameContext, input: GameInputModule, rigPitch: PitchCom
 
   const look = input.actionStates.get(CameraRigAction.LookMovement) as vec2;
 
-  if (Math.abs(look[1]) >= 1) {
-    const sensitivity = rigPitch.sensitivity;
-
-    let pitch = rigPitch.pitch;
-
-    pitch -= (look[1] / (1000 / (sensitivity || 1))) * ctx.dt;
-
-    setPitch(node, rigPitch, pitch);
+  if (look[1] !== 0) {
+    setPitch(node, rigPitch, rigPitch.pitch - look[1] * radiansPerPixel(rigPitch.sensitivity));
   }
 }
 

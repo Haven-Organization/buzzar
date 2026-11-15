@@ -147,7 +147,7 @@ function initHydrogen() {
   const navigation = new Navigation(allowsChild);
   platform.setNavigation(navigation);
 
-  const client = new Client(platform, features, { deviceName: "Third Room" });
+  const client = new Client(platform, features, { deviceName: "Buzzar" });
 
   hydrogenInstance = {
     client,

@@ -7,6 +7,7 @@ import { getSpawnPoints, spawnPointQuery } from "../../plugins/thirdroom/thirdro
 import { addChild } from "../component/transform";
 import { GameContext } from "../GameTypes";
 import { createNodeFromGLTFURI } from "../gltf/gltf.game";
+import { createDefaultAvatarNode } from "../avatar/avatar.game";
 import { GameInputModule } from "../input/input.game";
 import { createLineMesh } from "../mesh/mesh.game";
 import { getModule } from "../module/module.common";
@@ -60,7 +61,8 @@ export function registerPlayerPrefabs(ctx: GameContext) {
       const spawnPoints = spawnPointQuery(ctx.world);
 
       const container = new RemoteNode(ctx.resourceManager);
-      const rig = createNodeFromGLTFURI(ctx, "/gltf/full-animation-rig.glb", applyAvatarLayers);
+      // Buzzar: loads the default rig with the procedural Sit clip (seats) and records its hips bone.
+      const rig = createDefaultAvatarNode(ctx, applyAvatarLayers);
       applyAvatarLayers(rig);
 
       addChild(container, rig);

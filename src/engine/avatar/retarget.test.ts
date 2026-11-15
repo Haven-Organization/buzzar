@@ -8,10 +8,11 @@ import {
   Object3D,
   Quaternion,
   QuaternionKeyframeTrack,
+  Vector3,
 } from "three";
 
 import { HumanBone } from "./humanoid";
-import { captureRestTransforms, retargetClip, RetargetRig } from "./retarget";
+import { buildSitClip, captureRestTransforms, retargetClip, RetargetRig } from "./retarget";
 
 type Spec = [HumanBone, HumanBone | undefined, [number, number, number], [number, number, number]];
 
@@ -152,5 +153,55 @@ describe("retargetClip", () => {
     for (const bone of source.bones.keys()) {
       expectQuatClose(delta(target, target.bones.get(bone)!), delta(source, source.bones.get(bone)!));
     }
+  });
+});
+
+describe("buildSitClip", () => {
+  // T-pose facing +Z with the character's left on +X; bones point along +Y in their own space like Mixamo,
+  // with rest rotations so the legs hang down and the arms point out to the sides.
+  const legs: Spec[] = [
+    ["hips", undefined, [0, 1, 0], [0, 0, 0]],
+    ["spine", "hips", [0, 0.1, 0], [0, 0, 0]],
+    ["leftUpperArm", "spine", [0.2, 0.4, 0], [0, 0, -90]],
+    ["leftLowerArm", "leftUpperArm", [0, 0.3, 0], [0, 0, 0]],
+    ["leftHand", "leftLowerArm", [0, 0.25, 0], [0, 0, 0]],
+    ["leftUpperLeg", "hips", [0.1, -0.05, 0], [0, 0, 180]],
+    ["leftLowerLeg", "leftUpperLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["leftFoot", "leftLowerLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["rightUpperLeg", "hips", [-0.1, -0.05, 0], [0, 0, 180]],
+    ["rightLowerLeg", "rightUpperLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["rightFoot", "rightLowerLeg", [0, 0.45, 0], [0, 0, 0]],
+  ];
+
+  function posedDirection(rig: RetargetRig, from: HumanBone, to: HumanBone) {
+    const clip = buildSitClip(rig);
+    const mixer = new AnimationMixer(rig.root);
+    mixer.clipAction(clip).play();
+    mixer.update(0);
+    rig.root.updateMatrixWorld(true);
+    const a = new Vector3().setFromMatrixPosition(rig.bones.get(from)!.matrixWorld);
+    const b = new Vector3().setFromMatrixPosition(rig.bones.get(to)!.matrixWorld);
+    return b.sub(a).normalize();
+  }
+
+  test("thighs point forward and shins hang down", () => {
+    const thigh = posedDirection(buildRig(legs), "leftUpperLeg", "leftLowerLeg");
+    expect(thigh.z).toBeGreaterThan(0.95);
+    expect(thigh.x).toBeGreaterThan(0); // slightly apart, towards the character's left
+
+    const shin = posedDirection(buildRig(legs), "leftLowerLeg", "leftFoot");
+    expect(shin.y).toBeLessThan(-0.95);
+  });
+
+  test("arms hang down instead of the T-pose", () => {
+    const arm = posedDirection(buildRig(legs), "leftUpperArm", "leftLowerArm");
+    expect(arm.y).toBeLessThan(-0.8);
+  });
+
+  test("mirrors for rigs whose left side is on -X", () => {
+    const mirrored = legs.map(([n, p, pos, e]) => [n, p, [-pos[0], pos[1], pos[2]], [e[0], e[1], -e[2]]] as Spec);
+    const thigh = posedDirection(buildRig(mirrored), "leftUpperLeg", "leftLowerLeg");
+    expect(thigh.z).toBeGreaterThan(0.95);
+    expect(thigh.x).toBeLessThan(0);
   });
 });

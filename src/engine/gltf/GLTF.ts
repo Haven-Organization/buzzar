@@ -1,5 +1,7 @@
 import type { GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
 import type { GLTFAvatarPedestalExtension } from "../../plugins/avatar-pedestals/pedestals.game";
+import type { GLTFSeatExtension } from "../../plugins/seats/seats.game";
+import type { GLTFGrabbableExtension } from "../../plugins/scene-grabbables/grabbables.game";
 
 export type GLTFId = number;
 
@@ -538,6 +540,8 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     OMI_link?: GLTFLink;
     HAVEN_mirror?: GLTFMirrorExtension;
     HAVEN_avatar_pedestal?: GLTFAvatarPedestalExtension;
+    HAVEN_seat?: GLTFSeatExtension;
+    HAVEN_grabbable?: GLTFGrabbableExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;

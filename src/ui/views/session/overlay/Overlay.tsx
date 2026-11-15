@@ -30,8 +30,7 @@ import { NowPlayingWorld } from "./NowPlayingWorld";
 import { NowPlayingControls } from "./NowPlayingControls";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
-import { DiscoverView } from "../discover/DiscoverView";
-import config from "../../../../../config.json";
+import { ExploreView } from "../explore/ExploreView";
 import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { SidebarTab, sidebarTabAtom } from "../../../state/sidebarTab";
@@ -50,8 +49,6 @@ export function Overlay() {
   const sidebarTab = useAtomValue(sidebarTabAtom);
 
   const { worldId, entered: isWorldEntered } = useAtomValue(worldAtom);
-
-  const repositoryRoom = useRoom(session, config.repositoryRoomIdOrAlias);
 
   const activeCall = useRoomCall(calls, worldId);
   const { navigateExitWorld } = useWorldNavigator(session);
@@ -108,7 +105,8 @@ export function Overlay() {
           {overlayWindow.type === OverlayWindow.WorldSettings && worldSettingRoom && (
             <WorldSettings room={worldSettingRoom} />
           )}
-          {overlayWindow.type === OverlayWindow.Discover && repositoryRoom && <DiscoverView room={repositoryRoom} />}
+          {/* Buzzar: Explore reads the room directory instead of Third Room's repository room on thirdroom.io. */}
+          {overlayWindow.type === OverlayWindow.Discover && <ExploreView />}
         </div>
       ) : (
         <div className="Overlay__content grow">

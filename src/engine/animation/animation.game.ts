@@ -34,7 +34,15 @@ export enum AnimationClipType {
   StrafeRightRun = "StrafeRightRun",
   Run = "Run",
   RunBack = "RunBack",
+  /** Buzzar: procedural seated pose (avatar.game buildSitClip), played while on a seat. */
+  Sit = "Sit",
 }
+
+/**
+ * Buzzar: player containers currently on a seat (local and remote). Maintained by the seats plugin; their
+ * avatars play the Sit clip instead of the velocity-driven locomotion clips.
+ */
+export const SeatedEntities = new Set<number>();
 
 export const AnimationComponent = new Map<number, IAnimationComponent>();
 export const BoneComponent = new Map<number, Bone>();
@@ -113,7 +121,10 @@ function processAnimations(ctx: GameContext) {
       reduceClipActionWeights(animation.actions, fadeOutAmount * ctx.dt);
 
       // select actions to play based on velocity
-      const actionsToPlay = getClipActionsUsingVelocity(ctx, physics, parent, body, animation);
+      const sitAction = SeatedEntities.has(parent.eid) ? animation.actionMap.get(AnimationClipType.Sit) : undefined;
+      const actionsToPlay = sitAction
+        ? [sitAction]
+        : getClipActionsUsingVelocity(ctx, physics, parent, body, animation);
       // synchronize selected clip action times
       synchronizeClipActions(actionsToPlay);
       // fade in selected animations

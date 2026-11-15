@@ -13,13 +13,16 @@ import {
   AvatarContent,
   fetchProfileAvatar,
   fetchWorldAvatar,
+  getBuiltinAvatarContent,
   getSessionAuth,
   MatrixAuth,
+  setProfileAvatar,
   setWorldAvatar,
 } from "../../ui/utils/avatarMatrix";
 import {
   AvatarPedestalSelectedMessage,
   AvatarPedestalSelectedMessageType,
+  getBuiltinAvatarByUri,
   SetPeerAvatarMessage,
   SetPeerAvatarMessageType,
 } from "./avatar.common";
@@ -119,8 +122,9 @@ export function startAvatarSync(
   watch(session.userId);
   for (const [, member] of groupCall.members) watch(member.userId);
 
-  // Pressing an avatar pedestal: wear it in this world by updating our own member event. Everyone (including
-  // us) then picks it up through the normal member-event sync above.
+  // Pressing an avatar pedestal: like VRChat, it becomes your avatar everywhere, so it's saved as your profile
+  // (default) avatar. A world-only choice for this world would take precedence over it, so that's cleared.
+  // Other worlds pick it up when you next enter them; other players here within the profile-cache window.
   let pedestalRequest = Promise.resolve();
   const unregisterPedestal = registerMessageHandler(
     ctx,
@@ -130,12 +134,20 @@ export function startAvatarSync(
         try {
           const auth = await getSessionAuth(platform as any, sessionId);
           if (!auth || disposed) return;
-          if (message.uri === undefined) {
-            await setWorldAvatar(auth, world.id, session.userId, undefined);
-            refresh(session.userId);
-          } else if (message.uri.startsWith("mxc://")) {
-            await setWorldAvatar(auth, world.id, session.userId, { url: message.uri, name: message.name });
-            // Apply it to ourselves right away instead of waiting for sync.
+          const builtin = message.uri ? getBuiltinAvatarByUri(message.uri) : undefined;
+          if (message.uri === undefined || message.uri.startsWith("mxc://") || builtin) {
+            // Bundled avatars (buzzar-builtin:) are published to our own homeserver first, so everyone can load them.
+            const content = builtin
+              ? await getBuiltinAvatarContent(auth, session.userId, builtin)
+              : message.uri
+              ? { url: message.uri, name: message.name }
+              : undefined;
+            await setProfileAvatar(auth, session.userId, content);
+            if (await fetchWorldAvatar(auth, world.id, session.userId)) {
+              await setWorldAvatar(auth, world.id, session.userId, undefined);
+            }
+            // Apply it to ourselves right away instead of waiting for the profile cache to expire.
+            profileCache.delete(session.userId);
             refresh(session.userId);
           } else {
             // Not publishable (not on the homeserver): wear it locally only.

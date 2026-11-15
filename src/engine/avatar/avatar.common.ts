@@ -55,3 +55,24 @@ export function mxcToHttp(mxc: string, homeserver: string): string | undefined {
     match[1]
   )}/${encodeURIComponent(match[2])}`;
 }
+
+/** CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). */
+export const BUILTIN_AVATARS = [
+  { id: "devil", name: "Devil", path: "/avatars/031_Devil.vrm", credit: "Polygonal Mind (CC0)" },
+  { id: "rose", name: "Rose", path: "/avatars/057_Rose.vrm", credit: "Polygonal Mind (CC0)" },
+] as const;
+
+export type BuiltinAvatar = (typeof BUILTIN_AVATARS)[number];
+
+/**
+ * Worlds can offer a bundled avatar with `buzzar-builtin:<id>` (e.g. on a HAVEN_avatar_pedestal), so the scene
+ * works on any homeserver without uploading avatars alongside it. Wearing one publishes it to the wearer's own
+ * homeserver as an ordinary mxc avatar (getBuiltinAvatarContent).
+ */
+export const BUILTIN_AVATAR_SCHEME = "buzzar-builtin:";
+
+export function getBuiltinAvatarByUri(uri: string): BuiltinAvatar | undefined {
+  if (!uri.startsWith(BUILTIN_AVATAR_SCHEME)) return undefined;
+  const id = uri.slice(BUILTIN_AVATAR_SCHEME.length);
+  return BUILTIN_AVATARS.find((avatar) => avatar.id === id);
+}

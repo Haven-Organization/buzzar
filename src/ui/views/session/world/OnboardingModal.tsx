@@ -48,12 +48,12 @@ export function OnboardingModal({ open, world, requestClose }: OnboardingModalPr
                 <Text variant="h2" weight="semi-bold">
                   Welcome to your home world
                 </Text>
-                <Text>This is a private world to make your own that will evolve as Third Room grows.</Text>
+                <Text>This is your own private space, and you can always get back to it from the overlay.</Text>
                 <Text>
-                  We've set up a few portals in your space leading to public worlds for you to explore. You can get back
-                  to this space at any time in the overlay.
+                  Pick an avatar from the pedestals, take a seat by the campfire, or click the mirror to see yourself.
+                  Your other worlds are in the overlay too.
                 </Text>
-                <Text>Have fun exploring Third Room!</Text>
+                <Text>Have fun exploring Buzzar!</Text>
               </div>
             )}
             {screenNo === 2 && (

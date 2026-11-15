@@ -53,7 +53,9 @@ export async function fetchWithProgress(
           }
         controller.close();
       },
-    })
+    }),
+    // Buzzar: keep the real status so callers can tell a failed download (4xx/5xx) from a file.
+    { status: response.status, statusText: response.statusText, headers: response.headers }
   );
 
   return res;

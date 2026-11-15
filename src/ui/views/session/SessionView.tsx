@@ -12,9 +12,6 @@ import { StatusBar } from "./statusbar/StatusBar";
 import { LoadingScreen } from "../components/loading-screen/LoadingScreen";
 import { useHomeWorld } from "../../hooks/useHomeWorld";
 import { useUnknownWorldPath } from "../../hooks/useWorld";
-import { useAutoJoinRoom } from "../../hooks/useAutoJoinRoom";
-import { useHydrogen } from "../../hooks/useHydrogen";
-import config from "../../../../config.json";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
 import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
@@ -32,12 +29,10 @@ function RegisterKBarActions() {
 export default function SessionView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mainThread = useInitMainThreadContext(canvasRef);
-  const { session } = useHydrogen(true);
   const overlayVisible = useAtomValue(overlayVisibilityAtom);
   const [worldId, worldAlias] = useUnknownWorldPath();
   const homeWorldId = useHomeWorld();
   const selectWorld = useSetAtom(overlayWorldAtom);
-  useAutoJoinRoom(session, config.repositoryRoomIdOrAlias);
 
   const editorEnabled = useAtomValue(editorEnabledAtom);
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Room } from "@thirdroom/hydrogen-view-sdk";
 import classNames from "classnames";
 import { useAtom, useAtomValue } from "jotai";
 import { useKBar, VisualState } from "kbar";
 
+import { installPointerLockTracking, requestGamePointerLock, wasReleasedByCode } from "../../../utils/pointerLock";
 import { WorldChat } from "../world-chat/WorldChat";
 import { Stats } from "../stats/Stats";
 import { Text } from "../../../atoms/text/Text";
@@ -63,11 +64,38 @@ export function WorldView({ world }: WorldViewProps) {
   const [editorEnabled, setEditorEnabled] = useAtom(editorEnabledAtom);
   const [pointerLocked, setPointerLocked] = useState(document.pointerLockElement === mainThread.canvas);
 
+  // Buzzar: latest UI state for the pointer-lock listener below.
+  const uiStateRef = useRef({ isWorldEntered, overlayVisible, worldChatVisible, editorEnabled });
+  uiStateRef.current = { isWorldEntered, overlayVisible, worldChatVisible, editorEnabled };
+
   useEffect(() => {
-    const update = () => setPointerLocked(document.pointerLockElement === mainThread.canvas);
+    installPointerLockTracking();
+    let wasLocked = document.pointerLockElement === mainThread.canvas;
+    const update = () => {
+      const locked = document.pointerLockElement === mainThread.canvas;
+      setPointerLocked(locked);
+      // Buzzar: the browser consumes the Escape that releases pointer lock, so the page never sees it. If the lock
+      // was released by the browser (not our own code) while the window still has focus, that was Escape: open the
+      // overlay now instead of needing a second press. (Alt-Tab releases it too, but the window has lost focus.)
+      const ui = uiStateRef.current;
+      if (
+        wasLocked &&
+        !locked &&
+        !wasReleasedByCode() &&
+        document.hasFocus() &&
+        ui.isWorldEntered &&
+        !ui.overlayVisible &&
+        !ui.worldChatVisible &&
+        !ui.editorEnabled &&
+        !getModule(mainThread, PlayerModule).orbiting
+      ) {
+        setOverlayVisibility(true);
+      }
+      wasLocked = locked;
+    };
     document.addEventListener("pointerlockchange", update);
     return () => document.removeEventListener("pointerlockchange", update);
-  }, [mainThread]);
+  }, [mainThread, setOverlayVisibility]);
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
@@ -105,7 +133,7 @@ export function WorldView({ world }: WorldViewProps) {
 
       if (e.key === "Escape") {
         if (worldChatVisible) {
-          mainThread.canvas?.requestPointerLock();
+          requestGamePointerLock(mainThread.canvas);
           setWorldChatVisibility(false);
           return;
         }
@@ -113,13 +141,13 @@ export function WorldView({ world }: WorldViewProps) {
         if (inputFocused()) return;
 
         if (editorEnabled) {
-          mainThread.canvas?.requestPointerLock();
+          requestGamePointerLock(mainThread.canvas);
           setEditorEnabled(false);
           return;
         }
 
         if (overlayVisible) {
-          mainThread.canvas?.requestPointerLock();
+          requestGamePointerLock(mainThread.canvas);
           setOverlayVisibility(false);
           return;
         } else {
@@ -130,6 +158,13 @@ export function WorldView({ world }: WorldViewProps) {
       }
 
       if (inputFocused()) return;
+
+      // Buzzar: Tab frees the mouse without opening anything (Escape now frees it and opens the overlay).
+      if (e.code === "Tab" && document.pointerLockElement === mainThread.canvas) {
+        e.preventDefault();
+        document.exitPointerLock();
+        return;
+      }
 
       if (e.key === "Enter" && !overlayVisible && !worldChatVisible) {
         if (document.activeElement !== document.body) return;
@@ -146,7 +181,11 @@ export function WorldView({ world }: WorldViewProps) {
     (e) => {
       if (isWorldEntered === false) return;
 
-      if (!camRigModule.orbiting && !editorEnabled) mainThread.canvas?.requestPointerLock();
+      // Buzzar: only lock when not already locked. Re-requesting while locked fires another pointerlockchange,
+      // whose key reset dropped held keys (a click while sprinting stopped the sprint).
+      if (!camRigModule.orbiting && !editorEnabled && document.pointerLockElement !== mainThread.canvas) {
+        requestGamePointerLock(mainThread.canvas);
+      }
 
       if (worldChatVisible) setWorldChatVisibility(false);
       if (overlayVisible) setOverlayVisibility(false);

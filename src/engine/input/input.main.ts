@@ -43,10 +43,20 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     const { canvas } = ctx;
 
     const lastKeyMap: { [key: string]: boolean } = {};
-    const debugCounts = { keyDown: 0, keyEnqueued: 0, dropped: { disabled: 0, notLocked: 0 } };
+    const debugCounts: {
+      keyDown: number;
+      keyEnqueued: number;
+      dropped: { disabled: number; notLocked: number };
+      droppedSpikes?: number;
+    } = { keyDown: 0, keyEnqueued: 0, dropped: { disabled: 0, notLocked: 0 } };
 
     registerThirdroomGlobalFn("playerDebug", () =>
       ctx.sendMessage(Thread.Game, { type: "software.haven.debug.player" })
+    );
+
+    // Buzzar debug: `thirdroom.sit(0)` sits on the world's first seat (HAVEN_seat), `thirdroom.sit()` stands up.
+    registerThirdroomGlobalFn("sit", (seat?: number) =>
+      ctx.sendMessage(Thread.Game, { type: "software.haven.debug.sit", seat: seat ?? -1 })
     );
 
     // Buzzar debug: movement/focus tracing. Enable with `?debugMovement=1` in the URL (persists; `=0` turns it
@@ -243,8 +253,12 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       enqueue(InputSourceId.Mouse, InputComponentId.MouseButtons, 0, 0, 0, 0, 0, buttons);
     }
 
-    function onKeyDown({ code }: KeyboardEvent) {
+    function onKeyDown({ code, ctrlKey, altKey, metaKey }: KeyboardEvent) {
       debugCounts.keyDown++;
+      // Buzzar: browser/OS shortcuts (Ctrl+Shift+B toggles Brave's bookmarks bar, Ctrl+T, Alt+Tab…) must not also
+      // fire game actions; Ctrl+Shift+B was switching fly mode on. No game binding uses Ctrl/Alt/Meta. Releases
+      // are still always delivered (onKeyUp), so nothing can get stuck held.
+      if (ctrlKey || altKey || metaKey) return;
       if (lastKeyMap[code]) return;
       lastKeyMap[code] = true;
 
@@ -256,7 +270,20 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       enqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(code));
     }
 
+    // Buzzar: Chromium on Linux/X11 keeps the locked cursor centred by warping it; while a mouse button is held those
+    // warps leak through as single fake movements of ~400-550 px in the opposite direction, which snapped the camera
+    // back. Drop a lone movement that is both large and far bigger than the recent ones. Real fast flicks build up
+    // over several events, so the running average follows them.
+    const SPIKE_MIN = 300;
+    let recentMovement = 0;
+
     function onMouseMove({ movementX, movementY, clientX, clientY }: MouseEvent) {
+      const size = Math.max(Math.abs(movementX), Math.abs(movementY));
+      if (document.pointerLockElement === canvas && size > SPIKE_MIN && size > 3 * recentMovement + 60) {
+        debugCounts.droppedSpikes = (debugCounts.droppedSpikes ?? 0) + 1;
+        return;
+      }
+      recentMovement = recentMovement * 0.6 + size * 0.4;
       enqueue(InputSourceId.Mouse, InputComponentId.MouseMovement, 0, movementX, movementY, clientX, clientY, 0);
     }
 
@@ -272,10 +299,15 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       resetAllInputs();
     }
 
+    let wasLocked = document.pointerLockElement === canvas;
+
     function onPointerLockChange() {
-      if (document.pointerLockElement !== canvas) {
+      const locked = document.pointerLockElement === canvas;
+      const gained = locked && !wasLocked;
+      wasLocked = locked;
+      if (!locked) {
         resetAllInputs();
-      } else {
+      } else if (gained) {
         // Buzzar: on gaining the pointer, start from a clean slate: release every key the game might think is held
         // (anything stuck from before — a dropped key-up, or a key-up that never reached the page because of
         // Alt-Tab or a navigation). Keys physically held now just need pressing again.
@@ -287,6 +319,13 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       }
     }
 
+    // Buzzar: no context menu while playing (pointer locked). A right-click is a game input; a menu would steal
+    // focus and release held keys (e.g. stop a sprint). The desktop app's own menu is skipped too.
+    function onContextMenu(e: MouseEvent) {
+      if (document.pointerLockElement === canvas) e.preventDefault();
+    }
+
+    canvas.addEventListener("contextmenu", onContextMenu);
     canvas.addEventListener("mousedown", onMouseDown);
     canvas.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("mouseleave", onMouseLeave);
@@ -313,6 +352,7 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
         }).catch(() => {});
       }
       for (const dispose of debugDisposers) dispose();
+      canvas.removeEventListener("contextmenu", onContextMenu);
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("mouseleave", onMouseLeave);

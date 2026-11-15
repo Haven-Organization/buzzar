@@ -5,6 +5,8 @@ import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, 
 
 import { addMirror, addMirrorToggleNode, GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
 import { addAvatarPedestal } from "../../plugins/avatar-pedestals/pedestals.game";
+import { addSeat } from "../../plugins/seats/seats.game";
+import { addSceneGrabbable } from "../../plugins/scene-grabbables/grabbables.game";
 import { SpawnPoint } from "../component/SpawnPoint";
 import { addChild, traverse, updateMatrix, updateMatrixWorld } from "../component/transform";
 import { GameContext, RemoteResourceManager, World } from "../GameTypes";
@@ -268,6 +270,19 @@ async function loadGLTFResource(
   options?: LoadGLTFOptions
 ) {
   const res = await fetchWithProgress(ctx, url, { signal: options?.signal }, options?.onProgress);
+
+  // Buzzar: a failed download (e.g. a homeserver that can't fetch remote media: 502 "Failed to fetch remote
+  // media via fallback") used to be parsed as glTF and reported as "Missing asset section".
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.clone().json();
+      if (body?.error) detail = body.error;
+    } catch {
+      // not a JSON error body
+    }
+    throw new Error(`Couldn't download the 3D file (HTTP ${res.status}${detail ? `: ${detail}` : ""}).`);
+  }
 
   const buffer = await res.arrayBuffer();
 
@@ -909,9 +924,6 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
   // the resource is expensive.
 
   for (const primitive of mesh.primitives) {
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.newStatic();
-    const rigidBody = physicsWorld.createRigidBody(rigidBodyDesc);
-
     const positionsArray = getAccessorArrayView(
       primitive.attributes[MeshPrimitiveAttributeIndex.POSITION] as RemoteAccessor
     ).slice() as Float32Array;
@@ -934,8 +946,6 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
 
     colliderDesc.setCollisionGroups(staticRigidBodyCollisionGroups);
 
-    physicsWorld.createCollider(colliderDesc, rigidBody);
-
     const primitiveNode = new RemoteNode(loaderCtx.resource.manager);
     addChild(node, primitiveNode);
 
@@ -949,6 +959,12 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
         mass: 1,
       })
     );
+
+    // Buzzar: attach the trimesh to the node's tracked (fixed, origin-placed) body. Upstream created it on a
+    // separate rigid body nobody kept a reference to, so it was never removed: every world you left kept its
+    // mesh colliders, which became invisible walls in the next world.
+    const collider = physicsWorld.createCollider(colliderDesc, primitiveNode.physicsBody!.body);
+    physics.handleToEid.set(collider.handle, primitiveNode.eid);
 
     if (mesh) {
       addResourceRef(loaderCtx.ctx, mesh.eid);
@@ -1186,6 +1202,8 @@ const loadGLTFNode = createInstancedSubresourceLoader(
       } else if (
         loaderCtx.createDefaultMeshColliders &&
         node.mesh &&
+        // Buzzar: grabbables get their own (convex hull) collider and a kinematic body.
+        !extensions?.HAVEN_grabbable &&
         !(resource.root.extensionsUsed && resource.root.extensionsUsed.includes("OMI_collider"))
       ) {
         addTrimeshFromMesh(loaderCtx, node, node.mesh);
@@ -1217,6 +1235,14 @@ const loadGLTFNode = createInstancedSubresourceLoader(
         const pedestal = extensions.HAVEN_avatar_pedestal;
         const image = pedestal.image !== undefined ? loadGLTFImage(resource, pedestal.image) : undefined;
         addAvatarPedestal(loaderCtx.ctx, node, pedestal, resource.url, image);
+      }
+
+      if (extensions?.HAVEN_seat) {
+        addSeat(loaderCtx.ctx, node, extensions.HAVEN_seat, index);
+      }
+
+      if (extensions?.HAVEN_grabbable) {
+        addSceneGrabbable(loaderCtx.ctx, node, extensions.HAVEN_grabbable, index);
       }
 
       if (extensions?.HAVEN_mirror) {

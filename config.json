@@ -4,6 +4,5 @@
   "onboardingVersion": 1,
   "whatsNewVersion": 1,
   "bugReportEndpointUrl": "https://element.io/bugreports/submit",
-  "repositoryRoomIdOrAlias": "#repository-room:thirdroom.io",
   "staticOidcClients": {}
 }

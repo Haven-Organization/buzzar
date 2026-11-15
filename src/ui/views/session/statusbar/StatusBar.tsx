@@ -114,6 +114,26 @@ export function StatusBar() {
             </Text>
           </OverlayButton>
         )}
+        {knownWorldId && !overlayVisible && (
+          // Buzzar: Tab frees the mouse without opening the overlay (see WorldView).
+          <div className="flex items-center gap-xxs" style={{ paddingLeft: "var(--sp-sm)" }}>
+            <Text
+              color="world"
+              weight="medium"
+              variant="b3"
+              style={{
+                padding: "0 3px",
+                borderRadius: "var(--br-xxs)",
+                border: "1px solid var(--bg-world-border)",
+              }}
+            >
+              TAB
+            </Text>
+            <Text className="flex items-center" color="world" variant="b3">
+              Free Mouse
+            </Text>
+          </div>
+        )}
       </div>
       <div className="StatusBar__center">
         <Text color="world" weight="semi-bold">

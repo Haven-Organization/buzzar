@@ -21,6 +21,8 @@ import defaultWorlds from "../../../../../res/defaultWorlds.json";
 import { Thumbnail } from "../../../atoms/thumbnail/Thumbnail";
 import { ThumbnailImg } from "../../../atoms/thumbnail/ThumbnailImg";
 import { getHttpUrl } from "../../../utils/avatar";
+import { getSessionAuth } from "../../../utils/avatarMatrix";
+import { isBundledPath, uploadBundledFile } from "../../../utils/bundledMedia";
 import { UploadScene } from "./UploadScene";
 import { MAX_OBJECT_CAP } from "../../../../engine/config.common";
 import "./CreateWorldForm.css";
@@ -150,7 +152,7 @@ export interface CreateWorldFormProps {
   onClose: () => void;
 }
 export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: CreateWorldFormProps) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform, client } = useHydrogen(true);
   const userHSDomain = getMxIdDomain(session.userId);
   const isMounted = useIsMounted();
 
@@ -171,8 +173,32 @@ export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: Cre
   const [scriptInfo, setScriptInfo] = useState<AutoUploadInfo>({});
   const [creatingRoom, setCreatingRoom] = useState(false);
 
+  const [createError, setCreateError] = useState<string>();
+
+  // Buzzar: bundled starter scenes (public/worlds/…) are uploaded to the user's own homeserver first.
+  const uploadBundledScene = async (content: CreateWorldContent) => {
+    if (!isBundledPath(content.scene_url) && !isBundledPath(content.scene_preview_url)) return content;
+    const auth = await getSessionAuth(platform, client.sessionId);
+    if (!auth) throw new Error("Not signed in");
+    const [scene, preview] = await Promise.all([
+      isBundledPath(content.scene_url) ? uploadBundledFile(auth, content.scene_url) : { url: content.scene_url },
+      isBundledPath(content.scene_preview_url)
+        ? uploadBundledFile(auth, content.scene_preview_url)
+        : { url: content.scene_preview_url },
+    ]);
+    return { ...content, scene_url: scene.url, scene_preview_url: preview.url };
+  };
+
   const handleCreateWorld = async (options: CreateWorldOptions) => {
     setCreatingRoom(true);
+    setCreateError(undefined);
+    try {
+      options = { ...options, content: await uploadBundledScene(options.content) };
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : String(e));
+      setCreatingRoom(false);
+      return;
+    }
     const roomBeingCreated = await createWorld(session, options);
     const room = await waitToCreateRoom(session, roomBeingCreated);
     if (room && isMounted()) {
@@ -232,7 +258,13 @@ export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: Cre
       type="button"
     >
       <Thumbnail outlined={selectedScene?.url === sceneUrl} className="shrink-0" size="sm">
-        <ThumbnailImg src={getHttpUrl(session, roomAvatarUrl ?? previewUrl)!} />
+        <ThumbnailImg
+          src={
+            isBundledPath(roomAvatarUrl ?? previewUrl)
+              ? roomAvatarUrl ?? previewUrl
+              : getHttpUrl(session, roomAvatarUrl ?? previewUrl)!
+          }
+        />
       </Thumbnail>
     </button>
   );
@@ -337,9 +369,16 @@ export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: Cre
             </Button>
           }
           right={
-            <Button size="lg" type="submit" disabled={!selectedScene || creatingRoom}>
-              {creatingRoom ? "Creating World..." : "Create World"}
-            </Button>
+            <div className="flex items-center gap-sm">
+              {createError && (
+                <Text variant="b3" color="danger">
+                  {createError}
+                </Text>
+              )}
+              <Button size="lg" type="submit" disabled={!selectedScene || creatingRoom}>
+                {creatingRoom ? "Creating World..." : "Create World"}
+              </Button>
+            </div>
           }
         />
       }

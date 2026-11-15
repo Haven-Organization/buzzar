@@ -13,6 +13,7 @@ import { NetworkAction } from "./NetworkAction";
 import { broadcastReliable } from "./outbound.game";
 import { writeMetadata } from "./serialization.game";
 import { applyTransformToRigidBody } from "../physics/physics.game";
+import { takeSceneGrabbable } from "../../plugins/scene-grabbables/grabbables.game";
 
 // const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 3));
 const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 30));
@@ -38,6 +39,10 @@ export const deserializeRemoveOwnership = (ctx: GameContext, cv: CursorView) => 
 };
 
 export const takeOwnership = (ctx: GameContext, network: GameNetworkState, oldNode: RemoteNode): number => {
+  // Buzzar: objects placed in the world (HAVEN_grabbable) become networked copies when first grabbed.
+  const sceneCopy = takeSceneGrabbable(ctx, oldNode);
+  if (sceneCopy !== undefined) return sceneCopy;
+
   const eid = oldNode.eid;
   if (
     hasComponent(ctx.world, Prefab, eid) &&

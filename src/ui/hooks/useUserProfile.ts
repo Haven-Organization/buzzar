@@ -63,7 +63,7 @@ export function useUserProfile(client: Client, session?: Session) {
         const roomBeingCreated = session.createRoom({
           type: RoomType.Profile,
           visibility: RoomVisibility.Private,
-          name: "Third Room - Profile",
+          name: "Buzzar - Profile",
           topic: "This room contain profile information.",
           isEncrypted: false,
           isFederationDisabled: false,

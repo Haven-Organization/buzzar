@@ -38,7 +38,14 @@ import {
   SetPeerAvatarMessageType,
 } from "./avatar.common";
 import { checkAvatarLimits, computeAvatarStats, getHumanoidMapping, HumanoidMapping, HumanBone } from "./humanoid";
-import { applyBindPose, captureRestTransforms, estimateEyeHeight, retargetClip, RetargetRig } from "./retarget";
+import {
+  applyBindPose,
+  buildSitClip,
+  captureRestTransforms,
+  estimateEyeHeight,
+  retargetClip,
+  RetargetRig,
+} from "./retarget";
 import {
   hideAvatarPlaceholder,
   hideRigWhileLoading,
@@ -53,6 +60,42 @@ const NAMETAG_ABOVE_EYES = 0.35;
 const DEFAULT_EYE_HEIGHT = 1.64;
 const MIN_EYE_HEIGHT = 0.2;
 const MAX_EYE_HEIGHT = 5;
+
+/**
+ * Each loaded avatar rig's hips bone node (keyed by the rig node). Seats use it to put the hips on the cushion
+ * whatever the avatar's proportions.
+ */
+export const AvatarHips = new WeakMap<RemoteNode, RemoteNode>();
+
+function hipsNodeFor(loaderCtx: GLTFLoaderContext, mapping: HumanoidMapping): RemoteNode | undefined {
+  const index = mapping.bones.get("hips");
+  return index === undefined ? undefined : loaderCtx.nodeMap.get(index);
+}
+
+/**
+ * Loads the built-in default avatar into a new rig node with its own clips plus the procedural Sit clip.
+ * Used for the player prefab (before any custom avatar is applied) and when switching back to the default.
+ */
+export function createDefaultAvatarNode(ctx: GameContext, onLoaded?: (rig: RemoteNode) => void): RemoteNode {
+  const rig = new RemoteNode(ctx.resourceManager);
+  loadGLTF(ctx, DEFAULT_AVATAR_URL).then((resource) => {
+    loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(resource, rig), existingNode: rig });
+    onLoaded?.(rig);
+  });
+  return rig;
+}
+
+function defaultAvatarOptions(resource: Awaited<ReturnType<typeof loadGLTF>>, rig: RemoteNode): GLTFLoaderOptions {
+  return {
+    extraAnimationClips: (loaderCtx, rootObj) => {
+      const mapping = getHumanoidMapping(resource.root);
+      if (!mapping) return [];
+      const hips = hipsNodeFor(loaderCtx, mapping);
+      if (hips) AvatarHips.set(rig, hips);
+      return [buildSitClip(buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion()))];
+    },
+  };
+}
 
 interface SourceRig {
   rig: RetargetRig;
@@ -258,7 +301,9 @@ function getSourceRig(ctx: GameContext): Promise<SourceRig> {
       let captured: SourceRig | undefined;
       const template = loadIntoNode(ctx, resource, {
         extraAnimationClips: (loaderCtx, rootObj, ownClips) => {
-          captured = { rig: buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion()), clips: ownClips };
+          const rig = buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion());
+          // The Sit pose is built on the source rig so it retargets to every avatar like the locomotion clips.
+          captured = { rig, clips: [...ownClips, buildSitClip(rig)] };
           return [];
         },
       });
@@ -307,8 +352,10 @@ async function loadCustomAvatar(
   if (!mapping) throw new AvatarRejectedError("not a humanoid avatar (no VRM, Mixamo or CATS bone names found)");
 
   let eyeHeight: number | undefined;
+  let hips: RemoteNode | undefined;
   const rig = loadIntoNode(ctx, resource, {
     extraAnimationClips: (loaderCtx, rootObj) => {
+      hips = hipsNodeFor(loaderCtx, mapping);
       const target = buildRetargetRig(loaderCtx, rootObj, mapping, mapping.facesNegativeZ ? Y180 : new Quaternion());
       eyeHeight = estimateEyeHeight({ ...target, align: new Quaternion() });
       return source.clips.map((clip) => retargetClip(clip, source.rig, target));
@@ -317,6 +364,7 @@ async function loadCustomAvatar(
 
   // Mixamo / VRM 1.0 face +Z and need turning to face the player's forward (-Z); VRM 0.x already faces -Z.
   if (!mapping.facesNegativeZ) quat.fromEuler(rig.quaternion, 0, 180, 0);
+  if (hips) AvatarHips.set(rig, hips);
 
   return { rig, eyeHeight };
 }
@@ -334,7 +382,8 @@ export async function loadAvatarRig(
 ): Promise<{ rig: RemoteNode; eyeHeight?: number }> {
   if (url) return loadCustomAvatar(ctx, url, onProgress);
   const resource = await loadGLTF(ctx, DEFAULT_AVATAR_URL);
-  const rig = loadIntoNode(ctx, resource);
+  const rig = new RemoteNode(ctx.resourceManager);
+  loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(resource, rig), existingNode: rig });
   quat.fromEuler(rig.quaternion, 0, 180, 0);
   return { rig, eyeHeight: DEFAULT_EYE_HEIGHT };
 }

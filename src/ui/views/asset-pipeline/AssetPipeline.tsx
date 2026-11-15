@@ -65,7 +65,7 @@ export default function AssetPipeline() {
     <div className="AssetPipeline">
       <div className="AssetPipeline__dropzone" onDrop={onDropFile} onDragOver={onDragOver} />
       <div className="AssetPipeline__content gap-lg">
-        <Text variant="h2">Third Room Asset Pipeline</Text>
+        <Text variant="h2">Buzzar Asset Pipeline</Text>
         {Object.keys(DefaultAssetPipelineOptions).map((key) => (
           <SettingTile label={<Label>{key}</Label>}>
             <Switch

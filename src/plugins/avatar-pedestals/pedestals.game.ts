@@ -16,6 +16,7 @@ import { vec3 } from "gl-matrix";
 import {
   AvatarPedestalSelectedMessage,
   AvatarPedestalSelectedMessageType,
+  getBuiltinAvatarByUri,
   MediaConfigMessage,
   MediaConfigMessageType,
   mxcToHttp,
@@ -93,6 +94,8 @@ export const AvatarPedestalModule = defineModule<GameContext, PedestalModuleStat
 /** Resolves a world-supplied avatar URI to a loadable URL, or undefined if it isn't allowed. */
 export function resolvePedestalUri(uri: string, gltfUrl: string, homeserver?: string): string | undefined {
   if (uri.startsWith("mxc://")) return homeserver ? mxcToHttp(uri, homeserver) : undefined;
+  const builtin = getBuiltinAvatarByUri(uri);
+  if (builtin) return new URL(builtin.path, self.location.origin).href;
   if (/^[a-z][a-z0-9+.-]*:/i.test(uri)) return undefined; // any other absolute URI (http:, data:, javascript:…)
   try {
     const base = new URL(gltfUrl);
