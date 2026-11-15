@@ -16,6 +16,7 @@ import { MainContext } from "../MainThread";
 import { addPeer, disconnect, hasPeer, removePeer, setHost } from "./network.main";
 import { getRoomCall } from "../../ui/utils/matrixUtils";
 import { startAvatarSync } from "../avatar/avatar.main";
+import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
 
 export interface MatrixNetworkInterface {
   dispose: () => void;
@@ -70,7 +71,8 @@ export async function createMatrixNetworkInterface(
 
   let stream;
   try {
-    stream = await platform.mediaDevices.getMediaTracks(true, false);
+    // Buzzar: use the microphone chosen in settings.
+    stream = await platform.mediaDevices.getMediaTracks(microphoneConstraint() as true | MediaDeviceInfo, false);
   } catch (err) {
     console.error(err);
   }
@@ -86,6 +88,18 @@ export async function createMatrixNetworkInterface(
   }
 
   setLocalMediaStream(ctx, groupCall.localMedia?.userMedia);
+
+  // Buzzar: switch microphones from settings without leaving the world. Keeps the current mute state.
+  const call = groupCall;
+  registerMicrophoneSwitcher(async (constraint) => {
+    const current = call.localMedia;
+    if (!current) return;
+    const stream = await platform.mediaDevices.getMediaTracks(constraint as true | MediaDeviceInfo, false);
+    // setMedia stops the old microphone's tracks; re-applying the mute settings keeps a muted mic muted.
+    await call.setMedia(current.withUserMedia(stream));
+    if (call.muteSettings) await call.setMuted(call.muteSettings);
+    setLocalMediaStream(ctx, call.localMedia?.userMedia);
+  });
 
   // TODO: should peer ids be keyed like the call ids? (userId, deviceId, sessionId)?
   // Or maybe just (userId, deviceId)?
@@ -209,6 +223,7 @@ export async function createMatrixNetworkInterface(
   return {
     dispose: () => {
       avatarSync.dispose();
+      registerMicrophoneSwitcher(undefined);
       disconnect(ctx);
 
       exitWorld(ctx);

@@ -11,6 +11,7 @@ import { Overlay } from "./overlay/Overlay";
 import { StatusBar } from "./statusbar/StatusBar";
 import { LoadingScreen } from "../components/loading-screen/LoadingScreen";
 import { useHomeWorld } from "../../hooks/useHomeWorld";
+import { useBuzzarSpace } from "../../hooks/useBuzzarSpace";
 import { useUnknownWorldPath } from "../../hooks/useWorld";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
@@ -32,6 +33,7 @@ export default function SessionView() {
   const overlayVisible = useAtomValue(overlayVisibilityAtom);
   const [worldId, worldAlias] = useUnknownWorldPath();
   const homeWorldId = useHomeWorld();
+  useBuzzarSpace();
   const selectWorld = useSetAtom(overlayWorldAtom);
 
   const editorEnabled = useAtomValue(editorEnabledAtom);

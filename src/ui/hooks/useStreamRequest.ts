@@ -1,6 +1,8 @@
 import { Platform, Stream } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback } from "react";
 
+import { microphoneConstraint } from "../utils/microphone";
+
 export type RequestStream = (
   audio: true,
   video: boolean
@@ -28,7 +30,8 @@ export function useStreamRequest(platform: Platform, permissionState: Permission
           return;
         }
         platform.mediaDevices
-          .getMediaTracks(audio, video)
+          // Buzzar: use the microphone chosen in settings.
+          .getMediaTracks(audio && (microphoneConstraint() as true), video)
           .then((stream) => {
             resolve([stream, undefined]);
           })

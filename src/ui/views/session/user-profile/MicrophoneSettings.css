@@ -1,0 +1,12 @@
+.MicrophoneSettings__meter {
+  height: 8px;
+  border-radius: 4px;
+  background-color: var(--bg-surface-low, rgb(127 127 127 / 25%));
+  overflow: hidden;
+}
+
+.MicrophoneSettings__meter-fill {
+  height: 100%;
+  background-color: rgb(34 197 94);
+  transition: width 60ms linear;
+}

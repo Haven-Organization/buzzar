@@ -31,6 +31,8 @@ import { inputFocused } from "../../../utils/common";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useActionBar } from "../../../hooks/useActionBar";
+import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
+import "./WorldControls.css";
 
 export function HotbarControls() {
   const actionBarItems = useActionBar();
@@ -48,12 +50,22 @@ const MuteButton = forwardRef<HTMLButtonElement, { activeCall?: GroupCall; showT
   ({ activeCall, showToast }, ref) => {
     const { mute, requestStream, handleMute, micException, setMicException } = useMuteButton(activeCall);
 
+    // Buzzar: light up the mic button while you're talking, so you can tell your mic is working and being sent.
+    const [micStream, setMicStream] = useState<MediaStream>();
+    useEffect(() => {
+      const read = () => setMicStream(activeCall?.localMedia?.userMedia as unknown as MediaStream | undefined);
+      read();
+      return activeCall?.disposableOn("change", read);
+    }, [activeCall]);
+    const speaking = useSpeaking(useMicLevel(mute ? undefined : micStream)) && !mute;
+
     return (
       <>
         <MicExceptionDialog micException={micException} setMicException={setMicException} />
-        <Tooltip content={mute ? "Unmute" : "Mute"}>
+        <Tooltip content={mute ? "Unmute" : speaking ? "Mute (you're being heard)" : "Mute"}>
           <IconButton
             variant="world"
+            className={classNames("WorldControls__mic", { "WorldControls__mic--speaking": speaking })}
             label="Mic"
             iconSrc={mute ? MicOffIC : MicIC}
             onClick={() => {

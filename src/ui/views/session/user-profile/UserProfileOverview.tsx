@@ -19,6 +19,8 @@ import { useDebounce } from "../../../hooks/useDebounce";
 import { use3DAvatar } from "../../../hooks/use3DAvatar";
 import { Edit3DAvatar } from "./Edit3DAvatar";
 import "./UserProfileOverview.css";
+import { MicrophoneSettings } from "./MicrophoneSettings";
+import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
 import { uploadAttachment } from "../../../utils/matrixUtils";
@@ -112,6 +114,14 @@ export function UserProfileOverview() {
                   <SettingTile className="grow basis-0" label={<Label>Default Display Name</Label>}>
                     <Input name="displayName" onChange={onDisplayNameChange} defaultValue={displayName} required />
                   </SettingTile>
+                  <span className="grow basis-0" />
+                </div>
+                <div className="flex gap-lg">
+                  <MicrophoneSettings />
+                  <span className="grow basis-0" />
+                </div>
+                <div className="flex gap-lg">
+                  <BuzzarSpaceSetting />
                   <span className="grow basis-0" />
                 </div>
                 <div className="flex gap-lg">
