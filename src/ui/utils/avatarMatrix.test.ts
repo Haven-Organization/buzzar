@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AVATAR_KEY, parseAvatarContent, resolveAvatar, setWorldAvatar } from "./avatarMatrix";
+import { AVATAR_KEY, parseAvatarCollection, parseAvatarContent, resolveAvatar, setWorldAvatar } from "./avatarMatrix";
 
 const auth = { homeserver: "https://hs.example/", accessToken: "tok" };
 
@@ -84,5 +84,30 @@ describe("setWorldAvatar", () => {
   test("refuses when not joined", async () => {
     mockFetch({ [`GET ${memberUrl}`]: { body: { membership: "leave" } } });
     await expect(setWorldAvatar(auth, "!w:hs", "@u:hs", { url: "mxc://hs/new" })).rejects.toThrow(/joined/);
+  });
+});
+
+describe("parseAvatarCollection", () => {
+  test("keeps valid avatars once, drops malformed ones and bad builtin entries", () => {
+    const collection = parseAvatarCollection({
+      avatars: [
+        { url: "mxc://glowers.club/abc", name: "Mint", added_ts: 5 },
+        { url: "mxc://glowers.club/abc", name: "duplicate" },
+        { url: "https://evil.example/x.glb" },
+        "nonsense",
+        { url: "mxc://matrix.org/def", preview_url: "mxc://matrix.org/pre", format: "glb" },
+      ],
+      builtin: { devil: "mxc://glowers.club/devil", rose: "http://not-mxc" },
+    });
+    expect(collection.avatars).toEqual([
+      { url: "mxc://glowers.club/abc", name: "Mint", added_ts: 5 },
+      { url: "mxc://matrix.org/def", preview_url: "mxc://matrix.org/pre", format: "glb", added_ts: 0 },
+    ]);
+    expect(collection.builtin).toEqual({ devil: "mxc://glowers.club/devil" });
+  });
+
+  test("missing or garbage account data is an empty collection", () => {
+    expect(parseAvatarCollection(undefined)).toEqual({ avatars: [], builtin: {} });
+    expect(parseAvatarCollection({ avatars: "x", builtin: 3 })).toEqual({ avatars: [], builtin: {} });
   });
 });

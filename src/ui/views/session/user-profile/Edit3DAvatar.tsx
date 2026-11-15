@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 
 import { Modal } from "../../../atoms/modal/Modal";
@@ -22,10 +22,15 @@ import UploadIC from "../../../../../res/ic/upload.svg";
 import { worldAtom } from "../../../state/world";
 import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
 import {
+  AvatarCollection,
   AvatarContent,
   BUILTIN_AVATARS,
   BuiltinAvatar,
+  fetchAvatarCollection,
   fetchProfileAvatar,
+  removeFromAvatarCollection,
+  SavedAvatar,
+  saveToAvatarCollection,
   getBuiltinAvatarContent,
   getSessionAuth,
   setProfileAvatar,
@@ -55,6 +60,22 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const inWorld = world.entered && !!world.worldId;
+  const [collection, setCollection] = useState<AvatarCollection>();
+
+  // Buzzar: the personal collection of uploaded avatars (account data), so earlier uploads can be worn again.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      const auth = await getSessionAuth(platform, client.sessionId);
+      if (!auth) return;
+      const loaded = await fetchAvatarCollection(auth, session.userId).catch(() => undefined);
+      if (!cancelled && loaded) setCollection(loaded);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, platform, client, session]);
 
   /** Merge newly uploaded files with the current default avatar. */
   const buildContent = async (): Promise<AvatarContent | undefined> => {
@@ -108,8 +129,30 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
     apply(scope, async () => {
       const content = await buildContent();
       if (!content) throw new Error("Upload an avatar first");
+      // Remember new uploads (and new previews of them) in the collection.
+      if (avatarInfo.mxc || previewInfo.mxc) {
+        const auth = await getSessionAuth(platform, client.sessionId);
+        if (auth) await saveToAvatarCollection(auth, session.userId, content);
+      }
       return content;
     });
+
+  const wearSaved = (avatar: SavedAvatar) =>
+    apply(inWorld ? "world" : "default", async () => {
+      const { added_ts: _added, ...content } = avatar;
+      return content;
+    });
+
+  const removeSaved = async (avatar: SavedAvatar) => {
+    setError(undefined);
+    try {
+      const auth = await getSessionAuth(platform, client.sessionId);
+      if (!auth) throw new Error("Not signed in");
+      setCollection(await removeFromAvatarCollection(auth, session.userId, avatar.url));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const applyBuiltin = (avatar: BuiltinAvatar | undefined) =>
     apply(inWorld ? "world" : "default", async () => {
@@ -151,6 +194,36 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
                           {inWorld ? "Switches your avatar in this world right away." : "Sets your default avatar."}{" "}
                           Built-in avatars by Polygonal Mind (CC0).
                         </Text>
+                      </SettingTile>
+                      <SettingTile className="grow basis-0" label={<Label>Your Avatars</Label>}>
+                        {collection && collection.avatars.length > 0 ? (
+                          <div className="Edit3DAvatar__saved flex flex-column gap-xs">
+                            {collection.avatars.map((avatar) => (
+                              <div key={avatar.url} className="flex items-center gap-xs">
+                                <Text className="grow truncate" variant="b2">
+                                  {avatar.name ||
+                                    `Avatar from ${new Date(avatar.added_ts || Date.now()).toLocaleDateString()}`}
+                                </Text>
+                                <Button size="sm" fill="outline" disabled={saving} onClick={() => wearSaved(avatar)}>
+                                  Wear
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  fill="none"
+                                  variant="danger"
+                                  disabled={saving}
+                                  onClick={() => removeSaved(avatar)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <Text variant="b3" color="surface-low">
+                            {collection ? "Avatars you upload are saved here, so you can wear them again." : "Loading…"}
+                          </Text>
+                        )}
                       </SettingTile>
                       <SettingTile className="grow basis-0" label={<Label>Avatar</Label>}>
                         <AutoFileUpload

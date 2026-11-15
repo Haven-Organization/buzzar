@@ -7,6 +7,9 @@
  *   works in existing Third Room (MSC3815) worlds.
  *
  * Resolution order for a player in a world: member event key → profile field → built-in default.
+ *
+ * Buzzar also keeps a personal collection of uploaded avatars in the `software.haven.avatars` account data
+ * (private to the user, on every device), so an upload can be worn again later without re-uploading it.
  */
 import type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
 export const AVATAR_KEY = "software.haven.avatar";
@@ -152,6 +155,84 @@ export async function uploadMedia(auth: MatrixAuth, blob: Blob, filename: string
   return uri;
 }
 
+// --- Personal avatar collection (account data) ----------------------------------------------------
+
+export const AVATAR_COLLECTION_TYPE = "software.haven.avatars";
+const MAX_SAVED_AVATARS = 100;
+
+export interface SavedAvatar extends AvatarContent {
+  /** When it was added, in ms since the epoch. */
+  added_ts: number;
+}
+
+export interface AvatarCollection {
+  /** Newest first. */
+  avatars: SavedAvatar[];
+  /** mxc URIs of the built-in avatars, once uploaded to this homeserver (by built-in id). */
+  builtin: Record<string, string>;
+}
+
+/** Validates untrusted account data. */
+export function parseAvatarCollection(value: unknown): AvatarCollection {
+  const collection: AvatarCollection = { avatars: [], builtin: {} };
+  if (typeof value !== "object" || value === null) return collection;
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.avatars)) {
+    for (const item of record.avatars) {
+      const content = parseAvatarContent(item);
+      if (!content || collection.avatars.some((a) => a.url === content.url)) continue;
+      const added = (item as Record<string, unknown>).added_ts;
+      collection.avatars.push({ ...content, added_ts: typeof added === "number" ? added : 0 });
+    }
+  }
+  if (typeof record.builtin === "object" && record.builtin !== null) {
+    for (const [id, url] of Object.entries(record.builtin as Record<string, unknown>)) {
+      if (typeof url === "string" && MXC_REGEX.test(url)) collection.builtin[id] = url;
+    }
+  }
+  return collection;
+}
+
+export async function fetchAvatarCollection(auth: MatrixAuth, userId: string): Promise<AvatarCollection> {
+  const res = await request(
+    auth,
+    "GET",
+    `/_matrix/client/v3/user/${enc(userId)}/account_data/${AVATAR_COLLECTION_TYPE}`
+  );
+  if (res.status === 404) return { avatars: [], builtin: {} };
+  if (!res.ok) throw new Error(`Couldn't load your saved avatars: ${res.status}`);
+  return parseAvatarCollection(await res.json());
+}
+
+async function putAvatarCollection(auth: MatrixAuth, userId: string, collection: AvatarCollection) {
+  const res = await request(
+    auth,
+    "PUT",
+    `/_matrix/client/v3/user/${enc(userId)}/account_data/${AVATAR_COLLECTION_TYPE}`,
+    collection
+  );
+  if (!res.ok) throw new Error(`Couldn't save your avatars: ${res.status} ${await res.text()}`);
+}
+
+/** Adds (or moves to the front, updating its details) an uploaded avatar in the user's collection. */
+export async function saveToAvatarCollection(auth: MatrixAuth, userId: string, avatar: AvatarContent) {
+  const collection = await fetchAvatarCollection(auth, userId);
+  const existing = collection.avatars.find((a) => a.url === avatar.url);
+  const saved: SavedAvatar = { ...existing, ...avatar, added_ts: existing?.added_ts ?? Date.now() };
+  if (!saved.preview_url) delete saved.preview_url;
+  collection.avatars = [saved, ...collection.avatars.filter((a) => a.url !== avatar.url)].slice(0, MAX_SAVED_AVATARS);
+  await putAvatarCollection(auth, userId, collection);
+  return collection;
+}
+
+/** Removes an avatar from the collection (the uploaded file itself stays on the homeserver). */
+export async function removeFromAvatarCollection(auth: MatrixAuth, userId: string, url: string) {
+  const collection = await fetchAvatarCollection(auth, userId);
+  collection.avatars = collection.avatars.filter((a) => a.url !== url);
+  await putAvatarCollection(auth, userId, collection);
+  return collection;
+}
+
 export { BUILTIN_AVATARS } from "../../engine/avatar/avatar.common";
 export type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
 
@@ -168,9 +249,19 @@ export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, 
     // storage unavailable
   }
   if (!url || !MXC_REGEX.test(url)) {
-    const res = await fetch(avatar.path);
-    if (!res.ok) throw new Error(`Couldn't load built-in avatar ${avatar.name}`);
-    url = await uploadMedia(auth, await res.blob(), avatar.path.split("/").pop()!);
+    // Buzzar: the upload is remembered in account data too, so other devices and browsers reuse it instead of
+    // uploading the built-in avatar again.
+    const collection = await fetchAvatarCollection(auth, userId).catch(() => undefined);
+    url = collection?.builtin[avatar.id] ?? null;
+    if (!url) {
+      const res = await fetch(avatar.path);
+      if (!res.ok) throw new Error(`Couldn't load built-in avatar ${avatar.name}`);
+      url = await uploadMedia(auth, await res.blob(), avatar.path.split("/").pop()!);
+      if (collection) {
+        collection.builtin[avatar.id] = url;
+        await putAvatarCollection(auth, userId, collection).catch(() => undefined);
+      }
+    }
     try {
       localStorage.setItem(cacheKey, url);
     } catch {

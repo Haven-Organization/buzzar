@@ -19,6 +19,10 @@ What the built-in buttons do depends on where you are. Outside a world, they set
 
 You don't need to rejoin a world after you switch. Your own avatar changes as soon as you save. Other clients re-check every player in the world every 10 seconds. They cache default (profile) avatars for a minute, so a change that only touches your default avatar can take up to about a minute to reach them.
 
+### Your avatars
+
+Every avatar you upload is saved to **Your Avatars** in the avatar editor, so you can wear it again later in any world, even one without a pedestal for it, without uploading it again. The list is kept in your Matrix account data (`software.haven.avatars`), which only you can see and which follows you to every device. Removing an avatar from the list doesn't delete the uploaded file.
+
 ### Avatar pedestals
 
 Some worlds have pedestals that show an avatar on a stand with a name panel. Press a pedestal to wear its avatar. A pedestal works like VRChat's: the avatar becomes your **default** avatar in every world, and Buzzar clears any world-only avatar you had set for the current world so it doesn't take precedence.
@@ -106,6 +110,8 @@ Retargeting works per humanoid bone, so it handles skeletons with a different nu
 On seats, avatars play a **Sit** pose. Buzzar builds this pose procedurally on the Default rig (thighs forward, shins down, forearms resting on the thighs) and retargets it like the other clips, so it fits any avatar's proportions. The seat places your avatar's hips on the cushion.
 
 **Eye height.** Your first-person camera and your nametag follow your avatar's height. Buzzar takes the eye height from the midpoint of the `leftEye` and `rightEye` bones, or 8 cm above the `head` bone if there are no eye bones. The result is clamped to between 0.2 m and 5 m. The physics capsule doesn't change size.
+
+Avatars bound in an A-pose (arms angled down, common for game and VRChat models) are corrected to the animations' T-pose limb by limb, so their arms and legs move like a T-posed avatar's.
 
 ## Limits
 
