@@ -1,0 +1,21 @@
+diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
+index 6af6033..f21722c 100644
+--- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
++++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
+@@ -32897,3 +32897,6 @@ exports.makeTxnId = makeTxnId;
+ exports.submitLogsToRageshakeServer = submitLogsToRageshakeServer;
+ exports.tileClassForEntry = tileClassForEntry;
+ exports.viewClassForTile = viewClassForTile;
++
++// Buzzar: device verification (SAS) before secret storage is unlocked needs the CrossSigning class.
++exports.CrossSigning = CrossSigning;
+diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
+index 139e0d5..747596b 100644
+--- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
++++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
+@@ -32791,4 +32791,4 @@ class RootViewModel extends ViewModel {
+     return this._sessionLoadViewModel;
+   }
+ }
+-export { AnnouncementView, AsyncMappedList, AttachmentUpload, AvatarView, BaseMediaView, BaseMessageView, BaseObservableValue$1 as BaseObservableValue, BlobHandle, CallIntent, Client, ComposerViewModel, ConcatList, ConsoleReporter, Disposables, EncryptedEventTile, EncryptionEnabledTile, EventEmitter, FeatureFlag, FeatureSet, FileTile, FileView, GapTile, GapView, IDBLogPersister, ImageTile, ImageView, LoadStatus, LoadingView, LocalMedia, LocationTile, LocationView, Logger, LoginFailure, MappedList, MessageComposer, MissingAttachmentTile, MissingAttachmentView, Navigation, OIDCLoginMethod, ObservableArray, ObservableMap, ObservableValue$1 as ObservableValue, OidcApi, Platform, PowerLevels, ReactionsView, RedactedTile, RedactedView, ReplyPreviewView, RetainedObservableValue, RoomMemberTile, RoomNameTile, RoomStatus, RoomType, RoomView, RoomViewModel, RoomVisibility, RootView, RootViewModel, SessionView, SessionViewModel, SimpleTile, SortedArray, TemplateView, TextMessageView, TextTile, TimelineView, TimelineViewModel, VideoTile, VideoView, ViewModel, createNavigation, createRouter, makeTxnId, submitLogsToRageshakeServer, tileClassForEntry, viewClassForTile };
++export { CrossSigning, AnnouncementView, AsyncMappedList, AttachmentUpload, AvatarView, BaseMediaView, BaseMessageView, BaseObservableValue$1 as BaseObservableValue, BlobHandle, CallIntent, Client, ComposerViewModel, ConcatList, ConsoleReporter, Disposables, EncryptedEventTile, EncryptionEnabledTile, EventEmitter, FeatureFlag, FeatureSet, FileTile, FileView, GapTile, GapView, IDBLogPersister, ImageTile, ImageView, LoadStatus, LoadingView, LocalMedia, LocationTile, LocationView, Logger, LoginFailure, MappedList, MessageComposer, MissingAttachmentTile, MissingAttachmentView, Navigation, OIDCLoginMethod, ObservableArray, ObservableMap, ObservableValue$1 as ObservableValue, OidcApi, Platform, PowerLevels, ReactionsView, RedactedTile, RedactedView, ReplyPreviewView, RetainedObservableValue, RoomMemberTile, RoomNameTile, RoomStatus, RoomType, RoomView, RoomViewModel, RoomVisibility, RootView, RootViewModel, SessionView, SessionViewModel, SimpleTile, SortedArray, TemplateView, TextMessageView, TextTile, TimelineView, TimelineViewModel, VideoTile, VideoView, ViewModel, createNavigation, createRouter, makeTxnId, submitLogsToRageshakeServer, tileClassForEntry, viewClassForTile };

@@ -18,6 +18,7 @@ import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
 import { useAccountManagementAction, useUserProfileAction } from "./cmd-panel/actions";
 import { editorEnabledAtom } from "../../state/editor";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
+import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 
 function RegisterKBarActions() {
   useUserProfileAction();
@@ -53,6 +54,7 @@ export default function SessionView() {
         <RegisterKBarActions />
         <div className="SessionView">
           <canvas className="SessionView__viewport" ref={canvasRef} />
+          <DeviceVerificationDialog />
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
               <Outlet />

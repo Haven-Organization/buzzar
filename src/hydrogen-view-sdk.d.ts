@@ -422,7 +422,7 @@ declare module "@thirdroom/hydrogen-view-sdk" {
       request: RequestFunction;
       encoding: any;
       crypto: any;
-      urlCreator: URLRouter;
+      urlRouter: URLRouter;
       clientId?: string;
     });
     get clientMetadata(): {
@@ -595,6 +595,30 @@ declare module "@thirdroom/hydrogen-view-sdk" {
     observeRoomStatus(roomId: string): Promise<RetainedObservableValue<RoomStatus>>;
     getAccountData(type: string): Promise<any>;
     setAccountData(type: string, content: any): Promise<void>;
+    // Buzzar: end-to-end encryption (secret storage, key backup, cross-signing). Type 0 = recovery key,
+    // 1 = passphrase.
+    readonly hasIdentity: boolean;
+    readonly crossSigning: BaseObservableValue<CrossSigning | undefined>;
+    readonly keyBackup: BaseObservableValue<unknown | undefined>;
+    enableSecretStorage(type: 0 | 1, credential: string, log?: ILogItem): Promise<unknown>;
+  }
+
+  /** One SAS (emoji) verification. Events: SelectVerificationStage, EmojiGenerated, VerificationCancelled,
+   * VerificationCompleted. Exported by Buzzar's patch (patches/@thirdroom+hydrogen-view-sdk+0.1.2.patch). */
+  export interface SASVerification {
+    finished: boolean;
+    start(): Promise<void>;
+    abort(): Promise<void>;
+    on(event: string, handler: (arg: any) => void): void;
+    off(event: string, handler: (arg: any) => void): void;
+  }
+
+  export class CrossSigning {
+    constructor(options: Record<string, unknown>);
+    readonly isMasterKeyTrusted: boolean;
+    startVerification(requestOrUserId: string, log: ILogItem): SASVerification | undefined;
+    signOwnDevice(log: ILogItem): Promise<unknown | undefined>;
+    dispose(): void;
   }
 
   export class LocalMedia {

@@ -12,7 +12,6 @@ import {
   CallIntent,
   ILogger,
   LoginFailure,
-  OidcApi,
   OIDCLoginMethod,
   ILoginMethod,
   ISessionInfo,
@@ -36,6 +35,7 @@ import { CoverScreen } from "./components/cover-screen/CoverScreen";
 import { downloadFile } from "../../engine/utils/downloadFile";
 import configData from "../../../config.json";
 import { installMediaAuthResponder } from "../utils/mediaAuth";
+import { BuzzarOidcApi, oidcRedirectUri } from "../utils/oidc";
 
 function allowsChild(parent: Segment, child: Segment) {
   const parentType = parent.type;
@@ -89,7 +89,8 @@ class MockRouter {
   }
 
   createOIDCRedirectURL() {
-    return window.location.origin;
+    // Buzzar: must match what BuzzarOidcApi registers (utils/oidc.ts).
+    return oidcRedirectUri();
   }
 
   absoluteAppUrl() {
@@ -142,7 +143,8 @@ function initHydrogen() {
   };
 
   const platform = new Platform({ container, assetPaths, config, options });
-  const features = new FeatureSet(FeatureFlag.Calls);
+  // Buzzar: cross-signing lets a recovery key verify this device (views/session/verification).
+  const features = new FeatureSet(FeatureFlag.Calls).withFeature(FeatureFlag.CrossSigning);
 
   const navigation = new Navigation(allowsChild);
   platform.setNavigation(navigation);
@@ -266,26 +268,19 @@ async function getOidcLoginMethod(platform: Platform, urlCreator: URLRouter, sta
   settingsStorage.remove(`oidc_${state}_started_at`);
   storageKeys.forEach((key) => settingsStorage.remove(key));
 
-  if (!nonce || !codeVerifier || !redirectUri || !homeserver || !issuer || !clientId || !accountManagementUrl) {
+  // Buzzar: the account management URL is optional (not every OIDC server has one).
+  if (!nonce || !codeVerifier || !redirectUri || !homeserver || !issuer || !clientId) {
     return;
   }
 
   return new OIDCLoginMethod({
-    oidcApi: new OidcApi({
-      issuer,
-      staticClients: platform.config.staticOidcClients,
-      clientId,
-      urlCreator,
-      request: platform.request,
-      encoding: platform.encoding,
-      crypto: platform.crypto,
-    }),
+    oidcApi: new BuzzarOidcApi({ issuer, platform, urlRouter: urlCreator, clientId }),
     nonce,
     codeVerifier,
     code,
     homeserver,
     redirectUri,
-    accountManagementUrl,
+    accountManagementUrl: accountManagementUrl || undefined,
   });
 }
 

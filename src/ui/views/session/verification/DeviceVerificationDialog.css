@@ -1,0 +1,72 @@
+.DeviceVerificationDialog {
+  max-width: 440px;
+  border-radius: var(--br-md);
+}
+
+.DeviceVerification {
+  padding: var(--sp-xl) var(--sp-lg) var(--sp-lg);
+  text-align: center;
+}
+
+.DeviceVerification__icon {
+  color: var(--bg-primary);
+}
+.DeviceVerification__icon--success {
+  color: #0dbd8b;
+}
+
+.DeviceVerification__title {
+  text-align: center;
+}
+
+.DeviceVerification__body {
+  max-width: 340px;
+}
+
+.DeviceVerification__actions {
+  width: 100%;
+  & > .Button {
+    width: 100%;
+  }
+}
+
+.DeviceVerification__row {
+  width: 100%;
+  & > .Button {
+    flex: 1 1 0;
+  }
+}
+
+.DeviceVerification__form {
+  display: contents;
+}
+
+.DeviceVerification__key {
+  width: 100%;
+  margin-top: var(--sp-xs);
+  & input {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.04em;
+  }
+}
+
+.DeviceVerification__emoji {
+  list-style: none;
+  margin: var(--sp-sm) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-sm) var(--sp-xs);
+  width: 100%;
+
+  & li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-xxs);
+  }
+}
+.DeviceVerification__emojiSymbol {
+  font-size: 2.25rem;
+  line-height: 1.1;
+}

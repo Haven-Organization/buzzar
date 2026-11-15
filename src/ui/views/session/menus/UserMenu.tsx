@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
 import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
@@ -16,6 +16,7 @@ import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
 import { RageshakeDialog } from "../rageshake/RageshakeDialog";
 import { Edit3DAvatar } from "../user-profile/Edit3DAvatar";
+import { deviceVerificationAtom } from "../../../state/deviceVerification";
 
 export function UserMenu() {
   const { session, platform, logout } = useHydrogen(true);
@@ -24,6 +25,7 @@ export function UserMenu() {
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const [copied, setCopied] = useState(false);
   const [bugReport, setBugReport] = useState(false);
+  const [verification, setVerification] = useAtom(deviceVerificationAtom);
   const [avatarEditor, setAvatarEditor] = useState(false);
 
   const handleCopy = () => {
@@ -65,6 +67,11 @@ export function UserMenu() {
               <DropdownMenuItem onSelect={() => setAvatarEditor(true)}>Change Avatar</DropdownMenuItem>
               {accountManagementUrl && (
                 <DropdownMenuItem onSelect={() => window.open(accountManagementUrl)}>Manage Account</DropdownMenuItem>
+              )}
+              {verification.status === "unverified" && (
+                <DropdownMenuItem onSelect={() => setVerification((v) => ({ ...v, open: true }))}>
+                  Verify This Device
+                </DropdownMenuItem>
               )}
               <DropdownMenuItem onSelect={() => setBugReport(true)}>Report Bug</DropdownMenuItem>
               <DropdownMenuItem

@@ -28,6 +28,10 @@ Buzzar isn't publicly hosted yet. To try it, run it yourself (see [Self Hosting]
 
 Your homeserver is where your account data is stored. The sign-in page lets you pick one from a list or type in your own.
 
+Homeservers that use Matrix Authentication Service (MAS), like matrix.org, show **Continue** and **Create Account** buttons that take you to your homeserver's own sign-in page. Others ask for your username and password.
+
+After signing in, if your account uses secure messaging, Buzzar asks you to **confirm your identity**: approve the request on another device where you're signed in (for example Element) and compare emoji, or enter your recovery key. You can skip this and do it later from the menu under your profile picture.
+
 ### 2. Join or create worlds
 
 ![Screenshot of the world list with the create world menu open](/images/CreateWorld.png)

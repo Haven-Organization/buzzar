@@ -1,13 +1,5 @@
 import { ChangeEvent, KeyboardEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import {
-  AbortableOperation,
-  Client,
-  OidcApi,
-  Platform,
-  QueryLoginResult,
-  QueryOIDCResult,
-  URLRouter,
-} from "@thirdroom/hydrogen-view-sdk";
+import { AbortableOperation, Client, QueryLoginResult } from "@thirdroom/hydrogen-view-sdk";
 
 import { Text } from "../../atoms/text/Text";
 import { Input } from "../../atoms/input/Input";
@@ -26,6 +18,7 @@ import { getMissingFeature, MissingFeature } from "../../utils/featureCheck";
 import { MissingFeatureModal } from "./MissingFeatureModal";
 import "./LoginView.css";
 import { useIsMounted } from "../../hooks/useIsMounted";
+import { discoverOidcIssuer, startOidcLogin } from "../../utils/oidc";
 
 function useQueryHomeserver(client: Client, homeserver: string) {
   const queryRef = useRef<AbortableOperation<QueryLoginResult>>();
@@ -52,7 +45,14 @@ function useQueryHomeserver(client: Client, homeserver: string) {
       const queryOperation = client.queryLogin(homeserver);
       queryRef.current = queryOperation;
       try {
-        const result = await queryOperation.result;
+        let result = await queryOperation.result;
+        // Buzzar: Hydrogen only finds OIDC servers through a 2023 .well-known key; current homeservers with
+        // Matrix Authentication Service (matrix.org, …) advertise it through /auth_metadata instead.
+        if (!result.oidc) {
+          const oidc = await discoverOidcIssuer(result.homeserver);
+          if (queryRef.current !== queryOperation) return;
+          if (oidc) result = { ...result, oidc };
+        }
         setData({
           homeserver,
           result,
@@ -92,45 +92,12 @@ function useQueryHomeserver(client: Client, homeserver: string) {
   return { ...data, queryHomeserver };
 }
 
-async function startOIDCLogin(
-  platform: Platform,
-  urlCreator: URLRouter,
-  homeserver: string,
-  oidc: QueryOIDCResult,
-  oidcApi: OidcApi,
-  guest: boolean
-) {
-  const { openUrl, settingsStorage } = platform;
-  const deviceScope = oidcApi.generateDeviceScope();
-  const param = oidcApi.generateParams({
-    scope: `openid urn:matrix:org.matrix.msc2967.client:api:* ${deviceScope}`,
-    redirectUri: urlCreator.createOIDCRedirectURL(),
-  });
-  const clientId = await oidcApi.clientId();
-  await Promise.all([
-    settingsStorage.setInt(`oidc_${param.state}_started_at`, Date.now()),
-    param.nonce ? settingsStorage.setString(`oidc_${param.state}_nonce`, param.nonce) : Promise.resolve(),
-    param.codeVerifier
-      ? settingsStorage.setString(`oidc_${param.state}_code_verifier`, param.codeVerifier)
-      : Promise.resolve(),
-    settingsStorage.setString(`oidc_${param.state}_redirect_uri`, param.redirectUri),
-    settingsStorage.setString(`oidc_${param.state}_homeserver`, homeserver),
-    settingsStorage.setString(`oidc_${param.state}_issuer`, oidc.issuer),
-    settingsStorage.setString(`oidc_${param.state}_client_id`, clientId),
-    settingsStorage.setString(`oidc_${param.state}_account_management_url`, oidc.account),
-  ]);
-
-  let link = await oidcApi.authorizationEndpoint(param);
-  if (guest) {
-    link += `&kc_idp_hint=${getMatchingClientConfig(platform, oidc.issuer)?.guestKeycloakIdpHint ?? "guest"}`;
+function hostOf(url: string) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
   }
-
-  openUrl(link);
-}
-
-function getMatchingClientConfig(platform: Platform, issuer: string) {
-  const normalisedIssuer = `${issuer}${issuer.endsWith("/") ? "" : "/"}`;
-  return platform.config.staticOidcClients[normalisedIssuer];
 }
 
 export default function LoginView() {
@@ -202,25 +169,14 @@ export default function LoginView() {
     let loginMethod;
     setAuthenticating(true);
     setOidcError(undefined);
-    const guest = (event.nativeEvent as SubmitEvent).submitter?.id === "guest";
 
     if (result.oidc) {
-      const { issuer } = result.oidc;
-      const oidcApi = new OidcApi({
-        issuer,
-        staticClients: platform.config.staticOidcClients,
-        request: platform.request,
-        encoding: platform.encoding,
-        crypto: platform.crypto,
-        urlCreator: urlRouter,
-      });
+      const create = (event.nativeEvent as SubmitEvent).submitter?.id === "create-account";
       try {
-        await oidcApi.registration();
-        await oidcApi.metadata();
-        await startOIDCLogin(platform, urlRouter, result.homeserver, result.oidc, oidcApi, guest);
+        await startOidcLogin(platform, urlRouter, result.homeserver, result.oidc, create ? { prompt: "create" } : {});
       } catch (e) {
         console.error(e);
-        setOidcError("This client is not registered by the homeserver.");
+        setOidcError(e instanceof Error ? e.message : "Couldn't reach the homeserver's sign-in service.");
       }
 
       setAuthenticating(false);
@@ -331,35 +287,24 @@ export default function LoginView() {
             (result.oidc || result.password ? (
               <>
                 {result.oidc && !oidcError ? (
-                  getMatchingClientConfig(platform, result.oidc.issuer)?.guestKeycloakIdpHint ? (
-                    <>
-                      <Button size="lg" variant="primary" type="submit" disabled={authenticating}>
-                        {authenticating ? <Dots color="on-primary" /> : "Continue as User"}
-                      </Button>
-                      <Text
-                        className="LoginView__orDivider flex items-center gap-sm"
-                        variant="b3"
-                        color="surface-low"
-                        weight="bold"
-                      >
-                        OR
-                      </Text>
-                      <Button
-                        id="guest"
-                        size="lg"
-                        variant="primary"
-                        fill="outline"
-                        type="submit"
-                        disabled={authenticating}
-                      >
-                        {authenticating ? <Dots color="primary" /> : "Continue as Guest"}
-                      </Button>
-                    </>
-                  ) : (
+                  <>
+                    <Text variant="b2" color="surface-low">
+                      {`You'll sign in on ${hostOf(result.oidc.issuer)}, your homeserver's account page.`}
+                    </Text>
                     <Button size="lg" variant="primary" type="submit" disabled={authenticating}>
                       {authenticating ? <Dots color="on-primary" /> : "Continue"}
                     </Button>
-                  )
+                    <Button
+                      id="create-account"
+                      size="lg"
+                      variant="primary"
+                      fill="outline"
+                      type="submit"
+                      disabled={authenticating}
+                    >
+                      Create Account
+                    </Button>
+                  </>
                 ) : (
                   result.password && renderPasswordLogin()
                 )}

@@ -136,6 +136,12 @@ Cross-Origin-Embedder-Policy "require-corp"
 
 If your homeserver is hosted on the same domain as your client you also must ensure that the `./well-known` directory is served properly so that the client can discover the homeserver configuration.
 
+## Sign-in with Matrix Authentication Service
+
+Homeservers that use [Matrix Authentication Service](https://element-hq.github.io/matrix-authentication-service/) (MAS) or another OAuth 2.0 server are found through `/_matrix/client/v1/auth_metadata`. Buzzar registers itself with the server automatically the first time someone signs in, so there's nothing to configure.
+
+MAS only accepts `https` addresses for web apps. When Buzzar runs on `localhost` (for development or the desktop app), it registers as a native app and gives MAS a public `https` address as its home page. That's `https://buzzar.haven.software/` unless you set `oidcClientUri` in `config.json`.
+
 ## Additional Configuration
 
 Configuration options can be found in the `/config.json` file. You can change the default homeserver displayed on the login page, the homeservers shown in the dropdown, the OpenID Connect provider configuration, and more there. This file should be modified before the client is built.
