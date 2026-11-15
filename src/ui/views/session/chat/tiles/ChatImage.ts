@@ -20,6 +20,17 @@ export function imageSource(vm: ImageTile): string {
   return vm.thumbnailUrl;
 }
 
+/**
+ * Tells an image tile it's on screen, which makes it produce its URL (and download/decrypt encrypted images).
+ * Deferred until after the view is mounted: notifying during render makes the timeline restore its scroll
+ * position before its DOM exists ("Cannot read properties of undefined (reading 'firstElementChild')").
+ */
+export function notifyVisibleAfterMount(vm: ImageTile) {
+  window.setTimeout(() => {
+    if (!vm.isDisposed) vm.notifyVisible();
+  }, 0);
+}
+
 export class ChatImage extends ChatBaseMessage {
   constructor(vm: ImageTile) {
     super(vm);
@@ -32,7 +43,7 @@ export class ChatImage extends ChatBaseMessage {
     const full = unencrypted ? mediaRepositoryOf(vm).mxcUrl(content!.url!) : undefined;
     // The tile only produces a URL once it's told it's visible (that's also what starts downloading and
     // decrypting encrypted images), and the URL changes when that finishes, so bind src instead of setting it once.
-    vm.notifyVisible();
+    notifyVisibleAfterMount(vm);
     const img = t.img({
       src: (tile: BaseMessageTile) => imageSource(tile as ImageTile),
       alt: content?.body ?? "image",
