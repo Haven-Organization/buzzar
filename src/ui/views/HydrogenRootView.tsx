@@ -236,18 +236,22 @@ function loginFailureToMsg(loginFailure: LoginFailure) {
 }
 
 async function loadClient(client: Client, sessionId: string): Promise<Session | undefined> {
+  // Buzzar: Third Room cleared all of localStorage (every saved session and setting) whenever a session failed to
+  // load, so a connection timeout or a hiccup at startup signed people out. Keep the session on errors and show
+  // them (with Refresh); only drop this one session when the homeserver rejected its credentials.
   try {
     await waitToLoadClient(client);
-    if (client.session) {
-      await client.session.callHandler.loadCalls("m.room" as CallIntent);
-      return client.session;
-    }
-    await client.startLogout(sessionId);
-    localStorage.clear();
   } catch (error) {
-    localStorage.clear();
+    if (client.loginFailure === LoginFailure.Credentials) {
+      await client.startLogout(sessionId).catch(() => undefined);
+    }
     throw error;
   }
+  if (client.session) {
+    await client.session.callHandler.loadCalls("m.room" as CallIntent);
+    return client.session;
+  }
+  await client.startLogout(sessionId);
   return undefined;
 }
 

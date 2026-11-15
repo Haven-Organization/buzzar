@@ -211,7 +211,9 @@ export function useRoomViewModel(room: Room, tileClassForEntry: tileClassForEntr
       tileClassForEntry,
       platform,
       logger,
-      urlCreator: urlRouter,
+      // Buzzar: the SDK reads `urlRouter`; Third Room passed `urlCreator`, so image tiles crashed building their
+      // lightbox link ("Cannot read properties of undefined (reading 'urlForSegments')").
+      urlRouter,
       navigation,
     });
 

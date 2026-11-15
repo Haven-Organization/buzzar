@@ -1099,7 +1099,7 @@ declare module "@thirdroom/hydrogen-view-sdk" {
   export type ViewModelOptions = {
     platform: Platform;
     logger: ILogger;
-    urlCreator: URLRouter;
+    urlRouter: URLRouter;
     navigation: Navigation;
     emitChange?: (params: any) => void;
   };
@@ -1121,7 +1121,7 @@ declare module "@thirdroom/hydrogen-view-sdk" {
     get platform(): Platform;
     get clock(): Clock;
     get logger(): ILogger;
-    get urlCreator(): URLRouter;
+    get urlRouter(): URLRouter;
     get navigation(): Navigation;
   }
 
