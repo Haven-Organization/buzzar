@@ -45,7 +45,6 @@ Buzzar at its core is focused on creating spaces for people and communities to f
 
 - Virtual worlds are disconnected which makes multiplayer gaming and switching activities or applications difficult and clunky.
 - Some virtual world platforms are monetized with an ad based model that uses sensitive user data to recommend ads.
-- Other virtual world platforms are monetized via NFTs which can be inaccessible due to cryptocurrency transaction fees, some are built on proof of work chains that require vast amounts of electricity, and all operate on the concept of artificial scarcity which has been co-opted by many groups in various speculative schemes.
 - There is high demand from audiences for free user-generated content games on platforms where creators make next to nothing. The audiences and creators for these platforms heavily skew younger and are being exploited by platform operators.
 - The quality of these user-generated games can be high but most are not due to the platform restrictions especially around monetization opportunities. Creators cannot afford to create indie/AAA content.
 
