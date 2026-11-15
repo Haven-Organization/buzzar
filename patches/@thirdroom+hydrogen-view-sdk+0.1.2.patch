@@ -1,8 +1,28 @@
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
-index 6af6033..f21722c 100644
+index 6af6033..bc731ab 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
-@@ -32897,3 +32897,6 @@ exports.makeTxnId = makeTxnId;
+@@ -12244,7 +12244,9 @@ class DOMWebRTC {
+   createPeerConnection(forceTURN, turnServers, iceCandidatePoolSize) {
+     const peerConn = new RTCPeerConnection({
+       iceTransportPolicy: forceTURN ? "relay" : void 0,
+-      iceServers: turnServers,
++      // Buzzar: a homeserver without TURN returns {} from /voip/turnServer; drop entries without urls instead of
++      // throwing "Malformed RTCIceServer" (which left players in the same world unable to see each other).
++      iceServers: turnServers.filter((server) => server && server.urls && (!Array.isArray(server.urls) || server.urls.length > 0)),
+       iceCandidatePoolSize
+     });
+     return new Proxy(peerConn, {
+@@ -22300,7 +22302,7 @@ class PeerCall {
+     this.peerConnection = options.webRTC.createPeerConnection(this.options.forceTURN, [this.options.turnServer.get()], 0);
+     this.disposables.track(this.options.turnServer.subscribe((turnServer) => {
+       this.logItem.log({ l: "updating turn server", turnServer });
+-      this.peerConnection.setConfiguration({ iceServers: [turnServer] });
++      this.peerConnection.setConfiguration({ iceServers: turnServer && turnServer.urls && (!Array.isArray(turnServer.urls) || turnServer.urls.length > 0) ? [turnServer] : [] });
+     }));
+     const listen = (type, listener, options2) => {
+       const newListener = (e) => {
+@@ -32897,3 +32899,6 @@ exports.makeTxnId = makeTxnId;
  exports.submitLogsToRageshakeServer = submitLogsToRageshakeServer;
  exports.tileClassForEntry = tileClassForEntry;
  exports.viewClassForTile = viewClassForTile;
@@ -10,10 +30,30 @@ index 6af6033..f21722c 100644
 +// Buzzar: device verification (SAS) before secret storage is unlocked needs the CrossSigning class.
 +exports.CrossSigning = CrossSigning;
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
-index 139e0d5..747596b 100644
+index 139e0d5..08818ed 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
-@@ -32791,4 +32791,4 @@ class RootViewModel extends ViewModel {
+@@ -12215,7 +12215,9 @@ class DOMWebRTC {
+   createPeerConnection(forceTURN, turnServers, iceCandidatePoolSize) {
+     const peerConn = new RTCPeerConnection({
+       iceTransportPolicy: forceTURN ? "relay" : void 0,
+-      iceServers: turnServers,
++      // Buzzar: a homeserver without TURN returns {} from /voip/turnServer; drop entries without urls instead of
++      // throwing "Malformed RTCIceServer" (which left players in the same world unable to see each other).
++      iceServers: turnServers.filter((server) => server && server.urls && (!Array.isArray(server.urls) || server.urls.length > 0)),
+       iceCandidatePoolSize
+     });
+     return new Proxy(peerConn, {
+@@ -22271,7 +22273,7 @@ class PeerCall {
+     this.peerConnection = options.webRTC.createPeerConnection(this.options.forceTURN, [this.options.turnServer.get()], 0);
+     this.disposables.track(this.options.turnServer.subscribe((turnServer) => {
+       this.logItem.log({ l: "updating turn server", turnServer });
+-      this.peerConnection.setConfiguration({ iceServers: [turnServer] });
++      this.peerConnection.setConfiguration({ iceServers: turnServer && turnServer.urls && (!Array.isArray(turnServer.urls) || turnServer.urls.length > 0) ? [turnServer] : [] });
+     }));
+     const listen = (type, listener, options2) => {
+       const newListener = (e) => {
+@@ -32791,4 +32793,4 @@ class RootViewModel extends ViewModel {
      return this._sessionLoadViewModel;
    }
  }
