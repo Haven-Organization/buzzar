@@ -275,6 +275,8 @@ export function eventByOrderKey(ev1: StateEvent, ev2: StateEvent) {
 }
 
 export async function setPowerLevel(session: Session, roomId: string, userId: string, powerLevel: number) {
+  // Callers never pass Infinity, but guard anyway: JSON would turn it into null and the server would reject it.
+  if (!Number.isFinite(powerLevel)) throw new Error("Invalid power level");
   const content = await session.hsApi.state(roomId, "m.room.power_levels", "").response();
   await session.hsApi
     .sendState(roomId, "m.room.power_levels", "", {

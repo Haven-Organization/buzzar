@@ -80,7 +80,7 @@ export function MemberListDialog({ room, requestClose }: MemberListDialogProps) 
   const isWorld = room.type === "org.matrix.msc3815.world";
   const filteredJoined = joined?.filter((member) => !active?.find((m) => m.userId === member.userId));
 
-  const { canDoAction, getPowerLevel } = usePowerLevels(room);
+  const { canDoAction, getPowerLevel, isCreator } = usePowerLevels(room);
   const myPL = getPowerLevel(session.userId);
   const canInvite = canDoAction("invite", myPL);
   const canKick = canDoAction("kick", myPL);
@@ -146,7 +146,8 @@ export function MemberListDialog({ room, requestClose }: MemberListDialogProps) 
               Ban
             </DropdownMenuItem>
           );
-        if (myPL === 100) {
+        // Creators (room version 12+) aren't in the power levels and can't be demoted.
+        if (myPL >= 100 && !isCreator(userId)) {
           menuItems.push(
             <DropdownMenuItem key="make-member" disabled={userPL === 0} onSelect={() => makeMember(room.id, userId)}>
               Make Member
