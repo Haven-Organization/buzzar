@@ -5,6 +5,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatAnnouncement } from "./ChatAnnouncement";
 import { ChatImage } from "./ChatImage";
 import { ChatDate } from "./ChatDate";
+import { ChatMedia } from "./ChatMedia";
 
 export function viewClassForTile(vm: SimpleTile): TileViewConstructor<any> {
   switch (vm.shape) {
@@ -17,6 +18,10 @@ export function viewClassForTile(vm: SimpleTile): TileViewConstructor<any> {
       return ChatMessage;
     case "image":
       return ChatImage;
+    case "video":
+    case "file":
+    case "missing-attachment":
+      return ChatMedia;
     case "date-header":
       return ChatDate;
     default:

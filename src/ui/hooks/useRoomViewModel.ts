@@ -14,6 +14,8 @@ import {
   ImageTile,
   RoomMemberTile,
   EncryptedEventTile,
+  VideoTile,
+  FileTile,
 } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect } from "react";
 
@@ -41,11 +43,18 @@ export function chatTileClassForEntry(entry: TimelineEntry): TileConstructor | u
             return TextTile;
           case "m.image":
             return ImageTile;
+          case "m.video":
+            return VideoTile;
+          case "m.file":
+          case "m.audio":
+            return FileTile;
           default:
             // unknown msgtype not rendered
             return undefined;
         }
       }
+      case "m.sticker":
+        return entry.isRedacted ? undefined : ImageTile;
       case "m.room.member":
         return RoomMemberTile;
       case "m.room.tombstone":
@@ -78,6 +87,8 @@ export function worldChatTileClassForEntry(entry: TimelineEntry): TileConstructo
           case "m.notice":
           case "m.emote":
             return TextTile;
+          case "m.image":
+            return ImageTile;
           default:
             // unknown msgtype not rendered
             return undefined;
@@ -85,6 +96,8 @@ export function worldChatTileClassForEntry(entry: TimelineEntry): TileConstructo
       }
       case "m.room.member":
         return RoomMemberTile;
+      case "m.sticker":
+        return entry.isRedacted ? undefined : ImageTile;
       case "m.room.tombstone":
         return entry.content?.replacement_room ? (TombstoneTile as unknown as TileConstructor) : undefined;
       case "m.room.encrypted":

@@ -1,0 +1,80 @@
+/* Buzzar: formatted (HTML) Matrix message bodies. */
+.FormattedBody {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.FormattedBody p {
+  margin: 0;
+}
+
+.FormattedBody blockquote {
+  border-left: 3px solid rgb(127 127 127 / 50%);
+  margin: var(--sp-xxs) 0;
+  padding-left: var(--sp-xs);
+}
+
+.FormattedBody pre,
+.FormattedBody code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: rgb(127 127 127 / 15%);
+  border-radius: 4px;
+}
+
+.FormattedBody code {
+  padding: 0 3px;
+}
+
+.FormattedBody pre {
+  padding: var(--sp-xs);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.FormattedBody pre code {
+  background: none;
+  padding: 0;
+}
+
+.FormattedBody ul,
+.FormattedBody ol {
+  padding-left: 1.5em;
+  margin: var(--sp-xxs) 0;
+}
+
+.FormattedBody a {
+  text-decoration: underline;
+}
+
+.FormattedBody table {
+  border-collapse: collapse;
+}
+
+.FormattedBody th,
+.FormattedBody td {
+  border: 1px solid rgb(127 127 127 / 40%);
+  padding: 2px 6px;
+}
+
+.FormattedBody__img {
+  max-width: 256px;
+  max-height: 256px;
+  vertical-align: middle;
+}
+
+.FormattedBody__emoji {
+  height: 1.6em;
+  max-height: 1.6em;
+}
+
+.FormattedBody__spoiler {
+  background: currentcolor;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.FormattedBody__spoiler--shown {
+  background: rgb(127 127 127 / 20%);
+  cursor: auto;
+}

@@ -1258,6 +1258,14 @@ declare module "@thirdroom/hydrogen-view-sdk" {
     setViewError(err: string): void;
   }
 
+  // Buzzar: exported by the SDK build but missing from these typings.
+  export class VideoTile extends BaseMediaTile {
+    get shape(): "video";
+  }
+  export class FileTile extends BaseMessageTile {
+    get shape(): "file";
+  }
+
   export class ImageTile extends BaseMediaTile {
     constructor(entry: any, options: SimpleTileOptions);
     get lightboxUrl(): string;

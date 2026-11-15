@@ -1,0 +1,15 @@
+.ChatMedia__video {
+  max-width: 340px;
+  max-height: 300px;
+  border-radius: var(--br-sm, 8px);
+  background: black;
+}
+
+.ChatMedia__audio {
+  max-width: 340px;
+}
+
+.ChatMedia__file {
+  text-decoration: underline;
+  word-break: break-all;
+}

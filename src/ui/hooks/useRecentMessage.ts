@@ -9,7 +9,7 @@ export function useRecentMessage(room?: Room) {
       const entry = timeline[i];
       const event = entry?.event;
       if (event?.type === "m.room.encrypted") return entry;
-      if (event?.type === "m.room.message") return entry;
+      if (event?.type === "m.room.message" || event?.type === "m.sticker") return entry;
     }
     return undefined;
   };

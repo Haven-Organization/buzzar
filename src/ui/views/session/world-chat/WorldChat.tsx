@@ -1,4 +1,4 @@
-import { useReducer, useRef } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import { Room } from "@thirdroom/hydrogen-view-sdk";
 
 import "./WorldChat.css";
@@ -11,6 +11,8 @@ import MessageIC from "../../../../../res/ic/message.svg";
 import { useRecentMessage } from "../../../hooks/useRecentMessage";
 import { usePreviousState } from "../../../hooks/usePreviousState";
 import { useTombstone } from "../../../hooks/useTombstone";
+import { useHydrogen } from "../../../hooks/useHydrogen";
+import { FormattedBody } from "../../components/formatted-body/FormattedBody";
 
 function useRecentMessages(room?: Room, maxCount = 5) {
   const eventsRef = useRef<any[]>([]);
@@ -47,6 +49,8 @@ export function WorldChat({ room, open }: IWorldChat) {
   const events = useRecentMessages(open ? undefined : room, 5);
   // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
   const upgraded = !!useTombstone(room);
+  const { session } = useHydrogen(true);
+  const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
 
   const renderTimeline = () =>
     error ? (
@@ -71,7 +75,20 @@ export function WorldChat({ room, open }: IWorldChat) {
                 <span className="WorldChat__TextMessageView-sender Text Text-b2 Text--world Text--semi-bold">
                   {eventEntry.displayName}
                 </span>
-                {eventEntry.content.body}
+                {eventEntry.content?.msgtype === "m.image" || eventEntry.event?.type === "m.sticker" ? (
+                  <img
+                    className="WorldChat__ImageMessageView-img"
+                    src={
+                      (eventEntry.content.info?.mimetype === "image/gif"
+                        ? session.mediaRepository.mxcUrl(eventEntry.content.url)
+                        : session.mediaRepository.mxcUrlThumbnail(eventEntry.content.url, 240, 180, "scale")) ??
+                      undefined
+                    }
+                    alt={eventEntry.content.body ?? "image"}
+                  />
+                ) : (
+                  <FormattedBody content={eventEntry.content} resolveMxc={resolveMxc} />
+                )}
               </div>
             </li>
           ))}

@@ -4,3 +4,14 @@
     word-break: break-word;
   }
 }
+
+/* Buzzar: reply quotes and formatted (HTML) bodies. */
+.ChatMessage__reply {
+  border-left: 3px solid var(--bg-primary, #7000ff);
+  padding: 0 var(--sp-xs);
+  margin-bottom: var(--sp-xxs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

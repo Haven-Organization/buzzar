@@ -16,3 +16,11 @@
 .WorldChat__TextMessageView-sender {
   margin-right: var(--sp-xxs);
 }
+
+.WorldChat__ImageMessageView-img {
+  display: block;
+  max-width: 240px;
+  max-height: 180px;
+  margin-top: var(--sp-xxs);
+  border-radius: var(--br-xs);
+}
