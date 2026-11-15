@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, renderHook } from "@testing-library/react-hooks";
+import { vi } from "vitest";
 
 import { SPEAKING_LEVEL, useSpeaking } from "./useMicLevel";
 

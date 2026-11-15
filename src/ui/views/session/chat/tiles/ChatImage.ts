@@ -10,9 +10,10 @@ const ANIMATED = new Set(["image/gif", "image/webp", "image/apng"]);
 
 /** Buzzar: the source to show for an image or sticker: the original for (possibly) animated images. */
 export function imageSource(vm: ImageTile): string {
-  const content = vm._getContent() as { url?: string; info?: { mimetype?: string } } | undefined;
+  const content = vm._getContent() as { url?: string; file?: unknown; info?: { mimetype?: string } } | undefined;
   const mimetype = content?.info?.mimetype ?? vm.mimeType;
-  if (content?.url && mimetype && ANIMATED.has(mimetype)) {
+  // Unencrypted only: encrypted files have to be downloaded and decrypted by the tile (thumbnailUrl).
+  if (content?.url && !content.file && mimetype && ANIMATED.has(mimetype)) {
     const full = mediaRepositoryOf(vm).mxcUrl(content.url);
     if (full) return full;
   }
@@ -27,9 +28,13 @@ export class ChatImage extends ChatBaseMessage {
   renderBody<T extends Builder<BaseMessageTile>>(t: T, vm: ImageTile): Element {
     const { height, width } = vm;
     const content = vm._getContent() as { body?: string; url?: string } | undefined;
-    const full = content?.url ? mediaRepositoryOf(vm).mxcUrl(content.url) : undefined;
+    const unencrypted = content?.url && !(content as { file?: unknown }).file;
+    const full = unencrypted ? mediaRepositoryOf(vm).mxcUrl(content!.url!) : undefined;
+    // The tile only produces a URL once it's told it's visible (that's also what starts downloading and
+    // decrypting encrypted images), and the URL changes when that finishes, so bind src instead of setting it once.
+    vm.notifyVisible();
     const img = t.img({
-      src: imageSource(vm),
+      src: (tile: BaseMessageTile) => imageSource(tile as ImageTile),
       alt: content?.body ?? "image",
       title: content?.body ?? "",
       loading: "lazy",
