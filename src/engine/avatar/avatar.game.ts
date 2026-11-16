@@ -8,9 +8,10 @@
  */
 import { hasComponent, removeComponent } from "bitecs";
 import { quat } from "gl-matrix";
-import { AnimationClip, Matrix4, Object3D, Quaternion, Vector3 } from "three";
+import { AnimationClip, AnimationUtils, Matrix4, Object3D, Quaternion, Vector3 } from "three";
 
-import { AnimationComponent } from "../animation/animation.game";
+import { AnimationClipType, AnimationComponent } from "../animation/animation.game";
+import { localPosture, Posture } from "../player/posture.common";
 import { addChild, removeChild } from "../component/transform";
 import { GameContext } from "../GameTypes";
 import {
@@ -44,7 +45,10 @@ import { createSpringRig, getSpringChains, SpringRig, updateSpringRig } from "./
 import { createFaceRig, FaceRig, getFaceSpec, updateFaceRig } from "./face";
 import {
   applyBindPose,
+  buildPoseClip,
   buildSitClip,
+  CROUCH_POSE,
+  PRONE_POSE,
   captureRestTransforms,
   estimateEyeHeight,
   retargetClip,
@@ -95,12 +99,15 @@ function defaultAvatarOptions(
   rig: RemoteNode
 ): GLTFLoaderOptions {
   return {
-    extraAnimationClips: (loaderCtx, rootObj) => {
+    extraAnimationClips: (loaderCtx, rootObj, ownClips) => {
       const mapping = getHumanoidMapping(resource.root);
       if (!mapping) return [];
       const hips = hipsNodeFor(loaderCtx, mapping);
       if (hips) AvatarHips.set(rig, hips);
-      return [buildSitClip(buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion()))];
+      const own = buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion());
+      return makeCrouchAdditive([...ownClips, buildSitClip(own), ...buildPostureClips(own)], own).filter(
+        (clip) => !ownClips.includes(clip)
+      );
     },
     createAnimationPostUpdate: (loaderCtx, rootObj) => {
       const mapping = getHumanoidMapping(resource.root);
@@ -372,7 +379,7 @@ function getSourceRig(ctx: GameContext): Promise<SourceRig> {
         extraAnimationClips: (loaderCtx, rootObj, ownClips) => {
           const rig = buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion());
           // The Sit pose is built on the source rig so it retargets to every avatar like the locomotion clips.
-          captured = { rig, clips: [...ownClips, buildSitClip(rig)] };
+          captured = { rig, clips: [...ownClips, buildSitClip(rig), ...buildPostureClips(rig)] };
           return [];
         },
       });
@@ -428,7 +435,8 @@ async function loadCustomAvatar(
       const target = buildRetargetRig(loaderCtx, rootObj, mapping, mapping.facesNegativeZ ? Y180 : new Quaternion());
       eyeHeight = estimateEyeHeight({ ...target, align: new Quaternion() });
       // Avatars bound in an A-pose (common for game and VRChat models) get their limbs corrected to the clips' T-pose.
-      return source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
+      const clips = source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
+      return makeCrouchAdditive(clips, target);
     },
     // Hair, ears, tails, skirts…: built after retargeting has put the skeleton in its bind pose (the springs' rest).
     createAnimationPostUpdate: (loaderCtx, rootObj) => createAvatarAnimationExtras(ctx, loaderCtx, rootObj, mapping),
@@ -442,6 +450,51 @@ async function loadCustomAvatar(
 }
 
 export class AvatarRejectedError extends Error {}
+
+/** Crouch and Prone poses (plugins/posture), built on a rig facing +Z like the Sit clip. */
+function buildPostureClips(rig: RetargetRig): AnimationClip[] {
+  try {
+    return [
+      buildPoseClip(rig, AnimationClipType.Crouch, CROUCH_POSE),
+      buildPoseClip(rig, AnimationClipType.Prone, PRONE_POSE),
+    ];
+  } catch (error) {
+    // Optional poses: never fail the avatar over them.
+    console.warn("Avatar crouch/prone poses unavailable:", error);
+    return [];
+  }
+}
+
+/** Bones the crouch layer moves; the arms keep whatever the locomotion clip does. */
+const CROUCH_LAYER_BONES: HumanBone[] = [
+  "hips", "spine", "chest", "upperChest", "neck", "head",
+  "leftUpperLeg", "leftLowerLeg", "leftFoot", "leftToes", "rightUpperLeg", "rightLowerLeg", "rightFoot", "rightToes",
+]; // prettier-ignore
+
+/**
+ * Turns the Crouch pose into an additive layer: its difference from the avatar's Idle pose (so rest-pose fixes such
+ * as A-pose arms cancel out), on the hips, spine and legs only. Played on top of idle/walking, the avatar walks
+ * crouched.
+ */
+function makeCrouchAdditive(clips: AnimationClip[], rig: RetargetRig): AnimationClip[] {
+  const crouch = clips.find((c) => c.name === AnimationClipType.Crouch);
+  const idle = clips.find((c) => c.name === AnimationClipType.Idle);
+  if (!crouch) return clips;
+  const allowed = new Set(CROUCH_LAYER_BONES.map((b) => rig.bones.get(b)?.uuid).filter((u): u is string => !!u));
+  const reference = idle ?? crouch;
+  const referenceNames = new Set(reference.tracks.map((t) => t.name));
+  crouch.tracks = crouch.tracks.filter(
+    (t) => allowed.has(t.name.slice(0, t.name.lastIndexOf("."))) && (idle ? referenceNames.has(t.name) : true)
+  );
+  if (!idle) return clips.filter((c) => c !== crouch); // nothing to layer on
+  try {
+    AnimationUtils.makeClipAdditive(crouch, 0, idle);
+  } catch (error) {
+    console.warn("Avatar crouch layer unavailable:", error);
+    return clips.filter((c) => c !== crouch);
+  }
+  return clips;
+}
 
 /**
  * Secondary motion and face for an avatar: spring bones (hair, ears…), then blinking and eye gaze. Built once the
@@ -645,7 +698,11 @@ function applyEyeHeight(ctx: GameContext, container: RemoteNode, eyeHeight: numb
 
   try {
     const anchor = getCamera(ctx, container).parent;
-    if (anchor) anchor.position[1] = height;
+    if (anchor) {
+      // Our own player: crouching/prone (plugins/posture) eases the camera from this standing height.
+      localPosture.standingEye = height;
+      if (localPosture.value === Posture.Standing) anchor.position[1] = height;
+    }
   } catch {
     // remote players have no camera
   }

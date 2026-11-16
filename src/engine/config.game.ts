@@ -62,6 +62,7 @@ import { EnableCharacterControllerSystem } from "./player/CharacterController";
 import { CameraRigSystem } from "./player/CameraRig";
 import { FallRespawnSystem } from "./player/FallRespawnSystem";
 import { SeatModule, SeatSystem } from "../plugins/seats/seats.game";
+import { PostureModule, PostureSystem } from "../plugins/posture/posture.game";
 import { SceneGrabbableModule, SceneGrabbableSystem } from "../plugins/scene-grabbables/grabbables.game";
 
 export default defineConfig<GameContext>({
@@ -86,6 +87,7 @@ export default defineConfig<GameContext>({
     AvatarModule,
     AvatarPedestalModule,
     SeatModule,
+    PostureModule,
     SceneGrabbableModule,
     WebSGNetworkModule,
     WebSGUIModule,
@@ -114,6 +116,7 @@ export default defineConfig<GameContext>({
     MirrorSystem,
     AvatarPedestalSystem,
     SeatSystem,
+    PostureSystem,
     SceneGrabbableSystem,
     ActionBarSystem,
     EnableCharacterControllerSystem,

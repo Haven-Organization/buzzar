@@ -354,6 +354,32 @@ const SIT_DIRECTIONS: Partial<Record<HumanBone, [number, number, number]>> = {
  * The rig must face +Z in its own space (true for the built-in Mixamo rig, whose `align` is identity).
  */
 export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
+  return buildPoseClip(rig, name, { directions: SIT_DIRECTIONS });
+}
+
+/** A static body pose, in a rig space facing +Z with the character's left on +X. */
+export interface PoseSpec {
+  /** Bone → direction to its child (see POSE_DIRECTION_CHILD). */
+  directions?: Partial<Record<HumanBone, [number, number, number]>>;
+  /** Pitch the whole body forward by this many degrees at the hips (90 = lying face down). */
+  hipsPitch?: number;
+  /** Bone → extra pitch in degrees (positive leans forward / looks down), applied after its parent. */
+  bends?: Partial<Record<HumanBone, number>>;
+  /** Move the hips so both feet stay where they are at rest (on the ground, under the body). */
+  groundFeet?: boolean;
+  /** Put the hips at this fraction of their rest height (e.g. lying down). */
+  hipsHeight?: number;
+}
+
+const X_AXIS = new Vector3(1, 0, 0);
+
+/**
+ * Builds a static pose clip (sitting, crouching, lying prone) on a rig from its rest pose. Bones with a direction
+ * are swung to it; bones with a bend are pitched; every other bone keeps its rest *local* rotation, so children
+ * follow. With `groundFeet` or `hipsHeight` the clip also moves the hips (a position track, which retargeting
+ * scales by hip height).
+ */
+export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): AnimationClip {
   const objToBone = new Map<Object3D, HumanBone>();
   for (const [bone, obj] of rig.bones) objToBone.set(obj, bone);
 
@@ -365,12 +391,14 @@ export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
   const sideSign = hips && leftLeg && restPos(leftLeg).x < restPos(hips).x ? -1 : 1;
 
   const desiredWorld = new Map<Object3D, Quaternion>();
+  const posedMatrix = new Map<Object3D, Matrix4>();
   const tracks: KeyframeTrack[] = [];
   const restWorld = new Quaternion();
   const current = new Quaternion();
   const swing = new Quaternion();
   const direction = new Vector3();
   const target = new Vector3();
+  const alignMatrix = new Matrix4().makeRotationFromQuaternion(rig.align);
 
   rig.root.traverse((obj) => {
     if (obj === rig.root || !rig.rest.has(obj)) return;
@@ -385,7 +413,10 @@ export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
     current.copy(parentWorld).multiply(restLocal(rig, obj).quaternion);
 
     const bone = objToBone.get(obj);
-    const goal = bone ? SIT_DIRECTIONS[bone] : undefined;
+    if (bone === "hips" && spec.hipsPitch) {
+      current.premultiply(swing.setFromAxisAngle(X_AXIS, (spec.hipsPitch * Math.PI) / 180));
+    }
+    const goal = bone ? spec.directions?.[bone] : undefined;
     const childBone = bone ? POSE_DIRECTION_CHILD[bone] : undefined;
     const child = childBone ? rig.bones.get(childBone) : undefined;
 
@@ -398,8 +429,17 @@ export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
       swing.setFromUnitVectors(direction, target);
       current.premultiply(swing);
     }
+    const bend = bone ? spec.bends?.[bone] : undefined;
+    if (bend) current.premultiply(swing.setFromAxisAngle(X_AXIS, (bend * Math.PI) / 180));
 
     desiredWorld.set(obj, current.clone());
+
+    // Posed world matrix (hips at their rest position), for placing the feet.
+    const rest = restLocal(rig, obj);
+    const parentMatrix =
+      !parent || parent === rig.root ? alignMatrix : posedMatrix.get(parent) ?? restWorldMatrix(rig, parent);
+    const localQuat = parentWorld.clone().invert().multiply(current);
+    posedMatrix.set(obj, parentMatrix.clone().multiply(new Matrix4().compose(rest.position, localQuat, rest.scale)));
 
     if (bone) {
       const local = parentWorld.clone().invert().multiply(current);
@@ -408,5 +448,69 @@ export function buildSitClip(rig: RetargetRig, name = "Sit"): AnimationClip {
     }
   });
 
+  // Hips translation: keep the feet planted, or set the hips height.
+  if (hips && (spec.groundFeet || spec.hipsHeight !== undefined)) {
+    const delta = new Vector3();
+    if (spec.groundFeet) {
+      const feet = (["leftFoot", "rightFoot"] as HumanBone[])
+        .map((b) => rig.bones.get(b))
+        .filter((o): o is Object3D => !!o);
+      if (feet.length > 0) {
+        const restFeet = feet.reduce((acc, f) => acc.add(restPos(f)), new Vector3()).multiplyScalar(1 / feet.length);
+        const posedFeet = feet
+          .reduce(
+            (acc, f) => acc.add(new Vector3().setFromMatrixPosition(posedMatrix.get(f) ?? new Matrix4())),
+            new Vector3()
+          )
+          .multiplyScalar(1 / feet.length);
+        delta.subVectors(restFeet, posedFeet);
+      }
+    } else if (spec.hipsHeight !== undefined) {
+      const hipsY = restPos(hips).y;
+      delta.set(0, hipsY * spec.hipsHeight - hipsY, 0);
+    }
+    // World (rig-space) offset → the hips' parent space.
+    const parentInv = (
+      hips.parent && hips.parent !== rig.root ? restWorldMatrix(rig, hips.parent) : alignMatrix.clone()
+    ).invert();
+    const p = restPos(hips).add(delta).applyMatrix4(parentInv);
+    tracks.push(new VectorKeyframeTrack(`${hips.uuid}.position`, [0, 1], [...p.toArray(), ...p.toArray()]));
+  }
+
   return new AnimationClip(name, 1, tracks);
 }
+
+/**
+ * Crouching: knees bent, hips lowered with the feet planted, back leaning forward a little, eyes ahead. Applied on
+ * top of walking/idle (additively), so the avatar walks crouched.
+ */
+export const CROUCH_POSE: PoseSpec = {
+  directions: {
+    leftUpperLeg: [0.14, -0.42, 0.9],
+    rightUpperLeg: [-0.14, -0.42, 0.9],
+    // Knees out a little, shins angled back in so the feet stay under the hips.
+    leftLowerLeg: [-0.12, -0.93, -0.36],
+    rightLowerLeg: [0.12, -0.93, -0.36],
+  },
+  bends: { spine: 16, chest: 8, neck: -14, head: -8 },
+  groundFeet: true,
+};
+
+/**
+ * Lying prone: face down with the body stretched out behind the hips, propped on the forearms, head up.
+ */
+export const PRONE_POSE: PoseSpec = {
+  hipsPitch: 90,
+  directions: {
+    leftUpperLeg: [0.1, 0, -1],
+    rightUpperLeg: [-0.1, 0, -1],
+    leftLowerLeg: [0.08, 0.05, -1],
+    rightLowerLeg: [-0.08, 0.05, -1],
+    leftUpperArm: [0.32, -0.55, 0.75],
+    rightUpperArm: [-0.32, -0.55, 0.75],
+    leftLowerArm: [-0.12, -0.05, 1],
+    rightLowerArm: [0.12, -0.05, 1],
+  },
+  bends: { neck: -48, head: -22 },
+  hipsHeight: 0.2,
+};

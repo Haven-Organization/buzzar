@@ -103,6 +103,11 @@ export function registerPlayerPrefabs(ctx: GameContext) {
         })
       );
 
+      // Buzzar: no contact forces between players and physics objects. Players move with the character controller
+      // (which still collides with them); without this the kinematic capsule's friction dragged a crate along under
+      // anyone standing on it, and remote players' capsules shoved objects around.
+      container.physicsBody?.body?.collider(0)?.setSolverGroups(0);
+
       addInteractableComponent(ctx, physics, container, InteractableType.Player);
 
       addComponent(ctx.world, AvatarRef, container.eid);

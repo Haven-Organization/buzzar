@@ -12,7 +12,7 @@ import {
 } from "three";
 
 import { HumanBone } from "./humanoid";
-import { buildSitClip, captureRestTransforms, retargetClip, RetargetRig } from "./retarget";
+import { buildPoseClip, buildSitClip, captureRestTransforms, CROUCH_POSE, PRONE_POSE, retargetClip, RetargetRig } from "./retarget";
 
 type Spec = [HumanBone, HumanBone | undefined, [number, number, number], [number, number, number]];
 
@@ -242,5 +242,59 @@ describe("normalizeRestPose", () => {
     pose(source, clip, 0);
     pose(target, retargetClip(clip, source, target), 0);
     expect(armDirection(target).dot(armDirection(source))).toBeLessThan(0.8);
+  });
+});
+
+describe("crouch and prone poses", () => {
+  const body: Spec[] = [
+    ["hips", undefined, [0, 1, 0], [0, 0, 0]],
+    ["spine", "hips", [0, 0.1, 0], [0, 0, 0]],
+    ["neck", "spine", [0, 0.45, 0], [0, 0, 0]],
+    ["head", "neck", [0, 0.1, 0], [0, 0, 0]],
+    ["leftUpperArm", "spine", [0.2, 0.4, 0], [0, 0, -90]],
+    ["leftLowerArm", "leftUpperArm", [0, 0.3, 0], [0, 0, 0]],
+    ["leftHand", "leftLowerArm", [0, 0.25, 0], [0, 0, 0]],
+    ["leftUpperLeg", "hips", [0.1, -0.05, 0], [0, 0, 180]],
+    ["leftLowerLeg", "leftUpperLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["leftFoot", "leftLowerLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["rightUpperLeg", "hips", [-0.1, -0.05, 0], [0, 0, 180]],
+    ["rightLowerLeg", "rightUpperLeg", [0, 0.45, 0], [0, 0, 0]],
+    ["rightFoot", "rightLowerLeg", [0, 0.45, 0], [0, 0, 0]],
+  ];
+
+  function pose(spec: Parameters<typeof buildPoseClip>[2]) {
+    const rig = buildRig(body);
+    const rest = (b: HumanBone) => {
+      rig.root.updateMatrixWorld(true);
+      return new Vector3().setFromMatrixPosition(rig.bones.get(b)!.matrixWorld);
+    };
+    const restFoot = rest("leftFoot");
+    const restHead = rest("head");
+    const mixer = new AnimationMixer(rig.root);
+    mixer.clipAction(buildPoseClip(rig, "Pose", spec)).play();
+    mixer.update(0);
+    rig.root.updateMatrixWorld(true);
+    const at = (b: HumanBone) => new Vector3().setFromMatrixPosition(rig.bones.get(b)!.matrixWorld);
+    return { at, restFoot, restHead };
+  }
+
+  test("crouching lowers the body with the feet planted where they were", () => {
+    const { at, restFoot, restHead } = pose(CROUCH_POSE);
+    expect(at("leftFoot").distanceTo(restFoot)).toBeLessThan(0.02);
+    expect(at("hips").y).toBeLessThan(0.75);
+    expect(at("head").y).toBeLessThan(restHead.y - 0.25);
+    // Knees forward of the hips.
+    expect(at("leftLowerLeg").z).toBeGreaterThan(at("hips").z);
+  });
+
+  test("prone lies face down along the ground with the head up", () => {
+    const { at } = pose(PRONE_POSE);
+    expect(at("hips").y).toBeCloseTo(0.2, 2);
+    // Spine forward (+Z) and the feet behind, all near the ground.
+    expect(at("neck").z).toBeGreaterThan(at("hips").z + 0.4);
+    expect(at("leftFoot").z).toBeLessThan(at("hips").z - 0.7);
+    expect(Math.abs(at("leftFoot").y - at("hips").y)).toBeLessThan(0.25);
+    // Head raised above the neck.
+    expect(at("head").y).toBeGreaterThan(at("neck").y);
   });
 });

@@ -12,6 +12,7 @@ import { PhysicsModule, PhysicsModuleState } from "../physics/physics.game";
 import { getRemoteResource, removeResourceRef } from "../resource/resource.game";
 import { RemoteAnimation, RemoteNode } from "../resource/RemoteResources";
 import { playerShapeCastCollisionGroups } from "../physics/CollisionGroups";
+import { Posture, PostureEntities } from "../player/posture.common";
 
 export interface IAnimationComponent {
   animations: RemoteAnimation[];
@@ -38,6 +39,10 @@ export enum AnimationClipType {
   RunBack = "RunBack",
   /** Buzzar: procedural seated pose (avatar.game buildSitClip), played while on a seat. */
   Sit = "Sit",
+  /** Buzzar: crouch, an additive pose layered on top of idle/walking (plugins/posture). */
+  Crouch = "Crouch",
+  /** Buzzar: lying prone (plugins/posture). */
+  Prone = "Prone",
 }
 
 /**
@@ -124,11 +129,22 @@ function processAnimations(ctx: GameContext) {
 
       // select actions to play based on velocity
       const sitAction = SeatedEntities.has(parent.eid) ? animation.actionMap.get(AnimationClipType.Sit) : undefined;
-      const actionsToPlay = sitAction
+      // Buzzar: crouching layers a pose on top of the locomotion clips; prone replaces them.
+      const posture = PostureEntities.get(parent.eid);
+      const proneAction =
+        !sitAction && posture === Posture.Prone ? animation.actionMap.get(AnimationClipType.Prone) : undefined;
+      let actionsToPlay = sitAction
         ? [sitAction]
+        : proneAction
+        ? [proneAction]
         : getClipActionsUsingVelocity(ctx, physics, parent, body, animation);
       // synchronize selected clip action times
       synchronizeClipActions(actionsToPlay);
+      const crouchAction =
+        !sitAction && !proneAction && posture === Posture.Crouching
+          ? animation.actionMap.get(AnimationClipType.Crouch)
+          : undefined;
+      if (crouchAction) actionsToPlay = [...actionsToPlay, crouchAction];
       // fade in selected animations
       increaseClipActionWeights(actionsToPlay, fadeInAmount * ctx.dt);
 

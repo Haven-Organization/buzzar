@@ -3,6 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { RawCharacterCollision } from "@dimforge/rapier3d-compat/raw";
 import { Quaternion, Vector3 } from "three";
 
+import { localPosture, Posture, POSTURE_SPEED } from "./posture.common";
 import { SeatedEntities } from "../animation/animation.game";
 import { GameContext } from "../GameTypes";
 import { enableActionMap } from "../input/ActionMappingSystem";
@@ -24,6 +25,7 @@ export const KinematicCharacterControllerActions = {
   Jump: kinematicCharacterControllerAction("Jump"),
   Sprint: kinematicCharacterControllerAction("Sprint"),
   Crouch: kinematicCharacterControllerAction("Crouch"),
+  Prone: kinematicCharacterControllerAction("Prone"),
 };
 
 export const KinematicCharacterControllerActionMap: ActionMap = {
@@ -71,6 +73,17 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
         {
           type: BindingType.Button,
           path: "Keyboard/KeyC",
+        },
+      ],
+    },
+    {
+      id: "prone",
+      path: KinematicCharacterControllerActions.Prone,
+      type: ActionType.Button,
+      bindings: [
+        {
+          type: BindingType.Button,
+          path: "Keyboard/KeyZ",
         },
       ],
     },
@@ -182,18 +195,20 @@ export function updateKinematicControls(
   _linearVelocity.copy(body.linvel() as Vector3);
 
   const isGrounded = characterController.computedGrounded();
-  const isSprinting = isGrounded && sprint.held && !isSliding;
+  const isSprinting = isGrounded && sprint.held && !isSliding && localPosture.value === Posture.Standing;
 
   const speed = Math.sqrt(_linearVelocity.x * _linearVelocity.x + _linearVelocity.z * _linearVelocity.z);
 
   _acceleration.set(moveVec[0], 0, -moveVec[1]).normalize().applyQuaternion(_q).multiplyScalar(walkAccel);
 
+  // Buzzar: crouching and prone (plugins/posture) are slower; only standing players sprint.
+  const standing = localPosture.value === Posture.Standing;
   if (!isGrounded) {
     _acceleration.multiplyScalar(inAirModifier);
-  } else {
-    if (crouch.held && !isSliding) {
-      _acceleration.multiplyScalar(crouchModifier);
-    } else if (sprint.held && !isSliding) {
+  } else if (!isSliding) {
+    if (!standing) {
+      _acceleration.multiplyScalar(POSTURE_SPEED[localPosture.value]);
+    } else if (sprint.held) {
       _acceleration.multiplyScalar(sprintModifier);
     }
   }
@@ -225,9 +240,9 @@ export function updateKinematicControls(
     isSliding = false;
   }
 
-  if (jump.pressed && isGrounded) {
-    const jumpModifier = crouch.held ? crouchJumpModifier : 1;
-    _linearVelocity.y += jumpForce * jumpModifier;
+  // Jumping while crouched or prone stands you up instead (plugins/posture).
+  if (jump.pressed && isGrounded && standing) {
+    _linearVelocity.y += jumpForce;
   }
 
   if (speed !== 0) {
@@ -268,6 +283,8 @@ export function updateKinematicControls(
 
   body.setNextKinematicTranslation(translation);
 
+  pushDynamicBodies(characterController, _linearVelocity, ctx.dt);
+
   for (let i = 0; i < characterController.numComputedCollisions(); i++) {
     if (characterController.computedCollision(i, characterCollision) !== null) {
       // TODO: Rapier v0.10.0 doesn't expose collider on characterCollision so manually grab it
@@ -292,6 +309,44 @@ export function updateKinematicControls(
   }
 }
 
+/** Mass the character pushes with (kg); light crates move at walking speed, heavy ones barely. */
+const PUSH_MASS = 80;
+/** A contact whose surface faces up more than this is something you're standing on, not pushing. */
+const STANDING_NORMAL_Y = 0.5;
+// Created on first use: Rapier's WASM isn't initialised when this module is imported.
+let _pushCollision: RAPIER.CharacterCollision | undefined;
+const _pushDir = new Vector3();
+
+/**
+ * Buzzar: push dynamic bodies (crates, balls) the character walks into, along the ground only. Bodies under the
+ * character (contact normal facing up) are never pushed, so you can jump onto a crate and stand on it.
+ */
+function pushDynamicBodies(controller: RAPIER.KinematicCharacterController, movement: Vector3, dt: number) {
+  if (!(dt > 0)) return;
+  for (let i = 0; i < controller.numComputedCollisions(); i++) {
+    _pushCollision ??= new RAPIER.CharacterCollision();
+    const collision = controller.computedCollision(i, _pushCollision);
+    const body = collision?.collider?.parent();
+    if (!collision || !body || !body.isDynamic()) continue;
+    const n = collision.normal1;
+    if (n.y > STANDING_NORMAL_Y) continue; // standing or landing on it
+    // Horizontal direction into the body, and how fast we're moving that way.
+    _pushDir.set(-n.x, 0, -n.z);
+    if (_pushDir.lengthSq() < 1e-6) continue;
+    _pushDir.normalize();
+    const into = (movement.x * _pushDir.x + movement.z * _pushDir.z) / dt;
+    if (into <= 0) continue;
+    const v = body.linvel();
+    const already = v.x * _pushDir.x + v.z * _pushDir.z;
+    const dv = into - already;
+    if (dv <= 0) continue;
+    // Bring it up to our speed, scaled down for bodies heavier than we push with.
+    const mass = body.mass();
+    const impulse = dv * Math.min(mass, PUSH_MASS) * (mass > PUSH_MASS ? PUSH_MASS / mass : 1);
+    body.applyImpulse({ x: _pushDir.x * impulse, y: 0, z: _pushDir.z * impulse }, true);
+  }
+}
+
 function createCharacterController(physics: PhysicsModuleState, eid: number) {
   // New player rig (world load / respawn): don't inherit slide state from the previous one.
   isSliding = false;
@@ -300,7 +355,9 @@ function createCharacterController(physics: PhysicsModuleState, eid: number) {
   characterController.enableAutostep(0.3, 0.05, true);
   characterController.enableSnapToGround(0.1);
   characterController.setCharacterMass(100);
-  characterController.setApplyImpulsesToDynamicBodies(true);
+  // Buzzar: Rapier's impulses shove every dynamic body the character touches, including a crate it lands or stands
+  // on, so crates shot out from under players. pushDynamicBodies (below) only pushes what you walk into.
+  characterController.setApplyImpulsesToDynamicBodies(false);
   characterController.setSlideEnabled(true);
 
   physics.eidTocharacterController.set(eid, characterController);
