@@ -151,6 +151,9 @@ export function addPeer(ctx: MainContext, peerId: string, dataChannel: RTCDataCh
 
   const onOpen = () => {
     const onClose = () => {
+      // Buzzar: only if this channel still backs the peer; a replaced device's channel closing late must not
+      // remove the user's new connection.
+      if (reliableChannels.get(peerId) !== dataChannel && unreliableChannels.get(peerId) !== dataChannel) return;
       onPeerLeft(ctx, peerId);
     };
 

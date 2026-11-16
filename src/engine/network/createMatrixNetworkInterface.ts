@@ -13,7 +13,8 @@ import {
 import { exitWorld } from "../../plugins/thirdroom/thirdroom.main";
 import { setLocalMediaStream } from "../audio/audio.main";
 import { MainContext } from "../MainThread";
-import { addPeer, disconnect, hasPeer, removePeer, setHost } from "./network.main";
+import { addPeer, disconnect, removePeer, setHost } from "./network.main";
+import { reconcilePeerDevices } from "./peerDevices";
 import { getRoomCall } from "../../ui/utils/matrixUtils";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
@@ -106,6 +107,8 @@ export async function createMatrixNetworkInterface(
   // engine.setPeerId(client.session.userId);
 
   let unsubscibeMembersObservable: SubscriptionHandle | undefined;
+  /** User ID → the call device backing that user's network peer. */
+  const peerDevices = new Map<string, string>();
 
   const userId = session.userId;
 
@@ -177,33 +180,39 @@ export async function createMatrixNetworkInterface(
   async function joinWorld(groupCall: GroupCall, userId: string, isHost: boolean) {
     if (isHost) setHost(ctx, userId);
 
+    // Buzzar: one peer per user, backed by one connected device (see peerDevices.ts).
+    const syncPeers = () => {
+      const changes = reconcilePeerDevices(
+        peerDevices,
+        Array.from(groupCall.members, ([, member]: [string, Member]) => ({
+          member,
+          userId: member.userId,
+          deviceId: member.deviceId,
+          usable: !!(member.isConnected && member.dataChannel),
+        })),
+        userId
+      );
+      if (changes.remove.length === 0 && changes.add.length === 0) return;
+      updateHost(groupCall, userId);
+      for (const peerId of changes.remove) removePeer(ctx, peerId);
+      for (const { member } of changes.add) {
+        addPeer(ctx, member.userId, member.dataChannel!, member.remoteMedia?.userMedia);
+      }
+    };
+
     unsubscibeMembersObservable = groupCall.members.subscribe({
-      onAdd(_key, member) {
-        if (member.isConnected && member.dataChannel) {
-          updateHost(groupCall, userId);
-          addPeer(ctx, member.userId, member.dataChannel, member.remoteMedia?.userMedia);
-        }
-      },
-      onRemove(_key, member) {
+      onAdd: syncPeers,
+      onRemove() {
         updateHost(groupCall, userId);
-        removePeer(ctx, member.userId);
+        syncPeers();
       },
       onReset() {
         throw new Error("Unexpected reset of groupCall.members");
       },
-      onUpdate(_key, member) {
-        if (member.isConnected && member.dataChannel && !hasPeer(ctx, member.userId)) {
-          updateHost(groupCall, userId);
-          addPeer(ctx, member.userId, member.dataChannel, member.remoteMedia?.userMedia);
-        }
-      },
+      onUpdate: syncPeers,
     });
 
-    for (const [, member] of groupCall.members) {
-      if (member.isConnected && member.dataChannel) {
-        addPeer(ctx, member.userId, member.dataChannel, member.remoteMedia?.userMedia);
-      }
-    }
+    syncPeers();
   }
 
   function updateHost(groupCall: GroupCall, userId: string) {
