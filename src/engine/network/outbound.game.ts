@@ -13,6 +13,8 @@ import {
   GameNetworkState,
 } from "./network.game";
 import { Networked } from "./NetworkComponents";
+import { NetworkAction } from "./NetworkAction";
+import { sliceCursorView } from "../allocator/CursorView";
 import { enqueueNetworkRingBuffer } from "./RingBuffer";
 import {
   createNewPeerSnapshotMessage,
@@ -21,6 +23,7 @@ import {
   createDeleteMessage,
   createUpdateChangedMessage,
   createInformXRModeMessage,
+  writeMetadata,
 } from "./serialization.game";
 
 export const broadcastReliable = (ctx: GameContext, network: GameNetworkState, packet: ArrayBuffer) => {
@@ -86,6 +89,8 @@ function disposeNetworkedEntities(ctx: GameContext) {
   }
 }
 
+const RESEND_REQUEST_INTERVAL_MS = 3000;
+
 const sendUpdatesPeerToPeer = (ctx: GameContext) => {
   const network = getModule(ctx, NetworkModule);
 
@@ -95,6 +100,19 @@ const sendUpdatesPeerToPeer = (ctx: GameContext) => {
   // - player rig has spawned
   const haveConnectedPeers = network.peers.length > 0;
   const spawnedPlayerRig = ownedPlayerQuery(ctx.world).length > 0;
+
+  // Buzzar: ask peers whose creates we missed to resend their snapshot (at most every few seconds each).
+  if (network.unknownEntityPeers.size > 0) {
+    for (const peerId of network.unknownEntityPeers) {
+      const last = network.lastResendRequest.get(peerId) ?? -Infinity;
+      if (network.peers.includes(peerId) && ctx.elapsed - last > RESEND_REQUEST_INTERVAL_MS) {
+        network.lastResendRequest.set(peerId, ctx.elapsed);
+        writeMetadata(network.cursorView, NetworkAction.HavenResendSnapshot);
+        sendReliable(ctx, network, peerId, sliceCursorView(network.cursorView));
+      }
+    }
+    network.unknownEntityPeers.clear();
+  }
 
   if (haveConnectedPeers && spawnedPlayerRig) {
     // send snapshot update to all new peers

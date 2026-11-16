@@ -286,9 +286,9 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
     const existingEntity = network.networkIdToEntityId.get(nid);
 
     if (existingEntity) {
-      console.warn(
-        `attempted to deserialize the creation of an already existing entity - nid:${nid}; eid:${existingEntity}; prefab:${prefabName}`
-      );
+      // Buzzar: expected when a peer resends its snapshot (HavenResendSnapshot). Skip this entry's data too, or
+      // every following entry is read from the wrong place.
+      scrollCursorView(v, dataByteLength);
       continue;
     }
 
@@ -303,6 +303,7 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
       });
       network.deferredUpdates.set(nid, []);
     } else {
+      if (dataByteLength > 0) scrollCursorView(v, dataByteLength);
       createRemoteNetworkedEntity(ctx, network, nid, prefabName);
     }
   }
@@ -357,15 +358,16 @@ export function serializeUpdatesChanged(ctx: GameContext, v: CursorView) {
   writeCount(count);
 }
 
-export function deserializeUpdatesChanged(ctx: GameContext, v: CursorView) {
+export function deserializeUpdatesChanged(ctx: GameContext, v: CursorView, peerId?: string) {
   const network = getModule(ctx, NetworkModule);
   const count = readUint32(v);
   for (let i = 0; i < count; i++) {
     const nid = readUint32(v);
     const eid = network.networkIdToEntityId.get(nid) || NOOP;
 
-    if (eid === NOOP) {
-      console.warn(`could not deserialize update for non-existent entity for networkId ${nid}`);
+    if (eid === NOOP && peerId) {
+      // Buzzar: we missed this peer's creates; the outbound system asks it to resend (HavenResendSnapshot).
+      network.unknownEntityPeers.add(peerId);
     }
 
     const node = getRemoteResource<RemoteNode>(ctx, eid);
@@ -461,6 +463,8 @@ export async function deserializeInformPlayerNetworkId(ctx: GameContext, v: Curs
   // HACK: await the entity's creation
   const peid = await waitUntil<number>(() => network.networkIdToEntityId.get(peerNid));
 
+  // Buzzar: a resent snapshot (HavenResendSnapshot) informs us again; the player is already set up.
+  if (network.peerIdToEntityId.get(peerId) === peid) return;
   associatePeerWithEntity(network, peerId, peid);
   addPlayerFromPeer(ctx, peid, peerId);
   // Buzzar: addPlayerFromPeer already adds the Player component, audio emitter and nametag. A leftover copy of

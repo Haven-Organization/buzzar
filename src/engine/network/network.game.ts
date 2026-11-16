@@ -59,6 +59,9 @@ export interface GameNetworkState {
   peerId: string;
   peers: string[];
   newPeers: string[];
+  /** Buzzar: peers we got updates from for entities we don't have (their creates were lost); see outbound. */
+  unknownEntityPeers: Set<string>;
+  lastResendRequest: Map<string, number>;
   peerIdCount: number;
   peerIdToIndex: Map<string, number>;
   indexToPeerId: Map<number, string>;
@@ -105,6 +108,8 @@ export const NetworkModule = defineModule<GameContext, GameNetworkState>({
       peerId: "",
       peers: [],
       newPeers: [],
+      unknownEntityPeers: new Set(),
+      lastResendRequest: new Map(),
       peerIdToIndex: new Map(),
       peerIdToHistorian: new Map(),
       networkIdToEntityId: new Map(),
@@ -138,6 +143,11 @@ export const NetworkModule = defineModule<GameContext, GameNetworkState>({
     registerInboundMessageHandler(network, NetworkAction.NewPeerSnapshot, deserializeNewPeerSnapshot);
     registerInboundMessageHandler(network, NetworkAction.RemoveOwnershipMessage, deserializeRemoveOwnership);
     registerInboundMessageHandler(network, NetworkAction.InformXRMode, deserializeInformXRMode);
+    // Buzzar: a peer missed our creates (e.g. our snapshot arrived before it was listening): send it again, the
+    // same way as to a new peer.
+    registerInboundMessageHandler(network, NetworkAction.HavenResendSnapshot, (_ctx, _v, peerId) => {
+      if (network.peers.includes(peerId) && !network.newPeers.includes(peerId)) network.newPeers.push(peerId);
+    });
 
     const disposables = [
       registerMessageHandler(ctx, NetworkMessageType.SetHost, onSetHost),
@@ -224,6 +234,8 @@ export function NetworkExitWorldQueueSystem(ctx: GameContext) {
     network.hostId = "";
     network.peers = [];
     network.newPeers = [];
+    network.unknownEntityPeers.clear();
+    network.lastResendRequest.clear();
     network.peerIdToEntityId.clear();
     network.entityIdToPeerId.clear();
     network.networkIdToEntityId.clear();

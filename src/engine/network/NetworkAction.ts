@@ -17,6 +17,8 @@ export enum NetworkAction {
   HavenSeat,
   /** Buzzar: a peer's posture (0 standing, 1 crouching, 2 prone). See plugins/posture. */
   HavenPosture,
+  /** Buzzar: "I'm getting updates for your entities but never got them created; please resend your snapshot." */
+  HavenResendSnapshot,
 }
 
 export const UnreliableNetworkActions = [NetworkAction.UpdateChanged, NetworkAction.UpdateSnapshot];

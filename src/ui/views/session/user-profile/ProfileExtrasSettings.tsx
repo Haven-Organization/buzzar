@@ -93,7 +93,7 @@ export function ProfileExtrasSettings() {
       setBanner(extras.bannerUrl);
     });
 
-  const bannerPreview = banner ? session.mediaRepository.mxcUrlThumbnail(banner, 480, 160, "crop") : undefined;
+  const bannerPreview = banner ? session.mediaRepository.mxcUrlThumbnail(banner, 800, 600, "scale") : undefined;
 
   return (
     <SettingTile className="grow basis-0" label={<Label>Name Tag</Label>}>

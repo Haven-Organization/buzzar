@@ -153,7 +153,9 @@ function Nametag({ room, nametag, groupCall, bubbles, typing }: NametagProps) {
   });
 
   const { pronouns, bannerUrl } = useProfileExtras(userId);
-  const bannerHttp = bannerUrl ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 600, 200, "crop") : undefined;
+  // "scale", not "crop": Synapse's default crop thumbnails stop at 96x96 (blurry); scaled ones go to 800x600.
+  // The card crops the image itself (background-size: cover).
+  const bannerHttp = bannerUrl ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 800, 600, "scale") : undefined;
   const name = member?.displayName || nametag.name;
 
   return (
