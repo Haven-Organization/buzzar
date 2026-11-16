@@ -75,7 +75,14 @@ export async function createMatrixNetworkInterface(
     // Buzzar: use the microphone chosen in settings.
     stream = await platform.mediaDevices.getMediaTracks(microphoneConstraint() as true | MediaDeviceInfo, false);
   } catch (err) {
-    console.error(err);
+    // Buzzar: the chosen mic may be unplugged or have a new ID (e.g. after a reboot): try the default one.
+    console.warn("Couldn't open the chosen microphone; trying the default one.", err);
+    try {
+      stream = await platform.mediaDevices.getMediaTracks(true, false);
+    } catch (fallbackErr) {
+      // No microphone at all: join with the data channel only (others still see and hear the world, not you).
+      console.warn("No microphone available; joining without one.", fallbackErr);
+    }
   }
   const localMedia = stream
     ? new LocalMedia().withUserMedia(stream).withDataChannel({})

@@ -1,5 +1,5 @@
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
-index 6af6033..1703158 100644
+index 6af6033..ea4a71d 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.cjs.js
 @@ -12244,7 +12244,9 @@ class DOMWebRTC {
@@ -37,7 +37,17 @@ index 6af6033..1703158 100644
      }));
      const listen = (type, listener, options2) => {
        const newListener = (e) => {
-@@ -32897,3 +32907,6 @@ exports.makeTxnId = makeTxnId;
+@@ -22647,7 +22657,8 @@ class PeerCall {
+       });
+       return;
+     }
+-    if (this.peerConnection.getReceivers().length === 0) {
++    // Buzzar: a data-channel-only offer (a peer without a microphone) is still a call: it carries the world data.
++    if (this.peerConnection.getReceivers().length === 0 && !/\nm=application /.test(((_a = content.offer) == null ? void 0 : _a.sdp) || "")) {
+       await log.wrap(`Call no remote stream or no tracks after setting remote description!`, async (log2) => {
+         return this.terminate(CallParty.Local, CallErrorCode.SetRemoteDescription, log2);
+       });
+@@ -32897,3 +32908,6 @@ exports.makeTxnId = makeTxnId;
  exports.submitLogsToRageshakeServer = submitLogsToRageshakeServer;
  exports.tileClassForEntry = tileClassForEntry;
  exports.viewClassForTile = viewClassForTile;
@@ -45,7 +55,7 @@ index 6af6033..1703158 100644
 +// Buzzar: device verification (SAS) before secret storage is unlocked needs the CrossSigning class.
 +exports.CrossSigning = CrossSigning;
 diff --git a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
-index 139e0d5..4c132b3 100644
+index 139e0d5..1d89c1d 100644
 --- a/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
 +++ b/node_modules/@thirdroom/hydrogen-view-sdk/lib-build/hydrogen.es.js
 @@ -12215,7 +12215,9 @@ class DOMWebRTC {
@@ -83,7 +93,17 @@ index 139e0d5..4c132b3 100644
      }));
      const listen = (type, listener, options2) => {
        const newListener = (e) => {
-@@ -32791,4 +32801,4 @@ class RootViewModel extends ViewModel {
+@@ -22618,7 +22628,8 @@ class PeerCall {
+       });
+       return;
+     }
+-    if (this.peerConnection.getReceivers().length === 0) {
++    // Buzzar: a data-channel-only offer (a peer without a microphone) is still a call: it carries the world data.
++    if (this.peerConnection.getReceivers().length === 0 && !/\nm=application /.test(((_a = content.offer) == null ? void 0 : _a.sdp) || "")) {
+       await log.wrap(`Call no remote stream or no tracks after setting remote description!`, async (log2) => {
+         return this.terminate(CallParty.Local, CallErrorCode.SetRemoteDescription, log2);
+       });
+@@ -32791,4 +32802,4 @@ class RootViewModel extends ViewModel {
      return this._sessionLoadViewModel;
    }
  }
