@@ -1,6 +1,7 @@
 import { addComponent, defineComponent, defineQuery, Types } from "bitecs";
 import { mat4, vec3 } from "gl-matrix";
 import { radToDeg } from "three/src/math/MathUtils";
+import RAPIER from "@dimforge/rapier3d-compat";
 
 import { addChild } from "../../engine/component/transform";
 import { getForwardVector, getPitch, getYaw } from "../common/math";
@@ -12,6 +13,7 @@ import { NametagsEnableMessage, NametagsEnableMessageType } from "./nametags.com
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { getRemoteResource, tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { RemoteNametag, RemoteNode } from "../../engine/resource/RemoteResources";
+import { PhysicsModule } from "../physics/physics.game";
 
 type NametagState = {
   enabled: boolean;
@@ -80,7 +82,11 @@ export function NametagSystem(ctx: GameContext) {
 
       const nametag = anchorNode.nametag!;
 
-      if (angle < 100) {
+      // Buzzar: names don't show through walls. Cast from the camera to the tag; only the world's fixed geometry
+      // (not players, crates or sensors) hides it.
+      const hidden = angle < 100 && isOccluded(ctx, ctx.worldResource.activeCameraNode, nametagWorldPosition);
+
+      if (angle < 100 && !hidden) {
         // projection to screenspace
         const screenX = Math.round((0.5 + projected[0] / 2) * renderer.canvasWidth);
         const screenY = Math.round((0.5 - projected[1] / 2) * renderer.canvasHeight);
@@ -97,6 +103,25 @@ export function NametagSystem(ctx: GameContext) {
       }
     }
   }
+}
+
+const _from = vec3.create();
+const _dir = vec3.create();
+const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
+const blocksNames = (collider: RAPIER.Collider) => !collider.isSensor() && !!collider.parent()?.isFixed();
+
+function isOccluded(ctx: GameContext, cameraNode: RemoteNode, target: vec3) {
+  const { physicsWorld } = getModule(ctx, PhysicsModule);
+  mat4.getTranslation(_from, cameraNode.worldMatrix);
+  vec3.sub(_dir, target, _from);
+  const length = vec3.length(_dir);
+  if (length < 0.5) return false;
+  vec3.scale(_dir, _dir, 1 / length);
+  _ray.origin = { x: _from[0], y: _from[1], z: _from[2] };
+  _ray.dir = { x: _dir[0], y: _dir[1], z: _dir[2] };
+  // Stop a little short of the tag, so something it floats right next to doesn't count.
+  const hit = physicsWorld.castRay(_ray, length - 0.3, true, undefined, undefined, undefined, undefined, blocksNames);
+  return hit !== null;
 }
 
 export function addNametag(ctx: GameContext, height: number, node: RemoteNode, label: string) {
