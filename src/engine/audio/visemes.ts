@@ -173,18 +173,34 @@ export function vowelWeights(f1: number, f2: number, out: Float32Array): Float32
   return out;
 }
 
-/** Per-voice estimator: keeps the voice's recent loudness peak and last vowel. */
+/**
+ * Smoothing. The vowel (which shape) follows quickly, so short vowels in fast speech or singing ("oo-ee-oo-ah-ah")
+ * still get their own shape; loudness (how open) is a little smoother so the mouth doesn't flutter.
+ */
+const VOWEL_TIME = 0.012;
+const LOUD_ATTACK = 0.02;
+const LOUD_RELEASE = 0.06;
+
+/** Per-voice estimator: keeps the voice's recent loudness peak, its (smoothed) vowel and loudness. */
 export class VisemeEstimator {
   /** Last measurement, for debugging: level (dBFS), loudness 0–1 and formants. */
   last: { db: number; loud: number; formants?: [number, number] } = { db: -120, loud: 0 };
   private peakDb = -30;
   private lastVowel = new Float32Array(VISEME_COUNT);
+  private vowel = new Float32Array(VISEME_COUNT);
+  private loud = 0;
+  /** The last three measured vowels: their median drops one-frame misreadings (a flicker of "ee" inside an "oo"). */
+  private recent = [new Float32Array(VISEME_COUNT), new Float32Array(VISEME_COUNT), new Float32Array(VISEME_COUNT)];
+  private recentIndex = 0;
+  private median = new Float32Array(VISEME_COUNT);
 
   constructor() {
     this.lastVowel[0] = 1;
+    this.vowel[0] = 1;
+    for (const r of this.recent) r[0] = 1;
   }
 
-  /** Viseme weights (0–1) for one block of samples. */
+  /** Smoothed viseme weights (0–1) for the latest block of samples; `dt` is the time since the last call. */
   estimate(samples: Float32Array, sampleRate: number, dt: number, out: Float32Array): Float32Array {
     let sq = 0;
     for (let i = 0; i < samples.length; i++) sq += samples[i] * samples[i];
@@ -192,19 +208,33 @@ export class VisemeEstimator {
 
     this.peakDb = Math.max(db, this.peakDb - PEAK_DECAY_DB_PER_S * dt, SILENCE_DB + DYNAMIC_RANGE_DB);
     const floor = Math.max(SILENCE_DB, this.peakDb - DYNAMIC_RANGE_DB);
-    const loud = Math.min(1, Math.max(0, (db - floor) / (this.peakDb - floor)));
+    let loud = Math.min(1, Math.max(0, (db - floor) / (this.peakDb - floor)));
     this.last = { db, loud };
-    if (loud <= 0) {
-      out.fill(0);
-      return out;
+
+    if (loud > 0) {
+      // Consonants and noise often have no clear formants: keep the last vowel shape, just less open.
+      const formants = estimateFormants(samples, sampleRate);
+      this.last.formants = formants;
+      if (formants) vowelWeights(formants[0], formants[1], this.lastVowel);
+      else loud *= 0.6;
     }
 
-    // Consonants and noise often have no clear formants: keep the last vowel shape, just less open.
-    const formants = estimateFormants(samples, sampleRate);
-    this.last.formants = formants;
-    if (formants) vowelWeights(formants[0], formants[1], this.lastVowel);
-    const shape = formants ? 1 : 0.6;
-    for (let i = 0; i < out.length; i++) out[i] = this.lastVowel[i] * loud * shape;
+    this.recent[this.recentIndex].set(this.lastVowel);
+    this.recentIndex = (this.recentIndex + 1) % this.recent.length;
+    for (let i = 0; i < VISEME_COUNT; i++) {
+      const a = this.recent[0][i];
+      const b = this.recent[1][i];
+      const c = this.recent[2][i];
+      this.median[i] = Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+
+    const step = (time: number) => 1 - Math.exp(-Math.max(dt, 0) / time);
+    const kv = step(VOWEL_TIME);
+    for (let i = 0; i < VISEME_COUNT; i++) this.vowel[i] += (this.median[i] - this.vowel[i]) * kv;
+    this.loud += (loud - this.loud) * step(loud > this.loud ? LOUD_ATTACK : LOUD_RELEASE);
+    if (this.loud < 0.003) this.loud = 0;
+
+    for (let i = 0; i < out.length; i++) out[i] = this.vowel[i] * this.loud;
     return out;
   }
 }

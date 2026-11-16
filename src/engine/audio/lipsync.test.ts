@@ -43,7 +43,8 @@ describe("visemes", () => {
   it.each(Object.keys(VOWELS))("picks %s for that vowel", (name) => {
     const [f1, f2] = VOWELS[name];
     const est = new VisemeEstimator();
-    const out = est.estimate(vowel(f1, f2), RATE, 1 / 60, new Float32Array(5));
+    const out = new Float32Array(5);
+    for (let i = 0; i < 12; i++) est.estimate(vowel(f1, f2), RATE, 1 / 60, out);
     expect(NAMES[argmax(out)]).toBe(name);
     // It commits to the shape rather than blending them all.
     const sorted = Array.from(out).sort((a, b) => b - a);
@@ -52,11 +53,35 @@ describe("visemes", () => {
 
   it("closes for silence and opens with each syllable relative to the voice's own level", () => {
     const est = new VisemeEstimator();
-    const loud = est.estimate(vowel(750, 1250, 120, 0.3), RATE, 1 / 60, new Float32Array(5));
-    const softer = est.estimate(vowel(750, 1250, 120, 0.05), RATE, 1 / 60, new Float32Array(5));
-    const silent = est.estimate(new Float32Array(N), RATE, 1 / 60, new Float32Array(5));
+    const run = (samples: Float32Array, frames = 12) => {
+      const out = new Float32Array(5);
+      for (let i = 0; i < frames; i++) est.estimate(samples, RATE, 1 / 60, out);
+      return out;
+    };
+    const loud = run(vowel(750, 1250, 120, 0.3));
+    const softer = run(vowel(750, 1250, 120, 0.05));
+    const silent = run(new Float32Array(N), 30);
     expect(loud[0]).toBeGreaterThan(0.8);
     expect(softer[0]).toBeLessThan(loud[0] * 0.8);
     expect(Array.from(silent)).toEqual([0, 0, 0, 0, 0]);
+  });
+});
+
+describe("fast vowel changes", () => {
+  it("gives each short vowel of 'oo-ee-oo-ah-ah' (about 150 ms each) its own shape", () => {
+    const est = new VisemeEstimator();
+    const out = new Float32Array(5);
+    const seq = ["ou", "ih", "ou", "aa", "aa"];
+    const frames = 9; // 150 ms at 60 fps
+    for (const name of seq) {
+      const [f1, f2] = VOWELS[name];
+      const shapes: string[] = [];
+      for (let i = 0; i < frames; i++) {
+        est.estimate(vowel(f1, f2, 140, 0.3, i * 800), RATE, 1 / 60, out);
+        shapes.push(NAMES[argmax(out)]);
+      }
+      // Within a couple of frames (~35 ms) of the vowel starting, its shape leads.
+      expect(shapes.slice(2)).toEqual(Array(frames - 2).fill(name));
+    }
   });
 });

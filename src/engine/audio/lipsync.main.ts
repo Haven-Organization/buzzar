@@ -29,9 +29,7 @@ interface VoiceAnalysis {
 /** ~21 ms at 48 kHz: short enough to follow syllables, long enough for a couple of pitch periods. */
 const FFT_SIZE = 1024;
 /** Send at most this often (seconds). */
-const SEND_INTERVAL = 1 / 30;
-const ATTACK = 0.03;
-const RELEASE = 0.07;
+const SEND_INTERVAL = 1 / 60;
 
 const voices = new Map<string, VoiceAnalysis>();
 let sinceSend = 0;
@@ -64,7 +62,6 @@ function disposeAnalysis(a: VoiceAnalysis) {
   }
 }
 
-const _raw = new Float32Array(VISEMES.length);
 
 /** Called every main-thread frame from the audio system. */
 export function updateLipSync(
@@ -97,12 +94,8 @@ export function updateLipSync(
   const dt = ctx.dt > 0 ? ctx.dt : 1 / 60;
   for (const a of voices.values()) {
     a.analyser.getFloatTimeDomainData(a.time);
-    a.estimator.estimate(a.time, context.sampleRate, dt, _raw);
-    for (let i = 0; i < _raw.length; i++) {
-      const rate = _raw[i] > a.smoothed[i] ? ATTACK : RELEASE;
-      a.smoothed[i] += (_raw[i] - a.smoothed[i]) * (1 - Math.exp(-dt / rate));
-      if (a.smoothed[i] < 0.002) a.smoothed[i] = 0;
-    }
+    // Smoothing (fast for the vowel, a little slower for how open) happens in the estimator.
+    a.estimator.estimate(a.time, context.sampleRate, dt, a.smoothed);
   }
 
   if (debugLipSync) {
