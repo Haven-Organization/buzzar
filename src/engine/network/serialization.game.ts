@@ -42,20 +42,10 @@ import { NetworkModule } from "./network.game";
 import { NetworkAction } from "./NetworkAction";
 import { waitUntil } from "../utils/waitUntil";
 import { getRemoteResource, tryGetRemoteResource } from "../resource/resource.game";
-import {
-  addObjectToWorld,
-  RemoteAudioData,
-  RemoteAudioEmitter,
-  RemoteAudioSource,
-  RemoteNode,
-  removeObjectFromWorld,
-} from "../resource/RemoteResources";
+import { addObjectToWorld, RemoteNode, removeObjectFromWorld } from "../resource/RemoteResources";
 import { XRMode } from "../renderer/renderer.common";
 import { getReplicator } from "./Replicator";
-import { addPlayerFromPeer, AVATAR_HEIGHT } from "../player/PlayerRig";
-import { Player } from "../player/Player";
-import { addNametag } from "../player/nametags.game";
-import { AudioEmitterType } from "../resource/schema";
+import { addPlayerFromPeer } from "../player/PlayerRig";
 
 // ad-hoc messages view
 const messageView = createCursorView(new ArrayBuffer(10000));
@@ -473,41 +463,8 @@ export async function deserializeInformPlayerNetworkId(ctx: GameContext, v: Curs
 
   associatePeerWithEntity(network, peerId, peid);
   addPlayerFromPeer(ctx, peid, peerId);
-
-  addComponent(ctx.world, Player, peid);
-
-  const peerNode = getRemoteResource<RemoteNode>(ctx, peid)!;
-
-  peerNode.audioEmitter = new RemoteAudioEmitter(ctx.resourceManager, {
-    type: AudioEmitterType.Positional,
-    sources: [
-      new RemoteAudioSource(ctx.resourceManager, {
-        audio: new RemoteAudioData(ctx.resourceManager, { uri: "/audio/footstep-01.ogg" }),
-      }),
-      new RemoteAudioSource(ctx.resourceManager, {
-        audio: new RemoteAudioData(ctx.resourceManager, { uri: "/audio/footstep-02.ogg" }),
-      }),
-      new RemoteAudioSource(ctx.resourceManager, {
-        audio: new RemoteAudioData(ctx.resourceManager, { uri: "/audio/footstep-03.ogg" }),
-      }),
-      new RemoteAudioSource(ctx.resourceManager, {
-        audio: new RemoteAudioData(ctx.resourceManager, { uri: "/audio/footstep-04.ogg" }),
-      }),
-      new RemoteAudioSource(ctx.resourceManager, {
-        audio: new RemoteAudioData(ctx.resourceManager, {
-          uri: `mediastream:${peerId}`,
-        }),
-        autoPlay: true,
-      }),
-    ],
-  });
-
-  peerNode.name = peerId;
-
-  // if not our own avatar, add nametag
-  if (peerId !== network.peerId) {
-    addNametag(ctx, AVATAR_HEIGHT + AVATAR_HEIGHT / 3, peerNode, peerId);
-  }
+  // Buzzar: addPlayerFromPeer already adds the Player component, audio emitter and nametag. A leftover copy of
+  // that code here (from an upstream merge) gave every remote player a second name tag.
 }
 
 export function createInformXRModeMessage(ctx: GameContext, xrMode: XRMode) {
