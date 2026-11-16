@@ -485,16 +485,18 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
  * top of walking/idle (additively), so the avatar walks crouched.
  */
 export const CROUCH_POSE: PoseSpec = {
-  // Buzzar: a real crouch, not a chair: thighs forward and out, shins steeply angled so the knees are ahead of
-  // the feet (hips drop low and back), and the upper body leans forward with the head up to keep looking ahead.
+  // Buzzar: a sneaking crouch, not a chair or a squat: thighs forward and a little out, knees ahead of the feet,
+  // hips low and back, and the upper body leaning in with the head up to keep looking ahead.
   directions: {
     // Knees out a little, shins back in, so each foot lands under its own hip.
-    leftUpperLeg: [0.14, -0.2, 0.97],
-    rightUpperLeg: [-0.14, -0.2, 0.97],
-    leftLowerLeg: [-0.14, -0.79, -0.6],
-    rightLowerLeg: [0.14, -0.79, -0.6],
+    leftUpperLeg: [0.2, -0.3, 0.93],
+    rightUpperLeg: [-0.2, -0.3, 0.93],
+    leftLowerLeg: [-0.2, -0.9, -0.42],
+    rightLowerLeg: [0.2, -0.9, -0.42],
   },
-  bends: { spine: 28, chest: 14, neck: -24, head: -14 },
+  // The whole upper body leans in from the hips (hips pushed back behind the heels), head up to look ahead.
+  hipsPitch: 34,
+  bends: { spine: 6, chest: 4, neck: -26, head: -18 },
   groundFeet: true,
 };
 
@@ -507,14 +509,15 @@ export function buildCrawlClip(rig: RetargetRig, name = "Crawl", duration = 1.2)
     const s = side === "left" ? 1 : -1;
     const o = side === "left" ? "right" : "left";
     return {
-      // Reaching arm stretched forward along the ground; the other one pulled back beside the chest.
-      [`${side}UpperArm`]: [0.18 * s, -0.4, 0.9],
-      [`${side}LowerArm`]: [0.05 * s, -0.15, 1],
-      [`${o}UpperArm`]: [-0.55 * s, -0.75, 0.35],
-      [`${o}LowerArm`]: [0.25 * s, -0.2, 0.95],
-      // The opposite knee drawn up and out to the side, the other leg straight behind.
-      [`${o}UpperLeg`]: [-0.7 * s, 0, -0.7],
-      [`${o}LowerLeg`]: [0.1 * s, 0.05, -1],
+      // Reaching arm stretched far forward past the head; the other elbow planted out to the side, its forearm
+      // under the chest, pulling.
+      [`${side}UpperArm`]: [0.12 * s, -0.12, 1],
+      [`${side}LowerArm`]: [0.02 * s, -0.08, 1],
+      [`${o}UpperArm`]: [-0.8 * s, -0.45, -0.1],
+      [`${o}LowerArm`]: [0.35 * s, -0.1, 0.92],
+      // The opposite knee pulled well up and out to the side (frog leg), its foot back behind; the other leg straight.
+      [`${o}UpperLeg`]: [-0.92 * s, -0.05, -0.35],
+      [`${o}LowerLeg`]: [0.3 * s, 0.05, -0.95],
     } as Partial<PoseSpec["directions"]>;
   };
   const phases: PoseSpec[] = [
