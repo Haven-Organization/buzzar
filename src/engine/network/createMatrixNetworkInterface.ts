@@ -99,6 +99,8 @@ export async function createMatrixNetworkInterface(
     // setMedia stops the old microphone's tracks; re-applying the mute settings keeps a muted mic muted.
     await call.setMedia(current.withUserMedia(stream));
     if (call.muteSettings) await call.setMuted(call.muteSettings);
+    // Detach the old microphone first: setLocalMediaStream throws if a source is still connected.
+    setLocalMediaStream(ctx, undefined);
     setLocalMediaStream(ctx, call.localMedia?.userMedia);
   });
 

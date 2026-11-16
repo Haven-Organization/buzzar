@@ -54,6 +54,7 @@ import { vec3, mat4, quat } from "gl-matrix";
 import EventEmitter from "events";
 import { availableRead } from "@thirdroom/ringbuffer";
 
+import { disposeLipSync, updateLipSync } from "./lipsync.main";
 import { MainContext } from "../MainThread";
 import { defineModule, getModule, Thread } from "../module/module.common";
 import {
@@ -177,6 +178,7 @@ export const AudioModule = defineModule<MainContext, MainAudioModule>({
     const audio = getModule(ctx, AudioModule);
 
     return () => {
+      disposeLipSync();
       audio.context.close();
     };
   },
@@ -198,6 +200,8 @@ export function MainThreadAudioSystem(ctx: MainContext) {
   updateAudioEmitters(ctx, audioModule);
   updateNodeAudioEmitters(ctx, audioModule);
   updateAudioAnalyser(ctx, audioModule);
+  // Buzzar: mouth shapes for avatars from every voice.
+  updateLipSync(ctx, audioModule.context, audioModule.mediaStreams, audioModule.localMediaStreamSource);
 }
 
 const _frequencyData = new Uint8Array(FREQ_BIN_COUNT);

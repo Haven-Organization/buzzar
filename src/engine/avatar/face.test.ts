@@ -1,6 +1,6 @@
 import { Bone, Group, Vector3 } from "three";
 
-import { Blinker, createFaceRig, detectEyes, detectLids, getFaceSpec, updateFaceRig } from "./face";
+import { Blinker, createFaceRig, detectEyes, detectLids, detectLips, getFaceSpec, updateFaceRig } from "./face";
 import type { HumanoidMapping } from "./humanoid";
 
 const mapping = (bones: Record<string, number> = {}): HumanoidMapping => ({
@@ -143,5 +143,76 @@ describe("blink binds", () => {
     face.forceBlink = 0;
     updateFaceRig(face, 1 / 60, []);
     expect(weights[1]).toBe(0);
+  });
+});
+
+describe("lip sync", () => {
+  it("reads VRM 0.x vowel groups in aa/ih/ou/ee/oh order", () => {
+    const groups = ["a", "i", "u", "e", "o"].map((p, i) => ({ presetName: p, binds: [{ mesh: 0, index: 10 + i, weight: 100 }] }));
+    const spec = getFaceSpec({ extensions: { VRM: { blendShapeMaster: { blendShapeGroups: groups } } } }, mapping(), noBones, noBones);
+    expect(spec.mouth!.map((s) => s[0].index)).toEqual([10, 11, 12, 13, 14]);
+  });
+
+  it("finds mouth shapes by name (VRoid, VRChat, ARKit)", () => {
+    const spec = getFaceSpec(
+      { meshes: [{ extras: { targetNames: ["Fcl_MTH_A", "vrc.v_ih", "mouthFunnel", "Fcl_MTH_E", "vrc.v_oh", "Fcl_EYE_Close"] } }] },
+      mapping(),
+      noBones,
+      noBones
+    );
+    expect(spec.mouth!.map((s) => s.map((b) => b.index))).toEqual([[0], [1], [2], [3], [4]]);
+  });
+
+  it("drives mouth blend shapes from visemes without fighting the blink", () => {
+    const weights = new Float32Array(8);
+    const face = createFaceRig({
+      spec: {
+        blink: [{ mesh: 0, index: 0, weight: 1 }],
+        mouth: [[{ mesh: 0, index: 1, weight: 1 }], [], [], [], []],
+        eyes: [],
+        look: { yaw: 10, pitchUp: 10, pitchDown: 10 },
+      },
+      objectFor: () => undefined,
+      weightsFor: () => [weights],
+      facesNegativeZ: false,
+    })!;
+    face.forceBlink = 0;
+    updateFaceRig(face, 1 / 60, [], () => 0.5, [0.8, 0, 0, 0, 0]);
+    expect(weights[1]).toBeCloseTo(0.8);
+    expect(weights[0]).toBe(0);
+    updateFaceRig(face, 1 / 60, [], () => 0.5, [0, 0, 0, 0, 0]);
+    expect(weights[1]).toBe(0);
+  });
+
+  it("drops the lower lip and lifts the upper lip on lip-bone rigs", () => {
+    const pos: Record<number, Vector3> = { 0: new Vector3(0, 1.4, 0.1), 1: new Vector3(0, 1.38, 0.1), 2: new Vector3(0.02, 1.39, 0.1) };
+    const lips = detectLips(
+      { nodes: [{ name: "Bon_uplip_M_0266" }, { name: "Bon_Lolip_M_0267" }, { name: "Bon_colip_L_0272" }] },
+      (i) => pos[i],
+      (_i, o) => o.clone()
+    )!; // prettier-ignore
+    const byNode = Object.fromEntries(lips.moves.map((m) => [m.node, m]));
+    expect(byNode[0].open[1]).toBeGreaterThan(0);
+    expect(byNode[1].open[1]).toBeLessThan(0);
+    expect(byNode[2].round[0]).toBeLessThan(0); // left corner pulls in toward the middle for "ou"
+  });
+
+  it("opens a jaw bone with the voice", () => {
+    const root = new Group();
+    const head = new Bone();
+    const jaw = new Bone();
+    jaw.position.set(0, -0.05, 0.02);
+    root.add(head);
+    head.add(jaw);
+    root.updateMatrixWorld(true);
+    const face = createFaceRig({
+      spec: { blink: [], eyes: [], look: { yaw: 10, pitchUp: 10, pitchDown: 10 }, jaw: 1 },
+      objectFor: (i) => [head, jaw][i],
+      weightsFor: () => [],
+      facesNegativeZ: false,
+    })!;
+    updateFaceRig(face, 1 / 60, [], () => 0.5, [1, 0, 0, 0, 0]);
+    // The jaw's forward (+Z) tips downward.
+    expect(new Vector3(0, 0, 1).applyQuaternion(jaw.quaternion).y).toBeLessThan(-0.1);
   });
 });

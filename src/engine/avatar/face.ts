@@ -49,11 +49,26 @@ export interface LookRange {
   pitchDown: number;
 }
 
+/** Mouth shapes for lip sync, in VISEMES order (aa, ih, ou, ee, oh). */
+export type MouthShapes = MorphBindSpec[][];
+
+/**
+ * Lip bones (rigs without mouth blend shapes): how far each moves, in its parent's space, when the mouth is fully
+ * open, rounded ("ou") and spread ("ee"/"ih").
+ */
+export interface LipSpec {
+  moves: { node: number; open: [number, number, number]; round: [number, number, number]; wide: [number, number, number] }[];
+}
+
 export interface FaceSpec {
   blink: MorphBindSpec[];
   lids?: LidSpec;
   eyes: number[];
   look: LookRange;
+  /** Lip sync: blend shapes per viseme, else a jaw bone, else lip bones. */
+  mouth?: MouthShapes;
+  jaw?: number;
+  lips?: LipSpec;
 }
 
 const DEFAULT_LOOK: LookRange = { yaw: 12, pitchUp: 8, pitchDown: 10 };
@@ -119,6 +134,118 @@ function namedBlink(gltf: GLTFLike): MorphBindSpec[] {
   const firstPerMesh = new Map<number, MorphBindSpec>();
   for (const b of both) if (!firstPerMesh.has(b.mesh!)) firstPerMesh.set(b.mesh!, b);
   return firstPerMesh.size > 0 ? [...firstPerMesh.values()] : sided;
+}
+
+const VISEME_PRESETS_VRM1 = ["aa", "ih", "ou", "ee", "oh"];
+const VISEME_PRESETS_VRM0 = ["a", "i", "u", "e", "o"];
+
+function vrm1Mouth(gltf: GLTFLike): MouthShapes | undefined {
+  const vrm = gltf.extensions?.VRMC_vrm;
+  if (!isRecord(vrm) || !isRecord(vrm.expressions) || !isRecord(vrm.expressions.preset)) return undefined;
+  const preset = vrm.expressions.preset as AnyRecord;
+  const shapes = VISEME_PRESETS_VRM1.map((name) => {
+    const e = preset[name];
+    if (!isRecord(e) || !Array.isArray(e.morphTargetBinds)) return [];
+    return e.morphTargetBinds
+      .filter(isRecord)
+      .filter((b) => typeof b.node === "number" && typeof b.index === "number")
+      .map((b) => ({ node: b.node as number, index: b.index as number, weight: num(b.weight, 1) }));
+  });
+  return shapes.some((x) => x.length > 0) ? shapes : undefined;
+}
+
+function vrm0Mouth(gltf: GLTFLike): MouthShapes | undefined {
+  const vrm = gltf.extensions?.VRM;
+  const master = isRecord(vrm) ? vrm.blendShapeMaster : undefined;
+  if (!isRecord(master) || !Array.isArray(master.blendShapeGroups)) return undefined;
+  const groups = master.blendShapeGroups.filter(isRecord);
+  const shapes = VISEME_PRESETS_VRM0.map((preset) => {
+    const g = groups.find((x) => String(x.presetName ?? "").toLowerCase() === preset);
+    if (!g || !Array.isArray(g.binds)) return [];
+    return g.binds
+      .filter(isRecord)
+      .filter((b) => typeof b.mesh === "number" && typeof b.index === "number")
+      .map((b) => ({ mesh: b.mesh as number, index: b.index as number, weight: num(b.weight, 100) / 100 }));
+  });
+  return shapes.some((x) => x.length > 0) ? shapes : undefined;
+}
+
+/** Blend shape names per viseme: VRoid (Fcl_MTH_A), VRChat (vrc.v_aa), MMD (あ), generic (mouth_a), ARKit. */
+const VISEME_NAMES: RegExp[] = [
+  /fcl_mth_a$|(^|[^a-z])v_aa$|(^|[^a-z])mouth_?a$|^a$|^あ$|^jawopen$/i,
+  /fcl_mth_i$|(^|[^a-z])v_ih$|(^|[^a-z])mouth_?i$|^i$|^い$/i,
+  /fcl_mth_u$|(^|[^a-z])v_ou$|(^|[^a-z])mouth_?u$|^u$|^う$|^mouthfunnel$|^mouthpucker$/i,
+  /fcl_mth_e$|(^|[^a-z])v_ee$|(^|[^a-z])mouth_?e$|^e$|^え$/i,
+  /fcl_mth_o$|(^|[^a-z])v_oh$|(^|[^a-z])mouth_?o$|^o$|^お$/i,
+];
+
+function namedMouth(gltf: GLTFLike): MouthShapes | undefined {
+  const shapes: MouthShapes = VISEME_NAMES.map(() => []);
+  (gltf.meshes ?? []).forEach((mesh, meshIndex) => {
+    targetNames(mesh).forEach((name, index) => {
+      const v = VISEME_NAMES.findIndex((re) => re.test(name));
+      if (v >= 0) shapes[v].push({ mesh: meshIndex, index, weight: 1 });
+    });
+  });
+  return shapes.some((x) => x.length > 0) ? shapes : undefined;
+}
+
+const JAW = /(^|[^a-z])jaw([^a-z]|$)|^jaw|_jaw|ago(_|$)/i;
+const LIP = /lip/i;
+const LIP_LOWER = /lo(wer)?_?lip|lip_?lo(wer)?|lolip|(^|[^a-z])lo([^a-z]|$)|under|bottom|down/i;
+const LIP_UPPER = /up(per)?_?lip|lip_?up(per)?|uplip|(^|[^a-z])up([^a-z]|$)|top/i;
+const LIP_CORNER = /co(rner)?_?lip|lip_?co(rner)?|colip|corner/i;
+
+/** Lower lip drops this far (m) when fully open; the upper lip lifts a little; corners pull in/out. */
+const LIP_OPEN = 0.011;
+const LIP_UPPER_OPEN = 0.002;
+const LIP_ROUND = 0.004;
+const LIP_WIDE = 0.003;
+
+export function detectLips(
+  gltf: GLTFLike,
+  restWorld: (node: number) => Vector3 | undefined,
+  toParent: (node: number, offset: Vector3) => Vector3 | undefined
+): LipSpec | undefined {
+  const lips = (gltf.nodes ?? []).map((n, i) => ({ i, name: n.name ?? "" })).filter((n) => LIP.test(n.name));
+  if (lips.length === 0) return undefined;
+  const zero = new Vector3();
+  const moves: LipSpec["moves"] = [];
+  for (const lip of lips) {
+    const pos = restWorld(lip.i);
+    if (!pos) continue;
+    let open: Vector3;
+    let round = zero;
+    let wide = zero;
+    if (LIP_CORNER.test(lip.name)) {
+      // Corners: in toward the middle for "ou", out for "ee"; drop a little with the jaw.
+      const side = Math.sign(pos.x) || 1;
+      open = new Vector3(0, -LIP_OPEN * 0.45, 0);
+      round = new Vector3(-side * LIP_ROUND, 0, 0);
+      wide = new Vector3(side * LIP_WIDE, 0, 0);
+    } else if (LIP_LOWER.test(lip.name)) {
+      open = new Vector3(0, -LIP_OPEN, 0);
+      round = new Vector3(-Math.sign(pos.x) * LIP_ROUND * 0.5, 0, 0);
+    } else if (LIP_UPPER.test(lip.name)) {
+      open = new Vector3(0, LIP_UPPER_OPEN, 0);
+      round = new Vector3(-Math.sign(pos.x) * LIP_ROUND * 0.5, 0, 0);
+    } else {
+      continue;
+    }
+    const o = toParent(lip.i, open);
+    const r = toParent(lip.i, round);
+    const w = toParent(lip.i, wide);
+    if (!o || !r || !w) continue;
+    moves.push({ node: lip.i, open: [o.x, o.y, o.z], round: [r.x, r.y, r.z], wide: [w.x, w.y, w.z] });
+  }
+  return moves.some((m) => m.open[0] !== 0 || m.open[1] !== 0 || m.open[2] !== 0) ? { moves } : undefined;
+}
+
+export function detectJaw(gltf: GLTFLike, mapping: HumanoidMapping): number | undefined {
+  const jaw = mapping.bones.get("jaw" as never);
+  if (jaw !== undefined) return jaw;
+  const i = (gltf.nodes ?? []).findIndex((n) => JAW.test(n.name ?? "") && !/line|end$/i.test(n.name ?? ""));
+  return i >= 0 ? i : undefined;
 }
 
 const LID = /lid|mabuta/i;
@@ -225,11 +352,16 @@ export function getFaceSpec(
 ): FaceSpec {
   const blink = vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? [];
   const named = blink.length > 0 ? blink : namedBlink(gltf);
+  const mouth = vrm1Mouth(gltf) ?? vrm0Mouth(gltf) ?? namedMouth(gltf);
+  const jaw = mouth ? undefined : detectJaw(gltf, mapping);
   return {
     blink: named,
     lids: named.length > 0 ? undefined : detectLids(gltf, restWorld, toParent),
     eyes: detectEyes(gltf, mapping),
     look: lookRange(gltf),
+    mouth,
+    jaw,
+    lips: mouth || jaw !== undefined ? undefined : detectLips(gltf, restWorld, toParent),
   };
 }
 
@@ -296,11 +428,18 @@ interface EyeJoint {
   up: Vector3;
 }
 
+/** Bind channels: 0 = blink, 1–5 = visemes (aa, ih, ou, ee, oh). */
+const BLINK_CHANNEL = 0;
+
 export interface FaceRig {
   blinker: Blinker;
-  binds: { weights: Float32Array[]; index: number; weight: number }[];
-  /** Blink binds not resolved to morph weights yet (see FaceRigInput.weightsFor). */
-  pendingBinds?: { specs: MorphBindSpec[]; weightsFor: FaceRigInput["weightsFor"]; tries: number };
+  binds: { weights: Float32Array[]; index: number; weight: number; channel: number }[];
+  /** Binds not resolved to morph weights yet (see FaceRigInput.weightsFor). */
+  pendingBinds?: { specs: (MorphBindSpec & { channel: number })[]; weightsFor: FaceRigInput["weightsFor"]; tries: number };
+  jaw?: { bone: Object3D; rest: Quaternion; right: Vector3 };
+  lips: { bone: Object3D; rest: Vector3; open: Vector3; round: Vector3; wide: Vector3 }[];
+  /** Whether the face has anything to lip sync. */
+  hasMouth: boolean;
   lids: { bone: Object3D; rest: Vector3; delta: Vector3 }[];
   eyes: EyeJoint[];
   look: LookRange;
@@ -346,11 +485,45 @@ export function createFaceRig({ spec, objectFor, weightsFor, facesNegativeZ }: F
     });
   }
 
-  if (spec.blink.length === 0 && lids.length === 0 && eyes.length === 0) return undefined;
+  const bindSpecs = [
+    ...spec.blink.map((b) => ({ ...b, channel: BLINK_CHANNEL })),
+    ...(spec.mouth ?? []).flatMap((shape, v) => shape.map((b) => ({ ...b, channel: 1 + v }))),
+  ];
+
+  let jaw: FaceRig["jaw"];
+  const jawBone = spec.jaw !== undefined ? objectFor(spec.jaw) : undefined;
+  if (jawBone?.parent) {
+    jawBone.parent.updateWorldMatrix(true, false);
+    _q.setFromRotationMatrix(_m.extractRotation(jawBone.parent.matrixWorld)).invert();
+    const f = forward.clone().applyQuaternion(_q);
+    const u = up.clone().applyQuaternion(_q);
+    jaw = { bone: jawBone, rest: jawBone.quaternion.clone(), right: new Vector3().crossVectors(u, f).normalize() };
+  }
+
+  const lipBones = (spec.lips?.moves ?? [])
+    .map((m) => {
+      const bone = objectFor(m.node);
+      return (
+        bone && {
+          bone,
+          rest: bone.position.clone(),
+          open: new Vector3(...m.open),
+          round: new Vector3(...m.round),
+          wide: new Vector3(...m.wide),
+        }
+      );
+    })
+    .filter((l): l is NonNullable<typeof l> => !!l);
+
+  const hasMouth = (spec.mouth?.some((x) => x.length > 0) ?? false) || !!jaw || lipBones.length > 0;
+  if (bindSpecs.length === 0 && lids.length === 0 && eyes.length === 0 && !hasMouth) return undefined;
   return {
     blinker: new Blinker(),
     binds: [],
-    pendingBinds: spec.blink.length > 0 ? { specs: spec.blink, weightsFor, tries: 0 } : undefined,
+    pendingBinds: bindSpecs.length > 0 ? { specs: bindSpecs, weightsFor, tries: 0 } : undefined,
+    jaw,
+    lips: lipBones,
+    hasMouth,
     lids,
     eyes,
     look: spec.look,
@@ -372,7 +545,7 @@ function resolveBinds(rig: FaceRig) {
   const pending = rig.pendingBinds;
   if (!pending) return;
   const binds = pending.specs
-    .map((b) => ({ weights: pending.weightsFor(b), index: b.index, weight: b.weight }))
+    .map((b) => ({ weights: pending.weightsFor(b), index: b.index, weight: b.weight, channel: b.channel }))
     .filter((b) => b.weights.length > 0);
   // Give the loader a few frames; then stop looking (the avatar has no usable morph targets).
   if (binds.length > 0 || ++pending.tries > 10) {
@@ -381,9 +554,38 @@ function resolveBinds(rig: FaceRig) {
   }
 }
 
-function setBlink(rig: FaceRig, closed: number) {
-  for (const b of rig.binds) for (const w of b.weights) w[b.index] = closed * b.weight;
+/** Jaw opens at most this far (degrees). */
+const JAW_MAX = 14;
+const _channels = new Float32Array(6);
+
+/** How open the mouth is overall for a set of visemes (for jaw and lip bones). */
+export function mouthOpenness(v: ArrayLike<number>): number {
+  return Math.min(1, v[0] + 0.75 * v[4] + 0.5 * v[2] + 0.45 * v[3] + 0.35 * v[1]);
+}
+
+function applyFace(rig: FaceRig, closed: number, visemes: ArrayLike<number> | undefined) {
+  _channels[BLINK_CHANNEL] = closed;
+  for (let i = 0; i < 5; i++) _channels[1 + i] = visemes ? visemes[i] : 0;
+  // Several channels can share a blend shape; the strongest wins rather than the last.
+  for (const b of rig.binds) for (const w of b.weights) w[b.index] = 0;
+  for (const b of rig.binds) {
+    const value = _channels[b.channel] * b.weight;
+    for (const w of b.weights) if (value > w[b.index]) w[b.index] = value;
+  }
   for (const l of rig.lids) l.bone.position.copy(l.rest).addScaledVector(l.delta, closed);
+
+  if (rig.jaw || rig.lips.length > 0) {
+    const open = visemes ? mouthOpenness(visemes) : 0;
+    const round = visemes ? visemes[2] + 0.6 * visemes[4] : 0;
+    const wide = visemes ? visemes[3] + visemes[1] : 0;
+    if (rig.jaw) {
+      _q.setFromAxisAngle(rig.jaw.right, open * JAW_MAX * DEG);
+      rig.jaw.bone.quaternion.copy(_q).multiply(rig.jaw.rest);
+    }
+    for (const l of rig.lips) {
+      l.bone.position.copy(l.rest).addScaledVector(l.open, open).addScaledVector(l.round, round).addScaledVector(l.wide, wide);
+    }
+  }
 }
 
 /**
@@ -395,10 +597,11 @@ export function updateFaceRig(
   rig: FaceRig,
   dt: number,
   targets: Iterable<ArrayLike<number>>,
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  visemes?: ArrayLike<number>
 ) {
   if (rig.pendingBinds) resolveBinds(rig);
-  setBlink(rig, rig.forceBlink ?? rig.blinker.update(dt));
+  applyFace(rig, rig.forceBlink ?? rig.blinker.update(dt), visemes);
   if (rig.eyes.length === 0) return;
 
   // Wander: small random glances every 1–3 s.

@@ -19,7 +19,7 @@ export interface IAnimationComponent {
   actionMap: Map<string, AnimationAction>;
   actions: AnimationAction[];
   /** Buzzar: runs after the mixer each frame (avatar spring bones). */
-  postUpdate?: (dt: number, rootWorldMatrix: ArrayLike<number>) => void;
+  postUpdate?: (dt: number, rootWorldMatrix: ArrayLike<number>, node: RemoteNode) => void;
 }
 
 export enum AnimationClipType {
@@ -136,7 +136,7 @@ function processAnimations(ctx: GameContext) {
     }
 
     // Buzzar: spring bones and faces run for every avatar, including ones without a body (avatar pedestals).
-    animation?.postUpdate?.(ctx.dt, node.worldMatrix);
+    animation?.postUpdate?.(ctx.dt, node.worldMatrix, node);
   }
   return ctx;
 }

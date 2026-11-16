@@ -453,7 +453,7 @@ export interface GLTFLoaderOptions {
   createAnimationPostUpdate?: (loaderCtx: GLTFLoaderContext, rootObj: Object3D) => AnimationPostUpdate | undefined;
 }
 
-export type AnimationPostUpdate = (dt: number, rootWorldMatrix: ArrayLike<number>) => void;
+export type AnimationPostUpdate = (dt: number, rootWorldMatrix: ArrayLike<number>, node: RemoteNode) => void;
 
 /**
  * Context used for the loading of a Scene / Node hierarchy.

@@ -6,7 +6,7 @@
  * within limits), retargets the built-in locomotion clips onto its skeleton and swaps it into the peer's
  * player container. Anything that fails keeps the default avatar.
  */
-import { removeComponent } from "bitecs";
+import { hasComponent, removeComponent } from "bitecs";
 import { quat } from "gl-matrix";
 import { AnimationClip, Matrix4, Object3D, Quaternion, Vector3 } from "three";
 
@@ -28,7 +28,8 @@ import { applyAvatarLayers, isAvatarHiddenFromMainCamera, setAvatarHiddenFromMai
 import { AvatarRef } from "../player/components";
 import { getCamera } from "../player/getCamera";
 import { getNametag } from "../player/nametags.game";
-import { ourPlayerQuery, playerQuery } from "../player/Player";
+import { OurPlayer, ourPlayerQuery, playerQuery } from "../player/Player";
+import { LipSyncMessageType, lipSyncVoices, LOCAL_VOICE, onLipSyncMessage } from "../audio/lipsync.common";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import {
@@ -160,9 +161,26 @@ export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
         forcedBlink = message.closed >= 0 ? message.closed : undefined;
       }
     );
+    const disposeLipSync = registerMessageHandler(ctx, LipSyncMessageType, onLipSyncMessage);
+    // Debug: `thirdroom.mouth(0.8)` opens every avatar's mouth ("aa"), `thirdroom.mouth(v, "ou")` another shape,
+    // `thirdroom.mouth()` back to lip sync.
+    const disposeMouth = registerMessageHandler(
+      ctx,
+      MouthDebugMessage,
+      (_ctx: GameContext, message: { type: typeof MouthDebugMessage; amount: number; viseme: number }) => {
+        if (message.amount < 0) {
+          forcedVisemes = undefined;
+        } else {
+          forcedVisemes = new Float32Array(5);
+          forcedVisemes[Math.max(0, Math.min(4, message.viseme))] = message.amount;
+        }
+      }
+    );
     return () => {
       disposeAvatar();
       disposeBlink();
+      disposeLipSync();
+      disposeMouth();
     };
   },
 });
@@ -490,18 +508,29 @@ function createAvatarAnimationExtras(
   }
 
   if (!springRig && !faceRig) return undefined;
-  return (dt, rootWorldMatrix) => {
+  return (dt, rootWorldMatrix, node) => {
     if (springRig) updateSpringRig(springRig, rootObj, rootWorldMatrix, dt);
     else syncRootMatrix(rootObj, rootWorldMatrix);
     if (faceRig) {
       faceRig.forceBlink = forcedBlink;
-      updateFaceRig(faceRig, dt, getLookTargets(ctx));
+      const visemes = faceRig.hasMouth ? forcedVisemes ?? voiceFor(ctx, node) : undefined;
+      updateFaceRig(faceRig, dt, getLookTargets(ctx), Math.random, visemes);
     }
   };
 }
 
+/** The lip sync shapes for whoever wears this avatar: your microphone for your own, the peer's voice otherwise. */
+function voiceFor(ctx: GameContext, avatarNode: RemoteNode): Float32Array | undefined {
+  const container = avatarNode.parent;
+  if (!container) return undefined;
+  if (hasComponent(ctx.world, OurPlayer, container.eid)) return lipSyncVoices.get(LOCAL_VOICE);
+  return container.name ? lipSyncVoices.get(container.name) : undefined;
+}
+
 const BlinkDebugMessage = "software.haven.debug.blink";
 let forcedBlink: number | undefined;
+const MouthDebugMessage = "software.haven.debug.mouth";
+let forcedVisemes: Float32Array | undefined;
 
 /** Puts the avatar's world matrix on the animation graph root and updates the graph's world matrices. */
 function syncRootMatrix(root: Object3D, rootWorldMatrix: ArrayLike<number>) {
