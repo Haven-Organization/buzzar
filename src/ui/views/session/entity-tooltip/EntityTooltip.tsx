@@ -75,12 +75,13 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             {activeEntity.held ? (
               <>
                 <Text variant="b3" color="world">
-                  <span className="EntityTooltip__boxedKey">E</span>
-                  <span> Drop</span>
+                  <span className="EntityTooltip__boxedKey">E</span> /
+                  <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+                  <span> Left Click: Drop</span>
                 </Text>
                 <Text variant="b3" color="world">
                   <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
-                  <span> Throw</span>
+                  <span> Right Click: Throw</span>
                 </Text>
               </>
             ) : (

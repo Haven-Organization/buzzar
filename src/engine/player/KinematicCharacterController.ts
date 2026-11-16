@@ -272,8 +272,9 @@ export function updateKinematicControls(
   const collider = body.collider(0);
 
   // Buzzar: sensors (seat and other click areas) are for interaction only; without this filter Rapier treats
-  // them as solid, so invisible boxes blocked walking.
-  characterController.computeColliderMovement(collider, _linearVelocity, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS);
+  // them as solid, so invisible boxes blocked walking. Not QueryFilterFlags.EXCLUDE_SENSORS: in this Rapier build
+  // that flag also drops colliders on dynamic bodies, so the character walked through crates and balls.
+  characterController.computeColliderMovement(collider, _linearVelocity, undefined, undefined, isSolid);
 
   const corrected = characterController.computedMovement();
 
@@ -308,6 +309,9 @@ export function updateKinematicControls(
     }
   }
 }
+
+/** Scene-query predicate: everything but sensors (see computeColliderMovement above). */
+export const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
 
 /** Mass the character pushes with (kg); light crates move at walking speed, heavy ones barely. */
 const PUSH_MASS = 80;
@@ -438,6 +442,48 @@ function logPlayerDebug(ctx: GameContext) {
       hasController: !!controller,
       // Buzzar debug: total colliders in the physics world (leaks show up as growth across world switches).
       worldColliders: physics.physicsWorld.colliders.len(),
+      // Buzzar: non-fixed bodies within 5 m (crates, balls), to see what moves them.
+      nearbyBodies: (() => {
+        const out: unknown[] = [];
+        const me = body?.translation();
+        if (!me) return out;
+        physics.physicsWorld.bodies.forEach((b) => {
+          if (b === body || b.isFixed()) return;
+          const t = b.translation();
+          if (Math.hypot(t.x - me.x, t.y - me.y, t.z - me.z) > 5) return;
+          const v = b.linvel();
+          out.push({
+            type: RAPIER.RigidBodyType[b.bodyType()],
+            at: [+t.x.toFixed(2), +t.y.toFixed(2), +t.z.toFixed(2)],
+            v: [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)],
+            sleeping: b.isSleeping(),
+            colliders: Array.from({ length: b.numColliders() }, (_, c) => {
+              const col = b.collider(c);
+              const he = (col.shape as { halfExtents?: { x: number; y: number; z: number } }).halfExtents;
+              return {
+                shape: RAPIER.ShapeType[col.shapeType()],
+                colliderAt: (() => {
+                  const ct = col.translation();
+                  return [+ct.x.toFixed(2), +ct.y.toFixed(2), +ct.z.toFixed(2)];
+                })(),
+                halfExtents: he ? [+he.x.toFixed(2), +he.y.toFixed(2), +he.z.toFixed(2)] : null,
+                groups: col.collisionGroups(),
+                solver: col.solverGroups(),
+                sensor: col.isSensor(),
+                enabled: col.isEnabled(),
+              };
+            }),
+          });
+        });
+        return out;
+      })(),
+      // Buzzar: player colliders should have no solver contacts (solverGroups 0), see PlayerRig.
+      ownColliders: body
+        ? Array.from({ length: body.numColliders() }, (_, c) => {
+            const col = body.collider(c);
+            return { solverGroups: col.solverGroups(), groups: col.collisionGroups(), sensor: col.isSensor() };
+          })
+        : null,
       isSliding,
       collisions,
       // Keys/buttons the game currently believes are held.

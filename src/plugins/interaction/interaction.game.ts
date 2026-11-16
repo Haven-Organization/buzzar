@@ -184,14 +184,11 @@ const InteractionActionMap: ActionMap = {
       id: "throw",
       path: "Throw",
       type: ActionType.Button,
+      // Buzzar: right click only. Left click (like E) now just lets go of what you're holding; it used to throw too.
       bindings: [
         {
           type: BindingType.Button,
           path: "Mouse/Right",
-        },
-        {
-          type: BindingType.Button,
-          path: "Mouse/Left",
         },
       ],
     },

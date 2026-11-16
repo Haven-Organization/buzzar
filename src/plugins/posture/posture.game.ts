@@ -26,7 +26,7 @@ import { broadcastReliable } from "../../engine/network/outbound.game";
 import { writeMetadata } from "../../engine/network/serialization.game";
 import { PhysicsModule } from "../../engine/physics/physics.game";
 import { getCamera } from "../../engine/player/getCamera";
-import { KinematicCharacterControllerActions } from "../../engine/player/KinematicCharacterController";
+import { isSolid, KinematicCharacterControllerActions } from "../../engine/player/KinematicCharacterController";
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { localPosture, Posture, PostureEntities } from "../../engine/player/posture.common";
 import { RemoteNode } from "../../engine/resource/RemoteResources";
@@ -130,8 +130,11 @@ function fits(ctx: GameContext, body: RAPIER.RigidBody, collider: RAPIER.Collide
       blocked = true;
       return false;
     },
-    RAPIER.QueryFilterFlags.EXCLUDE_SENSORS,
-    collider.collisionGroups()
+    undefined, // not EXCLUDE_SENSORS: in this Rapier build it also drops dynamic bodies (see isSolid)
+    collider.collisionGroups(),
+    collider,
+    body,
+    isSolid
   );
   return !blocked;
 }

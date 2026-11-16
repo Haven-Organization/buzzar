@@ -1,8 +1,6 @@
 import { ReactNode } from "react";
 
 import { Kbd } from "../../../atoms/keyboard/Kbd";
-import { Icon } from "../../../atoms/icon/Icon";
-import MouseIC from "../../../../../res/ic/mouse-left.svg";
 import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { Label } from "../../../atoms/text/Label";
@@ -39,6 +37,13 @@ export function ShortcutUI() {
           {renderItem("Run", <Kbd size="xs">Shift</Kbd>)}
           {renderItem("Jump", <Kbd size="xs">Space</Kbd>)}
           {renderItem(
+            "Crouch (hold to go prone)",
+            <>
+              <Kbd size="xs">C</Kbd>
+            </>
+          )}
+          {renderItem("Prone", <Kbd size="xs">Z</Kbd>)}
+          {renderItem(
             "Spawn Objects",
             <>
               <Kbd size="xs">1</Kbd> - <Kbd size="xs">6</Kbd>
@@ -47,15 +52,10 @@ export function ShortcutUI() {
           {renderItem(
             "Grab/Drop Object",
             <>
-              <Kbd size="xs">E</Kbd>
+              <Kbd size="xs">E</Kbd> / <Kbd size="xs">Left Click</Kbd>
             </>
           )}
-          {renderItem(
-            "Grab/Throw Object",
-            <>
-              <Icon src={MouseIC} />
-            </>
-          )}
+          {renderItem("Throw Held Object", <Kbd size="xs">Right Click</Kbd>)}
           {renderItem("Delete Object", <Kbd size="xs">X</Kbd>)}
           {renderItem("Fly Mode", <Kbd size="xs">B</Kbd>)}
           {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
