@@ -55,9 +55,6 @@ import {
 import { toSharedArrayBuffer } from "../utils/arraybuffer";
 import {
   RemoteAccessor,
-  RemoteAnimation,
-  RemoteAnimationChannel,
-  RemoteAnimationSampler,
   RemoteAudioData,
   RemoteAudioEmitter,
   RemoteAudioSource,
@@ -1893,20 +1890,40 @@ const GLTFAnimationInterpolationToAnimationInterpolation: { [key: string]: Anima
   CUBICSPLINE: AnimationSamplerInterpolation.CUBICSPLINE,
 };
 
+/**
+ * Buzzar: animation data lives only on the game thread (that's where clips play). Making every animation, channel
+ * and sampler an engine resource copied them to the main and render threads too: thousands of messages per player
+ * rig, which froze the game thread for seconds right after entering a world.
+ */
+export interface GameAnimationSampler {
+  input: RemoteAccessor;
+  output: RemoteAccessor;
+  interpolation: AnimationSamplerInterpolation;
+}
+export interface GameAnimationChannel {
+  sampler: GameAnimationSampler;
+  targetNode: RemoteNode;
+  targetPath: AnimationChannelTargetPath;
+}
+export interface GameAnimation {
+  name: string;
+  channels: GameAnimationChannel[];
+  clip?: AnimationClip;
+  /** Accessors this animation holds a reference to (released with it). */
+  accessors: RemoteAccessor[];
+}
+
 function loadGLTFAnimationSampler(
   resource: GLTFResource,
   { input: inputIndex, output: outputIndex, interpolation }: GLTFAnimationSampler
-) {
-  const { input, output } = {
+): GameAnimationSampler {
+  return {
     input: loadGLTFAccessor(resource, inputIndex),
     output: loadGLTFAccessor(resource, outputIndex),
+    interpolation: interpolation
+      ? GLTFAnimationInterpolationToAnimationInterpolation[interpolation]
+      : AnimationSamplerInterpolation.LINEAR,
   };
-
-  return new RemoteAnimationSampler(resource.manager, {
-    input,
-    output,
-    interpolation: interpolation ? GLTFAnimationInterpolationToAnimationInterpolation[interpolation] : undefined,
-  });
 }
 
 const GLTFAnimationTargetPathToAnimationTargetPath: { [key: string]: AnimationChannelTargetPath } = {
@@ -1918,10 +1935,10 @@ const GLTFAnimationTargetPathToAnimationTargetPath: { [key: string]: AnimationCh
 
 function loadGLTFAnimationChannel(
   loaderCtx: GLTFLoaderContext,
-  samplerDefs: GLTFAnimationSampler[],
+  samplers: GameAnimationSampler[],
   { sampler: samplerIndex, target }: GLTFAnimationChannel
-) {
-  const sampler = loadGLTFAnimationSampler(loaderCtx.resource, samplerDefs[samplerIndex]);
+): GameAnimationChannel {
+  const sampler = samplers[samplerIndex];
 
   let targetNode: RemoteNode | undefined = undefined;
 
@@ -1935,28 +1952,22 @@ function loadGLTFAnimationChannel(
     throw new Error("Animation target node not found");
   }
 
-  return new RemoteAnimationChannel(loaderCtx.resource.manager, {
+  return {
     sampler,
     targetNode,
     targetPath: GLTFAnimationTargetPathToAnimationTargetPath[target.path],
-  });
+  };
 }
 
-const loadGLTFAnimation = createInstancedSubresourceLoader(
-  "animation",
-  (root) => root.animations,
-  (loaderCtx, { name, channels: channelDefs, samplers: samplerDefs }, index) => {
-    const channels = channelDefs.map((def) => loadGLTFAnimationChannel(loaderCtx, samplerDefs, def));
-    const samplers = samplerDefs.map((def) => loadGLTFAnimationSampler(loaderCtx.resource, def));
+function loadGLTFAnimation(loaderCtx: GLTFLoaderContext, index: number): GameAnimation {
+  const { name, channels: channelDefs, samplers: samplerDefs } = loaderCtx.resource.root.animations![index];
+  // One sampler object per glTF sampler (channels share them; Third Room loaded each one twice).
+  const samplers = samplerDefs.map((def) => loadGLTFAnimationSampler(loaderCtx.resource, def));
+  const channels = channelDefs.map((def) => loadGLTFAnimationChannel(loaderCtx, samplers, def));
+  const accessors = [...new Set(samplers.flatMap((sampler) => [sampler.input, sampler.output]))];
+  for (const accessor of accessors) addResourceRef(loaderCtx.ctx, accessor.eid);
 
-    const animation = new RemoteAnimation(loaderCtx.resource.manager, {
-      name,
-      channels,
-      samplers,
-    });
-
-    animation.clip = loadGLTFAnimationClip(loaderCtx, animation);
-
-    return animation;
-  }
-);
+  const animation: GameAnimation = { name: name ?? `animation${index}`, channels, accessors };
+  animation.clip = loadGLTFAnimationClip(loaderCtx, animation);
+  return animation;
+}

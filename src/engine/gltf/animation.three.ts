@@ -16,7 +16,7 @@ import {
 } from "three";
 
 import { getAccessorArrayView } from "../common/accessor";
-import { RemoteAnimation } from "../resource/RemoteResources";
+import type { GameAnimation } from "./gltf.game";
 import { AnimationSamplerInterpolation, AnimationChannelTargetPath } from "../resource/schema";
 import { GLTFLoaderContext } from "./gltf.game";
 
@@ -127,7 +127,7 @@ class GLTFCubicSplineQuaternionInterpolant extends GLTFCubicSplineInterpolant {
   }
 }
 
-export function loadGLTFAnimationClip(loaderCtx: GLTFLoaderContext, animation: RemoteAnimation): AnimationClip {
+export function loadGLTFAnimationClip(loaderCtx: GLTFLoaderContext, animation: GameAnimation): AnimationClip {
   const tracks: KeyframeTrack[] = [];
 
   for (const channel of animation.channels) {

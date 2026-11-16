@@ -10,12 +10,13 @@ import { GameContext } from "../GameTypes";
 import { getModule } from "../module/module.common";
 import { PhysicsModule, PhysicsModuleState } from "../physics/physics.game";
 import { getRemoteResource, removeResourceRef } from "../resource/resource.game";
-import { RemoteAnimation, RemoteNode } from "../resource/RemoteResources";
+import { RemoteNode } from "../resource/RemoteResources";
+import type { GameAnimation } from "../gltf/gltf.game";
 import { playerShapeCastCollisionGroups } from "../physics/CollisionGroups";
 import { Posture, PostureEntities } from "../player/posture.common";
 
 export interface IAnimationComponent {
-  animations: RemoteAnimation[];
+  animations: GameAnimation[];
   mixer: AnimationMixer;
   actionMap: Map<string, AnimationAction>;
   actions: AnimationAction[];
@@ -318,9 +319,9 @@ function disposeAnimations(ctx: GameContext) {
 
     const { animations } = AnimationComponent.get(eid)!;
 
+    // Buzzar: animations are plain game-thread objects; release the accessors they hold.
     for (let i = 0; i < animations.length; i++) {
-      const animation = animations[i];
-      removeResourceRef(ctx, animation.eid);
+      for (const accessor of animations[i].accessors) removeResourceRef(ctx, accessor.eid);
     }
 
     AnimationComponent.delete(eid);
