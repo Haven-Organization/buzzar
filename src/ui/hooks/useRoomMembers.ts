@@ -61,6 +61,11 @@ export function useRoomMembers(room: Room) {
 
         for (const [, callMember] of groupCall.members) {
           const member = callMember.member;
+          // Buzzar: a call membership outlives closed tabs and crashed browsers (until it expires), so while
+          // we're in the call only count people we're actually connected to. Our own other devices don't count;
+          // the member list adds us itself. Outside the call there are no connections, so list the memberships.
+          if (member.userId === session.userId) continue;
+          if (groupCall.hasJoined && !callMember.isConnected) continue;
           if (!activeMembers.has(member.userId)) {
             activeMembers.set(member.userId, member);
           }

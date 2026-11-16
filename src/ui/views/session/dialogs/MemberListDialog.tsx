@@ -72,10 +72,9 @@ export function MemberListDialog({ room, requestClose }: MemberListDialogProps) 
   // Buzzar: Hydrogen's groupCall.members only contains *other* participants, so you always appeared as
   // "Disconnected" in your own member list. Count yourself as connected while you're in the world's call.
   const self = joined?.find((member) => member.userId === session.userId);
-  const active =
-    groupCall?.hasJoined && self && !callMembersActive?.some((m) => m.userId === self.userId)
-      ? [self, ...(callMembersActive ?? [])]
-      : callMembersActive;
+  // Buzzar: call members carry a bare RoomMember (often no display name or avatar); show the room's own.
+  const callActive = callMembersActive?.map((m) => joined?.find((j) => j.userId === m.userId) ?? m);
+  const active = groupCall?.hasJoined && self ? [self, ...(callActive ?? [])] : callActive;
 
   const isWorld = room.type === "org.matrix.msc3815.world";
   const filteredJoined = joined?.filter((member) => !active?.find((m) => m.userId === member.userId));
