@@ -85,3 +85,15 @@ describe("fast vowel changes", () => {
     }
   });
 });
+
+describe("consonants", () => {
+  it("relaxes the mouth for a nasal hum ('ng' in ting/tang/bing/bang) instead of pursing it like 'oo'", () => {
+    const est = new VisemeEstimator();
+    const out = new Float32Array(5);
+    for (let i = 0; i < 12; i++) est.estimate(vowel(330, 700), RATE, 1 / 60, out);
+    const ooTotal = out.reduce((a, v) => a + v, 0);
+    for (let i = 0; i < 12; i++) est.estimate(vowel(240, 1250, 140, 0.3, i * 800), RATE, 1 / 60, out);
+    const ngTotal = out.reduce((a, v) => a + v, 0);
+    expect(ngTotal).toBeLessThan(ooTotal * 0.4);
+  });
+});

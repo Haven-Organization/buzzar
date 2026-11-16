@@ -17,7 +17,13 @@
 
 /** Viseme order: aa, ih, ou, ee, oh (VRM 1.0 preset names). */
 const VISEME_COUNT = 5;
-/** [F1, F2, viseme] reference points; a viseme can have several (accents, fronted vowels). */
+/** No mouth shape: the mouth relaxes toward closed. */
+const NONE = -1;
+/**
+ * [F1, F2, viseme] reference points; a viseme can have several (accents, fronted vowels). Nasals ("ng" in
+ * ting/tang/bing/bang, "m", "n") hum with a very low F1; they map to no shape, so the mouth relaxes instead of
+ * pursing as if for "oo".
+ */
 const PROTOTYPES: [number, number, number][] = [
   [750, 1250, 0], // aa  father, hot
   [320, 2550, 1], // ih  see, cheese
@@ -25,6 +31,8 @@ const PROTOTYPES: [number, number, number][] = [
   [400, 1600, 2], // ou  boot, food (fronted, common in English)
   [620, 2050, 3], // ee  bed
   [450, 850, 4], // oh  more, go
+  [230, 1250, NONE], // nasal murmur: ng, m, n
+  [300, 1250, NONE], // nasal murmur after an open vowel ("tang", "bang")
 ];
 
 const ORDER = 14;
@@ -161,13 +169,17 @@ const _im = new Float64Array(ORDER);
 /** Soft vowel weights (summing to 1) for a formant pair, in aa/ih/ou/ee/oh order. Exported for tests. */
 export function vowelWeights(f1: number, f2: number, out: Float32Array): Float32Array {
   out.fill(0);
+  let none = 0;
   for (const [p1, p2, v] of PROTOTYPES) {
     // Distance in log-frequency (perceptual, and tolerant of higher formants in women's and children's voices).
     const d1 = Math.log(f1 / p1);
     const d2 = Math.log(f2 / p2) * 0.8;
-    out[v] = Math.max(out[v], Math.exp(-VOWEL_SHARPNESS * (d1 * d1 + d2 * d2)));
+    const w = Math.exp(-VOWEL_SHARPNESS * (d1 * d1 + d2 * d2));
+    if (v === NONE) none = Math.max(none, w);
+    else out[v] = Math.max(out[v], w);
   }
-  let sum = 0;
+  // A nasal takes its share without a shape: the remaining weights sum to less than 1, so the mouth closes.
+  let sum = none;
   for (let i = 0; i < VISEME_COUNT; i++) sum += out[i];
   for (let i = 0; i < out.length; i++) out[i] = sum > 0 ? out[i] / sum : 0;
   return out;
@@ -185,7 +197,8 @@ const LOUD_RELEASE = 0.06;
 export class VisemeEstimator {
   /** Last measurement, for debugging: level (dBFS), loudness 0–1 and formants. */
   last: { db: number; loud: number; formants?: [number, number] } = { db: -120, loud: 0 };
-  private peakDb = -30;
+  /** Starts fairly loud, so a voice's first sounds (a "t" before "ting") don't open the mouth wide. */
+  private peakDb = -18;
   private lastVowel = new Float32Array(VISEME_COUNT);
   private vowel = new Float32Array(VISEME_COUNT);
   private loud = 0;
