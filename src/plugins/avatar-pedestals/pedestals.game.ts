@@ -72,6 +72,9 @@ interface PedestalState {
   uri?: string;
   url?: string;
   name: string;
+  gltfUrl: string;
+  previewHeight: number;
+  showModel: boolean;
 }
 
 interface PedestalModuleState {
@@ -86,7 +89,15 @@ export const AvatarPedestalModule = defineModule<GameContext, PedestalModuleStat
   },
   init(ctx) {
     return registerMessageHandler(ctx, MediaConfigMessage, (ctx: GameContext, message: MediaConfigMessageType) => {
-      getModule(ctx, AvatarPedestalModule).homeserver = message.homeserver;
+      const module = getModule(ctx, AvatarPedestalModule);
+      module.homeserver = message.homeserver;
+      // Buzzar: mxc:// pedestals that loaded before we knew the homeserver get resolved (and previewed) now,
+      // instead of staying blank.
+      for (const pedestal of module.pedestals) {
+        if (pedestal.url || !pedestal.uri?.startsWith("mxc://")) continue;
+        pedestal.url = resolvePedestalUri(pedestal.uri, pedestal.gltfUrl, module.homeserver);
+        if (pedestal.url) loadPedestalPreview(ctx, pedestal);
+      }
     });
   },
 });
@@ -157,28 +168,42 @@ export function addAvatarPedestal(
   );
   addInteractableComponent(ctx, physics, stand, InteractableType.Interactable);
 
-  module.pedestals.push({ stand, uri: info.uri, url, name });
+  const pedestal: PedestalState = {
+    stand,
+    uri: info.uri,
+    url,
+    name,
+    gltfUrl,
+    previewHeight,
+    showModel: (extension.preview ?? "model") === "model",
+  };
+  module.pedestals.push(pedestal);
 
   addInfoPanel(ctx, node, panelY, name, info, image, extension.preview === "image");
 
   if (info.uri && !url) {
-    console.warn(`Avatar pedestal "${name}": unsupported avatar URI ${info.uri}`);
+    // mxc:// before the homeserver is known: resolved when it arrives (see the module's init).
+    if (!info.uri.startsWith("mxc://")) console.warn(`Avatar pedestal "${name}": unsupported avatar URI ${info.uri}`);
     return;
   }
 
-  if ((extension.preview ?? "model") === "model") {
-    loadAvatarRig(ctx, url)
-      .then(({ rig, eyeHeight }) => {
-        if (getRemoteResource(ctx, stand.eid) !== stand) return; // world unloaded meanwhile
-        const scale = previewHeight / ((eyeHeight ?? 1.64) + 0.12);
-        vec3.scale(rig.scale, rig.scale, scale);
-        addChild(stand, rig);
-      })
-      .catch((error) => {
-        const reason = error instanceof AvatarRejectedError ? error.message : String(error);
-        console.warn(`Avatar pedestal "${name}": preview unavailable (${reason})`);
-      });
-  }
+  loadPedestalPreview(ctx, pedestal);
+}
+
+function loadPedestalPreview(ctx: GameContext, pedestal: PedestalState) {
+  if (!pedestal.showModel) return;
+  const { stand, name, previewHeight } = pedestal;
+  loadAvatarRig(ctx, pedestal.url)
+    .then(({ rig, eyeHeight }) => {
+      if (getRemoteResource(ctx, stand.eid) !== stand) return; // world unloaded meanwhile
+      const scale = previewHeight / ((eyeHeight ?? 1.64) + 0.12);
+      vec3.scale(rig.scale, rig.scale, scale);
+      addChild(stand, rig);
+    })
+    .catch((error) => {
+      const reason = error instanceof AvatarRejectedError ? error.message : String(error);
+      console.warn(`Avatar pedestal "${name}": preview unavailable (${reason})`);
+    });
 }
 
 function text(

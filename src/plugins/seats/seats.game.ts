@@ -17,7 +17,14 @@ import { mat4, quat, vec3 } from "gl-matrix";
 
 import { AvatarHips } from "../../engine/avatar/avatar.game";
 import { SeatedEntities } from "../../engine/animation/animation.game";
-import { createCursorView, readUint32, sliceCursorView, writeUint32 } from "../../engine/allocator/CursorView";
+import {
+  createCursorView,
+  readFloat64,
+  readUint32,
+  sliceCursorView,
+  writeFloat64,
+  writeUint32,
+} from "../../engine/allocator/CursorView";
 import { getYaw } from "../../engine/common/math";
 import { addChild, updateMatrixWorld } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
@@ -55,6 +62,8 @@ interface LocalSeating {
   seat: Seat;
   standPosition: vec3;
   lastBroadcast: number;
+  /** When we sat down (ms since epoch), to settle two people claiming the seat at once. */
+  claimedAt: number;
 }
 
 interface SeatModuleState {
@@ -75,10 +84,22 @@ const SitDebugMessage = "software.haven.debug.sit";
 
 const messageView = createCursorView(new ArrayBuffer(64));
 
-function createSeatMessage(seatIndex: number | undefined) {
+/**
+ * Seat index + 1 (0 = standing), then (Buzzar) when the seat was claimed, so two people who click the same free
+ * seat at once agree on who gets it. Older clients only read the index.
+ */
+function createSeatMessage(seatIndex: number | undefined, claimedAt = 0) {
   writeMetadata(messageView, NetworkAction.HavenSeat);
   writeUint32(messageView, seatIndex === undefined ? 0 : seatIndex + 1);
+  writeFloat64(messageView, claimedAt);
   return sliceCursorView(messageView);
+}
+
+/** Whether a remote claim (claimedAt, peerId) beats ours: the earlier claim wins; same time, the smaller id. */
+function remoteClaimWins(remoteAt: number, remotePeer: string, ourAt: number, ourPeer: string) {
+  if (!remoteAt) return false; // an older client: keep our seat (we saw it free when we sat)
+  if (remoteAt !== ourAt) return remoteAt < ourAt;
+  return remotePeer < ourPeer;
 }
 
 export const SeatModule = defineModule<GameContext, SeatModuleState>({
@@ -90,9 +111,22 @@ export const SeatModule = defineModule<GameContext, SeatModuleState>({
     const network = getModule(ctx, NetworkModule);
     registerInboundMessageHandler(network, NetworkAction.HavenSeat, (ctx, v, peerId) => {
       const value = readUint32(v);
+      const claimedAt = v.byteLength - v.cursor >= 8 ? readFloat64(v) : 0;
       const module = getModule(ctx, SeatModule);
-      if (value === 0) module.remote.delete(peerId);
-      else module.remote.set(peerId, value - 1);
+      if (value === 0) {
+        module.remote.delete(peerId);
+        return;
+      }
+      module.remote.set(peerId, value - 1);
+      // Buzzar: both of us took the same seat at once: the earlier claim keeps it, the other stands up.
+      const local = module.local;
+      if (
+        local &&
+        local.seat.index === value - 1 &&
+        remoteClaimWins(claimedAt, peerId, local.claimedAt, network.peerId)
+      ) {
+        stand(ctx, module);
+      }
     });
 
     // Debug: `thirdroom.sit(n)` in the console (input.main.ts).
@@ -169,14 +203,14 @@ function sit(ctx: GameContext, module: SeatModuleState, seat: Seat) {
   const network = getModule(ctx, NetworkModule);
 
   const standPosition = module.local ? module.local.standPosition : vec3.clone(container.position);
-  module.local = { seat, standPosition, lastBroadcast: ctx.elapsed };
+  module.local = { seat, standPosition, lastBroadcast: ctx.elapsed, claimedAt: Date.now() };
 
   // Face the seat's direction straight away.
   getRotationNoAlloc(_seatQuat, seat.node.worldMatrix);
   quat.fromEuler(container.quaternion, 0, (getYaw(_seatQuat) * 180) / Math.PI, 0);
 
   SeatedEntities.add(container.eid);
-  broadcastReliable(ctx, network, createSeatMessage(seat.index));
+  broadcastReliable(ctx, network, createSeatMessage(seat.index, module.local.claimedAt));
 }
 
 function stand(ctx: GameContext, module: SeatModuleState) {
@@ -267,7 +301,7 @@ export function SeatSystem(ctx: GameContext) {
       pinToSeat(ctx, container, module.local.seat);
       if (ctx.elapsed - module.local.lastBroadcast > REBROADCAST_SECONDS * 1000) {
         module.local.lastBroadcast = ctx.elapsed;
-        broadcastReliable(ctx, network, createSeatMessage(module.local.seat.index));
+        broadcastReliable(ctx, network, createSeatMessage(module.local.seat.index, module.local.claimedAt));
       }
     }
   } else if (module.local && !container) {

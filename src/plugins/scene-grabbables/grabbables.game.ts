@@ -19,7 +19,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { addComponent, defineComponent, hasComponent } from "bitecs";
 import { mat4 } from "gl-matrix";
 
-import { updateMatrixWorld } from "../../engine/component/transform";
+import { addChild, getChildren, updateMatrixWorld } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
 import { defineModule, getModule } from "../../engine/module/module.common";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
@@ -70,6 +70,20 @@ function setSceneCopyHidden(entry: SceneGrabbable, hidden: boolean) {
   entry.hidden = hidden;
   entry.sceneNode.visible = !hidden;
   entry.sceneNode.physicsBody?.body?.setEnabled(!hidden);
+}
+
+/** Recreates `from`'s descendants that draw something (meshes) under `to`, keeping their local transforms. */
+function copyChildMeshes(ctx: GameContext, from: RemoteNode, to: RemoteNode) {
+  for (const child of getChildren(from)) {
+    if (child.nametag || child.audioEmitter) continue;
+    const part = new RemoteNode(ctx.resourceManager, { name: child.name, mesh: child.mesh });
+    part.position.set(child.position);
+    part.quaternion.set(child.quaternion);
+    part.scale.set(child.scale);
+    copyChildMeshes(ctx, child, part);
+    // Skip empty branches (no mesh anywhere below).
+    if (part.mesh || part.firstChild) addChild(to, part);
+  }
 }
 
 export function addSceneGrabbable(
@@ -123,6 +137,8 @@ export function addSceneGrabbable(
 
       const copy = new RemoteNode(ctx.resourceManager, { name: node.name, mesh });
       copy.scale.set(worldScale);
+      // Buzzar: bring the node's child parts (lid, handle, label, ...) along; the copy used to be the top mesh only.
+      copyChildMeshes(ctx, node, copy);
       updateMatrixWorld(copy);
 
       addPhysicsCollider(

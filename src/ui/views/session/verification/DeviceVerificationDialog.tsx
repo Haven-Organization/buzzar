@@ -122,6 +122,9 @@ export function DeviceVerificationDialog() {
   const [state, setState] = useAtom(deviceVerificationAtom);
   const [stage, setStage] = useState<Stage>({ kind: "choose" });
   const [recoveryKey, setRecoveryKey] = useState("");
+  // Buzzar: verifying from another device doesn't hand over the key backup (Hydrogen has no secret sharing), so
+  // offer the recovery key afterwards to unlock older encrypted messages.
+  const noKeyBackup = !session.keyBackup.get();
   const running = useRef<RunningVerification>();
 
   // Check once per session whether this device still needs verifying.
@@ -411,14 +414,31 @@ export function DeviceVerificationDialog() {
           icon={<CheckIcon />}
           title="Device verified"
           actions={
-            <Button size="lg" onClick={close}>
-              Done
-            </Button>
+            noKeyBackup ? (
+              <>
+                <Button size="lg" onClick={() => setStage({ kind: "recovery" })}>
+                  Enter recovery key
+                </Button>
+                <Button size="lg" fill="outline" onClick={close}>
+                  Not now
+                </Button>
+              </>
+            ) : (
+              <Button size="lg" onClick={close}>
+                Done
+              </Button>
+            )
           }
         >
           <Text variant="b2" color="surface-low" className="DeviceVerification__body">
             This device is now verified. Other people will see it as trusted, and new encrypted messages will reach it.
           </Text>
+          {noKeyBackup && (
+            <Text variant="b2" color="surface-low" className="DeviceVerification__body">
+              To read your older encrypted messages here too, enter your recovery key once. (Verifying with another
+              device doesn't pass on your message backup yet.)
+            </Text>
+          )}
         </Screen>
       );
       break;
