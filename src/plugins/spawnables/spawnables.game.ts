@@ -1,8 +1,9 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { addComponent } from "bitecs";
+import { addComponent, hasComponent } from "bitecs";
 import { mat4, vec3, quat } from "gl-matrix";
 
 import { playOneShotAudio } from "../../engine/audio/audio.game";
+import { Player } from "../../engine/player/Player";
 import { GameContext } from "../../engine/GameTypes";
 import { createNodeFromGLTFURI } from "../../engine/gltf/gltf.game";
 import { createSphereMesh } from "../../engine/mesh/mesh.game";
@@ -176,6 +177,12 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
 
     const disposeCollisionHandler = registerCollisionHandler(ctx, (eid1, eid2, handle1, handle2, started) => {
       if (!started) {
+        return;
+      }
+
+      // Buzzar: players jumping onto, standing on or walking into crates and balls is constant and expected (they're
+      // platforms), so a player's own contacts make no sound. Objects hitting the floor or each other still do.
+      if (hasComponent(ctx.world, Player, eid1) || hasComponent(ctx.world, Player, eid2)) {
         return;
       }
 
