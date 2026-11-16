@@ -18,6 +18,8 @@ export interface IAnimationComponent {
   mixer: AnimationMixer;
   actionMap: Map<string, AnimationAction>;
   actions: AnimationAction[];
+  /** Buzzar: runs after the mixer each frame (avatar spring bones). */
+  postUpdate?: (dt: number, rootWorldMatrix: ArrayLike<number>) => void;
 }
 
 export enum AnimationClipType {
@@ -131,6 +133,7 @@ function processAnimations(ctx: GameContext) {
       increaseClipActionWeights(actionsToPlay, fadeInAmount * ctx.dt);
 
       animation.mixer.update(ctx.dt);
+      animation.postUpdate?.(ctx.dt, node.worldMatrix);
     }
   }
   return ctx;

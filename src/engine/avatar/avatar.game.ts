@@ -14,6 +14,7 @@ import { AnimationComponent } from "../animation/animation.game";
 import { addChild, removeChild } from "../component/transform";
 import { GameContext } from "../GameTypes";
 import {
+  AnimationPostUpdate,
   GLTFLoaderContext,
   GLTFLoaderOptions,
   loadDefaultGLTFScene,
@@ -38,6 +39,7 @@ import {
   SetPeerAvatarMessageType,
 } from "./avatar.common";
 import { checkAvatarLimits, computeAvatarStats, getHumanoidMapping, HumanoidMapping, HumanBone } from "./humanoid";
+import { createSpringRig, getSpringChains, updateSpringRig } from "./springBones";
 import {
   applyBindPose,
   buildSitClip,
@@ -389,6 +391,8 @@ async function loadCustomAvatar(
       // Avatars bound in an A-pose (common for game and VRChat models) get their limbs corrected to the clips' T-pose.
       return source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
     },
+    // Hair, ears, tails, skirts…: built after retargeting has put the skeleton in its bind pose (the springs' rest).
+    createAnimationPostUpdate: (loaderCtx, rootObj) => createAvatarSprings(loaderCtx, rootObj, mapping),
   });
 
   // Mixamo / VRM 1.0 face +Z and need turning to face the player's forward (-Z); VRM 0.x already faces -Z.
@@ -399,6 +403,27 @@ async function loadCustomAvatar(
 }
 
 export class AvatarRejectedError extends Error {}
+
+function createAvatarSprings(
+  loaderCtx: GLTFLoaderContext,
+  rootObj: Object3D,
+  mapping: HumanoidMapping
+): AnimationPostUpdate | undefined {
+  try {
+    const chains = getSpringChains(loaderCtx.resource.root, mapping);
+    if (chains.length === 0) return undefined;
+    const springRig = createSpringRig(chains, (index) => {
+      const node = loaderCtx.nodeMap.get(index);
+      return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
+    });
+    if (!springRig) return undefined;
+    return (dt, rootWorldMatrix) => updateSpringRig(springRig, rootObj, rootWorldMatrix, dt);
+  } catch (error) {
+    // Secondary motion is decoration: never fail the avatar over it.
+    console.warn("Avatar spring bones disabled:", error);
+    return undefined;
+  }
+}
 
 /**
  * Loads an avatar (or the built-in default when `url` is undefined) as a rig node facing -Z, with retargeted

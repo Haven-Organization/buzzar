@@ -443,7 +443,15 @@ export interface GLTFLoaderOptions {
    * Providing this forces the animation graph to be built even when the glTF has no animations.
    */
   extraAnimationClips?: (loaderCtx: GLTFLoaderContext, rootObj: Object3D, ownClips: AnimationClip[]) => AnimationClip[];
+  /**
+   * Buzzar: called after the animation graph is built (and after `extraAnimationClips`). The returned function
+   * runs every frame right after the mixer, with the frame time and the animated node's world matrix; used for
+   * avatar spring bones (hair, ears, …).
+   */
+  createAnimationPostUpdate?: (loaderCtx: GLTFLoaderContext, rootObj: Object3D) => AnimationPostUpdate | undefined;
 }
+
+export type AnimationPostUpdate = (dt: number, rootWorldMatrix: ArrayLike<number>) => void;
 
 /**
  * Context used for the loading of a Scene / Node hierarchy.
@@ -692,12 +700,15 @@ function loadGLTFSceneAnimations(loaderCtx: GLTFLoaderContext, remoteSceneOrNode
         actions.push(action);
       }
     }
+    const postUpdate = loaderCtx.createAnimationPostUpdate?.(loaderCtx, rootObj);
+
     addComponent(world, AnimationComponent, remoteSceneOrNode.eid);
     AnimationComponent.set(remoteSceneOrNode.eid, {
       animations,
       mixer,
       actionMap,
       actions,
+      postUpdate,
     });
   }
 }
