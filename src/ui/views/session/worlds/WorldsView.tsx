@@ -34,6 +34,8 @@ import { useRoomsOfType, RoomTypes } from "../../../hooks/useRoomsOfType";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoom } from "../../../hooks/useRoom";
 import { useDialog } from "../../../hooks/useDialog";
+import { useMainThreadContext } from "../../../hooks/useMainThread";
+import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
@@ -212,6 +214,18 @@ function useJoinedWorldPreview(room: Room) {
   return { preview, topic };
 }
 
+/** Closes the overlay and takes the pointer back while the click still counts as a gesture. */
+function useReturnToWorld() {
+  const mainThread = useMainThreadContext();
+  const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
+  return () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    markGameResumed();
+    requestGamePointerLock(mainThread.canvas);
+    setOverlayVisibility(false);
+  };
+}
+
 function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
   const { session, platform } = useHydrogen(true);
   const { preview, topic } = useJoinedWorldPreview(room);
@@ -219,7 +233,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
   const avatarSrc = useThumbnail(room.avatarUrl ?? undefined);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
-  const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
+  const returnToWorld = useReturnToWorld();
   const setActiveChat = useSetAtom(activeChatsAtom);
   const setSidebarTab = useSetAtom(sidebarTabAtom);
   const invite = useDialog(false);
@@ -251,7 +265,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
         overlay={groupCall ? <WorldTileMembers session={session} platform={platform} groupCall={groupCall} /> : undefined}
         action={
           isHere ? (
-            <Button size="sm" variant="primary" onClick={() => setOverlayVisibility(false)}>
+            <Button size="sm" variant="primary" onClick={() => returnToWorld()}>
               Return
             </Button>
           ) : (
@@ -508,7 +522,7 @@ function ExploreWorldTile({ world, viaServer }: { world: DirectoryWorld; viaServ
   const [joinedId, setJoinedId] = useState<string>();
   const [error, setError] = useState<string>();
   const { worldId, entered } = useAtomValue(worldAtom);
-  const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
+  const returnToWorld = useReturnToWorld();
 
   const joinedRoom = useRoom(session, joinedId ?? world.room_id);
   const previewSrc = useThumbnail(preview);
@@ -547,7 +561,7 @@ function ExploreWorldTile({ world, viaServer }: { world: DirectoryWorld; viaServ
   let action;
   if (isHere) {
     action = (
-      <Button size="sm" variant="primary" onClick={() => setOverlayVisibility(false)}>
+      <Button size="sm" variant="primary" onClick={() => returnToWorld()}>
         Return
       </Button>
     );

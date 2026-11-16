@@ -227,7 +227,14 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
         enqueueInputRingBuffer(irb, inputSourceId, componentId, button, xAxis, yAxis, zAxis, wAxis, state);
       }
 
-      if (!pointerLocked && !orbiting) {
+      // Buzzar: the keyboard works in a world even without pointer lock (browsers only grant a lock right after a
+      // click, e.g. not after a portal or a reload), as long as nothing on the page has focus (menus, chat and text
+      // fields keep their keys; overlays disable input above). Mouse look still needs the lock.
+      const keyboardWithoutLock =
+        inputSourceId === InputSourceId.Keyboard &&
+        document.hasFocus() &&
+        (document.activeElement === document.body || document.activeElement === canvas);
+      if (!pointerLocked && !orbiting && !keyboardWithoutLock) {
         if (inputSourceId === InputSourceId.Keyboard) debugCounts.dropped.notLocked++;
         return;
       }

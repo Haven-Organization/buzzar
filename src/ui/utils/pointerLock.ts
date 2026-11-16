@@ -4,6 +4,7 @@
  * One Escape then both frees the mouse and opens the overlay.
  */
 let lastCodeExit = -Infinity;
+let lastResume = -Infinity;
 let installed = false;
 
 export function installPointerLockTracking() {
@@ -14,6 +15,19 @@ export function installPointerLockTracking() {
     lastCodeExit = performance.now();
     original();
   };
+}
+
+/**
+ * Marks that the player just went back to the game (closing the overlay with Escape). A held Escape repeats, and the
+ * browser spends the repeat on releasing the new lock: that release must not count as "Escape pressed, open the
+ * overlay", which made the overlay pop straight back up.
+ */
+export function markGameResumed() {
+  lastResume = performance.now();
+}
+
+export function resumedRecently(withinMs = 1000) {
+  return performance.now() - lastResume < withinMs;
 }
 
 /** True if the most recent pointer-lock release came from Buzzar's own code rather than the browser. */

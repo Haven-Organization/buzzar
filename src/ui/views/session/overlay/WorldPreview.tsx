@@ -21,6 +21,8 @@ import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { worldAtom } from "../../../state/world";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
+import { useMainThreadContext } from "../../../hooks/useMainThread";
+import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
 
 interface InviteWorldPreviewProps {
   session: Session;
@@ -119,7 +121,13 @@ export function EnterWorldButton({
 
   const { checkForUpdate, updateScene } = useUpdateScene(session, room);
 
+  const mainThread = useMainThreadContext();
   const handleLoadWorld = async () => {
+    // Buzzar: take the pointer now, while this click still counts as a user gesture (browsers only allow a lock
+    // right after one), so the world is playable the moment it appears instead of asking for another click.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    markGameResumed();
+    requestGamePointerLock(mainThread.canvas);
     exitWorld();
     navigateEnterWorld(room);
   };

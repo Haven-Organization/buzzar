@@ -16,6 +16,7 @@ import HelpIC from "../../../../../res/ic/help.svg";
 import XRIC from "../../../../../res/ic/xr.svg";
 import { Text } from "../../../atoms/text/Text";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
+import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";
 import { Thread } from "../../../../engine/module/module.common";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -89,8 +90,8 @@ export function WorldControls({
   showToast,
   isWebXRSupported,
   enterXR,
-  showNames,
-  setShowNames,
+  nameMode,
+  setNameMode,
 }: {
   className?: string;
   session: Session;
@@ -99,8 +100,8 @@ export function WorldControls({
   showToast: (text: string) => void;
   isWebXRSupported: boolean;
   enterXR: () => void;
-  showNames: boolean;
-  setShowNames: setLocalStorageItem<boolean>;
+  nameMode: NameMode;
+  setNameMode: setLocalStorageItem<NameMode>;
 }) {
   const mainThread = useMainThreadContext();
   const { navigateExitWorld } = useWorldNavigator(session);
@@ -110,12 +111,17 @@ export function WorldControls({
   const openOverlayWindow = useOpenOverlayWindow();
   const showPeople = () => openOverlayWindow({ type: OverlayWindow.People, tab: "world" });
   const toggleShortcutUI = () => setShortcutUI((state) => !state);
+  const showNames = nameMode !== "off";
+  // Buzzar: names and banners → names only → hidden.
   const toggleShowNames = useCallback(() => {
-    const enabled = !showNames;
-    setShowNames(enabled);
-    mainThread.sendMessage<NametagsEnableMessageType>(Thread.Game, { type: NametagsEnableMessage, enabled });
-    showToast(enabled ? "Show Names" : "Hide Names");
-  }, [mainThread, showNames, showToast, setShowNames]);
+    const next = nextNameMode(nameMode);
+    setNameMode(next);
+    mainThread.sendMessage<NametagsEnableMessageType>(Thread.Game, {
+      type: NametagsEnableMessage,
+      enabled: next !== "off",
+    });
+    showToast(NAME_MODE_LABEL[next]);
+  }, [mainThread, nameMode, showToast, setNameMode]);
 
   useEffect(() => {
     mainThread.sendMessage<NametagsEnableMessageType>(Thread.Game, {
@@ -177,7 +183,7 @@ export function WorldControls({
         </Text>
       </div>
       <div className="flex flex-column items-center">
-        <Tooltip content={showNames ? "Hide Names" : "Show Names"}>
+        <Tooltip content={`${NAME_MODE_LABEL[nameMode]} (N to change)`}>
           <IconButton
             variant="world"
             label="Toggle Names"

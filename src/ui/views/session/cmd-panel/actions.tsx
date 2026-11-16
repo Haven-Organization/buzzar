@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 
 import { Thread } from "../../../../engine/module/module.common";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
+import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { Header } from "../../../atoms/header/Header";
@@ -105,19 +106,23 @@ export const MuteButtonAction = ({
   return <MicExceptionDialog micException={micException} setMicException={setMicException} />;
 };
 
+/** Buzzar: N cycles names and banners → names only → hidden. */
 export const useToggleNamesAction = (
-  showNames: boolean,
-  setShowNames: (value: boolean) => void,
+  nameMode: NameMode,
+  setNameMode: (value: NameMode) => void,
   showToast?: (text: string) => void
 ) => {
   const mainThread = useMainThreadContext();
 
   const toggleShowNames = useCallback(() => {
-    const enabled = !showNames;
-    setShowNames(enabled);
-    mainThread.sendMessage<NametagsEnableMessageType>(Thread.Game, { type: NametagsEnableMessage, enabled });
-    showToast?.(enabled ? "Show Names" : "Hide Names");
-  }, [mainThread, showNames, showToast, setShowNames]);
+    const next = nextNameMode(nameMode);
+    setNameMode(next);
+    mainThread.sendMessage<NametagsEnableMessageType>(Thread.Game, {
+      type: NametagsEnableMessage,
+      enabled: next !== "off",
+    });
+    showToast?.(NAME_MODE_LABEL[next]);
+  }, [mainThread, nameMode, showToast, setNameMode]);
 
   useRegisterActions(
     [

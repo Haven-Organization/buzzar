@@ -57,6 +57,7 @@ interface NametagProps {
   groupCall: GroupCall;
   bubbles?: ChatBubble[];
   typing: boolean;
+  showBanners: boolean;
 }
 
 const ANIMATED = new Set(["image/gif", "image/webp", "image/apng"]);
@@ -106,7 +107,7 @@ function useProfileExtras(userId: string): ProfileExtras {
   return extras;
 }
 
-function Nametag({ room, nametag, groupCall, bubbles, typing }: NametagProps) {
+function Nametag({ room, nametag, groupCall, bubbles, typing, showBanners }: NametagProps) {
   const { joined } = useRoomMembers(room) ?? {};
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -155,7 +156,9 @@ function Nametag({ room, nametag, groupCall, bubbles, typing }: NametagProps) {
   const { pronouns, bannerUrl } = useProfileExtras(userId);
   // "scale", not "crop": Synapse's default crop thumbnails stop at 96x96 (blurry); scaled ones go to 800x600.
   // The card crops the image itself (background-size: cover).
-  const bannerHttp = bannerUrl ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 800, 600, "scale") : undefined;
+  // Buzzar: "Names Only" (N) hides banners but keeps the name card.
+  const bannerHttp =
+    bannerUrl && showBanners ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 800, 600, "scale") : undefined;
   const name = member?.displayName || nametag.name;
 
   return (
@@ -193,7 +196,7 @@ function Nametag({ room, nametag, groupCall, bubbles, typing }: NametagProps) {
   );
 }
 
-export function Nametags({ room, show }: { room: Room; show: boolean }) {
+export function Nametags({ room, show, showBanners = true }: { room: Room; show: boolean; showBanners?: boolean }) {
   const engine = useMainThreadContext();
   const worldId = useAtomValue(worldAtom).worldId;
 
@@ -232,6 +235,7 @@ export function Nametags({ room, show }: { room: Room; show: boolean }) {
             groupCall={groupCall as GroupCall}
             bubbles={bubbles.get(nametag.name)}
             typing={typingUsers.has(nametag.name)}
+            showBanners={showBanners}
           />
         ))}
     </div>

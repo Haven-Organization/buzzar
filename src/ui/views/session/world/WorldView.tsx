@@ -4,7 +4,13 @@ import classNames from "classnames";
 import { useAtom, useAtomValue } from "jotai";
 import { useKBar, VisualState } from "kbar";
 
-import { installPointerLockTracking, requestGamePointerLock, wasReleasedByCode } from "../../../utils/pointerLock";
+import {
+  installPointerLockTracking,
+  markGameResumed,
+  requestGamePointerLock,
+  resumedRecently,
+  wasReleasedByCode,
+} from "../../../utils/pointerLock";
 import { WorldChat } from "../world-chat/WorldChat";
 import { Stats } from "../stats/Stats";
 import { Text } from "../../../atoms/text/Text";
@@ -25,12 +31,12 @@ import { useWebXRSession } from "../../../hooks/useWebXRSession";
 import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { worldNoticeAtom } from "../../../state/worldNotice";
+import { useNameMode } from "../../../utils/nameDisplay";
 import { useWorldRules } from "../../../hooks/useWorldRules";
 import { worldAtom } from "../../../state/world";
 import { PlayerModule } from "../../../../engine/player/Player.main";
 import { HotbarControls, WorldControls } from "./WorldControls";
 import { WorldOnboarding } from "./WorldOnboarding";
-import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { WorldInteraction } from "./WorldInteraction";
 import {
   EnterWebXRAction,
@@ -49,7 +55,6 @@ import { editorEnabledAtom } from "../../../state/editor";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
 
-const SHOW_NAMES_STORE = "showNames";
 interface WorldViewProps {
   world: Room;
 }
@@ -90,6 +95,7 @@ export function WorldView({ world }: WorldViewProps) {
         !ui.overlayVisible &&
         !ui.worldChatVisible &&
         !ui.editorEnabled &&
+        !resumedRecently() &&
         !getModule(mainThread, PlayerModule).orbiting
       ) {
         setOverlayVisibility(true);
@@ -116,13 +122,14 @@ export function WorldView({ world }: WorldViewProps) {
   }, [worldNotice, setWorldNotice, showToast]);
 
   const camRigModule = getModule(mainThread, PlayerModule);
-  const [showNames, setShowNames] = useLocalStorage(SHOW_NAMES_STORE, true);
+  const [nameMode, setNameMode] = useNameMode();
+  const showNames = nameMode !== "off";
   const { isWebXRSupported, enterXR, isPresenting } = useWebXRSession();
 
   const { kbarVisible } = useKBar((state) => ({ kbarVisible: state.visualState !== VisualState.hidden }));
   useDisableInput(kbarVisible);
 
-  useToggleNamesAction(showNames, setShowNames, showToast);
+  useToggleNamesAction(nameMode, setNameMode, showToast);
   useToggleEditorAction(setEditorEnabled, canEditScene, showToast);
   useTogglePhysicsDebugAction();
   useToggleStatsAction(setStatsEnabled);
@@ -147,6 +154,8 @@ export function WorldView({ world }: WorldViewProps) {
       }
 
       if (e.key === "Escape") {
+        // Buzzar: a held Escape repeats; only the first press toggles anything.
+        if (e.repeat) return;
         if (worldChatVisible) {
           requestGamePointerLock(mainThread.canvas);
           setWorldChatVisibility(false);
@@ -162,6 +171,7 @@ export function WorldView({ world }: WorldViewProps) {
         }
 
         if (overlayVisible) {
+          markGameResumed();
           requestGamePointerLock(mainThread.canvas);
           setOverlayVisibility(false);
           return;
@@ -252,13 +262,13 @@ export function WorldView({ world }: WorldViewProps) {
             showToast={showToast}
             isWebXRSupported={isWebXRSupported}
             enterXR={enterXR}
-            showNames={showNames}
-            setShowNames={setShowNames}
+            nameMode={nameMode}
+            setNameMode={setNameMode}
           />
         </>
       )}
       {world && editorEnabled && <EditorView room={world} />}
-      {!("isBeingCreated" in world) && <Nametags room={world} show={showNames && !overlayVisible} />}
+      {!("isBeingCreated" in world) && <Nametags room={world} show={showNames && !overlayVisible} showBanners={nameMode === "all"} />}
 
       {!overlayVisible && !editorEnabled && (
         <WorldInteraction session={session} world={world} activeCall={activeCall} />

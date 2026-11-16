@@ -37,11 +37,12 @@
  * With a banner the card is at least 3:1 (MSC4427's recommended banner shape), so the image shows even for a
  * short name, and nothing darkens it; the name and pronouns get a stronger shadow of their own instead.
  */
+/* Buzzar: kept compact (it was 210x70 minimum and took up a lot of the view). */
 .Nametag__card--banner {
-  border-radius: 14px;
-  padding: 8px 14px 8px 8px;
-  min-width: 210px;
-  min-height: 70px;
+  border-radius: 10px;
+  padding: 5px 10px 5px 5px;
+  min-width: 132px;
+  min-height: 44px;
   align-items: flex-end;
   background-color: transparent;
 }
