@@ -283,6 +283,46 @@ const _r = new Vector4();
 
 const zero = new Vector3();
 
+/**
+ * Buzzar: the held object's rotation relative to the hand/camera, captured when it's grabbed. Third Room set the
+ * object to the camera's rotation every frame, so it snapped to face you the moment you picked it up (#269).
+ */
+const heldRelativeRotation = new Map<number, { eid: number; rel: quat; tick: number }>();
+const _bodyQuat = quat.create();
+const _heldQuat = quat.create();
+
+function holdRotation(
+  tick: number,
+  grabberEid: number,
+  heldEid: number,
+  body: { rotation(): { x: number; y: number; z: number; w: number } }
+) {
+  let entry = heldRelativeRotation.get(grabberEid);
+  // A new grab (another object, or not held on the previous frame) captures the rotation afresh.
+  if (!entry || entry.eid !== heldEid || tick - entry.tick > 1) {
+    const r = body.rotation();
+    quat.set(_bodyQuat, r.x, r.y, r.z, r.w);
+    const rel = quat.create();
+    quat.multiply(rel, quat.invert(quat.create(), _worldQuat), _bodyQuat);
+    entry = { eid: heldEid, rel, tick };
+    heldRelativeRotation.set(grabberEid, entry);
+  }
+  entry.tick = tick;
+  return quat.multiply(_heldQuat, _worldQuat, entry.rel);
+}
+
+/** Most speed a dropped (not thrown) object keeps from being carried (m/s), so letting go doesn't fling it (#323). */
+const MAX_DROP_SPEED = 2;
+
+function settleDroppedBody(body: { linvel(): { x: number; y: number; z: number }; setLinvel(v: Vector3, wake: boolean): void }) {
+  const v = body.linvel();
+  const speed = Math.hypot(v.x, v.y, v.z);
+  if (speed > MAX_DROP_SPEED) {
+    const k = MAX_DROP_SPEED / speed;
+    body.setLinvel(new Vector3(v.x * k, v.y * k, v.z * k), true);
+  }
+}
+
 const interactableQuery = defineQuery([Interactable]);
 
 export function ResetInteractablesSystem(ctx: GameContext) {
@@ -594,6 +634,8 @@ function updateGrabThrow(
   } else if (grabPressed && heldEntity) {
     // release
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
+    const droppedBody = getRemoteResource<RemoteNode>(ctx, heldEntity)?.physicsBody?.body;
+    if (droppedBody) settleDroppedBody(droppedBody);
 
     if (ourPlayer) {
       sendInteractionMessage(ctx, InteractableAction.Release, heldEntity);
@@ -721,7 +763,7 @@ function updateGrabThrow(
     if (body) {
       body.setLinvel(_impulse.fromArray(target), true);
       body.setAngvel(zero, true);
-      body.setRotation(_r.fromArray(_worldQuat), true);
+      body.setRotation(_r.fromArray(holdRotation(ctx.tick, rig.eid, heldNode.eid, body)), true);
     }
   }
 }
@@ -838,7 +880,7 @@ function updateGrabThrowXR(
     if (body) {
       body.setLinvel(_impulse.fromArray(target), true);
       body.setAngvel(zero, true);
-      body.setRotation(_r.fromArray(_worldQuat), true);
+      body.setRotation(_r.fromArray(holdRotation(ctx.tick, grabbingNode.eid, focusedNode.eid, body)), true);
     }
   } else {
     grabbingNode.visible = true;

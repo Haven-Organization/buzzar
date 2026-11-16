@@ -15,6 +15,9 @@ import { WorldPreviewCard } from "../../components/world-preview-card/WorldPrevi
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useHydrogen } from "../../../hooks/useHydrogen";
+import { usePowerLevels } from "../../../hooks/usePowerLevels";
+import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
+import { OverlayWindow } from "../../../state/overlayWindow";
 
 interface WorldLoadProgress {
   loaded: number;
@@ -45,6 +48,11 @@ export function WorldLoading({ world, loading, error }: { world: Room; loading: 
   const [creator, setCreator] = useState<string>();
   const { session } = useHydrogen(true);
   const { navigateEnterWorld, navigateExitWorld } = useWorldNavigator(session);
+  // Buzzar: a world without a scene (e.g. a copied room that lost its world event) can be fixed right here.
+  const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);
+  const canSetScene = canSendStateEvent("org.matrix.msc3815.world", getPowerLevel(session.userId));
+  const openOverlayWindow = useOpenOverlayWindow();
+  const missingScene = !!error && /scene does not exist/i.test(error.message);
 
   useEffect(() => {
     resetLoadProgress();
@@ -71,19 +79,31 @@ export function WorldLoading({ world, loading, error }: { world: Room; loading: 
         <div className="WorldLoading flex justify-center">
           <WorldPreviewCard
             title={world.name ?? world.canonicalAlias ?? "Unknown World"}
-            desc={error.message}
+            desc={
+              missingScene
+                ? canSetScene
+                  ? "This world has no 3D scene yet. Choose one in its settings."
+                  : "This world has no 3D scene yet. Ask its owner to set one."
+                : error.message
+            }
             options={
               <div className="flex gap-xxs">
                 <Button onClick={navigateExitWorld} fill="outline">
                   Exit
                 </Button>
-                <Button
-                  onClick={() => {
-                    navigateEnterWorld(world, { reload: true });
-                  }}
-                >
-                  Reload
-                </Button>
+                {missingScene && canSetScene ? (
+                  <Button onClick={() => openOverlayWindow({ type: OverlayWindow.WorldSettings, roomId: world.id })}>
+                    Set Scene
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      navigateEnterWorld(world, { reload: true });
+                    }}
+                  >
+                    Reload
+                  </Button>
+                )}
               </div>
             }
           />

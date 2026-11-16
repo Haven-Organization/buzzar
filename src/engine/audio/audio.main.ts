@@ -507,6 +507,15 @@ function playAudio(
   audioSource.canAutoPlay = false;
 }
 
+/**
+ * Buzzar: limits for one-shot sounds (hits, clicks, footsteps). Lots of objects bumping each other started hundreds
+ * of overlapping sounds and the audio went silent (Third Room #384): at most this many play at once, and the same
+ * source doesn't restart within a few frames.
+ */
+const MAX_ONE_SHOTS = 24;
+const MIN_ONE_SHOT_REPEAT_S = 0.04;
+const lastOneShotAt = new WeakMap<GainNode, number>();
+
 function playOneShotAudio(
   audioModule: MainAudioModule,
   audioSourceGainNode: GainNode,
@@ -514,6 +523,11 @@ function playOneShotAudio(
   gain: number,
   playbackRate: number
 ) {
+  const now = audioModule.context.currentTime;
+  if (audioModule.oneShotCount >= MAX_ONE_SHOTS) return;
+  if (now - (lastOneShotAt.get(audioSourceGainNode) ?? -1) < MIN_ONE_SHOT_REPEAT_S) return;
+  lastOneShotAt.set(audioSourceGainNode, now);
+
   if (audioData instanceof AudioBuffer) {
     const sampleSource = audioModule.context.createBufferSource();
     sampleSource.buffer = audioData;

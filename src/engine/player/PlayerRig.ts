@@ -216,6 +216,10 @@ export function addPlayerFromPeer(ctx: GameContext, eid: number, peerId: string)
         autoPlay: true,
       }),
     ],
+    // Buzzar: voices carry across a room (Third Room #358: the default 1 m / rolloff 1 made speech a tenth as loud
+    // by 10 m). About a third at 10 m and a fifth at 20 m.
+    refDistance: 2,
+    rolloffFactor: 0.5,
   });
 
   peerNode.name = peerId;
