@@ -579,6 +579,8 @@ function resolveBinds(rig: FaceRig) {
   }
 }
 
+/** Total viseme weight at which lip bones take a vowel's full shape. */
+const SHAPE_FULL_AT = 0.3;
 /** Jaw opens at most this far (degrees). */
 const JAW_MAX = 14;
 const _channels = new Float32Array(6);
@@ -601,8 +603,14 @@ function applyFace(rig: FaceRig, closed: number, visemes: ArrayLike<number> | un
 
   if (rig.jaw || rig.lips.length > 0) {
     const open = visemes ? mouthOpenness(visemes) : 0;
-    const round = visemes ? visemes[2] + 0.6 * visemes[4] : 0;
-    const wide = visemes ? visemes[3] + visemes[1] : 0;
+    // The lips take the vowel's shape fully as soon as there's voice (an "oo" is pursed however quietly it's
+    // said); only how far the mouth opens follows loudness.
+    let total = 0;
+    if (visemes) for (let i = 0; i < 5; i++) total += visemes[i];
+    const strength = Math.min(1, total / SHAPE_FULL_AT);
+    const frac = (i: number) => (total > 0 && visemes ? visemes[i] / total : 0);
+    const round = Math.min(1, frac(2) + 0.6 * frac(4)) * strength;
+    const wide = Math.min(1, frac(3) + frac(1)) * strength;
     if (rig.jaw) {
       _q.setFromAxisAngle(rig.jaw.right, open * JAW_MAX * DEG);
       rig.jaw.bone.quaternion.copy(_q).multiply(rig.jaw.rest);

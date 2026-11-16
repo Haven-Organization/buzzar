@@ -11,7 +11,8 @@
  *   ou ("oo" as in boot)  F1 ≈ 340  F2 ≈ 950, or the "fronted" oo of much English speech: F1 ≈ 400  F2 ≈ 1600
  *
  * Loudness, relative to the voice's own recent peak, decides how open the mouth is, so it opens and closes with
- * every syllable whatever the microphone gain. Each vowel also has its natural openness ("aa" wide, "ih" small).
+ * every syllable whatever the microphone gain. The values are vowel × loudness: how far each shape opens is up to
+ * the face (see mouthOpenness in face.ts), so a quiet "oo" is still clearly an "oo".
  */
 
 /** Viseme order: aa, ih, ou, ee, oh (VRM 1.0 preset names). */
@@ -25,8 +26,6 @@ const PROTOTYPES: [number, number, number][] = [
   [620, 2050, 3], // ee  bed
   [450, 850, 4], // oh  more, go
 ];
-/** How open each vowel is (multiplies loudness). */
-const VOWEL_OPENNESS = [1, 0.55, 0.6, 0.75, 0.8];
 
 const ORDER = 14;
 const DECIMATE = 4;
@@ -205,7 +204,7 @@ export class VisemeEstimator {
     this.last.formants = formants;
     if (formants) vowelWeights(formants[0], formants[1], this.lastVowel);
     const shape = formants ? 1 : 0.6;
-    for (let i = 0; i < out.length; i++) out[i] = this.lastVowel[i] * VOWEL_OPENNESS[i] * loud * shape;
+    for (let i = 0; i < out.length; i++) out[i] = this.lastVowel[i] * loud * shape;
     return out;
   }
 }
