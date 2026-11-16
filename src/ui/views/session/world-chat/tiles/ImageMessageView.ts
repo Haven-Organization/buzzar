@@ -1,6 +1,7 @@
-import { TemplateView, ImageTile, Builder, TileView } from "@thirdroom/hydrogen-view-sdk";
+import { TemplateView, ImageTile, Builder, TileView, BaseMessageTile } from "@thirdroom/hydrogen-view-sdk";
 
 import { imageSource, notifyVisibleAfterMount } from "../../chat/tiles/ChatImage";
+import { renderMediaCaption } from "../../chat/tiles/messageParts";
 import "./TextMessageView.css";
 
 /** Buzzar: images, GIFs and stickers in the in-world chat. */
@@ -25,6 +26,11 @@ export class ImageMessageView extends TemplateView<ImageTile> implements TileVie
         alt: content?.body ?? "image",
         loading: "lazy",
       }),
+      renderMediaCaption(
+        t as unknown as Builder<BaseMessageTile>,
+        vm as unknown as BaseMessageTile,
+        "Text Text-b2 Text--world Text--regular"
+      ),
     ]);
   }
   onClick() {}

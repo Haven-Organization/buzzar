@@ -8,3 +8,9 @@
     border: none;
   }
 }
+
+/* Buzzar: an image's caption (MSC2530) sits under it, as wide as the image at most. */
+.ChatImage__caption {
+  max-width: 340px;
+  margin-top: var(--sp-xxs);
+}

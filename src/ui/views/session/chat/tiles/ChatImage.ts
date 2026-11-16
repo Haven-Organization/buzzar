@@ -1,7 +1,7 @@
 import { ImageTile, Builder, BaseMessageTile } from "@thirdroom/hydrogen-view-sdk";
 
 import { ChatBaseMessage } from "./ChatBaseMessage";
-import { mediaRepositoryOf, renderReplyQuote } from "./messageParts";
+import { mediaRepositoryOf, renderMediaCaption, renderReplyQuote } from "./messageParts";
 
 import "./ChatImage.css";
 
@@ -54,6 +54,7 @@ export class ChatImage extends ChatBaseMessage {
     return t.div({ className: "ChatImage__body flex flex-column" }, [
       renderReplyQuote(t, vm, "ChatMessage__reply Text Text-b3 Text--surface-low Text--regular"),
       full ? t.a({ href: full, target: "_blank", rel: "noopener noreferrer" }, img) : img,
+      renderMediaCaption(t, vm, "ChatMessage__text ChatImage__caption"),
     ]);
   }
   onClick() {}
