@@ -488,10 +488,11 @@ export const CROUCH_POSE: PoseSpec = {
   // Buzzar: a real crouch, not a chair: thighs forward and out, shins steeply angled so the knees are ahead of
   // the feet (hips drop low and back), and the upper body leans forward with the head up to keep looking ahead.
   directions: {
-    leftUpperLeg: [0.22, -0.2, 0.95],
-    rightUpperLeg: [-0.22, -0.2, 0.95],
-    leftLowerLeg: [-0.06, -0.8, -0.6],
-    rightLowerLeg: [0.06, -0.8, -0.6],
+    // Knees out a little, shins back in, so each foot lands under its own hip.
+    leftUpperLeg: [0.14, -0.2, 0.97],
+    rightUpperLeg: [-0.14, -0.2, 0.97],
+    leftLowerLeg: [-0.14, -0.79, -0.6],
+    rightLowerLeg: [0.14, -0.79, -0.6],
   },
   bends: { spine: 28, chest: 14, neck: -24, head: -14 },
   groundFeet: true,
