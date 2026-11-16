@@ -9,10 +9,10 @@ describe("name tag profile extras", () => {
   });
 
   it("only accepts mxc banners", () => {
-    expect(parseProfileExtras({ "software.haven.banner": "mxc://hs.example/abc" }).bannerUrl).toBe(
+    expect(parseProfileExtras({ "chat.commet.profile_banner": "mxc://hs.example/abc" }).bannerUrl).toBe(
       "mxc://hs.example/abc"
     );
-    expect(parseProfileExtras({ "software.haven.banner": "https://evil.example/x.png" }).bannerUrl).toBeUndefined();
+    expect(parseProfileExtras({ "chat.commet.profile_banner": "https://evil.example/x.png" }).bannerUrl).toBeUndefined();
   });
 });
 
@@ -31,13 +31,15 @@ describe("typing notifications", () => {
   });
 });
 
-describe("banners from other clients", () => {
-  it("uses a Commet banner when there's no Buzzar one, and prefers Buzzar's", () => {
-    const commet = "mxc://glowers.club/MntSjgtaVczPTWAZoqgyqbFp";
-    expect(parseProfileExtras({ "chat.commet.profile_banner": commet })).toEqual({ bannerUrl: commet, bannerFrom: "Commet" });
-    expect(parseProfileExtras({ "chat.commet.profile_banner": commet, "software.haven.banner": "mxc://a.b/own" })).toEqual({
-      bannerUrl: "mxc://a.b/own",
+describe("banners (MSC4427)", () => {
+  it("reads the unstable chat.commet.profile_banner, preferring the stable m.banner_url", () => {
+    const unstable = "mxc://glowers.club/MntSjgtaVczPTWAZoqgyqbFp";
+    expect(parseProfileExtras({ "chat.commet.profile_banner": unstable })).toEqual({ bannerUrl: unstable });
+    expect(parseProfileExtras({ "chat.commet.profile_banner": unstable, "m.banner_url": "mxc://a.b/stable" })).toEqual({
+      bannerUrl: "mxc://a.b/stable",
     });
     expect(parseProfileExtras({ "chat.commet.profile_banner": "https://not-mxc" })).toEqual({});
+    // The old Buzzar-only field is no longer used.
+    expect(parseProfileExtras({ "software.haven.banner": "mxc://a.b/old" })).toEqual({});
   });
 });

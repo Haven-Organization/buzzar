@@ -1,22 +1,21 @@
 /**
  * Buzzar: extra profile fields shown on name tags (MSC4133 extended profiles).
  * - Pronouns: `m.pronouns` (MSC4247), or its unstable `io.fsky.nyx.pronouns`: [{ language, summary }].
- * - Banner: `software.haven.banner` (an mxc image). Matrix has no standard banner field yet, so banners set in other
- *   clients are used when there's no Buzzar one (see OTHER_BANNER_KEYS).
+ * - Banner: MSC4427 user banners, an mxc URI (horizontal, ~3:1). Written to the unstable field
+ *   `chat.commet.profile_banner`, which other clients already use; the stable `m.banner_url` is read first.
  */
 import { MatrixAuth } from "./avatarMatrix";
 
 export const PRONOUNS_KEY = "m.pronouns";
 export const PRONOUNS_UNSTABLE_KEY = "io.fsky.nyx.pronouns";
-export const BANNER_KEY = "software.haven.banner";
-/** Banner fields other Matrix clients write, read in this order when there's no Buzzar banner. */
-export const OTHER_BANNER_KEYS: { key: string; client: string }[] = [{ key: "chat.commet.profile_banner", client: "Commet" }];
+/** MSC4427 unstable banner field (what Buzzar writes). */
+export const BANNER_KEY = "chat.commet.profile_banner";
+/** MSC4427 stable banner field, read first so Buzzar keeps working once the MSC is accepted. */
+export const STABLE_BANNER_KEY = "m.banner_url";
 
 export interface ProfileExtras {
   pronouns?: string;
   bannerUrl?: string;
-  /** Set when the banner comes from another client's profile field (its name), not Buzzar's own. */
-  bannerFrom?: string;
 }
 
 const MXC = /^mxc:\/\/[A-Za-z0-9.\-:[\]]+\/[A-Za-z0-9_-]+$/;
@@ -34,17 +33,11 @@ function parsePronouns(value: unknown): string | undefined {
 export function parseProfileExtras(profile: Record<string, unknown> | undefined): ProfileExtras {
   if (!profile) return {};
   const pronouns = parsePronouns(profile[PRONOUNS_KEY]) ?? parsePronouns(profile[PRONOUNS_UNSTABLE_KEY]);
-  const asMxc = (v: unknown) => {
-    const url = typeof v === "string" ? v : v && typeof v === "object" ? (v as { url?: unknown }).url : undefined;
-    return typeof url === "string" && MXC.test(url) ? url : undefined;
-  };
-  const own = asMxc(profile[BANNER_KEY]);
-  const other = own ? undefined : OTHER_BANNER_KEYS.find(({ key }) => asMxc(profile[key]));
-  const bannerUrl = own ?? (other ? asMxc(profile[other.key]) : undefined);
+  const asMxc = (v: unknown) => (typeof v === "string" && MXC.test(v) ? v : undefined);
+  const bannerUrl = asMxc(profile[STABLE_BANNER_KEY]) ?? asMxc(profile[BANNER_KEY]);
   return {
     ...(pronouns ? { pronouns } : {}),
     ...(bannerUrl ? { bannerUrl } : {}),
-    ...(other ? { bannerFrom: other.client } : {}),
   };
 }
 
