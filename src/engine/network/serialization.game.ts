@@ -1,4 +1,4 @@
-import { addComponent } from "bitecs";
+import { addComponent, entityExists, hasComponent } from "bitecs";
 
 import {
   createCursorView,
@@ -319,6 +319,17 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
       if (dataByteLength > 0) scrollCursorView(v, dataByteLength);
       const node = createRemoteNetworkedEntity(ctx, network, nid, prefabName);
       if (check.taken) addComponent(ctx.world, TakenObject, node.eid);
+      // Buzzar: an older client's grab: now that its copy is here, remove the original it took over.
+      if (check.replacesNid !== undefined) {
+        const oldEid = network.networkIdToEntityId.get(check.replacesNid);
+        const oldNode = oldEid !== undefined ? getRemoteResource<RemoteNode>(ctx, oldEid) : undefined;
+        if (oldNode && oldEid !== node.eid) {
+          node.position.set(oldNode.position);
+          node.quaternion.set(oldNode.quaternion);
+          removeObjectFromWorld(ctx, oldNode);
+          network.networkIdToEntityId.delete(check.replacesNid);
+        }
+      }
     }
   }
 }
@@ -398,7 +409,10 @@ export function deserializeUpdatesChanged(ctx: GameContext, v: CursorView, peerI
 /* Delete */
 
 export function serializeDeletes(ctx: GameContext, v: CursorView) {
-  const entities = deletedOwnedNetworkedQuery(ctx.world);
+  // Buzzar: objects handed over to someone else left our owned query but weren't deleted.
+  const entities = deletedOwnedNetworkedQuery(ctx.world).filter(
+    (eid) => !(entityExists(ctx.world, eid) && hasComponent(ctx.world, Networked, eid))
+  );
   writeUint32(v, entities.length);
   for (let i = 0; i < entities.length; i++) {
     const eid = entities[i];

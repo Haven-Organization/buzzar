@@ -42,8 +42,8 @@ interface SpawnRulesState {
   rules: SpawnRules;
   lastReport: Map<string, number>;
   listeners: Set<() => void>;
-  /** Per peer: objects it took (prefab, when), waiting for its create of the copy. */
-  takeCredits?: Map<string, { prefab: string; at: number }[]>;
+  /** Per peer: objects it took (prefab, when, the original's ID), waiting for its create of the copy. */
+  takeCredits?: Map<string, { prefab: string; at: number; nid?: number }[]>;
 }
 
 export const SpawnRulesModule = defineModule<GameContext, SpawnRulesState>({
@@ -92,23 +92,22 @@ export function countStockObjects(ctx: GameContext, network: GameNetworkState, p
 }
 
 /** A peer took (grabbed) one of someone's objects: its next create of that type is the moved copy. */
-export function grantTakeCredit(ctx: GameContext, peerId: string, prefab: string) {
+export function grantTakeCredit(ctx: GameContext, peerId: string, prefab: string, nid?: number) {
   const module = getModule(ctx, SpawnRulesModule);
   const credits = (module.takeCredits ??= new Map());
   const list = credits.get(peerId) ?? [];
-  list.push({ prefab, at: Date.now() });
+  list.push({ prefab, at: Date.now(), nid });
   credits.set(peerId, list.slice(-20));
 }
 
-/** Uses up a matching take credit, if the peer has one. */
+/** Uses up a matching take credit, if the peer has one (returns it). */
 function consumeTakeCredit(ctx: GameContext, peerId: string, prefab: string) {
   const list = getModule(ctx, SpawnRulesModule).takeCredits?.get(peerId);
-  if (!list) return false;
+  if (!list) return undefined;
   const now = Date.now();
   const index = list.findIndex((credit) => credit.prefab === prefab && now - credit.at < TAKE_CREDIT_MS);
-  if (index < 0) return false;
-  list.splice(index, 1);
-  return true;
+  if (index < 0) return undefined;
+  return list.splice(index, 1)[0];
 }
 
 function setSpawnRules(ctx: GameContext, rules: SpawnRules) {
@@ -144,13 +143,14 @@ export function checkCreate(
   nid: number,
   prefab: string,
   knownPrefab: boolean
-): { reject?: string; taken?: boolean } {
+): { reject?: string; taken?: boolean; replacesNid?: number } {
   if (!peerOwnsNetworkId(network, peerId, nid)) return { reject: "created an object under someone else's ID" };
   if (!knownPrefab) return { reject: `spawned an unknown object type "${prefab.slice(0, 60)}"` };
   if (!STOCK.has(prefab)) return {};
   const rules = getSpawnRules(ctx);
   if (!isSpawnAllowed(rules, prefab)) return { reject: `spawned "${prefab}", which this world doesn't allow` };
-  if (consumeTakeCredit(ctx, peerId, prefab)) return { taken: true };
+  const credit = consumeTakeCredit(ctx, peerId, prefab);
+  if (credit) return { taken: true, replacesNid: credit.nid };
   const index = network.peerIdToIndex.get(peerId)!;
   if (rules.maxPerUser !== undefined && countStockObjects(ctx, network, index) >= rules.maxPerUser) {
     return { reject: `went over this world's limit of ${rules.maxPerUser} objects per person` };

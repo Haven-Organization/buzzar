@@ -15,7 +15,7 @@ import {
   RemovePeerIdMessage,
   SetHostMessage,
 } from "./network.common";
-import { deserializeRemoveOwnership } from "./ownership.game";
+import { deserializeRemoveOwnership, deserializeTakeOwnership } from "./ownership.game";
 import { createHistorian, Historian } from "./Historian";
 import {
   deserializeCreates,
@@ -142,6 +142,7 @@ export const NetworkModule = defineModule<GameContext, GameNetworkState>({
     registerInboundMessageHandler(network, NetworkAction.InformPlayerNetworkId, deserializeInformPlayerNetworkId);
     registerInboundMessageHandler(network, NetworkAction.NewPeerSnapshot, deserializeNewPeerSnapshot);
     registerInboundMessageHandler(network, NetworkAction.RemoveOwnershipMessage, deserializeRemoveOwnership);
+    registerInboundMessageHandler(network, NetworkAction.HavenTakeOwnership, deserializeTakeOwnership);
     registerInboundMessageHandler(network, NetworkAction.InformXRMode, deserializeInformXRMode);
     // Buzzar: a peer missed our creates (e.g. our snapshot arrived before it was listening): send it again, the
     // same way as to a new peer.

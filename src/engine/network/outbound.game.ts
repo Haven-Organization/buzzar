@@ -25,6 +25,8 @@ import {
   createInformXRModeMessage,
   writeMetadata,
 } from "./serialization.game";
+import { peerOwnsNetworkId } from "./spawnRules.game";
+import { wasHandedOver } from "./ownership.game";
 
 export const broadcastReliable = (ctx: GameContext, network: GameNetworkState, packet: ArrayBuffer) => {
   if (!packet.byteLength) return;
@@ -59,6 +61,11 @@ const assignNetworkIds = (ctx: GameContext) => {
   const entered = enteredNetworkIdQuery(ctx.world);
   for (let i = 0; i < entered.length; i++) {
     const eid = entered[i];
+    // Buzzar: an object we just took already got its new ID (ownership.ts takeOwnership).
+    const existing = Networked.networkId[eid];
+    if (existing && network.networkIdToEntityId.get(existing) === eid && peerOwnsNetworkId(network, network.peerId, existing)) {
+      continue;
+    }
     const nid = createNetworkId(ctx) || 0;
 
     Networked.networkId[eid] = nid;
@@ -72,6 +79,8 @@ const unassignNetworkIds = (ctx: GameContext) => {
   const exited = exitedNetworkIdQuery(ctx.world);
   for (let i = 0; i < exited.length; i++) {
     const eid = exited[i];
+    // Buzzar: handed over to someone else (still networked, under their ID): its old ID was freed then.
+    if (wasHandedOver(ctx, eid)) continue;
     console.info("networkId", Networked.networkId[eid], "deleted from eid", eid);
     removeNetworkId(ctx, Networked.networkId[eid]);
     Networked.networkId[eid] = NOOP;

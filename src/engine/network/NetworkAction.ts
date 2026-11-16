@@ -21,6 +21,8 @@ export enum NetworkAction {
   HavenResendSnapshot,
   /** Buzzar: "my avatar just changed": peers show the loading placeholder and look it up again right away. */
   HavenAvatarChanged,
+  /** Buzzar: "object <old network ID> is mine now, as <new network ID>" (grab hand-off in place). See ownership. */
+  HavenTakeOwnership,
 }
 
 export const UnreliableNetworkActions = [NetworkAction.UpdateChanged, NetworkAction.UpdateSnapshot];

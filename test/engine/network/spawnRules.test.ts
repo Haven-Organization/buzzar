@@ -13,7 +13,7 @@ import { getModule } from "../../../src/engine/module/module.common";
 import { NetworkModule } from "../../../src/engine/network/network.game";
 import { Networked } from "../../../src/engine/network/NetworkComponents";
 import { deserializeCreates, deserializeUpdatesChanged } from "../../../src/engine/network/serialization.game";
-import { deserializeRemoveOwnership } from "../../../src/engine/network/ownership.game";
+import { deserializeRemoveOwnership, deserializeTakeOwnership } from "../../../src/engine/network/ownership.game";
 import { SpawnRulesModule } from "../../../src/engine/network/spawnRules.game";
 import { PrefabType, registerPrefab } from "../../../src/engine/prefab/prefab.game";
 import { RemoteNode } from "../../../src/engine/resource/RemoteResources";
@@ -144,8 +144,51 @@ describe("Buzzar spawn rules and ownership", () => {
     deserializeCreates(ctx, creates([[nid(2, 2), "small-crate"]]), MALLORY);
     strictEqual(network.networkIdToEntityId.has(nid(2, 2)), true);
 
+    // Her copy replaced Alice's original.
+    strictEqual(network.networkIdToEntityId.has(nid(1, 1)), false);
+
     // The credit is used up: a further spawn of her own is still over the limit.
     deserializeCreates(ctx, creates([[nid(2, 3), "small-crate"]]), MALLORY);
     strictEqual(network.networkIdToEntityId.has(nid(2, 3)), false);
+  });
+
+  it("ignores a bare 'remove ownership' (it can't delete objects without the taker's copy)", () => {
+    const { ctx, network } = setup();
+    deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
+    const msg = createCursorView();
+    writeUint32(msg, nid(1, 1));
+    deserializeRemoveOwnership(ctx, createCursorView(msg.buffer), MALLORY);
+    strictEqual(network.networkIdToEntityId.has(nid(1, 1)), true);
+  });
+
+  it("hands an object over in place: same entity, new owner, not counted against the taker", () => {
+    const { ctx, network } = setup();
+    getModule(ctx, SpawnRulesModule).rules = { maxPerUser: 1 };
+    deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
+    deserializeCreates(ctx, creates([[nid(2, 1), "small-crate"]]), MALLORY);
+    const eid = network.networkIdToEntityId.get(nid(1, 1))!;
+
+    const take = createCursorView();
+    writeUint32(take, nid(1, 1));
+    writeUint32(take, nid(2, 2));
+    deserializeTakeOwnership(ctx, createCursorView(take.buffer), MALLORY);
+
+    strictEqual(network.networkIdToEntityId.has(nid(1, 1)), false);
+    strictEqual(network.networkIdToEntityId.get(nid(2, 2)), eid);
+    strictEqual(Networked.networkId[eid], nid(2, 2));
+    // Mallory's later Create for the same ID (sent for older clients) doesn't make a second copy.
+    deserializeCreates(ctx, creates([[nid(2, 2), "small-crate"]]), MALLORY);
+    strictEqual(network.networkIdToEntityId.get(nid(2, 2)), eid);
+  });
+
+  it("refuses a take under someone else's ID", () => {
+    const { ctx, network } = setup();
+    deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
+    const take = createCursorView();
+    writeUint32(take, nid(1, 1));
+    writeUint32(take, nid(1, 9)); // Alice's index, sent by Mallory
+    deserializeTakeOwnership(ctx, createCursorView(take.buffer), MALLORY);
+    strictEqual(network.networkIdToEntityId.has(nid(1, 1)), true);
+    strictEqual(network.networkIdToEntityId.has(nid(1, 9)), false);
   });
 });

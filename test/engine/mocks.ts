@@ -75,6 +75,8 @@ export const mockNetworkState = () => ({
   peerIdToIndex: new Map(),
   deferredUpdates: new Map(),
   unknownEntityPeers: new Set(),
+  indexToPeerId: new Map(),
+  peerIdToHistorian: new Map(),
 });
 
 export const mockResourceModule = () => ({
