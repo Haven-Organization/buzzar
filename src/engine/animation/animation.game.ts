@@ -125,9 +125,6 @@ function processAnimations(ctx: GameContext) {
     const body = parent.physicsBody?.body;
 
     if (animation && body) {
-      // collectively fade all animations out each frame
-      reduceClipActionWeights(animation.actions, fadeOutAmount * ctx.dt);
-
       // select actions to play based on velocity
       const sitAction = SeatedEntities.has(parent.eid) ? animation.actionMap.get(AnimationClipType.Sit) : undefined;
       // Buzzar: crouching layers a pose on top of the locomotion clips; prone replaces them.
@@ -146,8 +143,22 @@ function processAnimations(ctx: GameContext) {
           ? animation.actionMap.get(AnimationClipType.Crouch)
           : undefined;
       if (crouchAction) actionsToPlay = [...actionsToPlay, crouchAction];
-      // fade in selected animations
-      increaseClipActionWeights(actionsToPlay, fadeInAmount * ctx.dt);
+      // Buzzar: a still crouch stays still. The crouch pose is layered on idle, whose breathing/sway made the
+      // crouched body drift; hold idle on its first frame (the one the crouch pose was built against) meanwhile.
+      const idleAction = animation.actionMap.get(AnimationClipType.Idle);
+      if (idleAction) {
+        const holdIdle = !!crouchAction && actionsToPlay.includes(idleAction);
+        if (holdIdle) {
+          idleAction.time = 0;
+          idleAction.timeScale = 0;
+        } else if (idleAction.timeScale === 0) {
+          idleAction.timeScale = 1;
+        }
+      }
+      // Buzzar: move each action's weight towards its target (1 if selected, 0 otherwise) and stop there. Fading
+      // everything out and the selection back in every frame left weights bouncing around 1 (and past it); fine
+      // for walk/idle, but it made the additive crouch pose shake visibly.
+      settleClipActionWeights(animation.actions, actionsToPlay, fadeInAmount * ctx.dt, fadeOutAmount * ctx.dt);
 
       animation.mixer.update(ctx.dt);
     }
@@ -173,15 +184,18 @@ function syncBones(ctx: GameContext) {
   return ctx;
 }
 
-function reduceClipActionWeights(actions: AnimationAction[], amount: number) {
+function settleClipActionWeights(
+  actions: AnimationAction[],
+  selected: AnimationAction[],
+  fadeIn: number,
+  fadeOut: number
+) {
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
-
-    if (action.weight > 0) {
-      action.weight -= amount;
-    } else {
-      action.enabled = false;
-    }
+    const target = selected.includes(action) ? 1 : 0;
+    const delta = target - action.weight;
+    action.weight = delta > 0 ? Math.min(1, action.weight + Math.min(delta, fadeIn)) : Math.max(0, action.weight + Math.max(delta, -fadeOut));
+    action.enabled = action.weight > 0 || target > 0;
   }
 }
 
@@ -196,16 +210,6 @@ function synchronizeClipActions(actions: AnimationAction[]) {
       } else {
         actionA.time = actionB.time * ratio;
       }
-    }
-  }
-}
-
-function increaseClipActionWeights(actions: AnimationAction[], amount: number) {
-  for (let i = 0; i < actions.length; i++) {
-    const action = actions[i];
-    action.enabled = true;
-    if (action.weight < 1) {
-      action.weight += amount;
     }
   }
 }

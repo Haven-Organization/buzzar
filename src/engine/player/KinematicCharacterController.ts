@@ -3,6 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { RawCharacterCollision } from "@dimforge/rapier3d-compat/raw";
 import { Quaternion, Vector3 } from "three";
 
+import { getCamera } from "./getCamera";
 import { localPosture, Posture, POSTURE_SPEED } from "./posture.common";
 import { SeatedEntities } from "../animation/animation.game";
 import { GameContext } from "../GameTypes";
@@ -461,6 +462,20 @@ function logPlayerDebug(ctx: GameContext) {
       moveVec: moveVec ? Array.from(moveVec) : null,
       grounded: controller?.computedGrounded(),
       hasController: !!controller,
+      // Buzzar debug: camera anchor (local) and camera (world) height, to chase camera shake.
+      camera: (() => {
+        try {
+          const camera = getCamera(ctx, node);
+          const anchor = camera.parent;
+          return {
+            anchorLocal: anchor ? Array.from(anchor.position).map((v) => +v.toFixed(3)) : null,
+            cameraLocal: Array.from(camera.position).map((v) => +v.toFixed(3)),
+            cameraWorldY: +camera.worldMatrix[13].toFixed(3),
+          };
+        } catch {
+          return null;
+        }
+      })(),
       // Buzzar debug: total colliders in the physics world (leaks show up as growth across world switches).
       worldColliders: physics.physicsWorld.colliders.len(),
       // Buzzar: non-fixed bodies within 5 m (crates, balls), to see what moves them.

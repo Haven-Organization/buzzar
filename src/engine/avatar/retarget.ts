@@ -485,14 +485,15 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
  * top of walking/idle (additively), so the avatar walks crouched.
  */
 export const CROUCH_POSE: PoseSpec = {
+  // Buzzar: a real crouch, not a chair: thighs forward and out, shins steeply angled so the knees are ahead of
+  // the feet (hips drop low and back), and the upper body leans forward with the head up to keep looking ahead.
   directions: {
-    leftUpperLeg: [0.14, -0.42, 0.9],
-    rightUpperLeg: [-0.14, -0.42, 0.9],
-    // Knees out a little, shins angled back in so the feet stay under the hips.
-    leftLowerLeg: [-0.12, -0.93, -0.36],
-    rightLowerLeg: [0.12, -0.93, -0.36],
+    leftUpperLeg: [0.22, -0.2, 0.95],
+    rightUpperLeg: [-0.22, -0.2, 0.95],
+    leftLowerLeg: [-0.06, -0.8, -0.6],
+    rightLowerLeg: [0.06, -0.8, -0.6],
   },
-  bends: { spine: 16, chest: 8, neck: -14, head: -8 },
+  bends: { spine: 28, chest: 14, neck: -24, head: -14 },
   groundFeet: true,
 };
 
