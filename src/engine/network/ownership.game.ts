@@ -14,7 +14,7 @@ import { broadcastReliable } from "./outbound.game";
 import { writeMetadata } from "./serialization.game";
 import { applyTransformToRigidBody } from "../physics/physics.game";
 import { takeSceneGrabbable } from "../../plugins/scene-grabbables/grabbables.game";
-import { canTakeObject, reportViolation } from "./spawnRules.game";
+import { canTakeObject, grantTakeCredit, reportViolation, TakenObject } from "./spawnRules.game";
 
 // const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 3));
 const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 30));
@@ -40,6 +40,9 @@ export const deserializeRemoveOwnership = (ctx: GameContext, cv: CursorView, pee
   }
   const node = eid ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
   if (node) {
+    // Buzzar: the taker's copy of this object (sent next) doesn't count toward its per-person limit.
+    const prefab = Prefab.get(node.eid);
+    if (peerId && prefab) grantTakeCredit(ctx, peerId, prefab);
     removeObjectFromWorld(ctx, node);
   }
 };
@@ -68,6 +71,8 @@ export const takeOwnership = (ctx: GameContext, network: GameNetworkState, oldNo
 
     addComponent(ctx.world, Owned, newNode.eid);
     addComponent(ctx.world, Networked, newNode.eid);
+    // Buzzar: taken, not spawned, so it doesn't count toward our own per-person limit either.
+    addComponent(ctx.world, TakenObject, newNode.eid);
 
     const body = newNode.physicsBody?.body;
     if (!body) throw new Error("Physics body not found for eid: " + eid);

@@ -46,7 +46,7 @@ import { addObjectToWorld, RemoteNode, removeObjectFromWorld } from "../resource
 import { XRMode } from "../renderer/renderer.common";
 import { getReplicator } from "./Replicator";
 import { addPlayerFromPeer } from "../player/PlayerRig";
-import { peerOwnsNetworkId, rejectCreate, reportViolation } from "./spawnRules.game";
+import { checkCreate, peerOwnsNetworkId, reportViolation, TakenObject } from "./spawnRules.game";
 
 // ad-hoc messages view
 const messageView = createCursorView(new ArrayBuffer(10000));
@@ -299,10 +299,10 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
     const replicator = getReplicator(network, prefabName);
 
     // Buzzar: only accept objects the sender owns, of known types, within the world's rules.
-    const rejected = rejectCreate(ctx, network, peerId, nid, prefabName, !!replicator || hasPrefabTemplate(ctx, prefabName));
-    if (rejected) {
+    const check = checkCreate(ctx, network, peerId, nid, prefabName, !!replicator || hasPrefabTemplate(ctx, prefabName));
+    if (check.reject) {
       scrollCursorView(v, dataByteLength);
-      reportViolation(ctx, peerId, rejected);
+      reportViolation(ctx, peerId, check.reject);
       continue;
     }
 
@@ -317,7 +317,8 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
       network.deferredUpdates.set(nid, []);
     } else {
       if (dataByteLength > 0) scrollCursorView(v, dataByteLength);
-      createRemoteNetworkedEntity(ctx, network, nid, prefabName);
+      const node = createRemoteNetworkedEntity(ctx, network, nid, prefabName);
+      if (check.taken) addComponent(ctx.world, TakenObject, node.eid);
     }
   }
 }

@@ -20,7 +20,12 @@ import {
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
 import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
-import { getSpawnRules, isSpawnAllowed, isStockSpawnable } from "../../engine/network/spawnRules.game";
+import {
+  getSpawnRules,
+  isSpawnAllowed,
+  isStockSpawnable,
+  TakenObject,
+} from "../../engine/network/spawnRules.game";
 import {
   addObjectToWorld,
   RemoteAudioData,
@@ -341,7 +346,7 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   let ownedStock = 0;
   for (let i = 0; i < ownedEnts.length; i++) {
     const prefab = Prefab.get(ownedEnts[i]);
-    if (prefab && isStockSpawnable(prefab)) ownedStock++;
+    if (prefab && isStockSpawnable(prefab) && !hasComponent(ctx.world, TakenObject, ownedEnts[i])) ownedStock++;
   }
   // bounce out of the function if we hit the max object cap
   if (ownedStock >= limit) {

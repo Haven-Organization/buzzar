@@ -6,7 +6,7 @@
  * only spawn stock objects the world allows, up to the per-person limit. Anything else is dropped (so a modified
  * client only sees its junk on its own screen) and reported to the UI, which tells moderators.
  */
-import { hasComponent } from "bitecs";
+import { defineComponent, hasComponent } from "bitecs";
 
 import { GameContext } from "../GameTypes";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
@@ -29,11 +29,21 @@ const STOCK = new Set<string>(STOCK_SPAWNABLES);
 const PLAYER_PREFABS = new Set(["avatar", "xr-head", "xr-hand-left", "xr-hand-right", "xr-ray"]);
 /** Report the same peer and reason at most this often (ms). */
 const REPORT_INTERVAL = 10000;
+/** How long a peer's "I took this object" credit waits for the matching create (ms). */
+const TAKE_CREDIT_MS = 10000;
+
+/**
+ * An object someone took from another player (grabbed it). It doesn't count toward the taker's per-person limit:
+ * taking moves an object between people, it doesn't add one. A component, so it goes away with the entity.
+ */
+export const TakenObject = defineComponent();
 
 interface SpawnRulesState {
   rules: SpawnRules;
   lastReport: Map<string, number>;
   listeners: Set<() => void>;
+  /** Per peer: objects it took (prefab, when), waiting for its create of the copy. */
+  takeCredits?: Map<string, { prefab: string; at: number }[]>;
 }
 
 export const SpawnRulesModule = defineModule<GameContext, SpawnRulesState>({
@@ -69,15 +79,36 @@ export function isSpawnAllowed(rules: SpawnRules, prefab: string) {
   return !STOCK.has(prefab) || !rules.allowed || rules.allowed.includes(prefab);
 }
 
-/** Stock objects currently out that belong to a peer index. */
-export function countStockObjects(network: GameNetworkState, peerIndex: number) {
+/** Stock objects a peer index spawned (not ones it took from others) that are currently out. */
+export function countStockObjects(ctx: GameContext, network: GameNetworkState, peerIndex: number) {
   let count = 0;
   for (const [nid, eid] of network.networkIdToEntityId) {
     if (getPeerIndexFromNetworkId(nid) !== peerIndex) continue;
+    if (hasComponent(ctx.world, TakenObject, eid)) continue;
     const prefab = Prefab.get(eid);
     if (prefab && STOCK.has(prefab)) count++;
   }
   return count;
+}
+
+/** A peer took (grabbed) one of someone's objects: its next create of that type is the moved copy. */
+export function grantTakeCredit(ctx: GameContext, peerId: string, prefab: string) {
+  const module = getModule(ctx, SpawnRulesModule);
+  const credits = (module.takeCredits ??= new Map());
+  const list = credits.get(peerId) ?? [];
+  list.push({ prefab, at: Date.now() });
+  credits.set(peerId, list.slice(-20));
+}
+
+/** Uses up a matching take credit, if the peer has one. */
+function consumeTakeCredit(ctx: GameContext, peerId: string, prefab: string) {
+  const list = getModule(ctx, SpawnRulesModule).takeCredits?.get(peerId);
+  if (!list) return false;
+  const now = Date.now();
+  const index = list.findIndex((credit) => credit.prefab === prefab && now - credit.at < TAKE_CREDIT_MS);
+  if (index < 0) return false;
+  list.splice(index, 1);
+  return true;
 }
 
 function setSpawnRules(ctx: GameContext, rules: SpawnRules) {
@@ -102,25 +133,29 @@ export function peerOwnsNetworkId(network: GameNetworkState, peerId: string | un
   return index !== undefined && getPeerIndexFromNetworkId(nid) === index;
 }
 
-/** Why a peer's create can't be accepted, or undefined if it can. */
-export function rejectCreate(
+/**
+ * Whether a peer's create can be accepted: `reject` says why not; `taken` means it's the copy of an object the peer
+ * just took from someone (exempt from the per-person limit; mark it TakenObject once created).
+ */
+export function checkCreate(
   ctx: GameContext,
   network: GameNetworkState,
   peerId: string,
   nid: number,
   prefab: string,
   knownPrefab: boolean
-): string | undefined {
-  if (!peerOwnsNetworkId(network, peerId, nid)) return "created an object under someone else's ID";
-  if (!knownPrefab) return `spawned an unknown object type "${prefab.slice(0, 60)}"`;
-  if (!STOCK.has(prefab)) return undefined;
+): { reject?: string; taken?: boolean } {
+  if (!peerOwnsNetworkId(network, peerId, nid)) return { reject: "created an object under someone else's ID" };
+  if (!knownPrefab) return { reject: `spawned an unknown object type "${prefab.slice(0, 60)}"` };
+  if (!STOCK.has(prefab)) return {};
   const rules = getSpawnRules(ctx);
-  if (!isSpawnAllowed(rules, prefab)) return `spawned "${prefab}", which this world doesn't allow`;
+  if (!isSpawnAllowed(rules, prefab)) return { reject: `spawned "${prefab}", which this world doesn't allow` };
+  if (consumeTakeCredit(ctx, peerId, prefab)) return { taken: true };
   const index = network.peerIdToIndex.get(peerId)!;
-  if (rules.maxPerUser !== undefined && countStockObjects(network, index) >= rules.maxPerUser) {
-    return `went over this world's limit of ${rules.maxPerUser} objects per person`;
+  if (rules.maxPerUser !== undefined && countStockObjects(ctx, network, index) >= rules.maxPerUser) {
+    return { reject: `went over this world's limit of ${rules.maxPerUser} objects per person` };
   }
-  return undefined;
+  return {};
 }
 
 /** Whether a peer may take (grab) the object `eid` from its owner. Never a player's rig. */

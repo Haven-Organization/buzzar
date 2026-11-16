@@ -13,6 +13,7 @@ import { getModule } from "../../../src/engine/module/module.common";
 import { NetworkModule } from "../../../src/engine/network/network.game";
 import { Networked } from "../../../src/engine/network/NetworkComponents";
 import { deserializeCreates, deserializeUpdatesChanged } from "../../../src/engine/network/serialization.game";
+import { deserializeRemoveOwnership } from "../../../src/engine/network/ownership.game";
 import { SpawnRulesModule } from "../../../src/engine/network/spawnRules.game";
 import { PrefabType, registerPrefab } from "../../../src/engine/prefab/prefab.game";
 import { RemoteNode } from "../../../src/engine/resource/RemoteResources";
@@ -128,5 +129,23 @@ describe("Buzzar spawn rules and ownership", () => {
 
     strictEqual(Networked.position[aliceEid][0], 0);
     strictEqual(Networked.position[malloryEid][0], 42);
+  });
+
+  it("lets a player at the limit take (grab) someone else's object without it being refused", () => {
+    const { ctx, network } = setup();
+    getModule(ctx, SpawnRulesModule).rules = { maxPerUser: 1 };
+    deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
+    deserializeCreates(ctx, creates([[nid(2, 1), "small-crate"]]), MALLORY); // Mallory is at her limit
+
+    // Mallory grabs Alice's crate: "remove ownership" of Alice's copy, then a create of her own copy.
+    const take = createCursorView();
+    writeUint32(take, nid(1, 1));
+    deserializeRemoveOwnership(ctx, createCursorView(take.buffer), MALLORY);
+    deserializeCreates(ctx, creates([[nid(2, 2), "small-crate"]]), MALLORY);
+    strictEqual(network.networkIdToEntityId.has(nid(2, 2)), true);
+
+    // The credit is used up: a further spawn of her own is still over the limit.
+    deserializeCreates(ctx, creates([[nid(2, 3), "small-crate"]]), MALLORY);
+    strictEqual(network.networkIdToEntityId.has(nid(2, 3)), false);
   });
 });
