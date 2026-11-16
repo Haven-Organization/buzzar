@@ -14,6 +14,7 @@ import { enterWorld, loadWorld, reloadWorld } from "../../plugins/thirdroom/thir
 import { worldAtom } from "../state/world";
 import { makeWorldNotice, worldNoticeAtom } from "../state/worldNotice";
 import { scriptPolicy } from "../utils/scriptSettings";
+import { removeStaleCallMemberships } from "../utils/callCleanup";
 import { useHydrogen } from "./useHydrogen";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
@@ -108,6 +109,30 @@ export function useWorldLoader(): WorldLoader {
         registerMatrixNetworkInterface(matrixNetworkInterface);
 
         await enterWorld(mainThread, session.userId);
+
+        // Buzzar: drop this device from other worlds' calls it never left (reloads, closing the app), so people
+        // don't see you in several worlds at once. Best effort, in the background.
+        if (auth) {
+          const deviceId = session.sessionInfo.deviceId;
+          // Only rooms whose (locally synced) call state still lists this device.
+          Promise.all(
+            [...session.rooms.values()]
+              .filter((room) => room.type === "org.matrix.msc3815.world" && room.id !== world.id)
+              .map(async (room) => {
+                const observable = await room.observeStateTypeAndKey("org.matrix.msc3401.call.member", session.userId);
+                const content = observable.get()?.content as
+                  | { "m.calls"?: { "m.devices"?: { device_id?: string }[] }[] }
+                  | undefined;
+                const listed = content?.["m.calls"]?.some((call) =>
+                  call["m.devices"]?.some((device) => device.device_id === deviceId)
+                );
+                return listed ? room.id : undefined;
+              })
+          )
+            .then((ids) => ids.filter((id): id is string => !!id))
+            .then((ids) => removeStaleCallMemberships(auth, session.userId, deviceId, ids, world.id))
+            .catch(() => undefined);
+        }
 
         const audio = getModule(mainThread, AudioModule);
         audio.context.resume().catch(() => console.error("Couldn't resume audio context"));
