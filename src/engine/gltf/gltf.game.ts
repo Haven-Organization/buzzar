@@ -171,6 +171,12 @@ export async function loadGLTF(ctx: GameContext, uri: string, options?: LoadGLTF
     refCount: 1,
   });
 
+  // Buzzar: don't keep a failed load cached. Otherwise one interrupted download (e.g. a 22 MB avatar cut off
+  // mid-transfer) made every later load of that URL fail instantly, for the rest of the session.
+  promise.catch(() => {
+    if (resourceManager.gltfCache.get(url.href)?.promise === promise) resourceManager.gltfCache.delete(url.href);
+  });
+
   return promise;
 }
 

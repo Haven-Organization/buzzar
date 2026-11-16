@@ -111,6 +111,8 @@ interface DesiredAvatar {
 /** How long to show "Looking up avatar…" for a newly joined player before falling back to the default. */
 const LOOKUP_TIMEOUT_MS = 15_000;
 const ERROR_DISPLAY_MS = 4_000;
+const MAX_AVATAR_RETRIES = 3;
+const AVATAR_RETRY_BASE_MS = 5_000;
 
 interface AvatarModuleState {
   /** peerId → avatar the main thread resolved for them */
@@ -119,6 +121,8 @@ interface AvatarModuleState {
   applied: WeakMap<RemoteNode, string | undefined>;
   /** containers with a swap in flight */
   loading: WeakSet<RemoteNode>;
+  /** Failed loads per container, for retrying with backoff. */
+  failures: WeakMap<RemoteNode, { url: string | undefined; attempts: number }>;
   /** containers waiting for the main thread to resolve their avatar → since when */
   lookupSince: WeakMap<RemoteNode, number>;
   sourceRig?: Promise<SourceRig>;
@@ -127,7 +131,13 @@ interface AvatarModuleState {
 export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
   name: "avatar",
   create() {
-    return { desired: new Map(), applied: new WeakMap(), loading: new WeakSet(), lookupSince: new WeakMap() };
+    return {
+      desired: new Map(),
+      applied: new WeakMap(),
+      loading: new WeakSet(),
+      failures: new WeakMap(),
+      lookupSince: new WeakMap(),
+    };
   },
   init(ctx) {
     return registerMessageHandler(ctx, SetPeerAvatarMessage, onSetPeerAvatar);
@@ -198,8 +208,26 @@ export function AvatarSystem(ctx: GameContext) {
       .catch((error) => {
         console.error(`Failed to load avatar for ${peerId}:`, error);
         sendStatus(ctx, { peerId, url, status: "error", reason: String(error?.message ?? error) });
-        setAvatarPlaceholderProgress(container, undefined, "Couldn't load this avatar");
+        // Buzzar: retry failed downloads (dropped connections, server hiccups) a few times with backoff instead
+        // of leaving the default avatar for the rest of the session.
+        const failure = avatars.failures.get(container);
+        const attempts = failure && failure.url === url ? failure.attempts + 1 : 1;
+        avatars.failures.set(container, { url, attempts });
+        const retrying = attempts <= MAX_AVATAR_RETRIES;
+        setAvatarPlaceholderProgress(
+          container,
+          undefined,
+          retrying ? "Couldn't load, retrying…" : "Couldn't load this avatar"
+        );
         hideAvatarPlaceholder(ctx, container, ERROR_DISPLAY_MS);
+        if (retrying) {
+          setTimeout(() => {
+            // Forget it was applied so the next AvatarSystem pass loads it again (if still wanted).
+            if (avatars.applied.get(container) === url && !avatars.loading.has(container)) {
+              avatars.applied.delete(container);
+            }
+          }, AVATAR_RETRY_BASE_MS * 2 ** (attempts - 1));
+        }
       })
       .finally(() => {
         if (avatars.applied.get(container) === url) avatars.loading.delete(container);
@@ -443,6 +471,7 @@ async function swapAvatar(
   hideRigWhileLoading(container, rig);
   hideAvatarPlaceholder(ctx, container);
 
+  avatars.failures.delete(container);
   sendStatus(ctx, { peerId, url, status: "loaded" });
 }
 
