@@ -4,6 +4,7 @@ import { Member, Room, RoomMember } from "@thirdroom/hydrogen-view-sdk";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { IconButton } from "../../../atoms/button/IconButton";
+import { Button } from "../../../atoms/button/Button";
 import CrossIC from ".././../../../../res/ic/cross.svg";
 import AddUserIC from ".././../../../../res/ic/add-user.svg";
 import VolumeUpIC from ".././../../../../res/ic/volume-up.svg";
@@ -37,7 +38,9 @@ import { setPowerLevel } from "../../../utils/matrixUtils";
 
 interface MemberListDialogProps {
   room: Room;
-  requestClose: () => void;
+  requestClose?: () => void;
+  /** Buzzar: shown inside the People screen (no title or close button, fills the space). */
+  embedded?: boolean;
 }
 
 type SpeakingRoomMember = Member & { volumeDetector: { isSpeaking: boolean } };
@@ -60,7 +63,7 @@ function ActiveMemberTile({
   return <>{members.map((member) => renderTile(member, isSpeaking(member.userId)))}</>;
 }
 
-export function MemberListDialog({ room, requestClose }: MemberListDialogProps) {
+export function MemberListDialog({ room, requestClose, embedded }: MemberListDialogProps) {
   const { session, platform } = useHydrogen(true);
 
   const { active: callMembersActive, invited, joined, leaved, banned } = useRoomMembers(room) ?? {};
@@ -236,21 +239,28 @@ export function MemberListDialog({ room, requestClose }: MemberListDialogProps) 
 
   return (
     <>
+      {(!embedded || canDoAction("invite", myPL)) && (
       <Header
-        left={<HeaderTitle size="lg">Members</HeaderTitle>}
-        right={
-          <div className="flex gap-sm">
-            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-              <InviteDialog roomId={room.id} requestClose={() => setInviteOpen(false)} />
-            </Dialog>
-            {canDoAction("invite", myPL) && (
-              <IconButton iconSrc={AddUserIC} onClick={() => setInviteOpen(true)} label="Invite" />
-            )}
-            <IconButton iconSrc={CrossIC} onClick={requestClose} label="Close" />
-          </div>
-        }
-      />
-      <div className="flex" style={{ height: "600px" }}>
+          left={embedded ? <span /> : <HeaderTitle size="lg">Members</HeaderTitle>}
+          right={
+            <div className="flex gap-sm">
+              <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                <InviteDialog roomId={room.id} requestClose={() => setInviteOpen(false)} />
+              </Dialog>
+              {canDoAction("invite", myPL) &&
+                (embedded ? (
+                  <Button size="sm" fill="outline" onClick={() => setInviteOpen(true)}>
+                    Invite to World
+                  </Button>
+                ) : (
+                  <IconButton iconSrc={AddUserIC} onClick={() => setInviteOpen(true)} label="Invite" />
+                ))}
+              {!embedded && requestClose && <IconButton iconSrc={CrossIC} onClick={requestClose} label="Close" />}
+            </div>
+          }
+        />
+      )}
+      <div className="flex" style={embedded ? { flexGrow: 1, minHeight: 0 } : { height: "600px" }}>
         {joined === undefined ? (
           <div className="grow flex items-center justify-center">
             <Dots size="lg" />

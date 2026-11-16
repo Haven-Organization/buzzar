@@ -217,7 +217,7 @@ export function WorldView({ world }: WorldViewProps) {
         </div>
       )}
       <MuteButtonAction activeCall={activeCall} showToast={showToast} />
-      <MembersDialogAction world={world} />
+      <MembersDialogAction />
       <ShortcutDialogAction />
       {isWebXRSupported && <EnterWebXRAction enter={enterXR} />}
 

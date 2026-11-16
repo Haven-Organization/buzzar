@@ -1,4 +1,4 @@
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 
 import AddIC from "../../../../../res/ic/add.svg";
 import { Text } from "../../../atoms/text/Text";
@@ -11,11 +11,9 @@ import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { useDialog } from "../../../hooks/useDialog";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
-import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 
 export function RoomListHeader() {
   const sidebarTab = useAtomValue(sidebarTabAtom);
-  const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const { open, setOpen, openDialog, closeDialog } = useDialog(false);
   const {
     open: openJoin,
@@ -26,37 +24,27 @@ export function RoomListHeader() {
 
   return (
     <header className="RoomListHeader shrink-0 flex items-center gap-xs">
-      {sidebarTab === SidebarTab.Home && (
+      {sidebarTab === SidebarTab.Chat && (
         <>
           <Text className="grow truncate" variant="s2" weight="semi-bold">
-            Home
+            Chat
           </Text>
           <Dialog open={openJoin} onOpenChange={setJoinOpen}>
             <JoinWithAliasDialog requestClose={closeJoinDialog} />
           </Dialog>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DmDialog requestClose={closeDialog} />
+          </Dialog>
           <DropdownMenu
             content={
               <>
-                <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.CreateWorld })}>
-                  Create World
-                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={openDialog}>Direct Message</DropdownMenuItem>
                 <DropdownMenuItem onSelect={openJoinDialog}>Join with Alias</DropdownMenuItem>
               </>
             }
           >
             <IconButton label="Add" iconSrc={AddIC} />
           </DropdownMenu>
-        </>
-      )}
-      {sidebarTab === SidebarTab.Friends && (
-        <>
-          <Text className="grow truncate" variant="s2" weight="semi-bold">
-            Friends
-          </Text>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DmDialog requestClose={closeDialog} />
-          </Dialog>
-          <IconButton onClick={openDialog} label="Direct Message" iconSrc={AddIC} />
         </>
       )}
       {sidebarTab === SidebarTab.Notifications && (

@@ -21,8 +21,7 @@ import { WorldPreview } from "./WorldPreview";
 import { CreateWorld } from "../create-world/CreateWorld";
 import { UserProfile } from "../user-profile/UserProfile";
 import { useRoom } from "../../../hooks/useRoom";
-import { RoomListHome } from "../sidebar/RoomListHome";
-import { RoomListFriends } from "../sidebar/RoomListFriends";
+import { RoomListChat } from "../sidebar/RoomListChat";
 import { useInvite } from "../../../hooks/useInvite";
 import { WorldSettings } from "../world-settings/WorldSettings";
 import { RoomListNotifications } from "../sidebar/RoomListNotifications";
@@ -30,7 +29,9 @@ import { NowPlayingWorld } from "./NowPlayingWorld";
 import { NowPlayingControls } from "./NowPlayingControls";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
-import { ExploreView } from "../explore/ExploreView";
+import { WorldsView } from "../worlds/WorldsView";
+import { AvatarsView } from "../avatars/AvatarsView";
+import { PeopleView } from "../people/PeopleView";
 import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { SidebarTab, sidebarTabAtom } from "../../../state/sidebarTab";
@@ -77,8 +78,7 @@ export function Overlay() {
               header={<RoomListHeader />}
               content={
                 <RoomListContent>
-                  {sidebarTab === SidebarTab.Home && <RoomListHome groupCalls={groupCalls} />}
-                  {sidebarTab === SidebarTab.Friends && <RoomListFriends />}
+                  {sidebarTab === SidebarTab.Chat && <RoomListChat />}
                   {sidebarTab === SidebarTab.Notifications && <RoomListNotifications />}
                 </RoomListContent>
               }
@@ -105,8 +105,10 @@ export function Overlay() {
           {overlayWindow.type === OverlayWindow.WorldSettings && worldSettingRoom && (
             <WorldSettings room={worldSettingRoom} />
           )}
-          {/* Buzzar: Explore reads the room directory instead of Third Room's repository room on thirdroom.io. */}
-          {overlayWindow.type === OverlayWindow.Discover && <ExploreView />}
+          {/* Buzzar: full-screen Worlds (yours + Explore), Avatars and People. */}
+          {overlayWindow.type === OverlayWindow.Worlds && <WorldsView />}
+          {overlayWindow.type === OverlayWindow.Avatars && <AvatarsView />}
+          {overlayWindow.type === OverlayWindow.People && <PeopleView />}
         </div>
       ) : (
         <div className="Overlay__content grow">

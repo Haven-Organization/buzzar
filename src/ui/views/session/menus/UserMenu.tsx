@@ -15,7 +15,6 @@ import "./UserMenu.css";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
 import { RageshakeDialog } from "../rageshake/RageshakeDialog";
-import { Edit3DAvatar } from "../user-profile/Edit3DAvatar";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
 
 export function UserMenu() {
@@ -26,7 +25,6 @@ export function UserMenu() {
   const [copied, setCopied] = useState(false);
   const [bugReport, setBugReport] = useState(false);
   const [verification, setVerification] = useAtom(deviceVerificationAtom);
-  const [avatarEditor, setAvatarEditor] = useState(false);
 
   const handleCopy = () => {
     if (copied) return;
@@ -38,7 +36,6 @@ export function UserMenu() {
   return (
     <>
       <RageshakeDialog open={bugReport} requestClose={() => setBugReport(false)} />
-      <Edit3DAvatar open={avatarEditor} onOpenChange={setAvatarEditor} />
       <DropdownMenu
         content={
           <div className="UserMenu flex flex-column gap-xs">
@@ -64,7 +61,7 @@ export function UserMenu() {
               <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.UserProfile })}>
                 User Settings
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setAvatarEditor(true)}>Change Avatar</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.Avatars })}>Avatars</DropdownMenuItem>
               {accountManagementUrl && (
                 <DropdownMenuItem onSelect={() => window.open(accountManagementUrl)}>Manage Account</DropdownMenuItem>
               )}

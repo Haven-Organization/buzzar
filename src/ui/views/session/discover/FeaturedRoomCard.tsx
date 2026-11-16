@@ -27,7 +27,7 @@ export function FeaturedRoomCard({
 
   const handleViewRoom = () => {
     selectChat({ type: "OPEN", roomId });
-    setSidebarTab(SidebarTab.Home);
+    setSidebarTab(SidebarTab.Chat);
     setOverlayWindow({ type: OverlayWindow.None });
   };
 

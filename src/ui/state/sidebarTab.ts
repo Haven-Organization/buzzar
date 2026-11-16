@@ -2,13 +2,13 @@ import { atom } from "jotai";
 
 import { OverlayWindow, overlayWindowAtom } from "./overlayWindow";
 
+/** Buzzar: sidebar lists (Worlds, Avatars and People are full-screen overlay windows instead). */
 export enum SidebarTab {
-  Home = "Home",
-  Friends = "Friends",
+  Chat = "Chat",
   Notifications = "Notifications",
 }
 
-const baseSidebarTabAtom = atom<SidebarTab>(SidebarTab.Home);
+const baseSidebarTabAtom = atom<SidebarTab>(SidebarTab.Chat);
 
 export const sidebarTabAtom = atom<SidebarTab, [SidebarTab], void>(
   (get) => get(baseSidebarTabAtom),

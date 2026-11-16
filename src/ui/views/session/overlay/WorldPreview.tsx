@@ -10,8 +10,6 @@ import { useHydrogen } from "../../../hooks/useHydrogen";
 import { useRoomStatus } from "../../../hooks/useRoomStatus";
 import { Dots } from "../../../atoms/loading/Dots";
 import { useInviteControl } from "../../../hooks/useInviteControl";
-import { MemberListDialog } from "../dialogs/MemberListDialog";
-import { Dialog } from "../../../atoms/dialog/Dialog";
 import { usePermissionState } from "../../../hooks/usePermissionState";
 import { exceptionToString, useStreamRequest, RequestException } from "../../../hooks/useStreamRequest";
 import { AlertDialog } from "../dialogs/AlertDialog";
@@ -100,7 +98,16 @@ function JoinWorldCard({ worldIdOrAlias }: { worldIdOrAlias: string }) {
   );
 }
 
-function EnterWorldButton({ room }: { room: Room }) {
+// Buzzar: also used by the world tiles on the Worlds screen.
+export function EnterWorldButton({
+  room,
+  size = "lg",
+  label = "Enter World",
+}: {
+  room: Room;
+  size?: "sm" | "md" | "lg";
+  label?: string;
+}) {
   const { session, platform } = useHydrogen(true);
   const micPermission = usePermissionState("microphone");
   const requestStream = useStreamRequest(platform, micPermission);
@@ -194,8 +201,8 @@ function EnterWorldButton({ room }: { room: Room }) {
           }
         />
       )}
-      <Button size="lg" variant="primary" disabled={loading} onClick={() => handleEnterWorld(true)}>
-        {loading ? "Entering..." : "Enter World"}
+      <Button size={size} variant="primary" disabled={loading} onClick={() => handleEnterWorld(true)}>
+        {loading ? "Entering..." : label}
       </Button>
     </>
   );
@@ -212,8 +219,6 @@ export function WorldPreview() {
 
   const room = useRoom(session, previewWorldId);
 
-  const [isMemberDialog, setIsMemberDialog] = useState(false);
-
   const {
     loading: roomStatusLoading,
     error: roomStatusError,
@@ -222,11 +227,6 @@ export function WorldPreview() {
 
   return (
     <div className="WorldPreview grow flex flex-column justify-end items-center">
-      {room && (
-        <Dialog open={isMemberDialog} onOpenChange={setIsMemberDialog}>
-          <MemberListDialog room={room} requestClose={() => setIsMemberDialog(false)} />
-        </Dialog>
-      )}
       {(() => {
         const unknownIdOrAlias = unknownWorldAlias ?? unknownWorldId;
         if (!previewWorldId && unknownIdOrAlias) {
@@ -263,7 +263,6 @@ export function WorldPreview() {
               <WorldPreviewCard
                 title={room?.name || "Unnamed Room"}
                 memberCount={room?.joinedMemberCount || 0}
-                onMembersClick={() => setIsMemberDialog(true)}
                 options={<EnterWorldButton room={room} />}
               />
             )

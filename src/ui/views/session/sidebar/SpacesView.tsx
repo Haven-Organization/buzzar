@@ -3,7 +3,8 @@ import { useAtom } from "jotai";
 import { SidebarTab } from "../../components/sidebar-tab/SidebarTab";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import PeoplesIC from "../../../../../res/ic/peoples.svg";
-import ExploreIC from "../../../../../res/ic/explore.svg";
+import ChatIC from "../../../../../res/ic/chat.svg";
+import AvatarIC from "../../../../../res/ic/avatar.svg";
 import NotificationIC from "../../../../../res/ic/notification.svg";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { BadgeWrapper } from "../../../atoms/badge/BadgeWrapper";
@@ -23,32 +24,41 @@ export function SpacesView() {
   const [sidebarTab, setSidebarTab] = useAtom(sidebarTabAtom);
   const [overlayWindow, setOverlayWindow] = useAtom(overlayWindowAtom);
 
-  const roomsNotifCount = rooms.reduce((total, room) => total + room.notificationCount, 0);
-  const directsNotifCount = directs.reduce((total, room) => total + room.notificationCount, 0);
+  const chatNotifCount = [...rooms, ...directs].reduce((total, room) => total + room.notificationCount, 0);
 
   return (
     <div className="SpacesView flex flex-column">
       <div className="grow flex flex-column items-center gap-xs">
-        <BadgeWrapper badge={roomsNotifCount > 0 && <NotificationBadge content={roomsNotifCount} />}>
+        <SidebarTab
+          onClick={() => setOverlayWindow({ type: OverlayWindow.Worlds })}
+          isActive={overlayWindow.type === OverlayWindow.Worlds}
+          name="Worlds"
+          iconSrc={PlanetIC}
+          variant="surface-low"
+        />
+        <SidebarTab
+          onClick={() => setOverlayWindow({ type: OverlayWindow.Avatars })}
+          isActive={overlayWindow.type === OverlayWindow.Avatars}
+          name="Avatars"
+          iconSrc={AvatarIC}
+          variant="surface-low"
+        />
+        <SidebarTab
+          onClick={() => setOverlayWindow({ type: OverlayWindow.People })}
+          isActive={overlayWindow.type === OverlayWindow.People}
+          name="People"
+          iconSrc={PeoplesIC}
+          variant="surface-low"
+        />
+        <BadgeWrapper badge={chatNotifCount > 0 && <NotificationBadge content={chatNotifCount} />}>
           <SidebarTab
-            onClick={() => setSidebarTab(SidebarTabEnum.Home)}
-            isActive={sidebarTab === SidebarTabEnum.Home && overlayWindow.type === OverlayWindow.None}
-            name="Home"
-            iconSrc={PlanetIC}
+            onClick={() => setSidebarTab(SidebarTabEnum.Chat)}
+            isActive={sidebarTab === SidebarTabEnum.Chat && overlayWindow.type === OverlayWindow.None}
+            name="Chat"
+            iconSrc={ChatIC}
             variant="surface-low"
           />
         </BadgeWrapper>
-
-        <BadgeWrapper badge={directsNotifCount > 0 && <NotificationBadge content={directsNotifCount} />}>
-          <SidebarTab
-            onClick={() => setSidebarTab(SidebarTabEnum.Friends)}
-            isActive={sidebarTab === SidebarTabEnum.Friends && overlayWindow.type === OverlayWindow.None}
-            name="Friends"
-            iconSrc={PeoplesIC}
-            variant="surface-low"
-          />
-        </BadgeWrapper>
-
         <BadgeWrapper badge={invites.length > 0 ? <NotificationBadge content={invites.length} /> : undefined}>
           <SidebarTab
             onClick={() => setSidebarTab(SidebarTabEnum.Notifications)}
@@ -58,13 +68,6 @@ export function SpacesView() {
             variant="surface-low"
           />
         </BadgeWrapper>
-        <SidebarTab
-          onClick={() => setOverlayWindow({ type: OverlayWindow.Discover })}
-          isActive={overlayWindow.type === OverlayWindow.Discover}
-          name="Discover"
-          iconSrc={ExploreIC}
-          variant="surface-low"
-        />
       </div>
       <div className="shrink-0 flex flex-column items-center gap-xs">
         <UserMenu />

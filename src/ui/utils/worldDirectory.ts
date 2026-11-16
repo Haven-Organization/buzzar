@@ -106,3 +106,82 @@ export function joinDirectoryWorld(auth: MatrixAuth, world: DirectoryWorld, viaS
 export function serverNameOf(userId: string) {
   return userId.slice(userId.indexOf(":") + 1);
 }
+
+// --- Explore servers (account data, so the list follows you to other devices) ------------------------------------
+
+export const EXPLORE_SERVERS_TYPE = "software.haven.explore_servers";
+const MAX_EXPLORE_SERVERS = 30;
+const SERVER_NAME_REGEX = /^[A-Za-z0-9.\-:[\]]{1,255}$/;
+
+/** Normalises what someone typed ("https://Example.org/" → "example.org"); undefined if it isn't a server name. */
+export function normalizeServerName(input: string): string | undefined {
+  const name = input
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/.*$/, "")
+    .toLowerCase();
+  return SERVER_NAME_REGEX.test(name) ? name : undefined;
+}
+
+/** Extra homeservers whose directories Explore lists (your own is always included and isn't stored). */
+export async function fetchExploreServers(auth: MatrixAuth, userId: string): Promise<string[]> {
+  const res = await fetch(
+    `${base(auth)}/_matrix/client/v3/user/${encodeURIComponent(userId)}/account_data/${EXPLORE_SERVERS_TYPE}`,
+    { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+  );
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`Couldn't load your Explore servers: ${await errorText(res)}`);
+  const body = (await res.json()) as { servers?: unknown };
+  if (!Array.isArray(body.servers)) return [];
+  const servers: string[] = [];
+  for (const value of body.servers) {
+    const name = typeof value === "string" ? normalizeServerName(value) : undefined;
+    if (name && !servers.includes(name)) servers.push(name);
+  }
+  return servers.slice(0, MAX_EXPLORE_SERVERS);
+}
+
+export async function saveExploreServers(auth: MatrixAuth, userId: string, servers: string[]) {
+  const res = await fetch(
+    `${base(auth)}/_matrix/client/v3/user/${encodeURIComponent(userId)}/account_data/${EXPLORE_SERVERS_TYPE}`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${auth.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ servers: servers.slice(0, MAX_EXPLORE_SERVERS) }),
+    }
+  );
+  if (!res.ok) throw new Error(`Couldn't save your Explore servers: ${await errorText(res)}`);
+}
+
+// --- World preview images ------------------------------------------------------------------------------------------
+
+const MXC_REGEX = /^mxc:\/\/[A-Za-z0-9.\-:[\]]+\/[A-Za-z0-9_-]+$/;
+const previewCache = new Map<string, Promise<string | undefined>>();
+
+/** The scene preview (mxc) from a world's MSC3815 state, if your homeserver can read it (joined or world-readable). */
+export function fetchWorldPreviewUrl(auth: MatrixAuth, roomId: string): Promise<string | undefined> {
+  let promise = previewCache.get(roomId);
+  if (!promise) {
+    promise = (async () => {
+      try {
+        const res = await fetch(
+          `${base(auth)}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/${WORLD_ROOM_TYPE}/`,
+          { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+        );
+        if (!res.ok) return undefined;
+        const content = (await res.json()) as { scene_preview_url?: unknown };
+        const url = content.scene_preview_url;
+        return typeof url === "string" && MXC_REGEX.test(url) ? url : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    previewCache.set(roomId, promise);
+  }
+  return promise;
+}
+
+/** A link that opens a world in Buzzar (alias when it has one; the alias goes in the hash, as the app navigates). */
+export function worldLink(roomIdOrAlias: string) {
+  return `${window.location.origin}/world/${roomIdOrAlias}`;
+}

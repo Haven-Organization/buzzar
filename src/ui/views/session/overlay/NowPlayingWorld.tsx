@@ -13,7 +13,6 @@ import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avata
 import { NowPlaying } from "../../components/now-playing/NowPlaying";
 import { NowPlayingStatus } from "../../components/now-playing/NowPlayingStatus";
 import { NowPlayingTitle } from "../../components/now-playing/NowPlayingTitle";
-import { MemberListDialog } from "../dialogs/MemberListDialog";
 import MicIC from "../../../../../res/ic/mic.svg";
 import MicOffIC from "../../../../../res/ic/mic-off.svg";
 import CallCrossIC from "../../../../../res/ic/call-cross.svg";
@@ -40,7 +39,6 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);
 
-  const [isMemberDialog, setIsMemberDialog] = useState(false);
   const [inviteDialog, setInviteDialog] = useState(false);
   const { mute, requestStream, handleMute, micException, setMicException } = useMuteButton(activeCall);
 
@@ -93,10 +91,6 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
       }
       rightControls={
         <>
-          <Dialog open={isMemberDialog} onOpenChange={setIsMemberDialog}>
-            <MemberListDialog room={world} requestClose={() => setIsMemberDialog(false)} />
-          </Dialog>
-
           <Dialog open={inviteDialog} onOpenChange={setInviteDialog}>
             <InviteDialog roomId={world.id} requestClose={() => setInviteDialog(false)} />
           </Dialog>
@@ -104,7 +98,9 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
             content={
               <>
                 <DropdownMenuItem onSelect={() => setInviteDialog(true)}>Invite</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setIsMemberDialog(true)}>Members</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.People, tab: "world" })}>
+                  People
+                </DropdownMenuItem>
                 {canSendStateEvent(undefined, getPowerLevel(session.userId)) && (
                   <DropdownMenuItem
                     onSelect={() =>

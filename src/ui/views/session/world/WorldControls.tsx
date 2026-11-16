@@ -23,7 +23,8 @@ import { Header } from "../../../atoms/header/Header";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { ShortcutUI } from "./ShortcutUI";
-import { MemberListDialog } from "../dialogs/MemberListDialog";
+import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
+import { OverlayWindow } from "../../../state/overlayWindow";
 import { setLocalStorageItem } from "../../../hooks/useLocalStorage";
 import { useKeyDown } from "../../../hooks/useKeyDown";
 import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../components/MuteButtonProvider";
@@ -104,10 +105,10 @@ export function WorldControls({
   const mainThread = useMainThreadContext();
   const { navigateExitWorld } = useWorldNavigator(session);
 
-  const [showActiveMembers, setShowActiveMembers] = useState<boolean>(false);
   const [shortcutUI, setShortcutUI] = useState(false);
 
-  const toggleShowActiveMembers = () => setShowActiveMembers((state) => !state);
+  const openOverlayWindow = useOpenOverlayWindow();
+  const showPeople = () => openOverlayWindow({ type: OverlayWindow.People, tab: "world" });
   const toggleShortcutUI = () => setShortcutUI((state) => !state);
   const toggleShowNames = useCallback(() => {
     const enabled = !showNames;
@@ -134,7 +135,7 @@ export function WorldControls({
     [enterXR, isWebXRSupported]
   );
 
-  useDisableInput(shortcutUI || showActiveMembers);
+  useDisableInput(shortcutUI);
 
   return (
     <div className={classNames(className, "flex")}>
@@ -168,17 +169,12 @@ export function WorldControls({
         </div>
       )}
       <div className="flex flex-column items-center">
-        <Tooltip content={showActiveMembers ? "Hide Members" : "Show Members"}>
-          <IconButton variant="world" label="activeMembers" iconSrc={PeopleIC} onClick={toggleShowActiveMembers} />
+        <Tooltip content="People">
+          <IconButton variant="world" label="People" iconSrc={PeopleIC} onClick={showPeople} />
         </Tooltip>
         <Text variant="b3" color="world" weight="bold">
           P
         </Text>
-        {!("isBeingCreated" in world) && (
-          <Dialog open={showActiveMembers} onOpenChange={setShowActiveMembers}>
-            <MemberListDialog room={world} requestClose={() => setShowActiveMembers(false)} />
-          </Dialog>
-        )}
       </div>
       <div className="flex flex-column items-center">
         <Tooltip content={showNames ? "Hide Names" : "Show Names"}>

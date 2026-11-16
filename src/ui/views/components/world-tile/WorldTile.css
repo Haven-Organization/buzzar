@@ -1,0 +1,144 @@
+.WorldTileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-md);
+}
+
+.WorldTileGrid--tall {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.WorldTile {
+  border-radius: var(--br-md);
+  background-color: var(--bg-surface-low);
+  border: 1px solid var(--bg-surface-border, transparent);
+  overflow: hidden;
+  min-width: 0;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.WorldTile:hover {
+  box-shadow: var(--bs-surface);
+}
+
+.WorldTile--active {
+  outline: 2px solid var(--bg-primary);
+}
+
+.WorldTile__image {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background-color: var(--bg-surface-low-hover, #222);
+  overflow: hidden;
+}
+
+.WorldTile--tall .WorldTile__image {
+  aspect-ratio: 3 / 4;
+}
+
+.WorldTile__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.WorldTile--tall .WorldTile__image img {
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 35%, #3a3f4b, #16181d);
+}
+
+.WorldTile__fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.WorldTile__initial {
+  font-size: 48px;
+  line-height: 1;
+  color: white;
+  opacity: 0.85;
+}
+
+.WorldTile__badge {
+  position: absolute;
+  top: var(--sp-xs);
+  left: var(--sp-xs);
+  padding: 2px var(--sp-xs);
+  border-radius: var(--br-xs);
+  background-color: rgb(0 0 0 / 65%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.WorldTile__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--sp-xs);
+  background: linear-gradient(transparent, rgb(0 0 0 / 60%));
+}
+
+.WorldTile__details {
+  padding: var(--sp-xs) var(--sp-sm) var(--sp-sm);
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.WorldTile__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+.WorldTile__subtitle {
+  min-width: 0;
+}
+
+.WorldTile__subtitle > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.WorldTile__footer {
+  margin-top: auto;
+  padding-top: var(--sp-xxs);
+  min-height: 32px;
+}
+
+/* Tab bar + toolbar at the top of the Worlds / Avatars / People screens. */
+.TileScreen__bar {
+  padding: var(--sp-sm) var(--sp-md);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--bg-surface-border, rgb(127 127 127 / 20%));
+}
+
+.TileScreen__body {
+  padding: var(--sp-md) var(--sp-md) var(--sp-lg);
+}
+
+.TileScreen__note {
+  margin-bottom: var(--sp-sm);
+}
+
+.TileScreen__search {
+  min-width: 220px;
+  flex-grow: 1;
+  max-width: 420px;
+}
+
+.TileScreen .Content__children {
+  display: flex;
+  flex-direction: column;
+}
+
+.TileScreen__members {
+  flex-grow: 1;
+  min-height: 0;
+  padding: 0 var(--sp-sm);
+}

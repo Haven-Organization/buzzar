@@ -67,8 +67,20 @@ export function mxcToHttp(mxc: string, homeserver: string): string | undefined {
 
 /** CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). */
 export const BUILTIN_AVATARS = [
-  { id: "devil", name: "Devil", path: "/avatars/031_Devil.vrm", credit: "Polygonal Mind (CC0)" },
-  { id: "rose", name: "Rose", path: "/avatars/057_Rose.vrm", credit: "Polygonal Mind (CC0)" },
+  {
+    id: "devil",
+    name: "Devil",
+    path: "/avatars/031_Devil.vrm",
+    preview: "/avatars/previews/devil.png",
+    credit: "Polygonal Mind (CC0)",
+  },
+  {
+    id: "rose",
+    name: "Rose",
+    path: "/avatars/057_Rose.vrm",
+    preview: "/avatars/previews/rose.png",
+    credit: "Polygonal Mind (CC0)",
+  },
 ] as const;
 
 export type BuiltinAvatar = (typeof BUILTIN_AVATARS)[number];

@@ -1,5 +1,5 @@
-import { GroupCall, Room } from "@thirdroom/hydrogen-view-sdk";
-import { useSetAtom } from "jotai";
+import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRegisterActions } from "kbar";
 import { useCallback, useState } from "react";
 
@@ -15,7 +15,7 @@ import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../components/MuteButtonProvider";
-import { MemberListDialog } from "../dialogs/MemberListDialog";
+import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { ShortcutUI } from "../world/ShortcutUI";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import { useDisableInput } from "../../../hooks/useDisableInput";
@@ -137,33 +137,34 @@ export const useToggleNamesAction = (
   );
 };
 
-export const MembersDialogAction = ({ world }: { world: Room }) => {
-  const [showActiveMembers, setShowActiveMembers] = useState<boolean>(false);
-
-  useDisableInput(showActiveMembers);
+/** Buzzar: P opens the overlay's People screen on "In This World" (it used to open a separate members popup). */
+export const MembersDialogAction = () => {
+  const openOverlayWindow = useOpenOverlayWindow();
+  const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
+  const overlayWindow = useAtomValue(overlayWindowAtom);
+  const showingPeople = overlayVisible && overlayWindow.type === OverlayWindow.People;
 
   useRegisterActions(
     [
       {
         id: "members-dialog",
-        name: "Members",
+        name: "People",
         shortcut: ["P"],
-        keywords: "members",
+        keywords: "members people",
         section: ActionSection.World,
         icon: undefined,
         subtitle: undefined,
-        perform: () => setShowActiveMembers((state) => !state),
+        perform: () =>
+          showingPeople
+            ? setOverlayVisibility(false)
+            : openOverlayWindow({ type: OverlayWindow.People, tab: "world" }),
         parent: undefined,
       },
     ],
-    []
+    [showingPeople, openOverlayWindow, setOverlayVisibility]
   );
 
-  return (
-    <Dialog open={showActiveMembers} onOpenChange={setShowActiveMembers}>
-      <MemberListDialog room={world} requestClose={() => setShowActiveMembers(false)} />
-    </Dialog>
-  );
+  return null;
 };
 
 export const ShortcutDialogAction = () => {

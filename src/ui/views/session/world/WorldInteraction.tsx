@@ -1,6 +1,6 @@
 import { GroupCall, Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { InteractableType } from "../../../../engine/resource/schema";
 import { InteractableAction } from "../../../../plugins/interaction/interaction.common";
@@ -10,9 +10,9 @@ import { useMemoizedState } from "../../../hooks/useMemoizedState";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { aliasToRoomId, getMxIdUsername, parseMatrixUri } from "../../../utils/matrixUtils";
 import { InteractionState, useWorldInteraction } from "../../../hooks/useWorldInteraction";
-import { Dialog } from "../../../atoms/dialog/Dialog";
 import { EntityTooltip } from "../entity-tooltip/EntityTooltip";
-import { MemberListDialog } from "../dialogs/MemberListDialog";
+import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
+import { OverlayWindow } from "../../../state/overlayWindow";
 import { getModule } from "../../../../engine/module/module.common";
 import { PlayerModule } from "../../../../engine/player/Player.main";
 import { Reticle } from "../reticle/Reticle";
@@ -72,7 +72,7 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
 
   const [activeEntity, setActiveEntity] = useMemoizedState<InteractionState | undefined>();
   const [portalProcess, setPortalProcess] = useMemoizedState<IPortalProcess>({});
-  const [members, setMembers] = useState(false);
+  const openOverlayWindow = useOpenOverlayWindow();
 
   const { navigateEnterWorld } = useWorldNavigator(session);
   const { exitWorld } = useWorldLoader();
@@ -151,8 +151,7 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
 
       if (action === InteractableAction.Grab) {
         if (interactableType === InteractableType.Player && typeof peerId === "string") {
-          setMembers(true);
-          document.exitPointerLock();
+          openOverlayWindow({ type: OverlayWindow.People, tab: "world" });
           return;
         }
         if (interactableType === InteractableType.Portal) {
@@ -171,18 +170,13 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
 
       setActiveEntity(interaction);
     },
-    [handlePortalGrab, setActiveEntity, activeCall]
+    [handlePortalGrab, setActiveEntity, activeCall, openOverlayWindow]
   );
 
   useWorldInteraction(mainThread, handleInteraction);
 
   return (
     <div>
-      {!("isBeingCreated" in world) && (
-        <Dialog open={members} onOpenChange={setMembers}>
-          <MemberListDialog room={world} requestClose={() => setMembers(false)} />
-        </Dialog>
-      )}
       {!camRigModule.orbiting && <Reticle />}
       {activeEntity && !camRigModule.orbiting && (
         <EntityTooltip activeEntity={activeEntity} portalProcess={portalProcess} />

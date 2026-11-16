@@ -240,8 +240,9 @@ export type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
  * Built-in avatars still have to live on the homeserver so every client can load them by mxc URI. Upload once
  * per user and homeserver, then reuse the mxc from local storage.
  */
-export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, avatar: BuiltinAvatar) {
-  const cacheKey = `software.haven.builtin_avatar.${avatar.id}.${userId}`;
+/** Uploads a bundled file once per user and homeserver (remembered locally and in account data), returning its mxc. */
+async function uploadBundledOnce(auth: MatrixAuth, userId: string, key: string, path: string, label: string) {
+  const cacheKey = `software.haven.builtin_avatar.${key}.${userId}`;
   let url: string | null = null;
   try {
     url = localStorage.getItem(cacheKey);
@@ -252,13 +253,13 @@ export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, 
     // Buzzar: the upload is remembered in account data too, so other devices and browsers reuse it instead of
     // uploading the built-in avatar again.
     const collection = await fetchAvatarCollection(auth, userId).catch(() => undefined);
-    url = collection?.builtin[avatar.id] ?? null;
+    url = collection?.builtin[key] ?? null;
     if (!url) {
-      const res = await fetch(avatar.path);
-      if (!res.ok) throw new Error(`Couldn't load built-in avatar ${avatar.name}`);
-      url = await uploadMedia(auth, await res.blob(), avatar.path.split("/").pop()!);
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`Couldn't load built-in avatar ${label}`);
+      url = await uploadMedia(auth, await res.blob(), path.split("/").pop()!);
       if (collection) {
-        collection.builtin[avatar.id] = url;
+        collection.builtin[key] = url;
         await putAvatarCollection(auth, userId, collection).catch(() => undefined);
       }
     }
@@ -268,5 +269,22 @@ export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, 
       // storage unavailable
     }
   }
-  return { url, name: avatar.name } satisfies AvatarContent;
+  return url;
+}
+
+export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, avatar: BuiltinAvatar) {
+  const url = await uploadBundledOnce(auth, userId, avatar.id, avatar.path, avatar.name);
+  // Buzzar: the preview picture goes along, so other people see it (e.g. on their Avatars screen's In World tab).
+  const previewUrl = await uploadBundledOnce(auth, userId, `${avatar.id}_preview`, avatar.preview, avatar.name).catch(
+    () => undefined
+  );
+  const content: AvatarContent = { url, name: avatar.name };
+  if (previewUrl) content.preview_url = previewUrl;
+  return content;
+}
+
+/** The built-in avatar an mxc URI was uploaded from (by this user), if any. */
+export function builtinIdForUrl(collection: AvatarCollection | undefined, url: string | undefined) {
+  if (!collection || !url) return undefined;
+  return Object.entries(collection.builtin).find(([key, mxc]) => mxc === url && !key.endsWith("_preview"))?.[0];
 }

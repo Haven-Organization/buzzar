@@ -27,7 +27,7 @@ export function FeaturedWorldCard({
 
   const handleViewWorld = () => {
     selectWorld(roomId);
-    setSidebarTab(SidebarTab.Home);
+    setSidebarTab(SidebarTab.Chat);
     setOverlayWindow({ type: OverlayWindow.None });
   };
 
