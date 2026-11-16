@@ -499,6 +499,47 @@ export const CROUCH_POSE: PoseSpec = {
 };
 
 /**
+ * Buzzar: an army crawl, cycling through four prone poses (built like the static ones, then joined into one looping
+ * clip): left arm reaching with the right knee drawn up, flat, right arm reaching with the left knee up, flat.
+ */
+export function buildCrawlClip(rig: RetargetRig, name = "Crawl", duration = 1.2): AnimationClip {
+  const reach = (side: "left" | "right"): Partial<PoseSpec["directions"]> => {
+    const s = side === "left" ? 1 : -1;
+    const o = side === "left" ? "right" : "left";
+    return {
+      // Reaching arm stretched forward along the ground; the other one pulled back beside the chest.
+      [`${side}UpperArm`]: [0.18 * s, -0.4, 0.9],
+      [`${side}LowerArm`]: [0.05 * s, -0.15, 1],
+      [`${o}UpperArm`]: [-0.55 * s, -0.75, 0.35],
+      [`${o}LowerArm`]: [0.25 * s, -0.2, 0.95],
+      // The opposite knee drawn up and out to the side, the other leg straight behind.
+      [`${o}UpperLeg`]: [-0.7 * s, 0, -0.7],
+      [`${o}LowerLeg`]: [0.1 * s, 0.05, -1],
+    } as Partial<PoseSpec["directions"]>;
+  };
+  const phases: PoseSpec[] = [
+    { ...PRONE_POSE, directions: { ...PRONE_POSE.directions, ...reach("left") } },
+    PRONE_POSE,
+    { ...PRONE_POSE, directions: { ...PRONE_POSE.directions, ...reach("right") } },
+    PRONE_POSE,
+  ];
+  const clips = phases.map((spec, i) => buildPoseClip(rig, `${name}${i}`, spec));
+  const step = duration / phases.length;
+  const times = [...phases.map((_, i) => i * step), duration];
+  const tracks = clips[0].tracks.map((track) => {
+    const size = track.getValueSize();
+    const values: number[] = [];
+    for (const index of [0, 1, 2, 3, 0]) {
+      const other = clips[index].tracks.find((t) => t.name === track.name) ?? track;
+      values.push(...Array.from(other.values.slice(0, size)));
+    }
+    const TrackType = track.constructor as new (name: string, times: number[], values: number[]) => KeyframeTrack;
+    return new TrackType(track.name, times, values);
+  });
+  return new AnimationClip(name, duration, tracks);
+}
+
+/**
  * Lying prone: face down with the body stretched out behind the hips, propped on the forearms, head up.
  */
 export const PRONE_POSE: PoseSpec = {

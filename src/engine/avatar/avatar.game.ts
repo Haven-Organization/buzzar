@@ -54,6 +54,7 @@ import { createFaceRig, FaceRig, getFaceSpec, updateFaceRig } from "./face";
 import {
   applyBindPose,
   buildPoseClip,
+  buildCrawlClip,
   buildSitClip,
   CROUCH_POSE,
   PRONE_POSE,
@@ -480,6 +481,7 @@ function buildPostureClips(rig: RetargetRig): AnimationClip[] {
     return [
       buildPoseClip(rig, AnimationClipType.Crouch, CROUCH_POSE),
       buildPoseClip(rig, AnimationClipType.Prone, PRONE_POSE),
+      buildCrawlClip(rig, AnimationClipType.Crawl),
     ];
   } catch (error) {
     // Optional poses: never fail the avatar over them.

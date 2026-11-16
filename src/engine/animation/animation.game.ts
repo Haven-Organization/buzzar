@@ -44,6 +44,8 @@ export enum AnimationClipType {
   Crouch = "Crouch",
   /** Buzzar: lying prone (plugins/posture). */
   Prone = "Prone",
+  /** Buzzar: moving while prone (army crawl). */
+  Crawl = "Crawl",
 }
 
 /**
@@ -129,8 +131,14 @@ function processAnimations(ctx: GameContext) {
       const sitAction = SeatedEntities.has(parent.eid) ? animation.actionMap.get(AnimationClipType.Sit) : undefined;
       // Buzzar: crouching layers a pose on top of the locomotion clips; prone replaces them.
       const posture = PostureEntities.get(parent.eid);
+      // Buzzar: moving while prone crawls; lying still keeps the static pose.
+      const proneVelocity = parent.physicsBody?.velocity;
+      const proneMoving = !!proneVelocity && proneVelocity[0] ** 2 + proneVelocity[2] ** 2 > 0.05 ** 2;
       const proneAction =
-        !sitAction && posture === Posture.Prone ? animation.actionMap.get(AnimationClipType.Prone) : undefined;
+        !sitAction && posture === Posture.Prone
+          ? (proneMoving && animation.actionMap.get(AnimationClipType.Crawl)) ||
+            animation.actionMap.get(AnimationClipType.Prone)
+          : undefined;
       let actionsToPlay = sitAction
         ? [sitAction]
         : proneAction
