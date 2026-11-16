@@ -16,6 +16,7 @@ import { Footer } from "../../../atoms/footer/Footer";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
+import { WorldObjectRules } from "./WorldObjectRules";
 import { Label } from "../../../atoms/text/Label";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
@@ -220,6 +221,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         </SettingTile>
                       </div>
                     )}
+                    {/* Buzzar: allowed stock objects (software.haven.world.rules). */}
+                    <div className="flex gap-lg">
+                      <WorldObjectRules room={room} />
+                    </div>
                     {canSendStateEvent("org.matrix.msc3815.world", myPowerLevel) && (
                       <div className="flex gap-lg">
                         <SettingTile className="grow basis-0" label={<Label>Script (EXPERIMENTAL)</Label>}>

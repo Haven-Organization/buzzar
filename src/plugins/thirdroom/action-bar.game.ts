@@ -9,6 +9,7 @@ import { RemoteNode } from "../../engine/resource/RemoteResources";
 import { tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { ScriptComponent, scriptQuery } from "../../engine/scripting/scripting.game";
 import { spawnPrefab } from "../spawnables/spawnables.game";
+import { getSpawnRules, isSpawnAllowed } from "../../engine/network/spawnRules.game";
 import { ActionBarItem, SetActionBarItemsMessage, ThirdRoomMessageType } from "./thirdroom.common";
 import { ThirdRoomModule } from "./thirdroom.game";
 
@@ -83,7 +84,9 @@ export function setDefaultActionBarItems(ctx: GameContext) {
   const thirdroom = getModule(ctx, ThirdRoomModule);
 
   thirdroom.actionBarItems.length = 0;
-  thirdroom.actionBarItems.push(...defaultActionBarItems);
+  // Buzzar: only the stock objects this world allows.
+  const rules = getSpawnRules(ctx);
+  thirdroom.actionBarItems.push(...defaultActionBarItems.filter((item) => isSpawnAllowed(rules, item.id)));
 
   ctx.sendMessage<SetActionBarItemsMessage>(Thread.Main, {
     type: ThirdRoomMessageType.SetActionBarItems,

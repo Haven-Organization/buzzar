@@ -49,6 +49,11 @@ const clearComponentData = () => {
   new Uint8Array(Networked.quaternion[0].buffer).fill(0);
 };
 
+// Buzzar: incoming messages are only accepted for objects whose network ID carries the sender's peer index.
+const SENDER = "@sender:example.org";
+const SENDER_INDEX = 7;
+const senderNid = (localId: number) => ((localId << 16) | SENDER_INDEX) >>> 0;
+
 describe("Network Tests", () => {
   describe("networkId", () => {
     it("should #getPeerIdFromNetworkId()", () => {
@@ -436,8 +441,8 @@ describe("Network Tests", () => {
           node.position.set([1, 2, 3]);
           node.quaternion.set([4, 5, 6, 7]);
           addComponent(state.world, Networked, eid);
-          Networked.networkId[eid] = eid;
-          network.networkIdToEntityId.set(eid, eid);
+          Networked.networkId[eid] = senderNid(eid);
+          network.networkIdToEntityId.set(senderNid(eid), eid);
           addComponent(state.world, Owned, eid);
           return node;
         });
@@ -453,7 +458,8 @@ describe("Network Tests", () => {
 
       const reader = createCursorView(writer.buffer);
 
-      deserializeUpdatesSnapshot(state, reader);
+      network.peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeUpdatesSnapshot(state, reader, SENDER);
 
       nodes.forEach((node) => {
         const position = Networked.position[node.eid];
@@ -546,8 +552,8 @@ describe("Network Tests", () => {
           node.position.set([1, 2, 3]);
           node.quaternion.set([4, 5, 6, 7]);
           addComponent(state.world, Networked, eid);
-          Networked.networkId[eid] = eid;
-          network.networkIdToEntityId.set(eid, eid);
+          Networked.networkId[eid] = senderNid(eid);
+          network.networkIdToEntityId.set(senderNid(eid), eid);
           addComponent(state.world, Owned, eid);
           return node;
         });
@@ -556,7 +562,8 @@ describe("Network Tests", () => {
 
       const reader = createCursorView(writer.buffer);
 
-      deserializeUpdatesChanged(state, reader);
+      network.peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeUpdatesChanged(state, reader, SENDER);
 
       nodes.forEach((node) => {
         const position = Networked.position[node.eid];
@@ -620,7 +627,7 @@ describe("Network Tests", () => {
       ents.forEach(({ eid }) => {
         addComponent(state.world, Owned, eid);
         addComponent(state.world, Networked, eid);
-        Networked.networkId[eid] = eid;
+        Networked.networkId[eid] = senderNid(eid);
         addPrefabComponent(state.world, eid, "test-prefab");
       });
 
@@ -633,7 +640,8 @@ describe("Network Tests", () => {
 
       const reader = createCursorView(writer.buffer);
 
-      deserializeCreates(state, reader, "");
+      network.peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeCreates(state, reader, SENDER);
 
       const remoteEntities = remoteNetworkedQuery(state.world);
       strictEqual(remoteEntities.length, 3);
@@ -644,8 +652,8 @@ describe("Network Tests", () => {
 
         ok(incomingEid !== outgoingEid);
 
-        strictEqual(Networked.networkId[incomingEid], outgoingEid);
-        strictEqual(network.networkIdToEntityId.get(outgoingEid), incomingEid);
+        strictEqual(Networked.networkId[incomingEid], senderNid(outgoingEid));
+        strictEqual(network.networkIdToEntityId.get(senderNid(outgoingEid)), incomingEid);
       }
     });
   });
@@ -699,7 +707,7 @@ describe("Network Tests", () => {
 
       ents.forEach(({ eid }) => {
         addComponent(state.world, Networked, eid);
-        Networked.networkId[eid] = eid;
+        Networked.networkId[eid] = senderNid(eid);
         addComponent(state.world, Owned, eid);
         addPrefabComponent(state.world, eid, "test-prefab");
       });
@@ -710,7 +718,8 @@ describe("Network Tests", () => {
 
       const reader = createCursorView(writer.buffer);
 
-      deserializeCreates(state, reader, "");
+      getModule(state, NetworkModule).peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeCreates(state, reader, SENDER);
 
       const remoteEntities = remoteNetworkedQuery(state.world);
       strictEqual(remoteEntities.length, 3);
@@ -734,7 +743,7 @@ describe("Network Tests", () => {
 
       const reader2 = createCursorView(writer2.buffer);
 
-      deserializeDeletes(state, reader2);
+      deserializeDeletes(state, reader2, SENDER);
 
       remoteEntities.forEach((eid) => {
         ok(getEntityComponents(state.world, eid).length === 0);

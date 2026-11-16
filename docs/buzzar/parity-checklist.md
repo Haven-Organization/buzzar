@@ -43,7 +43,7 @@ infrastructure and can't scale to VRChat-sized instances.
 - [ ] 🟡 **L** **Authority and validation layer.** Today any peer can spawn any prefab or take ownership of any
       object, and the object cap is enforced only locally (`spawnables.game.ts:334`). Needed:
       - host or world-server authority based on power levels (`HostElection.ts` is dead code, `createMatrixNetworkInterface.ts:198`);
-      - validation of incoming spawns, ownership and limits;
+      - validation of incoming spawns, ownership and limits (**done 2026-11-16, receiver-side:** see §4 "Enforced limits");
       - any member with enough power level can be host, including a bot account (§9). Hosting must never depend on a Buzzar-specific server.
 - [ ] 🟡 **S** Network correctness:
       - peer index is a 16-bit hash, so collisions are possible;
@@ -214,14 +214,14 @@ the rules in §5 matter more for Buzzar than they do there.
 | ❌ | Network ownership rules for props (who can grab others' props; spawner keeps rights) | M | Grabbing someone else's object currently despawns and re-creates it. |
 | ❌ | Physics interaction props (trampoline = bounce volume; needs a player-impulse API) | S | |
 | ❌ | **User-placed portals** (prop that opens a portal to a chosen world) | M | See reference-worlds.md. Gated by world rules. |
-| ❌ | Server-enforced limits (count, size, triangles, script on/off) | M | Today `max_member_object_cap` is enforced only locally. |
+| 🟡 | Enforced limits (count, allowed types, size, triangles, script on/off) | M | **Buzzar (2026-11-16):** every client validates what peers send (`src/engine/network/spawnRules.game.ts`): allowed stock objects (`software.haven.world.rules` → `objects.allowed`, World Settings), per-person count (`max_member_object_cap`), and ownership (a peer may only create/move/delete/rename objects under its own peer index and only claim to be itself; nobody can remove a player). Violators are dropped and moderators get an in-world notice. Still to do: size/triangle limits for user props, a moderation bot acting on reports. |
 
 ## 5. World rules, moderation and access control
 
 | | Item | Size | Notes |
 |---|---|---|---|
 | ✅ | Power levels gate scene/script edits; kick/ban/role change in the member list | – | No engine reaction to kicks: a kicked user's peer data must be dropped immediately. |
-| 🟡 | Per-world object cap | S | `max_member_object_cap` exists (reference worlds = 10), enforced only locally. |
+| ✅ | Per-world object cap | S | `max_member_object_cap` (reference worlds = 10). **Buzzar:** enforced by every receiving client, not just the spawner (2026-11-16). |
 | ❌ | **World rules state event** 🅼 `software.haven.world.rules` | M | - max props per user, max prop/avatar size and perf rank<br>- avatar height min/max/forced<br>- allow avatar/prop scripts<br>- allow user portals (+ destination allow/deny)<br>- allow avatar audio/emote audio<br>- which power levels can spawn |
 | ❌ | **Access zones**: named volumes in the scene + state event mapping zone → required power level / role / allowlist; engine-enforced (colliders block or teleport out) and host-validated | L | 🅼 The world doesn't depend on display names (VRChat does). |
 | ❌ | **Gatekeeper admission flow** (lobby → main area, decided by people) | M | 🅼 This is the "human checks you at the door" pattern from VRChat lobby worlds. It's a judgement call by a person, not identity verification.<br>- A visitor in the lobby zone presses "request entry".<br>- Gatekeepers see a queue (in-world panel + 2D/XR UI) with who is asking, and click admit/deny. They can also admit someone directly by pointing at them.<br>- Admit has two modes, both stored as Matrix state:<br>&nbsp;&nbsp;- **this visit only**: a grant with `expires_ts`, plus a MSC4140 delayed event that clears it when the visitor leaves or disconnects;<br>&nbsp;&nbsp;- **persistent**: a grant with no expiry.<br>- A pending request is a per-user state event (`software.haven.zone.request`, state_key = visitor). Bots can watch the queue as well as humans.<br>- Gatekeepers can send people back to the lobby.<br>- The engine enforces it: zone colliders and the host reject or teleport out anyone without a grant. Scripts can't bypass it.<br>- Every admit, deny and revoke is logged. |

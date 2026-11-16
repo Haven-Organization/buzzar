@@ -19,7 +19,8 @@ import {
   PhysicsModuleState,
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
-import { createPrefabEntity, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
+import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
+import { getSpawnRules, isSpawnAllowed, isStockSpawnable } from "../../engine/network/spawnRules.game";
 import {
   addObjectToWorld,
   RemoteAudioData,
@@ -331,10 +332,19 @@ const _spawnWorldQuat = quat.create();
 // Returns false if the object exceeded the object cap
 export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: string, isXR: boolean): boolean {
   const { maxObjectCap } = getModule(ctx, ThirdRoomModule);
+  const rules = getSpawnRules(ctx);
 
-  // bounce out of the function if we hit the max object cap
+  // Buzzar: the world's object rules (other clients enforce them too, so spawning past them is pointless).
+  if (!isSpawnAllowed(rules, prefabId)) return false;
+  const limit = rules.maxPerUser ?? maxObjectCap;
   const ownedEnts = ownedNetworkedQuery(ctx.world);
-  if (ownedEnts.length > maxObjectCap) {
+  let ownedStock = 0;
+  for (let i = 0; i < ownedEnts.length; i++) {
+    const prefab = Prefab.get(ownedEnts[i]);
+    if (prefab && isStockSpawnable(prefab)) ownedStock++;
+  }
+  // bounce out of the function if we hit the max object cap
+  if (ownedStock >= limit) {
     ctx.sendMessage(Thread.Main, {
       type: ThirdRoomMessageType.ObjectCapReached,
     });

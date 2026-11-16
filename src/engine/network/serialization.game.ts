@@ -28,7 +28,7 @@ import {
 import { NOOP } from "../config.common";
 import { GameContext } from "../GameTypes";
 import { getModule } from "../module/module.common";
-import { Prefab, createPrefabEntity } from "../prefab/prefab.game";
+import { Prefab, createPrefabEntity, hasPrefabTemplate } from "../prefab/prefab.game";
 import { checkBitflag } from "../utils/checkBitflag";
 import {
   ownedNetworkedQuery,
@@ -46,6 +46,7 @@ import { addObjectToWorld, RemoteNode, removeObjectFromWorld } from "../resource
 import { XRMode } from "../renderer/renderer.common";
 import { getReplicator } from "./Replicator";
 import { addPlayerFromPeer } from "../player/PlayerRig";
+import { peerOwnsNetworkId, rejectCreate, reportViolation } from "./spawnRules.game";
 
 // ad-hoc messages view
 const messageView = createCursorView(new ArrayBuffer(10000));
@@ -203,8 +204,11 @@ export const deserializeTransformChanged = (v: CursorView, nid: number, node: Re
 
     if (checkBitflag(changeMask, 1 << b++)) node.skipLerp = readUint32(v);
   } else {
-    console.warn(`could not deserialize transform update for non-existent entity for networkID ${nid}`);
-    scrollCursorView(v, Float32Array.BYTES_PER_ELEMENT * 10 + Uint32Array.BYTES_PER_ELEMENT);
+    // Buzzar: skip exactly what was sent (a change mask and only the changed fields). The fixed-size skip here
+    // misread every following entry.
+    const changeMask = readUint16(v);
+    for (let b = 0; b < 10; b++) if (checkBitflag(changeMask, 1 << b)) scrollCursorView(v, Float32Array.BYTES_PER_ELEMENT);
+    if (checkBitflag(changeMask, 1 << 10)) scrollCursorView(v, Uint32Array.BYTES_PER_ELEMENT);
   }
 };
 
@@ -293,6 +297,15 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
     }
 
     const replicator = getReplicator(network, prefabName);
+
+    // Buzzar: only accept objects the sender owns, of known types, within the world's rules.
+    const rejected = rejectCreate(ctx, network, peerId, nid, prefabName, !!replicator || hasPrefabTemplate(ctx, prefabName));
+    if (rejected) {
+      scrollCursorView(v, dataByteLength);
+      reportViolation(ctx, peerId, rejected);
+      continue;
+    }
+
     if (replicator) {
       const data = dataByteLength > 0 ? readArrayBuffer(v, dataByteLength) : undefined;
 
@@ -323,12 +336,15 @@ export function serializeUpdatesSnapshot(ctx: GameContext, v: CursorView) {
   }
 }
 
-export function deserializeUpdatesSnapshot(ctx: GameContext, v: CursorView) {
+export function deserializeUpdatesSnapshot(ctx: GameContext, v: CursorView, peerId?: string) {
   const network = getModule(ctx, NetworkModule);
   const count = readUint32(v);
   for (let i = 0; i < count; i++) {
     const nid = readUint32(v);
-    const eid = network.networkIdToEntityId.get(nid) || NOOP;
+    // Buzzar: a peer may only move its own objects.
+    const owned = peerOwnsNetworkId(network, peerId, nid);
+    if (!owned && peerId) reportViolation(ctx, peerId, "tried to move someone else's object");
+    const eid = (owned && network.networkIdToEntityId.get(nid)) || NOOP;
     const node = getRemoteResource<RemoteNode>(ctx, eid);
 
     deserializeTransformSnapshot(network, v, nid, node);
@@ -363,9 +379,12 @@ export function deserializeUpdatesChanged(ctx: GameContext, v: CursorView, peerI
   const count = readUint32(v);
   for (let i = 0; i < count; i++) {
     const nid = readUint32(v);
-    const eid = network.networkIdToEntityId.get(nid) || NOOP;
+    // Buzzar: a peer may only move its own objects.
+    const owned = peerOwnsNetworkId(network, peerId, nid);
+    if (!owned && peerId) reportViolation(ctx, peerId, "tried to move someone else's object");
+    const eid = (owned && network.networkIdToEntityId.get(nid)) || NOOP;
 
-    if (eid === NOOP && peerId) {
+    if (eid === NOOP && owned && peerId) {
       // Buzzar: we missed this peer's creates; the outbound system asks it to resend (HavenResendSnapshot).
       network.unknownEntityPeers.add(peerId);
     }
@@ -388,11 +407,16 @@ export function serializeDeletes(ctx: GameContext, v: CursorView) {
   }
 }
 
-export function deserializeDeletes(ctx: GameContext, v: CursorView) {
+export function deserializeDeletes(ctx: GameContext, v: CursorView, peerId?: string) {
   const network = getModule(ctx, NetworkModule);
   const count = readUint32(v);
   for (let i = 0; i < count; i++) {
     const nid = readUint32(v);
+    // Buzzar: a peer may only delete its own objects.
+    if (!peerOwnsNetworkId(network, peerId, nid)) {
+      if (peerId) reportViolation(ctx, peerId, "tried to delete someone else's object");
+      continue;
+    }
     const eid = network.networkIdToEntityId.get(nid);
     const node = eid ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
     if (!node) {
@@ -412,14 +436,23 @@ export const serializeUpdateNetworkId = (ctx: GameContext, v: CursorView, from: 
   writeUint32(v, from);
   writeUint32(v, to);
 };
-export function deserializeUpdateNetworkId(ctx: GameContext, v: CursorView) {
+export function deserializeUpdateNetworkId(ctx: GameContext, v: CursorView, peerId?: string) {
   const network = getModule(ctx, NetworkModule);
 
   const from = readUint32(v);
   const to = readUint32(v);
 
+  // Buzzar: only renumber your own objects, to your own IDs.
+  if (!peerOwnsNetworkId(network, peerId, from) || !peerOwnsNetworkId(network, peerId, to)) {
+    if (peerId) reportViolation(ctx, peerId, "tried to take over someone else's object ID");
+    return;
+  }
+
   const eid = network.networkIdToEntityId.get(from);
-  if (!eid) throw new Error("could not find entity for nid: " + from);
+  if (!eid) {
+    console.warn("could not find entity for nid: " + from);
+    return;
+  }
 
   Networked.networkId[eid] = to;
 
@@ -450,12 +483,18 @@ export const serializeInformPlayerNetworkId = (ctx: GameContext, v: CursorView, 
   writeUint32(v, peerNid);
 };
 
-export async function deserializeInformPlayerNetworkId(ctx: GameContext, v: CursorView) {
+export async function deserializeInformPlayerNetworkId(ctx: GameContext, v: CursorView, senderPeerId?: string) {
   const network = getModule(ctx, NetworkModule);
 
   // read
   const peerId = readString(v);
   const peerNid = readUint32(v);
+
+  // Buzzar: a peer can only say which entity is *its own* player, never someone else's.
+  if (senderPeerId && (peerId !== senderPeerId || !peerOwnsNetworkId(network, senderPeerId, peerNid))) {
+    reportViolation(ctx, senderPeerId, "claimed to be someone else");
+    return;
+  }
 
   console.info("deserializeInformPlayerNetworkId for peer", peerId, peerNid);
 

@@ -30,6 +30,7 @@ import { UpdateMatrixWorldSystem } from "./component/transform";
 import { FlyCharacterControllerModule, FlyControllerSystem } from "./player/FlyCharacterController";
 import { NetworkInterpolationSystem } from "./network/NetworkInterpolationSystem";
 import { PrefabDisposalSystem, PrefabModule } from "./prefab/prefab.game";
+import { SpawnRulesModule } from "./network/spawnRules.game";
 import { AnimationSystem } from "./animation/animation.game";
 import {
   InteractionModule,
@@ -73,6 +74,7 @@ export default defineConfig<GameContext>({
     PhysicsModule,
     AudioModule,
     NetworkModule,
+    SpawnRulesModule,
     StatsModule,
     EditorModule,
     RendererModule,

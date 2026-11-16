@@ -72,6 +72,11 @@ export function getPrefabTemplate(ctx: GameContext, name: string) {
   return template;
 }
 
+/** Buzzar: whether a prefab name is registered (peers may send any string). */
+export function hasPrefabTemplate(ctx: GameContext, name: string) {
+  return getModule(ctx, PrefabModule).prefabTemplateMap.has(name);
+}
+
 export const createPrefabEntity = (ctx: GameContext, prefab: string, options = {}): RemoteNode => {
   const prefabModule = getModule(ctx, PrefabModule);
   const create = prefabModule.prefabTemplateMap.get(prefab)?.create;

@@ -14,6 +14,7 @@ import { broadcastReliable } from "./outbound.game";
 import { writeMetadata } from "./serialization.game";
 import { applyTransformToRigidBody } from "../physics/physics.game";
 import { takeSceneGrabbable } from "../../plugins/scene-grabbables/grabbables.game";
+import { canTakeObject, reportViolation } from "./spawnRules.game";
 
 // const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 3));
 const messageView = createCursorView(new ArrayBuffer(Uint32Array.BYTES_PER_ELEMENT * 30));
@@ -28,10 +29,15 @@ export const serializeRemoveOwnership = (cv: CursorView, eid: number) => {
   writeUint32(cv, Networked.networkId[eid]);
 };
 
-export const deserializeRemoveOwnership = (ctx: GameContext, cv: CursorView) => {
+export const deserializeRemoveOwnership = (ctx: GameContext, cv: CursorView, peerId?: string) => {
   const network = getModule(ctx, NetworkModule);
   const nid = readUint32(cv);
   const eid = network.networkIdToEntityId.get(nid);
+  // Buzzar: grabbing someone's object takes it over, but nobody can take (remove) a player.
+  if (eid !== undefined && !canTakeObject(ctx, eid)) {
+    if (peerId) reportViolation(ctx, peerId, "tried to remove another player");
+    return;
+  }
   const node = eid ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
   if (node) {
     removeObjectFromWorld(ctx, node);

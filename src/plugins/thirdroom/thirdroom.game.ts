@@ -68,7 +68,8 @@ import {
 } from "../../engine/resource/RemoteResources";
 import { findResourceRetainerRoots, findResourceRetainers } from "../../engine/resource/findResourceRetainers";
 import { RemoteResource } from "../../engine/resource/RemoteResourceClass";
-import { actionBarMap, setDefaultActionBarItems } from "./action-bar.game";
+import { actionBarMap, defaultActionBarItems, setDefaultActionBarItems } from "./action-bar.game";
+import { onSpawnRulesChanged } from "../../engine/network/spawnRules.game";
 import { createDisposables } from "../../engine/utils/createDisposables";
 import {
   registerPlayerPrefabs,
@@ -141,6 +142,12 @@ export const ThirdRoomModule = defineModule<GameContext, ThirdRoomModuleState>({
       registerMessageHandler(ctx, ThirdRoomMessageType.PrintResources, onPrintResources),
       registerMessageHandler(ctx, ThirdRoomMessageType.FindResourceRetainers, onFindResourceRetainers),
       registerMessageHandler(ctx, ThirdRoomMessageType.SetObjectCap, onSetObjectCap),
+      // Buzzar: refresh the stock action bar when the world's object rules change (not a script's own bar).
+      onSpawnRulesChanged(ctx, () => {
+        const { actionBarItems } = getModule(ctx, ThirdRoomModule);
+        const isDefault = actionBarItems.every((item) => defaultActionBarItems.some((d) => d.id === item.id));
+        if (isDefault) setDefaultActionBarItems(ctx);
+      }),
     ]);
 
     loadGLTF(ctx, "/gltf/full-animation-rig.glb").catch((error) => {

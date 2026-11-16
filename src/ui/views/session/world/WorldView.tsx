@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Room } from "@thirdroom/hydrogen-view-sdk";
 import classNames from "classnames";
 import { useAtom, useAtomValue } from "jotai";
@@ -25,6 +25,7 @@ import { useWebXRSession } from "../../../hooks/useWebXRSession";
 import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { worldNoticeAtom } from "../../../state/worldNotice";
+import { useWorldRules } from "../../../hooks/useWorldRules";
 import { worldAtom } from "../../../state/world";
 import { PlayerModule } from "../../../../engine/player/Player.main";
 import { HotbarControls, WorldControls } from "./WorldControls";
@@ -101,6 +102,10 @@ export function WorldView({ world }: WorldViewProps) {
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
+
+  // Buzzar: the world's object rules go to the engine; moderators hear about blocked attempts.
+  const notifyModerator = useCallback((text: string) => showToast(text, 6000), [showToast]);
+  useWorldRules(world, activeCall, notifyModerator);
 
   // Buzzar: one-off notices about this world (e.g. its script wasn't run or stopped).
   const [worldNotice, setWorldNotice] = useAtom(worldNoticeAtom);
