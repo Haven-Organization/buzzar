@@ -19,6 +19,8 @@ export enum NetworkAction {
   HavenPosture,
   /** Buzzar: "I'm getting updates for your entities but never got them created; please resend your snapshot." */
   HavenResendSnapshot,
+  /** Buzzar: "my avatar just changed": peers show the loading placeholder and look it up again right away. */
+  HavenAvatarChanged,
 }
 
 export const UnreliableNetworkActions = [NetworkAction.UpdateChanged, NetworkAction.UpdateSnapshot];

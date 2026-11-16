@@ -5,6 +5,15 @@ export const LOCAL_AVATAR_PEER = "@local";
 
 export const SetPeerAvatarMessage = "software.haven.avatar.set-peer";
 export const AvatarStatusMessage = "software.haven.avatar.status";
+/** main → game: our avatar changed; tell everyone in the world right away (NetworkAction.HavenAvatarChanged). */
+export const AnnounceAvatarChangeMessage = "software.haven.avatar.announce";
+/** game → main: a peer says its avatar changed; look it up again now (skipping caches). */
+export const PeerAvatarChangedMessage = "software.haven.avatar.peer-changed";
+
+export interface PeerAvatarChangedMessageType {
+  type: typeof PeerAvatarChangedMessage;
+  peerId: string;
+}
 
 // main -> game
 export interface SetPeerAvatarMessageType {

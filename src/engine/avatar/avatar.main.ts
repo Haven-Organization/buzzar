@@ -20,9 +20,12 @@ import {
   setWorldAvatar,
 } from "../../ui/utils/avatarMatrix";
 import {
+  AnnounceAvatarChangeMessage,
   AvatarPedestalSelectedMessage,
   AvatarPedestalSelectedMessageType,
   getBuiltinAvatarByUri,
+  PeerAvatarChangedMessage,
+  PeerAvatarChangedMessageType,
   SetPeerAvatarMessage,
   SetPeerAvatarMessageType,
 } from "./avatar.common";
@@ -94,8 +97,13 @@ export function startAvatarSync(
 
       const url = avatar ? session.mediaRepository.mxcUrl(avatar.url) : undefined;
       const key = `${url ?? ""}|${avatar?.name ?? ""}`;
-      if (lastSent.get(userId) === key) return;
+      const previous = lastSent.get(userId);
+      if (previous === key) return;
       lastSent.set(userId, key);
+      // Our own avatar changed: tell everyone in the world now (otherwise they'd see it on their next poll).
+      if (userId === session.userId && previous !== undefined) {
+        ctx.sendMessage(Thread.Game, { type: AnnounceAvatarChangeMessage });
+      }
       ctx.sendMessage<SetPeerAvatarMessageType>(Thread.Game, {
         type: SetPeerAvatarMessage,
         peerId: userId,
@@ -165,6 +173,18 @@ export function startAvatarSync(
     }
   );
 
+  // A peer announced an avatar change: look it up now, past the profile cache, and always tell the game thread
+  // (it dropped the old avatar and shows the loading placeholder until it hears back).
+  const unregisterPeerChanged = registerMessageHandler(
+    ctx,
+    PeerAvatarChangedMessage,
+    (_ctx: MainContext, message: PeerAvatarChangedMessageType) => {
+      profileCache.delete(message.peerId);
+      lastSent.delete(message.peerId);
+      refresh(message.peerId);
+    }
+  );
+
   const unsubscribeMembers = groupCall.members.subscribe({
     onAdd: (_key, member) => watch(member.userId),
     onUpdate: (_key, member) => watch(member.userId),
@@ -188,6 +208,7 @@ export function startAvatarSync(
       if (activeSync === sync) activeSync = undefined;
       window.clearInterval(pollTimer);
       unregisterPedestal();
+      unregisterPeerChanged();
       unsubscribeMembers();
       for (const stop of watched.values()) stop();
       watched.clear();

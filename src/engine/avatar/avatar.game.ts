@@ -25,6 +25,11 @@ import {
 import { getAccessorArrayView } from "../common/accessor";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { NetworkModule } from "../network/network.game";
+import { NetworkAction } from "../network/NetworkAction";
+import { registerInboundMessageHandler } from "../network/inbound.game";
+import { broadcastReliable } from "../network/outbound.game";
+import { writeMetadata } from "../network/serialization.game";
+import { createCursorView, sliceCursorView } from "../allocator/CursorView";
 import { applyAvatarLayers, isAvatarHiddenFromMainCamera, setAvatarHiddenFromMainCamera } from "../player/avatarLayers";
 import { AvatarRef } from "../player/components";
 import { getCamera } from "../player/getCamera";
@@ -34,9 +39,12 @@ import { LipSyncMessageType, lipSyncVoices, LOCAL_VOICE, onLipSyncMessage } from
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import {
+  AnnounceAvatarChangeMessage,
   AvatarStatusMessage,
   AvatarStatusMessageType,
   LOCAL_AVATAR_PEER,
+  PeerAvatarChangedMessage,
+  PeerAvatarChangedMessageType,
   SetPeerAvatarMessage,
   SetPeerAvatarMessageType,
 } from "./avatar.common";
@@ -169,6 +177,20 @@ export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
       }
     );
     const disposeLipSync = registerMessageHandler(ctx, LipSyncMessageType, onLipSyncMessage);
+    // Avatar changes reach other players instantly instead of on their next profile poll (up to a minute).
+    const network = getModule(ctx, NetworkModule);
+    const disposeAnnounce = registerMessageHandler(ctx, AnnounceAvatarChangeMessage, (ctx: GameContext) => {
+      writeMetadata(announceView, NetworkAction.HavenAvatarChanged);
+      broadcastReliable(ctx, network, sliceCursorView(announceView));
+    });
+    registerInboundMessageHandler(network, NetworkAction.HavenAvatarChanged, (ctx, _v, peerId) => {
+      const avatars = getModule(ctx, AvatarModule);
+      // Forget what we had: AvatarSystem shows "Looking up avatar…" until the new one is resolved and loads.
+      avatars.desired.delete(peerId);
+      const container = findContainer(ctx, peerId);
+      if (container) avatars.lookupSince.delete(container);
+      ctx.sendMessage<PeerAvatarChangedMessageType>(Thread.Main, { type: PeerAvatarChangedMessage, peerId });
+    });
     // Debug: `thirdroom.mouth(0.8)` opens every avatar's mouth ("aa"), `thirdroom.mouth(v, "ou")` another shape,
     // `thirdroom.mouth()` back to lip sync.
     const disposeMouth = registerMessageHandler(
@@ -187,6 +209,7 @@ export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
       disposeAvatar();
       disposeBlink();
       disposeLipSync();
+      disposeAnnounce();
       disposeMouth();
     };
   },
@@ -580,6 +603,7 @@ function voiceFor(ctx: GameContext, avatarNode: RemoteNode): Float32Array | unde
   return container.name ? lipSyncVoices.get(container.name) : undefined;
 }
 
+const announceView = createCursorView(new ArrayBuffer(16));
 const BlinkDebugMessage = "software.haven.debug.blink";
 let forcedBlink: number | undefined;
 const MouthDebugMessage = "software.haven.debug.mouth";
