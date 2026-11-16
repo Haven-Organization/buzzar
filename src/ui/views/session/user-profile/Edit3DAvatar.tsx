@@ -28,7 +28,9 @@ import {
   getSessionAuth,
   setProfileAvatar,
   setWorldAvatar,
+  uploadMedia,
 } from "../../../utils/avatarMatrix";
+import { renderAvatarPreview } from "../../../utils/avatarPreview";
 
 interface Edit3DAvatarProps {
   renderTrigger?: (openModal: () => void) => ReactNode;
@@ -78,6 +80,16 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
       if (!auth) throw new Error("Not signed in");
       const content = await buildContent();
       if (!content) throw new Error("Upload an avatar first");
+      // Buzzar: no picture uploaded with a new avatar? Render one from the file.
+      const file = avatarInfo.blob?.nativeBlob as Blob | undefined;
+      if (avatarInfo.mxc && !previewInfo.mxc && file) {
+        try {
+          const image = await renderAvatarPreview(await file.arrayBuffer());
+          content.preview_url = await uploadMedia(auth, image, "avatar-preview.png");
+        } catch (e) {
+          console.warn("Couldn't render an avatar preview", e);
+        }
+      }
       // Remember new uploads (and new previews of them) in your Bookmarked avatars.
       if (avatarInfo.mxc || previewInfo.mxc) await saveToAvatarCollection(auth, session.userId, content);
 
@@ -117,7 +129,7 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
                   <Scroll>
                     <div className="Edit3DAvatar__content">
                       <Text variant="b3" color="surface-low">
-                        Upload a .vrm or .glb avatar and, optionally, a picture of it. Uploads are added to your
+                        Upload a .vrm or .glb avatar and, optionally, a picture of it (without one, a preview is made for you). Uploads are added to your
                         Bookmarked avatars, so you can wear them again later.
                       </Text>
                       <SettingTile className="grow basis-0" label={<Label>Avatar</Label>}>

@@ -47,7 +47,9 @@ import {
   saveToAvatarCollection,
   setProfileAvatar,
   setWorldAvatar,
+  uploadMedia,
 } from "../../../utils/avatarMatrix";
+import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
 import { worldAtom } from "../../../state/world";
 import { AvatarsTab, OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
@@ -198,12 +200,29 @@ export function AvatarsView() {
     }
   };
 
+  /** A rendered preview of one of your own avatars: upload it and remember it (and on your profile if worn). */
+  const savePreview = useCallback(
+    async (avatar: AvatarContent, image: Blob) => {
+      const auth = await getAuth();
+      const previewUrl = await uploadMedia(auth, image, "avatar-preview.png");
+      const content: AvatarContent = { ...stripSaved(avatar), preview_url: previewUrl };
+      setCollection(await saveToAvatarCollection(auth, session.userId, content));
+      const profile = await fetchProfileAvatar(auth, session.userId).catch(() => undefined);
+      if (profile?.url === avatar.url && !profile.preview_url) {
+        await setProfileAvatar(auth, session.userId, { ...profile, preview_url: previewUrl });
+        setWearing((w) => (w ? { ...w, profile: { ...profile, preview_url: previewUrl } } : w));
+      }
+    },
+    [getAuth, session]
+  );
+
   const isBookmarked = (url: string) => !!collection?.avatars.some((a) => a.url === url);
   const isWearing = (url: string | undefined) => (url ? current?.url === url : !!wearing && !current);
   const wearingWorldOnly = inWorld && wearing?.world && wearing.world.url !== wearing.profile?.url;
 
   const ctx: TileContext = {
     busy,
+    savePreview,
     inWorld,
     wear,
     bookmark,
@@ -276,6 +295,7 @@ export function AvatarsView() {
 
 interface TileContext {
   busy?: string;
+  savePreview: (avatar: AvatarContent, image: Blob) => Promise<void>;
   inWorld: boolean;
   wear: (
     key: string,
@@ -302,6 +322,63 @@ function WearButton({ ctx, id, onWear, wearing }: { ctx: TileContext; id: string
     </Button>
   );
 }
+
+/** Only the avatar fields (bookmarks also carry added_ts). */
+function stripSaved(avatar: AvatarContent): AvatarContent {
+  const out: AvatarContent = { url: avatar.url };
+  if (avatar.preview_url) out.preview_url = avatar.preview_url;
+  if (avatar.format) out.format = avatar.format;
+  if (avatar.name) out.name = avatar.name;
+  return out;
+}
+
+/**
+ * Renders a preview for an avatar that has none (shown right away as a blob URL). With `save`, it's also uploaded and
+ * stored with the avatar so it doesn't need rendering again.
+ */
+function useRenderedPreview(
+  avatar: AvatarContent | undefined,
+  save?: (avatar: AvatarContent, image: Blob) => Promise<void>
+) {
+  const { session } = useHydrogen(true);
+  const [url, setUrl] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const avatarUrl = avatar?.url;
+
+  useEffect(() => {
+    if (!avatar || !avatarUrl) return;
+    const httpUrl = session.mediaRepository.mxcUrl(avatarUrl);
+    if (!httpUrl) return;
+    let cancelled = false;
+    let objectUrl: string | undefined;
+    setLoading(true);
+    renderAvatarPreviewFromUrl(avatarUrl, httpUrl)
+      .then(async (blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+        if (save && !savedPreviews.has(avatarUrl)) {
+          savedPreviews.add(avatarUrl);
+          await save(avatar, blob).catch((e) => {
+            savedPreviews.delete(avatarUrl);
+            console.warn("Couldn't save the avatar preview", e);
+          });
+        }
+      })
+      .catch((e) => console.warn("Couldn't render an avatar preview", e))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarUrl, session]);
+
+  return { url, loading };
+}
+
+/** Previews already being saved this session (so two tiles of the same avatar don't both upload one). */
+const savedPreviews = new Set<string>();
 
 function usePreview(mxc: string | undefined) {
   const { session } = useHydrogen(true);
@@ -394,6 +471,7 @@ function BookmarkedAvatars({ ctx, collection }: { ctx: TileContext; collection?:
           key={avatar.url}
           ctx={ctx}
           avatar={avatar}
+          ownAvatar
           subtitle={
             avatar.added_ts ? `Saved ${new Date(avatar.added_ts).toLocaleDateString()}` : "Saved avatar"
           }
@@ -415,30 +493,41 @@ function AvatarTile({
   extraMenu,
   bookmarkable,
   imageSrc,
+  ownAvatar,
 }: {
   ctx: TileContext;
   avatar: AvatarContent;
   imageSrc?: string;
+  /** Your own (bookmarked/uploaded) avatar: a rendered preview is saved to it. */
+  ownAvatar?: boolean;
   subtitle?: string;
   extraMenu?: ReactNode;
   bookmarkable?: boolean;
 }) {
   const preview = usePreview(avatar.preview_url);
+  const rendered = useRenderedPreview(
+    !avatar.preview_url && !imageSrc ? avatar : undefined,
+    ownAvatar ? ctx.savePreview : undefined
+  );
   const name = avatar.name || "Avatar";
   const wearing = ctx.isWearing(avatar.url);
-  const content = async (): Promise<AvatarContent> => {
-    // Only the avatar fields (bookmarks also carry added_ts).
-    const out: AvatarContent = { url: avatar.url };
-    if (avatar.preview_url) out.preview_url = avatar.preview_url;
-    if (avatar.format) out.format = avatar.format;
-    if (avatar.name) out.name = avatar.name;
-    return out;
-  };
+  const content = async () => stripSaved(avatar);
   return (
     <WorldTile
       shape="tall"
-      imageSrc={preview ?? imageSrc}
-      fallback={<TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(avatar.url)})`} />}
+      imageSrc={preview ?? imageSrc ?? rendered.url}
+      fallback={
+        rendered.loading ? (
+          <div className="WorldTile__fallback flex flex-column items-center justify-center gap-xs">
+            <Dots size="md" />
+            <Text variant="b3" color="surface-low">
+              Making a preview…
+            </Text>
+          </div>
+        ) : (
+          <TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(avatar.url)})`} />
+        )
+      }
       title={name}
       subtitle={
         subtitle ? (
