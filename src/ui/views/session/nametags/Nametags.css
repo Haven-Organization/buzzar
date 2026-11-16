@@ -33,11 +33,21 @@
   max-width: 280px;
 }
 
-/* A dark wash keeps the name readable on any banner. */
+/*
+ * With a banner the card is at least 3:1 (MSC4427's recommended banner shape), so the image shows even for a
+ * short name, and nothing darkens it; the name and pronouns get a stronger shadow of their own instead.
+ */
 .Nametag__card--banner {
   border-radius: 14px;
   padding: 8px 14px 8px 8px;
-  box-shadow: inset 0 0 0 1000px rgb(0 0 0 / 45%), 0 1px 4px rgb(0 0 0 / 35%);
+  min-width: 210px;
+  min-height: 70px;
+  align-items: flex-end;
+  background-color: transparent;
+}
+
+.Nametag__card--banner .Nametag__names {
+  text-shadow: 0 0 3px rgb(0 0 0 / 90%), 0 1px 2px rgb(0 0 0 / 90%), 0 0 8px rgb(0 0 0 / 60%);
 }
 
 .Nametag__avatar {

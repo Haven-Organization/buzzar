@@ -153,7 +153,7 @@ function Nametag({ room, nametag, groupCall, bubbles, typing }: NametagProps) {
   });
 
   const { pronouns, bannerUrl } = useProfileExtras(userId);
-  const bannerHttp = bannerUrl ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 480, 160, "crop") : undefined;
+  const bannerHttp = bannerUrl ? session.mediaRepository.mxcUrlThumbnail(bannerUrl, 600, 200, "crop") : undefined;
   const name = member?.displayName || nametag.name;
 
   return (
