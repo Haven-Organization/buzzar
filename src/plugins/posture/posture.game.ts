@@ -87,7 +87,8 @@ export const PostureModule = defineModule<GameContext, PostureState>({
   },
 });
 
-const messageView = createCursorView(new ArrayBuffer(16));
+// Buzzar: header (1 type + 8 time + 4 reserved = 13 bytes) + payload; 16 overflowed and crashed the game on C.
+const messageView = createCursorView(new ArrayBuffer(64));
 function createPostureMessage(posture: Posture) {
   writeMetadata(messageView, NetworkAction.HavenPosture);
   writeUint32(messageView, posture);

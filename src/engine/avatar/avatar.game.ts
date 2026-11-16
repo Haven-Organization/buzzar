@@ -603,7 +603,7 @@ function voiceFor(ctx: GameContext, avatarNode: RemoteNode): Float32Array | unde
   return container.name ? lipSyncVoices.get(container.name) : undefined;
 }
 
-const announceView = createCursorView(new ArrayBuffer(16));
+const announceView = createCursorView(new ArrayBuffer(64));
 const BlinkDebugMessage = "software.haven.debug.blink";
 let forcedBlink: number | undefined;
 const MouthDebugMessage = "software.haven.debug.mouth";
