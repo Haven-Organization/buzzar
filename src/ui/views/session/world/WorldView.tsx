@@ -71,6 +71,25 @@ export function WorldView({ world }: WorldViewProps) {
   const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
   const [editorEnabled, setEditorEnabled] = useAtom(editorEnabledAtom);
   const [pointerLocked, setPointerLocked] = useState(document.pointerLockElement === mainThread.canvas);
+  // Buzzar: "Click to play" only when the player stepped away on purpose (Tab, or switching windows). Otherwise the
+  // keyboard already works without the lock and the first click on the world takes the mouse for looking around.
+  const [mouseFreed, setMouseFreed] = useState(false);
+  useEffect(() => {
+    if (pointerLocked) setMouseFreed(false);
+  }, [pointerLocked]);
+  useEffect(() => {
+    const onBlur = () => setMouseFreed(true);
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
+  // If the click that entered the world still counts as a user gesture, take the pointer now (the lock taken on
+  // that click may have been refused, e.g. right after Escape released one).
+  useEffect(() => {
+    const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+    if (isWorldEntered && activation?.isActive && document.pointerLockElement !== mainThread.canvas) {
+      requestGamePointerLock(mainThread.canvas);
+    }
+  }, [isWorldEntered, mainThread]);
 
   // Buzzar: latest UI state for the pointer-lock listener below.
   const uiStateRef = useRef({ isWorldEntered, overlayVisible, worldChatVisible, editorEnabled });
@@ -187,6 +206,7 @@ export function WorldView({ world }: WorldViewProps) {
       // Buzzar: Tab frees the mouse without opening anything (Escape now frees it and opens the overlay).
       if (e.code === "Tab" && document.pointerLockElement === mainThread.canvas) {
         e.preventDefault();
+        setMouseFreed(true);
         document.exitPointerLock();
         return;
       }
@@ -232,7 +252,7 @@ export function WorldView({ world }: WorldViewProps) {
 
   return (
     <div className="WorldView">
-      {isWorldEntered && !pointerLocked && !overlayVisible && !worldChatVisible && !editorEnabled && (
+      {isWorldEntered && mouseFreed && !pointerLocked && !overlayVisible && !worldChatVisible && !editorEnabled && (
         // Buzzar: the pointer is only captured by clicking the world (see useDisableInput for why).
         <div className="WorldView__click-to-play">
           <Text color="world" weight="semi-bold">
