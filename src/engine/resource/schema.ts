@@ -71,6 +71,7 @@ export enum ResourceType {
   Collider,
   PhysicsBody,
   Mirror,
+  MorphWeights,
 }
 
 export enum QueryModifier {
@@ -422,6 +423,9 @@ export enum InstancedMeshAttributeIndex {
   LIGHTMAP_SCALE,
 }
 
+/** Buzzar: most morph targets a mesh primitive can have (VRM/ARKit faces use ~50–100). */
+export const MAX_MORPH_TARGETS = 128;
+
 export const MeshPrimitiveResource = defineResource("mesh-primitive", ResourceType.MeshPrimitive, {
   // Max 8 attributes, indexed by MeshPrimitiveAttributeIndex
   attributes: PropType.refMap(AccessorResource, {
@@ -436,7 +440,17 @@ export const MeshPrimitiveResource = defineResource("mesh-primitive", ResourceTy
   drawStart: PropType.u32({ script: true, mutable: true }),
   drawCount: PropType.u32({ script: true, mutable: true }),
   hologramMaterialEnabled: PropType.bool({ script: true }),
-  // TODO: targets
+  // Buzzar: morph targets (glTF primitive.targets). Index i of each array is target i; entries may be missing.
+  targetPositions: PropType.refArray(AccessorResource, { size: MAX_MORPH_TARGETS, mutable: false }),
+  targetNormals: PropType.refArray(AccessorResource, { size: MAX_MORPH_TARGETS, mutable: false }),
+});
+
+/**
+ * Buzzar: per-instance morph target weights for a node's mesh (meshes are shared between instances of a model,
+ * so weights can't live on the mesh). Set from the game thread (blinking, expressions), read by the renderer.
+ */
+export const MorphWeightsResource = defineResource("morph-weights", ResourceType.MorphWeights, {
+  weights: PropType.f32Array({ size: MAX_MORPH_TARGETS }),
 });
 
 export const InstancedMeshResource = defineResource("instanced-mesh", ResourceType.InstancedMesh, {
@@ -727,6 +741,7 @@ export const NodeResource = defineResource("node", ResourceType.Node, {
   light: PropType.ref(LightResource, { script: true }),
   reflectionProbe: PropType.ref(ReflectionProbeResource, { script: true }),
   mirror: PropType.ref(MirrorResource, { script: true }),
+  morphWeights: PropType.ref(MorphWeightsResource),
   camera: PropType.ref(CameraResource, { script: true }),
   audioEmitter: PropType.ref(AudioEmitterResource, { script: true }),
   tilesRenderer: PropType.ref(TilesRendererResource, { script: true }),

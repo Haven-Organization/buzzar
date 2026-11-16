@@ -50,6 +50,7 @@ import {
   ColliderType,
   PhysicsBodyType,
   MAX_SKIN_JOINTS,
+  MAX_MORPH_TARGETS,
 } from "../resource/schema";
 import { toSharedArrayBuffer } from "../utils/arraybuffer";
 import {
@@ -71,6 +72,7 @@ import {
   RemoteMaterial,
   RemoteMesh,
   RemoteMeshPrimitive,
+  RemoteMorphWeights,
   RemoteNode,
   RemotePhysicsBody,
   RemoteReflectionProbe,
@@ -1140,6 +1142,7 @@ const loadGLTFNode = createInstancedSubresourceLoader(
       camera: cameraIndex,
       mesh: meshIndex,
       skin: skinIndex,
+      weights: nodeWeights,
       extensions,
     } = nodeDef;
 
@@ -1203,6 +1206,16 @@ const loadGLTFNode = createInstancedSubresourceLoader(
 
       node.mesh = mesh;
       node.skin = skin;
+
+      // Buzzar: each instance gets its own morph weights (the mesh is shared), starting from the glTF defaults.
+      const morphTargetCount = mesh ? Math.max(0, ...mesh.primitives.map((p) => p.targetPositions.length)) : 0;
+      if (morphTargetCount > 0) {
+        const defaults =
+          nodeWeights ?? (meshIndex !== undefined ? resource.root.meshes?.[meshIndex]?.weights : undefined);
+        const weights = new Float32Array(MAX_MORPH_TARGETS);
+        if (defaults) weights.set(defaults.slice(0, MAX_MORPH_TARGETS));
+        node.morphWeights = new RemoteMorphWeights(resource.manager, { weights });
+      }
       node.instancedMesh = instancedMesh;
       node.lightMap = lightMap;
       node.camera = camera;
@@ -1653,11 +1666,24 @@ function loadGLTFMeshPrimitive(resource: GLTFResource, primitive: GLTFMeshPrimit
     material: primitive.material !== undefined ? loadGLTFMaterial(resource, primitive.material) : undefined,
   };
 
+  // Buzzar: morph targets (blend shapes), up to MAX_MORPH_TARGETS.
+  const targets = (primitive.targets ?? []).slice(0, MAX_MORPH_TARGETS);
+  const targetPositions: RemoteAccessor[] = [];
+  const targetNormals: RemoteAccessor[] = [];
+  if (targets.length > 0 && targets.every((t) => t.POSITION !== undefined)) {
+    for (const t of targets) targetPositions.push(loadGLTFAccessor(resource, t.POSITION));
+    if (targets.every((t) => t.NORMAL !== undefined)) {
+      for (const t of targets) targetNormals.push(loadGLTFAccessor(resource, t.NORMAL));
+    }
+  }
+
   return new RemoteMeshPrimitive(resource.manager, {
     indices,
     attributes,
     material,
     mode: primitive.mode,
+    targetPositions,
+    targetNormals,
   });
 }
 

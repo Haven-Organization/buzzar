@@ -133,8 +133,10 @@ function processAnimations(ctx: GameContext) {
       increaseClipActionWeights(actionsToPlay, fadeInAmount * ctx.dt);
 
       animation.mixer.update(ctx.dt);
-      animation.postUpdate?.(ctx.dt, node.worldMatrix);
     }
+
+    // Buzzar: spring bones and faces run for every avatar, including ones without a body (avatar pedestals).
+    animation?.postUpdate?.(ctx.dt, node.worldMatrix);
   }
   return ctx;
 }

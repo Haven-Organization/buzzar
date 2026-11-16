@@ -34,6 +34,8 @@ type RemoteResourcePropValue<
   ? Float32Array
   : Def["schema"][Prop]["type"] extends "mat4"
   ? Float32Array
+  : Def["schema"][Prop]["type"] extends "f32Array"
+  ? Float32Array
   : Def["schema"][Prop]["type"] extends "f32"
   ? number
   : Def["schema"][Prop]["type"] extends "rgba"
@@ -101,6 +103,8 @@ type InitialRemoteResourcePropValue<
   : Def["schema"][Prop]["type"] extends "mat3"
   ? ArrayLike<number>
   : Def["schema"][Prop]["type"] extends "mat4"
+  ? ArrayLike<number>
+  : Def["schema"][Prop]["type"] extends "f32Array"
   ? ArrayLike<number>
   : Def["schema"][Prop]["type"] extends "f32"
   ? number

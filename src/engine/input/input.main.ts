@@ -59,6 +59,11 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       ctx.sendMessage(Thread.Game, { type: "software.haven.debug.sit", seat: seat ?? -1 })
     );
 
+    // Buzzar debug: `thirdroom.blink(1)` / `(0)` hold every avatar's eyes closed / open; `()` resumes blinking.
+    registerThirdroomGlobalFn("blink", (closed?: number) =>
+      ctx.sendMessage(Thread.Game, { type: "software.haven.debug.blink", closed: closed ?? -1 })
+    );
+
     // Buzzar debug: movement/focus tracing. Enable with `?debugMovement=1` in the URL (persists; `=0` turns it
     // off). Logs raw keyboard/focus/pointer-lock events plus input + player state every 2 s to the console and,
     // under `vite dev`, to `.buzzar-debug.log` in the project (see src/vite/debug-log.ts).

@@ -17,6 +17,7 @@ import {
   TextureResource,
   ReflectionProbeResource,
   MirrorResource,
+  MorphWeightsResource,
   MaterialResource,
   LightResource,
   CameraResource,
@@ -85,6 +86,8 @@ export class RemoteReflectionProbe extends defineRemoteResourceClass(ReflectionP
 
 export class RemoteMirror extends defineRemoteResourceClass(MirrorResource) {}
 
+export class RemoteMorphWeights extends defineRemoteResourceClass(MorphWeightsResource) {}
+
 export class RemoteMaterial extends defineRemoteResourceClass(MaterialResource) {
   declare baseColorTexture: RemoteTexture | undefined;
   declare metallicRoughnessTexture: RemoteTexture | undefined;
@@ -113,6 +116,8 @@ export class RemoteMeshPrimitive extends defineRemoteResourceClass(MeshPrimitive
   declare attributes: RemoteAccessor[];
   declare indices: RemoteAccessor | undefined;
   declare material: RemoteMaterial | undefined;
+  declare targetPositions: RemoteAccessor[];
+  declare targetNormals: RemoteAccessor[];
 }
 
 export class RemoteInstancedMesh extends defineRemoteResourceClass(InstancedMeshResource) {
@@ -203,6 +208,7 @@ export class RemoteNode extends defineRemoteResourceClass(NodeResource) {
   declare light: RemoteLight | undefined;
   declare reflectionProbe: RemoteReflectionProbe | undefined;
   declare mirror: RemoteMirror | undefined;
+  declare morphWeights: RemoteMorphWeights | undefined;
   declare camera: RemoteCamera | undefined;
   declare audioEmitter: RemoteAudioEmitter | undefined;
   declare tilesRenderer: RemoteTilesRenderer | undefined;

@@ -303,6 +303,21 @@ function createMat4PropDef<O extends VectorPropOptions>(options?: O) {
   );
 }
 
+/** Buzzar: a fixed-size float array (e.g. morph target weights). Treated like the vector types at runtime. */
+function createF32ArrayPropDef<O extends VectorPropOptions & { size: number }>(options: O) {
+  return createPropDef(
+    {
+      type: "f32Array",
+      arrayType: Float32Array,
+      size: options.size,
+      mutable: true,
+      required: false,
+      default: new Float32Array(options.size) as ArrayLike<number>,
+    },
+    options
+  );
+}
+
 function createBitmaskPropDef<O extends DefaultPropOptions<number>>(options?: O) {
   return createPropDef(
     {
@@ -434,6 +449,7 @@ export type PropTypeType = {
   rgba: ReturnType<typeof createRGBAPropDef>;
   quat: ReturnType<typeof createQuatPropDef>;
   mat4: ReturnType<typeof createMat4PropDef>;
+  f32Array: ReturnType<typeof createF32ArrayPropDef>;
   bitmask: ReturnType<typeof createBitmaskPropDef>;
   enum: ReturnType<typeof createEnumPropDef>;
   string: ReturnType<typeof createStringPropDef>;
@@ -457,6 +473,7 @@ export const PropType = {
   quat: createQuatPropDef,
   mat3: createMat3PropDef,
   mat4: createMat4PropDef,
+  f32Array: createF32ArrayPropDef,
   bitmask: createBitmaskPropDef,
   enum: createEnumPropDef,
   string: createStringPropDef,
@@ -529,6 +546,8 @@ type LocalResourcePropValue<
   : Def["schema"][Prop]["type"] extends "mat3"
   ? Float32Array
   : Def["schema"][Prop]["type"] extends "mat4"
+  ? Float32Array
+  : Def["schema"][Prop]["type"] extends "f32Array"
   ? Float32Array
   : Def["schema"][Prop]["type"] extends "f32"
   ? number

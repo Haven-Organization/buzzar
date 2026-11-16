@@ -203,7 +203,8 @@ const DETECTED_KINDS: { pattern: RegExp; settings: Omit<SpringSettings, "gravity
 ]; // prettier-ignore
 
 /** Bones that look like secondary bones by name but are part of the rig (twist bones, IK targets, …). */
-const NOT_SPRING = /twist|roll|(^|[^a-z])ik([^a-z]|$)|pole|target|eye|finger|thumb|toe|heel|knee|elbow|shoulder|clavicle/i;
+const NOT_SPRING =
+  /twist|roll|(^|[^a-z])ik([^a-z]|$)|pole|target|eye|finger|thumb|toe|heel|knee|elbow|shoulder|clavicle/i;
 
 /**
  * Plain glTF avatars (no VRM spring data): find chains of non-humanoid skin joints named like secondary bones
@@ -398,7 +399,10 @@ function stepJoint(joint: SpringJoint, dt: number) {
   // Verlet: inertia (with drag) + stiffness toward the rest direction + gravity.
   _inertia.subVectors(joint.currentTail, joint.prevTail).multiplyScalar(1 - settings.dragForce);
   _tmpQ.copy(_parentWorldRot).multiply(joint.initialLocalRotation);
-  _stiff.copy(joint.boneAxis).applyQuaternion(_tmpQ).multiplyScalar(dt * settings.stiffness);
+  _stiff
+    .copy(joint.boneAxis)
+    .applyQuaternion(_tmpQ)
+    .multiplyScalar(dt * settings.stiffness);
   _next
     .copy(joint.currentTail)
     .add(_inertia)

@@ -28,7 +28,7 @@ import { applyAvatarLayers, isAvatarHiddenFromMainCamera, setAvatarHiddenFromMai
 import { AvatarRef } from "../player/components";
 import { getCamera } from "../player/getCamera";
 import { getNametag } from "../player/nametags.game";
-import { ourPlayerQuery } from "../player/Player";
+import { ourPlayerQuery, playerQuery } from "../player/Player";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import {
@@ -39,7 +39,8 @@ import {
   SetPeerAvatarMessageType,
 } from "./avatar.common";
 import { checkAvatarLimits, computeAvatarStats, getHumanoidMapping, HumanoidMapping, HumanBone } from "./humanoid";
-import { createSpringRig, getSpringChains, updateSpringRig } from "./springBones";
+import { createSpringRig, getSpringChains, SpringRig, updateSpringRig } from "./springBones";
+import { createFaceRig, FaceRig, getFaceSpec, updateFaceRig } from "./face";
 import {
   applyBindPose,
   buildSitClip,
@@ -81,13 +82,17 @@ function hipsNodeFor(loaderCtx: GLTFLoaderContext, mapping: HumanoidMapping): Re
 export function createDefaultAvatarNode(ctx: GameContext, onLoaded?: (rig: RemoteNode) => void): RemoteNode {
   const rig = new RemoteNode(ctx.resourceManager);
   loadGLTF(ctx, DEFAULT_AVATAR_URL).then((resource) => {
-    loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(resource, rig), existingNode: rig });
+    loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(ctx, resource, rig), existingNode: rig });
     onLoaded?.(rig);
   });
   return rig;
 }
 
-function defaultAvatarOptions(resource: Awaited<ReturnType<typeof loadGLTF>>, rig: RemoteNode): GLTFLoaderOptions {
+function defaultAvatarOptions(
+  ctx: GameContext,
+  resource: Awaited<ReturnType<typeof loadGLTF>>,
+  rig: RemoteNode
+): GLTFLoaderOptions {
   return {
     extraAnimationClips: (loaderCtx, rootObj) => {
       const mapping = getHumanoidMapping(resource.root);
@@ -95,6 +100,10 @@ function defaultAvatarOptions(resource: Awaited<ReturnType<typeof loadGLTF>>, ri
       const hips = hipsNodeFor(loaderCtx, mapping);
       if (hips) AvatarHips.set(rig, hips);
       return [buildSitClip(buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion()))];
+    },
+    createAnimationPostUpdate: (loaderCtx, rootObj) => {
+      const mapping = getHumanoidMapping(resource.root);
+      return mapping ? createAvatarAnimationExtras(ctx, loaderCtx, rootObj, mapping) : undefined;
     },
   };
 }
@@ -142,7 +151,19 @@ export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
     };
   },
   init(ctx) {
-    return registerMessageHandler(ctx, SetPeerAvatarMessage, onSetPeerAvatar);
+    const disposeAvatar = registerMessageHandler(ctx, SetPeerAvatarMessage, onSetPeerAvatar);
+    // Debug: `thirdroom.blink(1)` holds every avatar's eyes closed, `(0)` open, `()` back to normal blinking.
+    const disposeBlink = registerMessageHandler(
+      ctx,
+      BlinkDebugMessage,
+      (_ctx: GameContext, message: { type: typeof BlinkDebugMessage; closed: number }) => {
+        forcedBlink = message.closed >= 0 ? message.closed : undefined;
+      }
+    );
+    return () => {
+      disposeAvatar();
+      disposeBlink();
+    };
   },
 });
 
@@ -392,7 +413,7 @@ async function loadCustomAvatar(
       return source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
     },
     // Hair, ears, tails, skirts…: built after retargeting has put the skeleton in its bind pose (the springs' rest).
-    createAnimationPostUpdate: (loaderCtx, rootObj) => createAvatarSprings(loaderCtx, rootObj, mapping),
+    createAnimationPostUpdate: (loaderCtx, rootObj) => createAvatarAnimationExtras(ctx, loaderCtx, rootObj, mapping),
   });
 
   // Mixamo / VRM 1.0 face +Z and need turning to face the player's forward (-Z); VRM 0.x already faces -Z.
@@ -404,25 +425,114 @@ async function loadCustomAvatar(
 
 export class AvatarRejectedError extends Error {}
 
-function createAvatarSprings(
+/**
+ * Secondary motion and face for an avatar: spring bones (hair, ears…), then blinking and eye gaze. Built once the
+ * animation graph is in its bind pose; runs every frame right after the mixer.
+ */
+function createAvatarAnimationExtras(
+  ctx: GameContext,
   loaderCtx: GLTFLoaderContext,
   rootObj: Object3D,
   mapping: HumanoidMapping
 ): AnimationPostUpdate | undefined {
+  const objectFor = (index: number) => {
+    const node = loaderCtx.nodeMap.get(index);
+    return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
+  };
+
+  let springRig: SpringRig | undefined;
   try {
     const chains = getSpringChains(loaderCtx.resource.root, mapping);
-    if (chains.length === 0) return undefined;
-    const springRig = createSpringRig(chains, (index) => {
-      const node = loaderCtx.nodeMap.get(index);
-      return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
-    });
-    if (!springRig) return undefined;
-    return (dt, rootWorldMatrix) => updateSpringRig(springRig, rootObj, rootWorldMatrix, dt);
+    if (chains.length > 0) springRig = createSpringRig(chains, objectFor);
   } catch (error) {
-    // Secondary motion is decoration: never fail the avatar over it.
+    // Decoration only: never fail the avatar over it.
     console.warn("Avatar spring bones disabled:", error);
-    return undefined;
   }
+
+  let faceRig: FaceRig | undefined;
+  try {
+    rootObj.updateMatrixWorld(true);
+    const gltfNodes = loaderCtx.resource.root.nodes ?? [];
+    const spec = getFaceSpec(
+      loaderCtx.resource.root,
+      mapping,
+      (i) => {
+        const obj = objectFor(i);
+        return obj ? new Vector3().setFromMatrixPosition(obj.matrixWorld) : undefined;
+      },
+      (i, offset) => {
+        // The graph root is still at the origin here, so world space is avatar space.
+        const obj = objectFor(i);
+        const parent = obj?.parent;
+        if (!obj || !parent) return undefined;
+        const from = new Vector3().setFromMatrixPosition(obj.matrixWorld);
+        const to = parent.worldToLocal(from.clone().add(offset));
+        return to.sub(parent.worldToLocal(from));
+      }
+    );
+    faceRig = createFaceRig({
+      spec,
+      objectFor,
+      facesNegativeZ: mapping.facesNegativeZ,
+      weightsFor: (bind) => {
+        const out: Float32Array[] = [];
+        const add = (index: number) => {
+          const weights = loaderCtx.nodeMap.get(index)?.morphWeights?.weights;
+          if (weights && bind.index < weights.length) out.push(weights);
+        };
+        if (bind.node !== undefined) add(bind.node);
+        else gltfNodes.forEach((n, i) => n.mesh === bind.mesh && add(i));
+        return out;
+      },
+    });
+  } catch (error) {
+    console.warn("Avatar face animation disabled:", error);
+  }
+
+  if (!springRig && !faceRig) return undefined;
+  return (dt, rootWorldMatrix) => {
+    if (springRig) updateSpringRig(springRig, rootObj, rootWorldMatrix, dt);
+    else syncRootMatrix(rootObj, rootWorldMatrix);
+    if (faceRig) {
+      faceRig.forceBlink = forcedBlink;
+      updateFaceRig(faceRig, dt, getLookTargets(ctx));
+    }
+  };
+}
+
+const BlinkDebugMessage = "software.haven.debug.blink";
+let forcedBlink: number | undefined;
+
+/** Puts the avatar's world matrix on the animation graph root and updates the graph's world matrices. */
+function syncRootMatrix(root: Object3D, rootWorldMatrix: ArrayLike<number>) {
+  root.matrixAutoUpdate = false;
+  root.matrix.fromArray(rootWorldMatrix as number[]);
+  root.updateMatrixWorld(true);
+}
+
+/** Default eye height when a player's isn't known (metres above their feet). */
+const DEFAULT_LOOK_HEIGHT = 1.5;
+let lookTargetsAt = -1;
+const lookTargets: Float32Array[] = [];
+
+/** World positions of every player's eyes, computed once per frame. */
+function getLookTargets(ctx: GameContext): Float32Array[] {
+  if (lookTargetsAt === ctx.elapsed) return lookTargets;
+  lookTargetsAt = ctx.elapsed;
+  lookTargets.length = 0;
+  for (const eid of playerQuery(ctx.world)) {
+    const node = getRemoteResource<RemoteNode>(ctx, eid);
+    if (!node) continue;
+    let height = DEFAULT_LOOK_HEIGHT;
+    try {
+      height = getNametag(ctx, node).position[1] - NAMETAG_ABOVE_EYES;
+    } catch {
+      // our own player (no name tag)
+    }
+    const m = node.worldMatrix;
+    lookTargets.push(new Float32Array([m[12], m[13] + height, m[14]]));
+  }
+  return lookTargets;
 }
 
 /**
@@ -437,7 +547,7 @@ export async function loadAvatarRig(
   if (url) return loadCustomAvatar(ctx, url, onProgress);
   const resource = await loadGLTF(ctx, DEFAULT_AVATAR_URL);
   const rig = new RemoteNode(ctx.resourceManager);
-  loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(resource, rig), existingNode: rig });
+  loadDefaultGLTFScene(ctx, resource, { ...defaultAvatarOptions(ctx, resource, rig), existingNode: rig });
   quat.fromEuler(rig.quaternion, 0, 180, 0);
   return { rig, eyeHeight: DEFAULT_EYE_HEIGHT };
 }

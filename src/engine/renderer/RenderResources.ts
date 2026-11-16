@@ -75,6 +75,7 @@ import {
   NodeResource,
   ReflectionProbeResource,
   MirrorResource,
+  MorphWeightsResource,
   SceneResource,
   SkinResource,
   TextureResource,
@@ -162,6 +163,8 @@ export class RenderReflectionProbe extends defineLocalResourceClass(ReflectionPr
 }
 
 export class RenderMirror extends defineLocalResourceClass(MirrorResource) {}
+
+export class RenderMorphWeights extends defineLocalResourceClass(MorphWeightsResource) {}
 
 export class RenderMaterial extends defineLocalResourceClass(MaterialResource) {
   declare baseColorTexture: RenderTexture | undefined;
@@ -557,6 +560,8 @@ export class RenderMeshPrimitive extends defineLocalResourceClass(MeshPrimitiveR
   declare attributes: RenderAccessor[];
   declare indices: RenderAccessor | undefined;
   declare material: RenderMaterial | undefined;
+  declare targetPositions: RenderAccessor[];
+  declare targetNormals: RenderAccessor[];
 
   geometryObj: BufferGeometry = defaultGeometry;
   materialObj: PrimitiveMaterial = defaultMaterial;
@@ -579,6 +584,17 @@ export class RenderMeshPrimitive extends defineLocalResourceClass(MeshPrimitiveR
       if (accessor) {
         geometryObj.setAttribute(MeshPrimitiveAttributeToThreeAttribute[i], accessor.attribute);
       }
+    }
+
+    // Buzzar: morph targets. glTF stores them as offsets from the base mesh (relative).
+    const targetPositions = this.targetPositions.filter((a) => !!a);
+    if (targetPositions.length > 0) {
+      geometryObj.morphAttributes.position = targetPositions.map((a) => a.attribute as BufferAttribute);
+      const targetNormals = this.targetNormals.filter((a) => !!a);
+      if (targetNormals.length === targetPositions.length) {
+        geometryObj.morphAttributes.normal = targetNormals.map((a) => a.attribute as BufferAttribute);
+      }
+      geometryObj.morphTargetsRelative = true;
     }
 
     if (this.mode === MeshPrimitiveMode.TRIANGLE_STRIP) {
@@ -677,6 +693,7 @@ export class RenderNode extends defineLocalResourceClass(NodeResource) {
   declare light: RenderLight | undefined;
   declare reflectionProbe: RenderReflectionProbe | undefined;
   declare mirror: RenderMirror | undefined;
+  declare morphWeights: RenderMorphWeights | undefined;
   declare camera: RenderCamera | undefined;
   declare audioEmitter: RenderAudioEmitter | undefined;
   declare tilesRenderer: RenderTilesRenderer | undefined;
@@ -849,6 +866,7 @@ const {
   RenderLightMap,
   RenderReflectionProbe,
   RenderMirror,
+  RenderMorphWeights,
   RenderTilesRenderer,
   RenderAnimation,
   RenderAnimationChannel,

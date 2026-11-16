@@ -36,7 +36,14 @@ function makeChain() {
 
 const spec = (settings: Partial<SpringSettings> = {}): SpringChainSpec => ({
   joints: [1],
-  settings: { stiffness: 1, gravityPower: 0, gravityDir: new Vector3(0, -1, 0), dragForce: 0.4, hitRadius: 0, ...settings },
+  settings: {
+    stiffness: 1,
+    gravityPower: 0,
+    gravityDir: new Vector3(0, -1, 0),
+    dragForce: 0.4,
+    hitRadius: 0,
+    ...settings,
+  },
   colliders: [],
 });
 
@@ -118,7 +125,9 @@ describe("spring bone sources", () => {
         VRMC_springBone: {
           colliders: [{ node: 0, shape: { capsule: { offset: [0, 0, 0], radius: 0.05, tail: [0, 0.2, 0] } } }],
           colliderGroups: [{ colliders: [0] }],
-          springs: [{ joints: [{ node: 1, stiffness: 3 }, { node: 2, stiffness: 1 }, { node: 3 }], colliderGroups: [0] }],
+          springs: [
+            { joints: [{ node: 1, stiffness: 3 }, { node: 2, stiffness: 1 }, { node: 3 }], colliderGroups: [0] },
+          ],
         },
       },
     })!;

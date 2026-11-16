@@ -382,6 +382,13 @@ function updateNodeMesh(ctx: RenderContext, node: RenderNode) {
       primitiveObject.castShadow = castShadow;
       primitiveObject.receiveShadow = receiveShadow;
 
+      // Buzzar: per-instance morph target weights (blinking, expressions).
+      const influences = (primitiveObject as Mesh).morphTargetInfluences;
+      if (node.morphWeights && influences) {
+        const weights = node.morphWeights.weights;
+        for (let w = 0, wl = Math.min(influences.length, weights.length); w < wl; w++) influences[w] = weights[w];
+      }
+
       updateTransformFromNode(ctx, node, primitiveObject);
 
       if (node.skin) {

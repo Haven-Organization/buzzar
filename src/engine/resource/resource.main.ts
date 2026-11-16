@@ -36,6 +36,7 @@ import {
   PhysicsBodyResource,
   ReflectionProbeResource,
   MirrorResource,
+  MorphWeightsResource,
   ResourceType,
   SamplerResource,
   SceneResource,
@@ -178,6 +179,8 @@ export class MainReflectionProbe extends defineLocalResourceClass(ReflectionProb
 
 export class MainMirror extends defineLocalResourceClass(MirrorResource) {}
 
+export class MainMorphWeights extends defineLocalResourceClass(MorphWeightsResource) {}
+
 export class MainMaterial extends defineLocalResourceClass(MaterialResource) {
   declare baseColorTexture: MainTexture | undefined;
   declare metallicRoughnessTexture: MainTexture | undefined;
@@ -280,6 +283,7 @@ export class MainNode extends defineLocalResourceClass(NodeResource) {
   declare light: MainLight | undefined;
   declare reflectionProbe: MainReflectionProbe | undefined;
   declare mirror: MainMirror | undefined;
+  declare morphWeights: MainMorphWeights | undefined;
   declare camera: MainCamera | undefined;
   declare audioEmitter: MainAudioEmitter | undefined;
   declare tilesRenderer: MainTilesRenderer | undefined;
@@ -384,6 +388,7 @@ const {
   MainLightMap,
   MainReflectionProbe,
   MainMirror,
+  MainMorphWeights,
   MainTilesRenderer,
   MainAnimationChannel,
   MainAnimationSampler,
