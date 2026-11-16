@@ -176,6 +176,8 @@ export function vowelWeights(f1: number, f2: number, out: Float32Array): Float32
 
 /** Per-voice estimator: keeps the voice's recent loudness peak and last vowel. */
 export class VisemeEstimator {
+  /** Last measurement, for debugging: level (dBFS), loudness 0–1 and formants. */
+  last: { db: number; loud: number; formants?: [number, number] } = { db: -120, loud: 0 };
   private peakDb = -30;
   private lastVowel = new Float32Array(VISEME_COUNT);
 
@@ -192,6 +194,7 @@ export class VisemeEstimator {
     this.peakDb = Math.max(db, this.peakDb - PEAK_DECAY_DB_PER_S * dt, SILENCE_DB + DYNAMIC_RANGE_DB);
     const floor = Math.max(SILENCE_DB, this.peakDb - DYNAMIC_RANGE_DB);
     const loud = Math.min(1, Math.max(0, (db - floor) / (this.peakDb - floor)));
+    this.last = { db, loud };
     if (loud <= 0) {
       out.fill(0);
       return out;
@@ -199,6 +202,7 @@ export class VisemeEstimator {
 
     // Consonants and noise often have no clear formants: keep the last vowel shape, just less open.
     const formants = estimateFormants(samples, sampleRate);
+    this.last.formants = formants;
     if (formants) vowelWeights(formants[0], formants[1], this.lastVowel);
     const shape = formants ? 1 : 0.6;
     for (let i = 0; i < out.length; i++) out[i] = this.lastVowel[i] * VOWEL_OPENNESS[i] * loud * shape;

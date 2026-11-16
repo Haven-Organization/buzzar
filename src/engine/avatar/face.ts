@@ -196,49 +196,74 @@ const LIP_LOWER = /lo(wer)?_?lip|lip_?lo(wer)?|lolip|(^|[^a-z])lo([^a-z]|$)|unde
 const LIP_UPPER = /up(per)?_?lip|lip_?up(per)?|uplip|(^|[^a-z])up([^a-z]|$)|top/i;
 const LIP_CORNER = /co(rner)?_?lip|lip_?co(rner)?|colip|corner/i;
 
-/** Lower lip drops this far (m) when fully open; the upper lip lifts a little; corners pull in/out. */
-const LIP_OPEN = 0.011;
-const LIP_UPPER_OPEN = 0.002;
-const LIP_ROUND = 0.004;
-const LIP_WIDE = 0.003;
+/**
+ * Lip and teeth bones, moved in the mouth's own frame (left–right from the corners, so it works when the head is
+ * turned or tilted in the rest pose), by fractions of the mouth's width. Tuned by rendering an avatar with
+ * game-style face bones (lip corners, upper/lower lips, lower teeth) in Blender.
+ */
+const LIP_RULES = {
+  corner: { open: [0, -0.12, 0], round: [-0.28, 0, 0.08], wide: [0.14, 0.04, 0] },
+  lower: { open: [0, -0.42, 0], round: [-0.14, 0, 0.12], wide: [0, 0, 0] },
+  upper: { open: [0, 0.06, 0], round: [-0.14, 0, 0.12], wide: [0, 0, 0] },
+  teeth: { open: [0, -0.36, 0], round: [0, 0, 0], wide: [0, 0, 0] },
+} as const;
+const TEETH_LOWER = /(yachi|teeth|tooth|ha_?).*(lo|low|down|bottom|under)|(lo|lower|bottom).*(teeth|tooth)/i;
 
 export function detectLips(
   gltf: GLTFLike,
   restWorld: (node: number) => Vector3 | undefined,
-  toParent: (node: number, offset: Vector3) => Vector3 | undefined
+  toParent: (node: number, offset: Vector3) => Vector3 | undefined,
+  head?: number
 ): LipSpec | undefined {
-  const lips = (gltf.nodes ?? []).map((n, i) => ({ i, name: n.name ?? "" })).filter((n) => LIP.test(n.name));
-  if (lips.length === 0) return undefined;
-  const zero = new Vector3();
+  const nodes = (gltf.nodes ?? []).map((n, i) => ({ i, name: n.name ?? "" }));
+  const kindOf = (name: string): keyof typeof LIP_RULES | undefined => {
+    if (TEETH_LOWER.test(name)) return "teeth";
+    if (!LIP.test(name)) return undefined;
+    if (LIP_CORNER.test(name)) return "corner";
+    if (LIP_LOWER.test(name)) return "lower";
+    if (LIP_UPPER.test(name)) return "upper";
+    return undefined;
+  };
+  const bones = nodes
+    .map((n) => ({ ...n, kind: kindOf(n.name), pos: restWorld(n.i) }))
+    .filter((b): b is typeof b & { kind: keyof typeof LIP_RULES; pos: Vector3 } => !!b.kind && !!b.pos);
+  const lips = bones.filter((b) => b.kind !== "teeth");
+  if (lips.length < 2) return undefined;
+
+  // Mouth frame: right = from one corner to the other (or the widest pair of lip bones).
+  const corners = lips.filter((b) => b.kind === "corner");
+  const ends = corners.length >= 2 ? corners : lips;
+  let a = ends[0];
+  let b = ends[1];
+  for (const x of ends) for (const y of ends) if (x.pos.distanceTo(y.pos) > a.pos.distanceTo(b.pos)) [a, b] = [x, y];
+  const right = new Vector3().subVectors(b.pos, a.pos);
+  const width = right.length();
+  if (width < 1e-4) return undefined;
+  right.normalize();
+  const up = new Vector3(0, 1, 0).addScaledVector(right, -right.y).normalize();
+  const mid = lips.reduce((acc, l) => acc.add(l.pos), new Vector3()).multiplyScalar(1 / lips.length);
+  const forward = new Vector3().crossVectors(right, up).normalize();
+  const headPos = head !== undefined ? restWorld(head) : undefined;
+  if (headPos ? forward.dot(new Vector3().subVectors(mid, headPos)) < 0 : forward.z < 0) forward.negate();
+
+  const toFrame = (v: readonly number[], side: number) =>
+    new Vector3()
+      .addScaledVector(right, v[0] * side)
+      .addScaledVector(up, v[1])
+      .addScaledVector(forward, v[2])
+      .multiplyScalar(width);
   const moves: LipSpec["moves"] = [];
-  for (const lip of lips) {
-    const pos = restWorld(lip.i);
-    if (!pos) continue;
-    let open: Vector3;
-    let round = zero;
-    let wide = zero;
-    if (LIP_CORNER.test(lip.name)) {
-      // Corners: in toward the middle for "ou", out for "ee"; drop a little with the jaw.
-      const side = Math.sign(pos.x) || 1;
-      open = new Vector3(0, -LIP_OPEN * 0.45, 0);
-      round = new Vector3(-side * LIP_ROUND, 0, 0);
-      wide = new Vector3(side * LIP_WIDE, 0, 0);
-    } else if (LIP_LOWER.test(lip.name)) {
-      open = new Vector3(0, -LIP_OPEN, 0);
-      round = new Vector3(-Math.sign(pos.x) * LIP_ROUND * 0.5, 0, 0);
-    } else if (LIP_UPPER.test(lip.name)) {
-      open = new Vector3(0, LIP_UPPER_OPEN, 0);
-      round = new Vector3(-Math.sign(pos.x) * LIP_ROUND * 0.5, 0, 0);
-    } else {
-      continue;
-    }
-    const o = toParent(lip.i, open);
-    const r = toParent(lip.i, round);
-    const w = toParent(lip.i, wide);
+  for (const bone of bones) {
+    // -1 at the right-hand corner … +1 at the left-hand one: corners move most, the middle not sideways at all.
+    const side = Math.max(-1, Math.min(1, new Vector3().subVectors(bone.pos, mid).dot(right) / (width / 2)));
+    const rule = LIP_RULES[bone.kind];
+    const o = toParent(bone.i, toFrame(rule.open, side));
+    const r = toParent(bone.i, toFrame(rule.round, side));
+    const w = toParent(bone.i, toFrame(rule.wide, side));
     if (!o || !r || !w) continue;
-    moves.push({ node: lip.i, open: [o.x, o.y, o.z], round: [r.x, r.y, r.z], wide: [w.x, w.y, w.z] });
+    moves.push({ node: bone.i, open: [o.x, o.y, o.z], round: [r.x, r.y, r.z], wide: [w.x, w.y, w.z] });
   }
-  return moves.some((m) => m.open[0] !== 0 || m.open[1] !== 0 || m.open[2] !== 0) ? { moves } : undefined;
+  return moves.length > 0 ? { moves } : undefined;
 }
 
 export function detectJaw(gltf: GLTFLike, mapping: HumanoidMapping): number | undefined {
@@ -361,7 +386,7 @@ export function getFaceSpec(
     look: lookRange(gltf),
     mouth,
     jaw,
-    lips: mouth || jaw !== undefined ? undefined : detectLips(gltf, restWorld, toParent),
+    lips: mouth || jaw !== undefined ? undefined : detectLips(gltf, restWorld, toParent, mapping.bones.get("head")),
   };
 }
 

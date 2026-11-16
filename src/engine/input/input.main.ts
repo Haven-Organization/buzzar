@@ -1,4 +1,5 @@
 import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
+import { setLipSyncDebug } from "../audio/lipsync.main";
 import { MainContext } from "../MainThread";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { codeToKeyCode } from "./KeyCodes";
@@ -73,6 +74,9 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
         viseme: Math.max(0, ["aa", "ih", "ou", "ee", "oh"].indexOf(viseme ?? "aa")),
       })
     );
+
+    // Buzzar debug: `thirdroom.lipsyncDebug()` logs your voice's level, formants and mouth shape; `(false)` stops.
+    registerThirdroomGlobalFn("lipsyncDebug", (on?: boolean) => setLipSyncDebug(on ?? true));
 
     // Buzzar debug: movement/focus tracing. Enable with `?debugMovement=1` in the URL (persists; `=0` turns it
     // off). Logs raw keyboard/focus/pointer-lock events plus input + player state every 2 s to the console and,

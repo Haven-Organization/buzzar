@@ -105,6 +105,22 @@ export function updateLipSync(
     }
   }
 
+  if (debugLipSync) {
+    sinceDebug += dt;
+    const local = voices.get(LOCAL_VOICE);
+    if (local && sinceDebug >= 0.25) {
+      sinceDebug = 0;
+      const { db, loud, formants } = local.estimator.last;
+      const v = Array.from(local.smoothed);
+      const best = v.some((x) => x > 0) ? VISEMES[v.indexOf(Math.max(...v))] : "-";
+      console.log(
+        `[lipsync] ${db.toFixed(0)} dB loud ${loud.toFixed(2)} F1/F2 ${
+          formants ? formants.map((f) => Math.round(f)).join("/") : "—"
+        } → ${best}  [${v.map((x) => x.toFixed(2)).join(" ")}]`
+      );
+    }
+  }
+
   sinceSend += dt;
   if (sinceSend < SEND_INTERVAL) return;
   sinceSend = 0;
@@ -122,6 +138,13 @@ export function updateLipSync(
 }
 
 const pendingZero = new Set<string>();
+
+let debugLipSync = false;
+let sinceDebug = 0;
+/** Debug: log your own voice's level, formants and mouth shape 4 times a second (`thirdroom.lipsyncDebug()`). */
+export function setLipSyncDebug(on: boolean) {
+  debugLipSync = on;
+}
 
 export function disposeLipSync() {
   for (const a of voices.values()) disposeAnalysis(a);

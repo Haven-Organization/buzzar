@@ -184,18 +184,25 @@ describe("lip sync", () => {
     expect(weights[1]).toBe(0);
   });
 
-  it("drops the lower lip and lifts the upper lip on lip-bone rigs", () => {
-    const pos: Record<number, Vector3> = { 0: new Vector3(0, 1.4, 0.1), 1: new Vector3(0, 1.38, 0.1), 2: new Vector3(0.02, 1.39, 0.1) };
-    const lips = detectLips(
-      { nodes: [{ name: "Bon_uplip_M_0266" }, { name: "Bon_Lolip_M_0267" }, { name: "Bon_colip_L_0272" }] },
-      (i) => pos[i],
-      (_i, o) => o.clone()
-    )!; // prettier-ignore
-    const byNode = Object.fromEntries(lips.moves.map((m) => [m.node, m]));
-    expect(byNode[0].open[1]).toBeGreaterThan(0);
-    expect(byNode[1].open[1]).toBeLessThan(0);
-    expect(byNode[2].round[0]).toBeLessThan(0); // left corner pulls in toward the middle for "ou"
-  });
+  it("moves lip bones in the mouth's own frame, even when the head is tilted in the rest pose", () => {
+    // Mouth 3 cm wide, rolled 30° (right corner lower), facing +Z.
+    const roll = Math.PI / 6;
+    const at = (x: number, y: number) => new Vector3(x * Math.cos(roll) - y * Math.sin(roll), 1.4 + x * Math.sin(roll) + y * Math.cos(roll), 0.1);
+    const pos: Record<number, Vector3> = { 0: at(-0.015, 0), 1: at(0.015, 0), 2: at(0, 0.002), 3: at(0, -0.002), 4: at(0, -0.006), 5: new Vector3(0, 1.5, 0) };
+    const nodes = [{ name: "Bon_colip_R_0261" }, { name: "Bon_colip_L_0272" }, { name: "Bon_uplip_M_0266" }, { name: "Bon_Lolip_M_0267" }, { name: "Bon_yachi_lo_0260" }, { name: "Head" }];
+    const lips = detectLips({ nodes }, (i) => pos[i], (_i, o) => o.clone(), 5)!;
+    const move = (i: number) => lips.moves.find((m) => m.node === i)!;
+    const right = new Vector3().subVectors(pos[1], pos[0]).normalize();
+    const up = new Vector3(-Math.sin(roll), Math.cos(roll), 0);
+    // Opening drops the lower lip and the lower teeth along the mouth's (tilted) down, and lifts the upper lip.
+    expect(new Vector3(...move(3).open).dot(up)).toBeLessThan(-0.01);
+    expect(new Vector3(...move(4).open).dot(up)).toBeLessThan(-0.008);
+    expect(new Vector3(...move(2).open).dot(up)).toBeGreaterThan(0);
+    // "oo" pulls the corners toward the middle along the mouth, and pushes the lips forward.
+    expect(new Vector3(...move(0).round).dot(right)).toBeGreaterThan(0.005);
+    expect(new Vector3(...move(1).round).dot(right)).toBeLessThan(-0.005);
+    expect(move(3).round[2]).toBeGreaterThan(0);
+  }); // prettier-ignore
 
   it("opens a jaw bone with the voice", () => {
     const root = new Group();
