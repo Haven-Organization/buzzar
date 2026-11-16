@@ -1,17 +1,22 @@
 /**
  * Buzzar: extra profile fields shown on name tags (MSC4133 extended profiles).
  * - Pronouns: `m.pronouns` (MSC4247), or its unstable `io.fsky.nyx.pronouns`: [{ language, summary }].
- * - Banner: `software.haven.banner` (an mxc image). Matrix has no standard banner field yet.
+ * - Banner: `software.haven.banner` (an mxc image). Matrix has no standard banner field yet, so banners set in other
+ *   clients are used when there's no Buzzar one (see OTHER_BANNER_KEYS).
  */
 import { MatrixAuth } from "./avatarMatrix";
 
 export const PRONOUNS_KEY = "m.pronouns";
 export const PRONOUNS_UNSTABLE_KEY = "io.fsky.nyx.pronouns";
 export const BANNER_KEY = "software.haven.banner";
+/** Banner fields other Matrix clients write, read in this order when there's no Buzzar banner. */
+export const OTHER_BANNER_KEYS: { key: string; client: string }[] = [{ key: "chat.commet.profile_banner", client: "Commet" }];
 
 export interface ProfileExtras {
   pronouns?: string;
   bannerUrl?: string;
+  /** Set when the banner comes from another client's profile field (its name), not Buzzar's own. */
+  bannerFrom?: string;
 }
 
 const MXC = /^mxc:\/\/[A-Za-z0-9.\-:[\]]+\/[A-Za-z0-9_-]+$/;
@@ -29,10 +34,17 @@ function parsePronouns(value: unknown): string | undefined {
 export function parseProfileExtras(profile: Record<string, unknown> | undefined): ProfileExtras {
   if (!profile) return {};
   const pronouns = parsePronouns(profile[PRONOUNS_KEY]) ?? parsePronouns(profile[PRONOUNS_UNSTABLE_KEY]);
-  const banner = profile[BANNER_KEY];
+  const asMxc = (v: unknown) => {
+    const url = typeof v === "string" ? v : v && typeof v === "object" ? (v as { url?: unknown }).url : undefined;
+    return typeof url === "string" && MXC.test(url) ? url : undefined;
+  };
+  const own = asMxc(profile[BANNER_KEY]);
+  const other = own ? undefined : OTHER_BANNER_KEYS.find(({ key }) => asMxc(profile[key]));
+  const bannerUrl = own ?? (other ? asMxc(profile[other.key]) : undefined);
   return {
     ...(pronouns ? { pronouns } : {}),
-    ...(typeof banner === "string" && MXC.test(banner) ? { bannerUrl: banner } : {}),
+    ...(bannerUrl ? { bannerUrl } : {}),
+    ...(other ? { bannerFrom: other.client } : {}),
   };
 }
 

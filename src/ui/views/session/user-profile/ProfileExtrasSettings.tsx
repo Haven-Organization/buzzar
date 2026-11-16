@@ -24,6 +24,8 @@ export function ProfileExtrasSettings() {
   const [pronouns, setPronouns] = useState("");
   const [savedPronouns, setSavedPronouns] = useState("");
   const [banner, setBanner] = useState<string>();
+  /** The banner shown comes from another client's profile field (Buzzar has none of its own). */
+  const [bannerFrom, setBannerFrom] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ text: string; error?: boolean }>();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,6 +40,7 @@ export function ProfileExtrasSettings() {
       setPronouns(extras.pronouns ?? "");
       setSavedPronouns(extras.pronouns ?? "");
       setBanner(extras.bannerUrl);
+      setBannerFrom(extras.bannerFrom);
     })();
     return () => {
       cancelled = true;
@@ -82,13 +85,17 @@ export function ProfileExtrasSettings() {
       const url = await uploadMedia(auth, file, file.name);
       await setProfileField(auth, session.userId, BANNER_KEY, url);
       setBanner(url);
+      setBannerFrom(undefined);
     });
   };
 
   const removeBanner = () =>
     run("Banner", async (auth) => {
       await setProfileField(auth, session.userId, BANNER_KEY, undefined);
-      setBanner(undefined);
+      // Another client's banner (if any) applies again.
+      const extras = await fetchProfileExtras(auth, session.userId, true);
+      setBanner(extras.bannerUrl);
+      setBannerFrom(extras.bannerFrom);
     });
 
   const bannerPreview = banner ? session.mediaRepository.mxcUrlThumbnail(banner, 480, 160, "crop") : undefined;
@@ -128,14 +135,17 @@ export function ProfileExtrasSettings() {
           <Button size="sm" fill="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
             {banner ? "Change Banner" : "Upload Banner"}
           </Button>
-          {banner && (
+          {banner && !bannerFrom && (
             <Button size="sm" fill="none" variant="danger" disabled={busy} onClick={removeBanner}>
               Remove
             </Button>
           )}
         </div>
         <Text variant="b3" color={status?.error ? "danger" : "surface-low"}>
-          {status?.text ?? "Shown with your name above your head in worlds. Saved to your Matrix profile."}
+          {status?.text ??
+            (bannerFrom
+              ? `Using the banner from your ${bannerFrom} profile. Upload one here to use a different one in Buzzar.`
+              : "Shown with your name above your head in worlds. Saved to your Matrix profile.")}
         </Text>
       </div>
     </SettingTile>

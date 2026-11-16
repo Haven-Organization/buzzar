@@ -30,3 +30,14 @@ describe("typing notifications", () => {
     expect(typingUserIds(detail, "!other")).toBeUndefined();
   });
 });
+
+describe("banners from other clients", () => {
+  it("uses a Commet banner when there's no Buzzar one, and prefers Buzzar's", () => {
+    const commet = "mxc://glowers.club/MntSjgtaVczPTWAZoqgyqbFp";
+    expect(parseProfileExtras({ "chat.commet.profile_banner": commet })).toEqual({ bannerUrl: commet, bannerFrom: "Commet" });
+    expect(parseProfileExtras({ "chat.commet.profile_banner": commet, "software.haven.banner": "mxc://a.b/own" })).toEqual({
+      bannerUrl: "mxc://a.b/own",
+    });
+    expect(parseProfileExtras({ "chat.commet.profile_banner": "https://not-mxc" })).toEqual({});
+  });
+});
