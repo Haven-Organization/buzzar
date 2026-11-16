@@ -17,6 +17,13 @@ export enum ThirdRoomMessageType {
   ReloadWorld = "reload-world",
   ReloadedWorld = "reloaded-world",
   ReloadWorldError = "reload-world-error",
+  /** Buzzar: the world script failed to load or crashed; the world carries on without it. */
+  ScriptFailed = "script-failed",
+}
+
+export interface ScriptFailedMessage {
+  type: ThirdRoomMessageType.ScriptFailed;
+  error: string;
 }
 
 export interface EnterWorldMessage {

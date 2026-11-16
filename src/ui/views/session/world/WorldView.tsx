@@ -24,6 +24,7 @@ import { useRoomCall } from "../../../hooks/useRoomCall";
 import { useWebXRSession } from "../../../hooks/useWebXRSession";
 import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
+import { worldNoticeAtom } from "../../../state/worldNotice";
 import { worldAtom } from "../../../state/world";
 import { PlayerModule } from "../../../../engine/player/Player.main";
 import { HotbarControls, WorldControls } from "./WorldControls";
@@ -100,6 +101,14 @@ export function WorldView({ world }: WorldViewProps) {
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
+
+  // Buzzar: one-off notices about this world (e.g. its script wasn't run or stopped).
+  const [worldNotice, setWorldNotice] = useAtom(worldNoticeAtom);
+  useEffect(() => {
+    if (!worldNotice) return;
+    showToast(worldNotice.text, 8000);
+    setWorldNotice(undefined);
+  }, [worldNotice, setWorldNotice, showToast]);
 
   const camRigModule = getModule(mainThread, PlayerModule);
   const [showNames, setShowNames] = useLocalStorage(SHOW_NAMES_STORE, true);

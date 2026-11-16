@@ -12,6 +12,8 @@ import {
 } from "../../engine/network/createMatrixNetworkInterface";
 import { enterWorld, loadWorld, reloadWorld } from "../../plugins/thirdroom/thirdroom.main";
 import { worldAtom } from "../state/world";
+import { makeWorldNotice, worldNoticeAtom } from "../state/worldNotice";
+import { scriptPolicy } from "../utils/scriptSettings";
 import { useHydrogen } from "./useHydrogen";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
@@ -34,6 +36,7 @@ export function useWorldLoader(): WorldLoader {
   const { session, platform, client } = useHydrogen(true);
   const mainThread = useMainThreadContext();
   const setWorld = useSetAtom(worldAtom);
+  const setWorldNotice = useSetAtom(worldNoticeAtom);
 
   const exitWorldCallback = useCallback(async () => {
     provideMatrixNetworkInterface((matrixNetworkInterface) => {
@@ -59,6 +62,23 @@ export function useWorldLoader(): WorldLoader {
         throw new Error("3D scene does not exist for this world.");
       }
 
+      // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
+      const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
+      if (environmentScriptUrl) {
+        const policy = scriptPolicy(environmentScriptUrl);
+        if (!policy.run) {
+          environmentScriptUrl = undefined;
+          setWorldNotice(
+            makeWorldNotice(
+              policy.reason === "disabled"
+                ? "World scripts are turned off in your settings, so this world's script wasn't run."
+                : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
+            )
+          );
+        }
+      }
+
+
       if (environmentUrl.startsWith("mxc:")) {
         environmentUrl = session.mediaRepository.mxcUrl(environmentUrl)!;
       }
@@ -68,7 +88,7 @@ export function useWorldLoader(): WorldLoader {
       }
 
       try {
-        setActiveMatrixRoom(mainThread, session, world.id);
+        setActiveMatrixRoom(mainThread, session, world.id, publishedScriptUrl);
 
         // Buzzar: lets world content (e.g. avatar pedestals) resolve mxc:// URIs. Must precede LoadWorld.
         const auth = await getSessionAuth(platform, client.sessionId);
@@ -97,7 +117,7 @@ export function useWorldLoader(): WorldLoader {
         throw new Error(err?.message ?? "Unknown error loading world.");
       }
     },
-    [mainThread, session, setWorld, client, platform]
+    [mainThread, session, setWorld, client, platform, setWorldNotice]
   );
 
   // keeps the call established and reloads the scene/script
@@ -106,7 +126,6 @@ export function useWorldLoader(): WorldLoader {
       setWorld({ type: "LOAD", roomId: world.id });
 
       disposeActiveMatrixRoom(mainThread);
-      setActiveMatrixRoom(mainThread, session, world.id);
 
       const maxObjectCap = content.max_member_object_cap;
       let environmentUrl = content.scene_url;
@@ -115,6 +134,25 @@ export function useWorldLoader(): WorldLoader {
       if (typeof environmentUrl !== "string") {
         throw new Error("3D scene does not exist for this world.");
       }
+
+      // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
+      const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
+      if (environmentScriptUrl) {
+        const policy = scriptPolicy(environmentScriptUrl);
+        if (!policy.run) {
+          environmentScriptUrl = undefined;
+          setWorldNotice(
+            makeWorldNotice(
+              policy.reason === "disabled"
+                ? "World scripts are turned off in your settings, so this world's script wasn't run."
+                : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
+            )
+          );
+        }
+      }
+
+
+      setActiveMatrixRoom(mainThread, session, world.id, publishedScriptUrl);
 
       if (environmentUrl.startsWith("mxc:")) {
         environmentUrl = session.mediaRepository.mxcUrl(environmentUrl)!;
@@ -131,7 +169,7 @@ export function useWorldLoader(): WorldLoader {
 
       setWorld({ type: "ENTER" });
     },
-    [setWorld, mainThread, session]
+    [setWorld, mainThread, session, setWorldNotice]
   );
 
   return {

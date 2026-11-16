@@ -3,6 +3,7 @@ import { addComponent, defineQuery, exitQuery } from "bitecs";
 import scriptingRuntimeWASMUrl from "./emscripten/build/scripting-runtime.wasm?url";
 import { createCursorView } from "../allocator/CursorView";
 import { GameContext, RemoteResourceManager } from "../GameTypes";
+import { Thread } from "../module/module.common";
 import { createMatrixWASMModule } from "../matrix/matrix.game";
 import { createWebSGNetworkModule } from "../network/scripting.game";
 import { RemoteScene } from "../resource/RemoteResources";
@@ -43,6 +44,16 @@ export function addScriptComponent(ctx: GameContext, scene: RemoteScene, script:
   ScriptComponent.set(eid, script);
 }
 
+const crashedScripts = new WeakSet<Script>();
+
+/** Buzzar: tell the UI the world script stopped (it shows a notice; the world keeps running without it). */
+function notifyScriptFailed(ctx: GameContext, error: string) {
+  ctx.sendMessage(Thread.Main, {
+    type: "script-failed", // ThirdRoomMessageType.ScriptFailed
+    error,
+  });
+}
+
 export function ScriptingSystem(ctx: GameContext) {
   const entities = scriptQuery(ctx.world);
 
@@ -51,8 +62,15 @@ export function ScriptingSystem(ctx: GameContext) {
     const script = ScriptComponent.get(eid)!;
     // TODO: Use a networked global time variable instead of elapsed
 
-    if (script.state === ScriptState.Entered) {
-      script.update(ctx.dt, ctx.elapsed / 1000);
+    // Buzzar: a script that throws is stopped (once, with a notice) instead of breaking every frame.
+    if (script.state === ScriptState.Entered && !crashedScripts.has(script)) {
+      try {
+        script.update(ctx.dt, ctx.elapsed / 1000);
+      } catch (error) {
+        crashedScripts.add(script);
+        console.error("World script crashed and was stopped.", error);
+        notifyScriptFailed(ctx, error instanceof Error ? error.message : String(error));
+      }
     }
   }
 
@@ -175,6 +193,7 @@ export async function loadScript(
         if (result < 0) {
           console.error(`Script initialize callback failed with code: ${result}`);
           this.state = ScriptState.Error;
+          notifyScriptFailed(ctx, "the script's initialize step failed; see the console");
           return;
         }
       }
@@ -196,6 +215,7 @@ export async function loadScript(
         if (result < 0) {
           console.error(`Script load callback failed with code: ${result}`);
           this.state = ScriptState.Error;
+          notifyScriptFailed(ctx, "the script's load step failed; see the console");
           return;
         }
       }
@@ -217,6 +237,7 @@ export async function loadScript(
         if (result < 0) {
           console.error(`Script enter callback failed with code: ${result}`);
           this.state = ScriptState.Error;
+          notifyScriptFailed(ctx, "the script's enter step failed; see the console");
           return;
         }
       }
@@ -235,6 +256,7 @@ export async function loadScript(
           if (result < 0) {
             console.error(`Script update callback failed with code: ${result}`);
             this.state = ScriptState.Error;
+            notifyScriptFailed(ctx, "the script's update step failed; see the console");
             return;
           }
         }
@@ -254,6 +276,7 @@ export async function loadScript(
           if (result < 0) {
             console.error(`Script peerEntered callback failed with code: ${result}`);
             this.state = ScriptState.Error;
+            notifyScriptFailed(ctx, "the script's peerEntered step failed; see the console");
             return;
           }
         }
@@ -273,6 +296,7 @@ export async function loadScript(
           if (result < 0) {
             console.error(`Script peerExited callback failed with code: ${result}`);
             this.state = ScriptState.Error;
+            notifyScriptFailed(ctx, "the script's peerExited step failed; see the console");
             return;
           }
         }

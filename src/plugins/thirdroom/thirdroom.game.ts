@@ -32,6 +32,7 @@ import {
   LoadWorldOptions,
   ReloadedWorldMessage,
   ReloadWorldErrorMessage,
+  ScriptFailedMessage,
 } from "./thirdroom.common";
 import { GLTFResource, loadDefaultGLTFScene, loadGLTF } from "../../engine/gltf/gltf.game";
 import {
@@ -298,6 +299,13 @@ async function onLoadWorld(ctx: GameContext, message: LoadWorldMessage) {
   }
 }
 
+export function reportScriptFailure(ctx: GameContext, error: unknown) {
+  ctx.sendMessage<ScriptFailedMessage>(Thread.Main, {
+    type: ThirdRoomMessageType.ScriptFailed,
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
 async function loadWorld(ctx: GameContext, environmentUrl: string, options: LoadWorldOptions = {}) {
   const thirdroom = getModule(ctx, ThirdRoomModule);
 
@@ -319,10 +327,24 @@ async function loadWorld(ctx: GameContext, environmentUrl: string, options: Load
     signal,
   });
 
+  // Buzzar: a broken script must not stop the world loading (Third Room #619); carry on without it.
   if (options.environmentScriptUrl) {
-    thirdroom.environmentScript = await loadScript(ctx, resourceManager, options.environmentScriptUrl, signal);
-
-    thirdroom.environmentScript.initialize();
+    let script: Script | undefined;
+    try {
+      script = await loadScript(ctx, resourceManager, options.environmentScriptUrl, signal);
+      script.initialize();
+      thirdroom.environmentScript = script;
+    } catch (error) {
+      if (signal.aborted) throw error;
+      console.error("World script failed to load; continuing without it.", error);
+      try {
+        script?.dispose();
+      } catch {
+        // already broken
+      }
+      thirdroom.environmentScript = undefined;
+      reportScriptFailure(ctx, error);
+    }
   }
 
   thirdroom.loadState = WorldLoadState.Loaded;
@@ -417,8 +439,14 @@ function enterWorld(ctx: GameContext, localPeerId?: string) {
   spawnPlayer(ctx, rig);
 
   if (environmentScript) {
-    addScriptComponent(ctx, environmentScene, environmentScript);
-    environmentScript.entered();
+    try {
+      addScriptComponent(ctx, environmentScene, environmentScript);
+      environmentScript.entered();
+    } catch (error) {
+      console.error("World script failed to start; continuing without it.", error);
+      thirdroom.environmentScript = undefined;
+      reportScriptFailure(ctx, error);
+    }
   }
 
   thirdroom.loadState = WorldLoadState.Entered;

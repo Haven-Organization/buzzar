@@ -17,6 +17,13 @@ import {
   WidgetReadEventsData,
   WidgetSendEventData,
 } from "./matrix.common";
+import {
+  requestScriptConsent,
+  SCRIPT_MESSAGE_MAX_LENGTH,
+  SCRIPT_SEND_DECLINE_LIMIT,
+  SCRIPT_SENDABLE_MSGTYPES,
+  VIA_SCRIPT_KEY,
+} from "./scriptConsent.main";
 
 interface WidgetContext {
   widgetId: string;
@@ -28,7 +35,13 @@ interface WidgetContext {
 interface MatrixModuleState {
   activeSession?: Session;
   activeRoom?: Room;
+  /** Buzzar: the world's script_url as published (the key for consent). */
+  activeScriptUrl?: string;
   widgets: Map<string, WidgetContext>;
+  /** Buzzar: a send confirmation is open (one at a time). */
+  sendPending: boolean;
+  /** Buzzar: send requests the visitor declined this visit. */
+  sendDeclines: number;
 }
 
 export const MatrixModule = defineModule<MainContext, MatrixModuleState>({
@@ -36,6 +49,8 @@ export const MatrixModule = defineModule<MainContext, MatrixModuleState>({
   create: () => {
     return {
       widgets: new Map(),
+      sendPending: false,
+      sendDeclines: 0,
     };
   },
   init(ctx: MainContext) {
@@ -131,19 +146,25 @@ function handleWidgetRequest(ctx: MainContext, matrixModule: MatrixModuleState, 
       const widget: WidgetContext = {
         widgetId: request.widgetId,
         outboundRequests: new Map(),
-        capabilities: new Map([
-          ["m.send.event", new Set(["m.room.message#m.text"])],
-          ["m.receive.event", new Set(["m.room.message", "org.matrix.msc3672.beacon"])],
-        ]),
+        // Buzzar: nothing by default (Third Room silently let every script post as you and read the chat).
+        capabilities: new Map(),
       };
 
       widgets.set(request.widgetId, widget);
 
       reply<WidgetContentLoadedResponse>(ctx, request, {});
 
-      initializeRoomEventListener(ctx, matrixModule, widget);
-
-      // TODO: Capabilities
+      // A script that talks to Matrix wants the live chat: ask the visitor (or use their remembered answer).
+      const room = matrixModule.activeRoom;
+      if (room) {
+        requestScriptConsent({ kind: "receive", roomId: room.id, scriptUrl: matrixModule.activeScriptUrl ?? "" }).then(
+          (granted) => {
+            if (!granted || matrixModule.activeRoom !== room || widgets.get(widget.widgetId) !== widget) return;
+            widget.capabilities.set("m.receive.event", new Set(["m.room.message"]));
+            initializeRoomEventListener(ctx, matrixModule, widget).catch((error) => console.error(error));
+          }
+        );
+      }
     }
 
     return;
@@ -200,12 +221,15 @@ async function initializeRoomEventListener(ctx: MainContext, matrixModule: Matri
   }
 
   const timeline = await room.openTimeline();
+  // Buzzar: live messages only, never the history the timeline loads first.
+  const since = Date.now() - 5000;
 
   const unsubscribe = timeline.entries.subscribe({
     onAdd(index, entry, list) {
       if (
         !("isPending" in entry) &&
         "event" in entry &&
+        (entry.event?.origin_server_ts ?? 0) >= since &&
         widget.capabilities.get("m.receive.event")?.has(entry.eventType)
       ) {
         send(ctx, widget, WidgetAction.SendEvent, entry.event).catch((error) => {
@@ -223,34 +247,6 @@ async function initializeRoomEventListener(ctx: MainContext, matrixModule: Matri
     unsubscribe();
     timeline.dispose();
   };
-}
-
-function ensureCapability(
-  ctx: MainContext,
-  widget: WidgetContext,
-  request: WidgetAPIRequest,
-  capability: string,
-  eventType: string,
-  requireKey: boolean,
-  key?: string
-) {
-  const capabilities = widget.capabilities.get(capability);
-
-  const hasCapability = requireKey ? capabilities?.has(`${eventType}#${key}`) : capabilities?.has(`${eventType}`);
-
-  if (!hasCapability) {
-    console.error(`Capability not allowed ${capability} ${eventType} ${key}`, widget.capabilities);
-
-    reply(ctx, request, {
-      error: {
-        message: "Capability not allowed",
-      },
-    });
-
-    return false;
-  }
-
-  return true;
 }
 
 function handleSendEventAction(
@@ -281,29 +277,52 @@ function handleSendEventAction(
     });
   }
 
-  let sendEventPromise: Promise<unknown>;
+  const refuse = (message: string) => reply(ctx, request, { error: { message } });
 
+  // Buzzar: scripts may only propose plain messages, and the visitor confirms each one (seeing the text).
   if (data.state_key !== null && data.state_key !== undefined) {
-    if (!ensureCapability(ctx, widget, request, "m.send.state_event", data.type, true, data.state_key)) return;
-    sendEventPromise = session.hsApi.sendState(room.id, data.type, data.state_key, data.content || {}).response();
-  } else {
-    if (data.type === "m.room.message") {
-      if (!("msgtype" in data.content)) {
-        return reply(ctx, request, {
-          error: {
-            message: "Invalid request - missing msgtype",
-          },
-        });
-      }
-
-      if (!ensureCapability(ctx, widget, request, "m.send.event", data.type, true, data.content.msgtype as string))
-        return;
-    } else {
-      if (!ensureCapability(ctx, widget, request, "m.send.event", data.type, false)) return;
-    }
-
-    sendEventPromise = room.sendEvent(data.type, data.content);
+    return refuse("World scripts can't change room state");
   }
+  if (data.type !== "m.room.message") return refuse(`World scripts can't send ${data.type} events`);
+
+  const content = (data.content ?? {}) as { msgtype?: unknown; body?: unknown };
+  if (typeof content.msgtype !== "string" || !SCRIPT_SENDABLE_MSGTYPES.has(content.msgtype)) {
+    return refuse("World scripts can only send text, emote or notice messages");
+  }
+  if (typeof content.body !== "string" || content.body.length === 0) return refuse("Invalid request - missing body");
+  if (content.body.length > SCRIPT_MESSAGE_MAX_LENGTH) return refuse("Message too long");
+  if (matrixModule.sendDeclines >= SCRIPT_SEND_DECLINE_LIMIT) {
+    return refuse("The visitor has declined this world's messages");
+  }
+  if (matrixModule.sendPending) return refuse("Another message is waiting for the visitor's answer");
+
+  const scriptUrl = matrixModule.activeScriptUrl ?? "";
+  const msgtype = content.msgtype;
+  const body = content.body;
+  matrixModule.sendPending = true;
+  const sendEventPromise: Promise<unknown> = requestScriptConsent({
+    kind: "send",
+    roomId: room.id,
+    scriptUrl,
+    msgtype,
+    body,
+  })
+    .finally(() => {
+      matrixModule.sendPending = false;
+    })
+    .then((granted) => {
+      if (!granted) {
+        matrixModule.sendDeclines++;
+        throw new Error("declined");
+      }
+      if (matrixModule.activeRoom !== room) throw new Error("left the world");
+      // Only the fields we checked, plus a marker that a script sent it.
+      return room.sendEvent("m.room.message", {
+        msgtype,
+        body,
+        [VIA_SCRIPT_KEY]: { world: room.id, script: scriptUrl },
+      });
+    });
 
   sendEventPromise
     .then((event: any) => {
@@ -314,16 +333,14 @@ function handleSendEventAction(
       });
     })
     .catch((error) => {
-      console.error("Error sending event: ", error);
+      if (error?.message !== "declined") console.error("Error sending event: ", error);
       reply(ctx, request, {
         error: {
-          message: "Error sending event",
+          message: error?.message === "declined" ? "The visitor declined to send this message" : "Error sending event",
         },
       });
     });
 }
-
-const DEFAULT_TIMELINE_LOAD_LIMIT = 1000;
 
 function handleReadEventsAction(
   ctx: MainContext,
@@ -373,12 +390,11 @@ function handleReadEventsAction(
 
   let events: Promise<ClientEvent[]> = Promise.resolve([]);
 
+  // Buzzar: scripts may read the world room's state (any member can see it), never its chat history.
   if (data.state_key !== undefined) {
     const stateKey = data.state_key === true ? undefined : data.state_key.toString();
 
     if (stateKey) {
-      if (!ensureCapability(ctx, widget, request, "m.receive.event", data.type, true, stateKey)) return;
-
       events = room.observeStateTypeAndKey(data.type, stateKey).then((value) => {
         const stateEvent = value.get() as ClientEvent | undefined;
 
@@ -389,8 +405,6 @@ function handleReadEventsAction(
         }
       });
     } else {
-      if (!ensureCapability(ctx, widget, request, "m.receive.event", data.type, false)) return;
-
       events = room.observeStateType(data.type).then((map) => {
         const items = Array.from(map.values()) as ClientEvent[];
 
@@ -402,41 +416,7 @@ function handleReadEventsAction(
       });
     }
   } else {
-    if (!ensureCapability(ctx, widget, request, "m.receive.event", data.type, false)) return;
-
-    events = room.openTimeline().then(async (timeline) => {
-      const items: ClientEvent[] = [];
-
-      const deferred = createDeferred<void>(3000);
-
-      const unsubscribe = timeline.entries.subscribe({
-        onAdd(index, entry, list) {
-          if (!("isPending" in entry) && "event" in entry && entry.eventType === data.type) {
-            items.push(entry.event);
-
-            if (items.length >= limit) {
-              deferred.resolve();
-            }
-          }
-        },
-        onMove(from, to, value, list) {},
-        onRemove(index, value, list) {},
-        onUpdate(index, value, params, list) {},
-        onReset(list) {},
-      });
-
-      await timeline.loadAtTop(DEFAULT_TIMELINE_LOAD_LIMIT);
-
-      try {
-        await deferred.promise;
-      } catch (error) {}
-
-      unsubscribe();
-
-      timeline.dispose();
-
-      return items;
-    });
+    return reply(ctx, request, { error: { message: "World scripts can't read chat history" } });
   }
 
   return events.then((evs) => {
@@ -446,7 +426,7 @@ function handleReadEventsAction(
   });
 }
 
-export function setActiveMatrixRoom(ctx: MainContext, session: Session, roomId: string) {
+export function setActiveMatrixRoom(ctx: MainContext, session: Session, roomId: string, scriptUrl?: string) {
   const matrixModule = getModule(ctx, MatrixModule);
 
   const room = session.rooms.get(roomId);
@@ -457,12 +437,15 @@ export function setActiveMatrixRoom(ctx: MainContext, session: Session, roomId: 
 
   matrixModule.activeRoom = room;
   matrixModule.activeSession = session;
+  matrixModule.activeScriptUrl = scriptUrl;
+  matrixModule.sendDeclines = 0;
 }
 
 export function disposeActiveMatrixRoom(ctx: MainContext) {
   const matrixModule = getModule(ctx, MatrixModule);
   matrixModule.activeRoom = undefined;
   matrixModule.activeSession = undefined;
+  matrixModule.activeScriptUrl = undefined;
 
   for (const widget of matrixModule.widgets.values()) {
     for (const request of widget.outboundRequests.values()) {

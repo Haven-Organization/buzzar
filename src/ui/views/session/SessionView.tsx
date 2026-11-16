@@ -15,6 +15,7 @@ import { useBuzzarSpace } from "../../hooks/useBuzzarSpace";
 import { useUnknownWorldPath } from "../../hooks/useWorld";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
+import { ScriptConsent } from "./world/ScriptConsent";
 import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
 import { useAccountManagementAction, useUserProfileAction } from "./cmd-panel/actions";
 import { editorEnabledAtom } from "../../state/editor";
@@ -63,6 +64,8 @@ export default function SessionView() {
               {overlayVisible && <Overlay />}
               {!editorEnabled && <StatusBar />}
               <FirefoxPerfAlert />
+              {/* Buzzar: world scripts ask here before reading the chat or posting as you. */}
+              <ScriptConsent />
               {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}
             </MainThreadContextProvider>
           ) : (

@@ -21,6 +21,7 @@ import { Edit3DAvatar } from "./Edit3DAvatar";
 import "./UserProfileOverview.css";
 import { MicrophoneSettings } from "./MicrophoneSettings";
 import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
+import { WorldScriptSettings } from "./WorldScriptSettings";
 import { ProfileExtrasSettings } from "./ProfileExtrasSettings";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
@@ -129,6 +130,7 @@ export function UserProfileOverview() {
                   <BuzzarSpaceSetting />
                   <span className="grow basis-0" />
                 </div>
+                <WorldScriptSettings />
                 <div className="flex gap-lg">
                   <SettingTile className="grow basis-0" label={<Label>Graphics Quality (REQUIRES REFRESH)</Label>}>
                     <SelectInput options={renderQualityOptions} value={renderQuality} onChange={setRenderQuality} />

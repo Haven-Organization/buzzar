@@ -62,17 +62,17 @@ infrastructure and can't scale to VRChat-sized instances.
 
 | | Item | Size | Notes |
 |---|---|---|---|
-| ❌ | **Load custom avatars in the engine** | M | Upload UI stores `.glb` in the profile room, but everyone renders the hard-coded `full-animation-rig.glb` (`PlayerRig.ts:62`). |
-| ❌ | VRM 0.x/1.0 import (humanoid mapping, spring bones, expressions) | L | Most likely interchange format for VRChat-style avatars. |
-| ❌ | Choose avatar per world entry + **switch in-world** without rejoining | M | 🅼 Per-world `world.member` writer exists but is never called, and its PL entry is misspelled (`member.world`). |
-| ❌ | Avatar library / favourites / pedestals in worlds | M | 🅼 Pedestal = world node that offers an avatar. Store the library in account data or a profile room. |
+| ✅ | **Load custom avatars in the engine** | M | Upload UI stores `.glb` in the profile room, but everyone renders the hard-coded `full-animation-rig.glb` (`PlayerRig.ts:62`). **Buzzar:** Done: glb/VRM avatars from profile or per-world member state, loaded by every client. |
+| ✅ | VRM 0.x/1.0 import (humanoid mapping, spring bones, expressions) | L | Most likely interchange format for VRChat-style avatars. **Buzzar:** Done: humanoid mapping, spring bones (VRM 0/1 + name-detected), morph-target expressions. |
+| ✅ | Choose avatar per world entry + **switch in-world** without rejoining | M | 🅼 Per-world `world.member` writer exists but is never called, and its PL entry is misspelled (`member.world`). **Buzzar:** Done: Avatars screen (Wear / Wear Only in This World), live switch announced to peers. |
+| ✅ | Avatar library / favourites / pedestals in worlds | M | 🅼 Pedestal = world node that offers an avatar. Store the library in account data or a profile room. **Buzzar:** Done: Avatars screen (Stock, Bookmarked in account data, In World) and HAVEN_avatar_pedestal. |
 | ❌ | **User-adjustable height** (VRChat ≈0.2–5 m eye height, *verify*) + world min/max/forced height | M | Capsule fixed at 1.7 m. The engine enforces world limits on every avatar change; scripts don't have to (fixes VRChat's `OnAvatarEyeHeightChanged` bypass). 🅼 limits in world rules. |
 | ❌ | Full skeleton networking (IK targets + bones) | L | Only the root transform is synced today. |
 | ❌ | IK: 3-point (head + hands) VR body, then full-body trackers (WebXR has limited tracker access; consider OSC/SlimeVR bridge) | L–XL | In VR, other players currently show as a headset plus controllers only. |
-| ❌ | Lip sync / visemes from voice, blink, eye look-at | M | |
+| ✅ | Lip sync / visemes from voice, blink, eye look-at | M | **Buzzar:** Done: LPC-formant visemes from voice, blinking, eye gaze and eyelid bones. |
 | ❌ | **Emotes / dances with synced audio** (VRChat Action layer + Play Audio) | L | Clips + audio embedded in the avatar glb (`KHR_audio` + animation). A radial "action menu" triggers them. Broadcast as a reliable network event with a start timestamp so everyone plays in sync. Audio is limited by world/user safety settings (VRChat caps: 10 dB, 40 m, *verify*). |
 | ❌ | Expression parameters + toggles menu (VRChat 256-bit synced budget) | L | Generic "avatar parameters" synced over the data track. Drives blendshapes, material swaps, object toggles. |
-| ❌ | Secondary motion (PhysBones equivalent), contacts/colliders on avatars | L | VRM spring bones as a start. |
+| 🟡 | Secondary motion (PhysBones equivalent), contacts/colliders on avatars | L | VRM spring bones as a start. **Buzzar:** Spring bones done; avatar colliders/contacts not yet. |
 | ✅ | Locomotion animation set, nametags, speaking indicator, 1st/3rd person | – | Fixed clip set (Idle/Walk/Run/Strafe/Fall). |
 | ❌ | **Performance ranking + hard limits** (tris, texture MB, bones, audio sources, file size) | M | Prerequisite for moderation §5. Compute at upload and re-check on load. |
 | ❌ | Impostors / fallback avatar for blocked or over-limit avatars | M | |
@@ -89,7 +89,7 @@ infrastructure and can't scale to VRChat-sized instances.
 | ❌ | **Synced variables** (VRChat UdonSynced: continuous + manual, ownership, late-joiner state) | L | Today there's only reliable broadcast + `defineReplicator`. Late joiners get nothing unless the script handles it. |
 | 🟡 | Network events with verified sender (VRChat `NetworkCalling.CallingPlayer`) | S | Broadcast exists; the sender must be attested by the transport, not claimed by the payload. |
 | ❌ | **Player API**: teleport, set walk/run/jump/gravity, immobilize, get/set eye height, player list with Matrix IDs + power level/roles | M | Needed for Audience Anarchy (pick volunteer → teleport to stage). |
-| ❌ | Seats / stations (sit, lock movement, exit control) | M | |
+| 🟡 | Seats / stations (sit, lock movement, exit control) | M | **Buzzar:** Seats exist (sit, exit); a seat race with two people is known. |
 | ❌ | Object sync + object pools (VRChat ObjectSync/ObjectPool) | M | Partly covered by the replicator. |
 | ❌ | Raycasts / overlap queries, input beyond the pointer ray | S | |
 | ❌ | Server-synchronized clock | S | For cue timelines, synced music and dance sync. Derive from RTC/host. |
@@ -97,10 +97,10 @@ infrastructure and can't scale to VRChat-sized instances.
 | ❌ | **Runtime set swapping**: enable/disable node subtrees, load extra glTF "sets" at runtime, swap skybox/lighting/reflection probes | M | Live scene reload exists for state changes, but it reloads everything. Needed: additive per-set loading + toggling. |
 | ❌ | Persistence (per-player + per-world data, VRChat 100 KB/player, *verify*) | L | 🅼 Per-user state events (`state_key = @user`) or room account data. World-level data is written by members with the right PL, often a world bot (§9). |
 | ❌ | Video players (URL + mxc, synced playback) | M | Respect §7 URL policy. |
-| ❌ | Mirrors (planar, quality levels) | M | Only reflective spheres exist today. |
+| ✅ | Mirrors (planar, quality levels) | M | Only reflective spheres exist today. **Buzzar:** Done: HAVEN_mirror planar mirrors. |
 | ❌ | MIDI input/playback | S | WebMIDI. Low priority. |
 | ❌ | Multiple scripts per world / per-node scripts | L | Today: exactly one script per world. |
-| ❌ | Script CPU/memory budget + watchdog; a script error must not block world load | M | No budget today. #619: a script error stops the world loading. |
+| 🟡 | Script CPU/memory budget + watchdog; a script error must not block world load | M | No budget today. #619: a script error stops the world loading. **Buzzar:** #619 done: a script that fails to load or errors is stopped with a notice and the world keeps running. No CPU/memory budget yet. |
 | 🟡 | In-browser world editor | XL | Mostly a stub (reparent/focus empty, gizmos do nothing, nothing saved). Unity/Blender export is the realistic primary pipeline short term. |
 | 🟡 | Unity exporter (separate repo) / Blender support | M | Fork the Unity exporter and add Buzzar components (seats, pickups, sync, rules). |
 | ❌ | Scene loading UX for 50–70 MB worlds: progress, cache, chunk/LOD | M | See reference-worlds.md. |
@@ -296,23 +296,32 @@ Notes and open questions:
 
 ## 7. Script security, consent and external servers
 
-Today a world script automatically gets permission to send `m.room.message` as the visitor and to read
-live and historic messages (including decrypted ones), with no prompt
-(`matrix.main.ts:131-146`, `// TODO: Capabilities`). Any PL50 user can change `script_url` to any
-http(s) URL. **Fix this before anything else ships to users.**
+Third Room gave every world script permission to send `m.room.message` as the visitor and to read
+live and historic messages (including decrypted ones), with no prompt. **Buzzar v1 lockdown (2026-11-16)**
+replaced that with default-deny and consent (`src/engine/matrix/scriptConsent.main.ts`, `matrix.main.ts`,
+`src/ui/views/session/world/ScriptConsent.tsx`):
 
-- [ ] ❌ **M** Rebuild the bridge on matrix-widget-api `ClientWidgetApi` with a Buzzar driver.
-      **Deny everything by default.**
-- [ ] ❌ **M** 🅼 The world event declares its capabilities + a **script content hash**. Grants are tied to
-      (room, script hash), so any script change prompts again.
-- [ ] ❌ **M** Consent tiers:
-      - **Auto:** namespaced per-user app data.
-      - **Once per world and script version:** read timeline, custom events.
-      - **Every time:** anything human-readable sent as the user (messages, joins, profile, moving rooms). The prompt is drawn on a UI layer the world can't draw over or spoof, in 2D and in XR.
-      - **Never:** to-device, keys, power levels, moderation, other rooms, OpenID tokens.
-- [ ] ❌ **S** Tag script-originated events (`software.haven.via_script`), so other clients and moderators can see them.
-- [ ] ❌ **S** Rate limits; "disable scripts" setting; safe-mode join without scripts.
-- [ ] ❌ **S** Only `mxc://` assets by default (hides visitor IPs); http(s) only behind a world rule + user opt-in.
+- [x] ✅ **Deny everything by default.** Scripts get no Matrix capabilities on `content_loaded`.
+- [x] ✅ Consent tiers (v1):
+      - **Free:** read the world room's *state* (any member can see it).
+      - **Once per world and script version** (keyed on `script_url`; mxc URIs are immutable): read the *live*
+        chat, never history. Remembered in account data `software.haven.script_grants` if the visitor ticks
+        "Remember"; listed and revocable in Settings → World Scripts.
+      - **Every time, showing the exact text:** post an `m.text`/`m.emote`/`m.notice` as the visitor. One prompt
+        at a time; after 3 declines in a visit the world's sends are refused without asking.
+      - **Never:** state events, any other event type, chat history, other rooms (and still: to-device, keys,
+        power levels, moderation, OpenID).
+      - The prompt is client UI (a React dialog) that scripts can't draw over. **Still to do:** an XR version.
+- [x] ✅ Tag script-originated events: `software.haven.via_script: { world, script }` in the content.
+- [x] ✅ "Run world scripts" setting (off = every world loads without its script, with a notice).
+- [x] ✅ Scripts only from `mxc://` by default; http(s) script URLs need the visitor's opt-in
+      ("Allow scripts from web addresses", which warns that it reveals their IP). *Scene/asset URLs not yet.*
+- [ ] 🟡 **M** Rebuild the bridge on matrix-widget-api `ClientWidgetApi` with a Buzzar driver, with MSC2762
+      capability negotiation and MSC2871 approved-capability notifications. The v1 lockdown keeps Third Room's
+      wire format, so existing scripts work unchanged (they just ask first).
+- [ ] ❌ **M** 🅼 The world event declares its capabilities + a **script content hash** (shown before entry,
+      like an app permission sheet). v1 keys grants on `script_url` instead.
+- [ ] ❌ **S** Rate limits on script networking messages; per-world "disable this world's script".
 - [ ] ❌ **M** World-originated actions (scoreboards, persistence) are written by a world bot account
       (§9) with the right PL, never through visitors' accounts.
 - [ ] ❌ **L** 🅼 **External server access (later phase).** VRChat's model is a good start:

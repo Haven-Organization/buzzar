@@ -11,7 +11,8 @@ export function useToast() {
   const toastTimeoutRef = useRef<number>();
 
   const showToast = useCallback(
-    (toastContent: ReactNode) => {
+    // Buzzar: optional duration, for longer notices.
+    (toastContent: ReactNode, durationMs = 2000) => {
       setToastState({
         toastShown: true,
         toastContent,
@@ -23,7 +24,7 @@ export function useToast() {
         if (isMounted()) {
           setToastState((state) => ({ ...state, toastShown: false }));
         }
-      }, 2000);
+      }, durationMs);
     },
     [isMounted]
   );
