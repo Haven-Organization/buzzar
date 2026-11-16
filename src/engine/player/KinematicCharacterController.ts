@@ -286,6 +286,11 @@ export function updateKinematicControls(
 
   pushDynamicBodies(characterController, _linearVelocity, ctx.dt);
 
+  // Buzzar: report each contact once when it starts (and once when it ends) instead of every frame: standing on a
+  // crate re-triggered its hit sound many times a second.
+  const now = ctx.elapsed;
+  let contacts = characterContacts.get(rig.eid);
+  if (!contacts) characterContacts.set(rig.eid, (contacts = new Map()));
   for (let i = 0; i < characterController.numComputedCollisions(); i++) {
     if (characterController.computedCollision(i, characterCollision) !== null) {
       // TODO: Rapier v0.10.0 doesn't expose collider on characterCollision so manually grab it
@@ -294,7 +299,7 @@ export function updateKinematicControls(
       const collisionCollider = physicsWorld.getCollider(collisionColliderHandle);
 
       if (!collisionCollider) {
-        return;
+        continue;
       }
 
       const collisionColliderEid = handleToEid.get(collisionColliderHandle);
@@ -303,12 +308,28 @@ export function updateKinematicControls(
         continue;
       }
 
+      const known = contacts.get(collisionColliderHandle);
+      contacts.set(collisionColliderHandle, { eid: collisionColliderEid, lastSeen: now });
+      if (known) continue;
+
       for (const collisionHandler of collisionHandlers) {
         collisionHandler(rig.eid, collisionColliderEid, collider.handle, collisionColliderHandle, true);
       }
     }
   }
+  for (const [handle, contact] of contacts) {
+    if (now - contact.lastSeen < CONTACT_END_MS) continue;
+    contacts.delete(handle);
+    for (const collisionHandler of collisionHandlers) {
+      collisionHandler(rig.eid, contact.eid, collider.handle, handle, false);
+    }
+  }
 }
+
+/** A character contact counts as ended after this long unseen (contacts can flicker frame to frame). */
+const CONTACT_END_MS = 250;
+/** Per character: collider handle → the other entity and when the contact was last computed. */
+const characterContacts = new Map<number, Map<number, { eid: number; lastSeen: number }>>();
 
 /** Scene-query predicate: everything but sensors (see computeColliderMovement above). */
 export const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
