@@ -66,19 +66,20 @@ export function useWorldLoader(): WorldLoader {
       // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
       const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
       if (environmentScriptUrl) {
-        const policy = scriptPolicy(environmentScriptUrl);
+        const policy = scriptPolicy(environmentScriptUrl, roomId);
         if (!policy.run) {
           environmentScriptUrl = undefined;
           setWorldNotice(
             makeWorldNotice(
               policy.reason === "disabled"
                 ? "World scripts are turned off in your settings, so this world's script wasn't run."
+                : policy.reason === "blocked"
+                ? "You turned off this world's script, so it wasn't run. Turn it back on from the world's ⋯ menu."
                 : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
             )
           );
         }
       }
-
 
       if (environmentUrl.startsWith("mxc:")) {
         environmentUrl = session.mediaRepository.mxcUrl(environmentUrl)!;
@@ -163,19 +164,20 @@ export function useWorldLoader(): WorldLoader {
       // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
       const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
       if (environmentScriptUrl) {
-        const policy = scriptPolicy(environmentScriptUrl);
+        const policy = scriptPolicy(environmentScriptUrl, world.id);
         if (!policy.run) {
           environmentScriptUrl = undefined;
           setWorldNotice(
             makeWorldNotice(
               policy.reason === "disabled"
                 ? "World scripts are turned off in your settings, so this world's script wasn't run."
+                : policy.reason === "blocked"
+                ? "You turned off this world's script, so it wasn't run. Turn it back on from the world's ⋯ menu."
                 : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
             )
           );
         }
       }
-
 
       setActiveMatrixRoom(mainThread, session, world.id, publishedScriptUrl);
 

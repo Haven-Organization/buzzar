@@ -321,10 +321,10 @@ replaced that with default-deny and consent (`src/engine/matrix/scriptConsent.ma
       wire format, so existing scripts work unchanged (they just ask first).
 - [ ] ❌ **M** 🅼 The world event declares its capabilities + a **script content hash** (shown before entry,
       like an app permission sheet). v1 keys grants on `script_url` instead.
-- [ ] 🟡 **S** Rate limits on script networking messages; per-world "disable this world's script".
-      **Buzzar (2026-11-17):** rate limits done. Each world script may send 30 messages and 32 KB a second
-      (2 s burst); each peer's incoming script messages are capped at twice that. Excess is dropped with a warning.
-      Per-world "don't run this script" still to do.
+- [x] ✅ **S** Rate limits on script networking messages; per-world "disable this world's script".
+      **Buzzar (2026-11-17):** each world script may send 30 messages and 32 KB a second (2 s burst); each peer's
+      incoming script messages are capped at twice that, and excess is dropped with a warning. A world's ⋯ menu has
+      "Don't Run This World's Script" (this browser), undone there or in Settings → World Scripts.
 - [ ] ❌ **M** World-originated actions (scoreboards, persistence) are written by a world bot account
       (§9) with the right PL, never through visitors' accounts.
 - [ ] ❌ **L** 🅼 **External server access (later phase).** VRChat's model is a good start:

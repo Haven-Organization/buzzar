@@ -1,6 +1,6 @@
 /**
- * Buzzar: world-script settings: run scripts at all, allow web-hosted scripts, and the worlds you've let read
- * the chat (revocable).
+ * Buzzar: world-script settings: run scripts at all, allow web-hosted scripts, the worlds you've let read the chat
+ * (revocable), and the worlds whose script you turned off.
  */
 import { useCallback, useEffect, useState } from "react";
 
@@ -13,10 +13,12 @@ import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import {
+  blockedWorldScripts,
   fetchScriptGrants,
   RUN_SCRIPTS_KEY,
   saveScriptGrants,
   ScriptGrants,
+  setWorldScriptBlocked,
   WEB_SCRIPTS_KEY,
 } from "../../../utils/scriptSettings";
 
@@ -26,6 +28,7 @@ export function WorldScriptSettings() {
   const [webScripts, setWebScripts] = useLocalStorage(WEB_SCRIPTS_KEY, false);
   const [grants, setGrants] = useState<ScriptGrants>();
   const [error, setError] = useState<string>();
+  const [blocked, setBlocked] = useState(blockedWorldScripts);
 
   const getAuth = useCallback(async () => {
     const auth = await getSessionAuth(platform, client.sessionId);
@@ -105,6 +108,34 @@ export function WorldScriptSettings() {
           </Text>
         </SettingTile>
       </div>
+      {blocked.length > 0 && (
+        <div className="flex gap-lg">
+          <SettingTile className="grow basis-0" label={<Label>Worlds Whose Script You Turned Off</Label>}>
+            <div className="flex flex-column gap-xs">
+              {blocked.map((roomId) => (
+                <div key={roomId} className="flex items-center gap-xs">
+                  <Text className="grow truncate" variant="b2">
+                    {session.rooms.get(roomId)?.name || roomId}
+                  </Text>
+                  <Button
+                    size="sm"
+                    fill="outline"
+                    onClick={() => {
+                      setWorldScriptBlocked(roomId, false);
+                      setBlocked(blockedWorldScripts());
+                    }}
+                  >
+                    Run Again
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Text variant="b3" color="surface-low">
+              Set from a world&apos;s ⋯ menu. Applies the next time you enter.
+            </Text>
+          </SettingTile>
+        </div>
+      )}
     </>
   );
 }

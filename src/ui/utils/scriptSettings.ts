@@ -22,11 +22,38 @@ export const runWorldScripts = () => readBool(RUN_SCRIPTS_KEY, true);
 /** Allow scripts hosted on web addresses (default off: fetching them reveals your IP to that site). */
 export const allowWebScripts = () => readBool(WEB_SCRIPTS_KEY, false);
 
-export type ScriptPolicy = { run: true } | { run: false; reason: "disabled" | "web" };
+/** Buzzar: worlds whose script the visitor turned off (room IDs, this browser), from the world's ⋯ menu. */
+export const BLOCKED_WORLD_SCRIPTS_KEY = "buzzar.scripts.blockedWorlds";
+
+export function blockedWorldScripts(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(BLOCKED_WORLD_SCRIPTS_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function isWorldScriptBlocked(roomId: string) {
+  return blockedWorldScripts().includes(roomId);
+}
+
+export function setWorldScriptBlocked(roomId: string, blocked: boolean) {
+  const ids = blockedWorldScripts().filter((id) => id !== roomId);
+  if (blocked) ids.push(roomId);
+  try {
+    localStorage.setItem(BLOCKED_WORLD_SCRIPTS_KEY, JSON.stringify(ids));
+  } catch {
+    // storage unavailable
+  }
+}
+
+export type ScriptPolicy = { run: true } | { run: false; reason: "disabled" | "web" | "blocked" };
 
 /** Whether to run a world's script_url under the visitor's settings. */
-export function scriptPolicy(scriptUrl: string): ScriptPolicy {
+export function scriptPolicy(scriptUrl: string, roomId?: string): ScriptPolicy {
   if (!runWorldScripts()) return { run: false, reason: "disabled" };
+  if (roomId && isWorldScriptBlocked(roomId)) return { run: false, reason: "blocked" };
   if (!scriptUrl.startsWith("mxc://") && !allowWebScripts()) return { run: false, reason: "web" };
   return { run: true };
 }

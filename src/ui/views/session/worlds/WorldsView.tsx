@@ -39,6 +39,7 @@ import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerL
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
+import { isWorldScriptBlocked, setWorldScriptBlocked } from "../../../utils/scriptSettings";
 import { copyToClipboard } from "../../../utils/common";
 import {
   DirectoryWorld,
@@ -189,6 +190,7 @@ function YourWorlds() {
 function useJoinedWorldPreview(room: Room) {
   const [preview, setPreview] = useState<string>();
   const [topic, setTopic] = useState<string>();
+  const [hasScript, setHasScript] = useState(false);
   useEffect(() => {
     let cancelled = false;
     room
@@ -196,6 +198,7 @@ function useJoinedWorldPreview(room: Room) {
       .then((result: any) => {
         const url = result?.event?.content?.scene_preview_url;
         if (!cancelled && typeof url === "string") setPreview(url);
+        if (!cancelled) setHasScript(typeof result?.event?.content?.script_url === "string");
       })
       .catch(() => undefined);
     room
@@ -209,7 +212,7 @@ function useJoinedWorldPreview(room: Room) {
       cancelled = true;
     };
   }, [room]);
-  return { preview, topic };
+  return { preview, topic, hasScript };
 }
 
 /** Closes the overlay and takes the pointer back while the click still counts as a gesture. */
@@ -226,9 +229,10 @@ function useReturnToWorld() {
 
 function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
   const { session, platform } = useHydrogen(true);
-  const { preview, topic } = useJoinedWorldPreview(room);
+  const { preview, topic, hasScript } = useJoinedWorldPreview(room);
   const previewSrc = useThumbnail(preview);
   const avatarSrc = useThumbnail(room.avatarUrl ?? undefined);
+  const [scriptBlocked, setScriptBlocked] = useState(() => isWorldScriptBlocked(room.id));
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const returnToWorld = useReturnToWorld();
@@ -294,6 +298,17 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
                 onSelect={() => setOverlayWindow({ type: OverlayWindow.WorldSettings, roomId: room.id })}
               >
                 Settings
+              </DropdownMenuItem>
+            )}
+            {hasScript && (
+              // Buzzar: skip this one world's script without turning off scripts everywhere. Applies on next entry.
+              <DropdownMenuItem
+                onSelect={() => {
+                  setWorldScriptBlocked(room.id, !scriptBlocked);
+                  setScriptBlocked(!scriptBlocked);
+                }}
+              >
+                {scriptBlocked ? "Run This World's Script" : "Don't Run This World's Script"}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
