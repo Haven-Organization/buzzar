@@ -83,7 +83,7 @@ import {
 import { addPortalComponent } from "../../plugins/portals/portals.game";
 import { getModule } from "../module/module.common";
 import { addPhysicsBody, PhysicsModule } from "../physics/physics.game";
-import { getAccessorArrayView, vec3ArrayTransformMat4 } from "../common/accessor";
+import { getAccessorArrayView, getAccessorFloat32Array, vec3ArrayTransformMat4 } from "../common/accessor";
 import { staticRigidBodyCollisionGroups } from "../physics/CollisionGroups";
 import { CharacterControllerType, SceneCharacterControllerComponent } from "../player/CharacterController";
 import { loadGLTFAnimationClip } from "./animation.three";
@@ -93,6 +93,7 @@ import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
 import { TypedArray32 } from "../utils/typedarray";
 import { addResourceRef } from "../resource/resource.game";
 import { addClimbable } from "../player/climbing";
+import { decompressGLTF, isMeshoptFallbackBuffer } from "./decompress";
 
 /**
  * GLTFResource stores references to all of the resources loaded from a glTF file.
@@ -435,6 +436,9 @@ async function loadGLTFJSON(
           data = toSharedArrayBuffer(bufferData);
         } else if (index === 0 && binaryChunk) {
           data = binaryChunk;
+        } else if (isMeshoptFallbackBuffer(resource.root.buffers![index])) {
+          // Buzzar: a stand-in for meshopt-compressed data; decompressGLTF replaces everything that points at it.
+          data = new SharedArrayBuffer(0);
         } else {
           throw new Error(`Invalid buffer at index ${index}`);
         }
@@ -443,6 +447,9 @@ async function loadGLTFJSON(
       })
     );
   }
+
+  // Buzzar: unpack meshopt- and Draco-compressed data into plain buffers before anything is loaded from them.
+  await decompressGLTF(resource.root, resource.buffers);
 
   return resource;
 }
@@ -957,9 +964,10 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
   // the resource is expensive.
 
   for (const primitive of mesh.primitives) {
-    const positionsArray = getAccessorArrayView(
+    // Buzzar: as floats, so quantized (integer) positions from compressed files make the right collider.
+    const positionsArray = getAccessorFloat32Array(
       primitive.attributes[MeshPrimitiveAttributeIndex.POSITION] as RemoteAccessor
-    ).slice() as Float32Array;
+    );
     vec3ArrayTransformMat4(positionsArray, positionsArray, node.worldMatrix);
 
     let indicesArr: Uint32Array;
@@ -1429,6 +1437,11 @@ const loadGLTFTexture = createCachedSubresourceLoader(
   (root) => root.textures,
   (resource, texture, index, options?: TextureOptions) => {
     const basisSourceIndex = texture.extensions?.KHR_texture_basisu?.source;
+    // Buzzar: prefer the WebP image when there is one (every supported browser decodes WebP).
+    const webpSourceIndex = (texture.extensions as { EXT_texture_webp?: { source?: number } } | undefined)
+      ?.EXT_texture_webp?.source;
+    if (basisSourceIndex === undefined && webpSourceIndex !== undefined)
+      texture = { ...texture, source: webpSourceIndex };
 
     if (texture.source === undefined && basisSourceIndex === undefined) {
       throw new Error(`texture[${index}].source is undefined.`);

@@ -19,7 +19,7 @@ Check the model's license before you upload it. Worlds are shared with everyone 
 
 ## 1. Export to glTF
 
-From Blender: **File → Export → glTF 2.0**, format **glTF Binary (.glb)**, with **Apply Modifiers** on. Leave Draco compression off; Buzzar's engine doesn't decode it.
+From Blender: **File → Export → glTF 2.0**, format **glTF Binary (.glb)**, with **Apply Modifiers** on. Draco compression is fine to leave on: Buzzar decodes it, as well as Meshopt, quantized meshes, WebP and KTX2 textures.
 
 Things that often go wrong:
 
@@ -34,6 +34,14 @@ node scripts/buzzar/gltf-tools/optimize-world.mjs model.glb model-opt.glb
 ```
 
 This merges draw calls, welds vertices, removes unused data, resizes textures to at most 1024 px and turns opaque textures into JPEGs. A 200 MB download often comes out under 20 MB. Aim for under 30 MB so worlds load quickly for everyone.
+
+**Compress last.** Once the world is finished (after step 6 below, just before uploading), compress it to roughly halve the download again:
+
+```bash
+node scripts/buzzar/gltf-tools/compress-world.mjs world.glb world-small.glb
+```
+
+It compresses the geometry (Meshopt with quantization) and turns textures into WebP, keeping everything else, including Buzzar's own extensions (spawn points, seats, mirrors, ladders, the sky), exactly as it was. Two of our worlds went from 20 to 10 MB and from 49 to 22 MB with no visible difference. Compressed worlds need Buzzar from November 2026 or later; other Third Room clients can't open them.
 
 ## 3. Fix lighting (Blender scenes)
 

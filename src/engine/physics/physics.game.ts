@@ -14,7 +14,7 @@ import {
   physicsBodyQuery,
 } from "../resource/RemoteResources";
 import { ColliderType, MeshPrimitiveAttributeIndex, PhysicsBodyType } from "../resource/schema";
-import { getAccessorArrayView, scaleVec3Array } from "../common/accessor";
+import { getAccessorArrayView, getAccessorFloat32Array, scaleVec3Array } from "../common/accessor";
 import { updateMatrixWorld } from "../component/transform";
 import { Player } from "../player/Player";
 import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
@@ -215,7 +215,8 @@ export function createNodeColliderDescriptions(node: RemoteNode): RAPIER.Collide
         throw new Error("No position accessor found for collider.");
       }
 
-      const positions = getAccessorArrayView(positionAccessor).slice() as Float32Array;
+      // Buzzar: as floats, so quantized (integer) positions from compressed files make the right shape.
+      const positions = getAccessorFloat32Array(positionAccessor);
       scaleVec3Array(positions, positions, tempScale);
 
       if (type === ColliderType.Hull) {

@@ -196,3 +196,35 @@ export function scaleVec3Array(out: Float32Array, array: Float32Array, scale: ve
 
   return out;
 }
+
+/**
+ * Buzzar: an accessor's values as a new Float32Array, for game-thread code that does maths on them (colliders).
+ * Quantized meshes (KHR_mesh_quantization, used by meshopt-compressed files) store positions as 8/16-bit integers;
+ * normalized ones are scaled back to -1..1 / 0..1 as the glTF spec says, others are used as-is (the node's transform
+ * carries the dequantization scale).
+ */
+export function getAccessorFloat32Array(accessor: AccessorLike & { normalized?: boolean }): Float32Array {
+  const view = getAccessorArrayView(accessor);
+  if (view instanceof Float32Array) return view.slice();
+  const out = new Float32Array(view.length);
+  if (!accessor.normalized) {
+    out.set(view);
+    return out;
+  }
+  const divisor =
+    view instanceof Int8Array
+      ? 127
+      : view instanceof Uint8Array
+      ? 255
+      : view instanceof Int16Array
+      ? 32767
+      : view instanceof Uint16Array
+      ? 65535
+      : 1;
+  const signed = view instanceof Int8Array || view instanceof Int16Array;
+  for (let i = 0; i < view.length; i++) {
+    const v = view[i] / divisor;
+    out[i] = signed ? Math.max(v, -1) : v;
+  }
+  return out;
+}
