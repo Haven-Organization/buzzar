@@ -22,8 +22,10 @@
   }
 }
 
+/* Buzzar: the options keep their space while hidden, so the unread dot doesn't jump when they appear on hover
+   (Third Room #402). */
 .RoomTile__options {
-  display: none;
+  visibility: hidden;
   padding-right: var(--sp-md);
 
   & > *:not(:last-child) {
@@ -47,6 +49,6 @@
 .RoomTile--active,
 .RoomTile--focused {
   & .RoomTile__options {
-    display: block;
+    visibility: visible;
   }
 }
