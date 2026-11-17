@@ -45,8 +45,9 @@ export const WebSGNetworkModule = defineModule<GameContext, {}>({
     registerInboundMessageHandler(network, NetworkAction.BinaryScriptMessage, (ctx, v, peerId) =>
       deserializeScriptMessage(ctx, v, peerId, true)
     );
+    // Buzzar: string messages were flagged as binary, so a script's send("text") arrived as an ArrayBuffer.
     registerInboundMessageHandler(network, NetworkAction.StringScriptMessage, (ctx, v, peerId) =>
-      deserializeScriptMessage(ctx, v, peerId, true)
+      deserializeScriptMessage(ctx, v, peerId, false)
     );
 
     return createDisposables([
@@ -681,8 +682,9 @@ function deserializeScriptMessage(ctx: GameContext, v: CursorView, peerId: strin
 
     const resourceManager = script.wasmCtx.resourceManager;
 
+    // Buzzar: `continue`, not `return`: a script without listeners mustn't stop the others getting the message.
     if (resourceManager.networkListeners.length === 0) {
-      return;
+      continue;
     }
 
     for (let i = 0; i < resourceManager.networkListeners.length; i++) {

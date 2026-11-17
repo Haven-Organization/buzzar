@@ -49,7 +49,7 @@ infrastructure and can't scale to VRChat-sized instances.
       - peer index is a 16-bit hash, so collisions are possible;
       - unreliable channels are a TODO (`network.main.ts:240`);
       - interpolation is off by default;
-      - the string/binary flag bug (`network/scripting.game.ts:48`).
+      - ~~the string/binary flag bug (`network/scripting.game.ts:48`)~~ fixed 2026-11-17.
 - [ ] ❌ **M** Instances (VRChat Public/Friends+/Invite/Group). One world room, many concurrent
       instances, each a MatrixRTC slot with a capacity and a join queue. 🅼
 - [ ] 🟡 **S** Rebrand: package name, app text and help links done; `/landing` kept as Third Room's page on purpose; `config.json` homeserver defaults.
