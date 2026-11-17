@@ -6,6 +6,7 @@ import "./RoomListHeader.css";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { DmDialog } from "../dialogs/DmDialog";
 import { JoinWithAliasDialog } from "../dialogs/JoinWithAliasDialog";
+import { CreateRoomDialog } from "../dialogs/CreateRoomDialog";
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
 import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { useDialog } from "../../../hooks/useDialog";
@@ -21,6 +22,7 @@ export function RoomListHeader() {
     openDialog: openJoinDialog,
     closeDialog: closeJoinDialog,
   } = useDialog(false);
+  const create = useDialog(false);
 
   return (
     <header className="RoomListHeader shrink-0 flex items-center gap-xs">
@@ -35,10 +37,14 @@ export function RoomListHeader() {
           <Dialog open={open} onOpenChange={setOpen}>
             <DmDialog requestClose={closeDialog} />
           </Dialog>
+          <Dialog open={create.open} onOpenChange={create.setOpen}>
+            <CreateRoomDialog requestClose={create.closeDialog} />
+          </Dialog>
           <DropdownMenu
             content={
               <>
                 <DropdownMenuItem onSelect={openDialog}>Direct Message</DropdownMenuItem>
+                <DropdownMenuItem onSelect={create.openDialog}>Create Room</DropdownMenuItem>
                 <DropdownMenuItem onSelect={openJoinDialog}>Join with Alias</DropdownMenuItem>
               </>
             }
