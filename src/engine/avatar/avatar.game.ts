@@ -484,6 +484,7 @@ function buildPostureClips(rig: RetargetRig): AnimationClip[] {
       buildPoseClip(rig, AnimationClipType.Prone, PRONE_POSE),
       buildCrawlClip(rig, AnimationClipType.Crawl),
       buildCrouchWalkClip(rig, AnimationClipType.CrouchWalk),
+      buildCrouchWalkClip(rig, AnimationClipType.CrouchStrafe, 1.0, true),
     ];
   } catch (error) {
     // Optional poses: never fail the avatar over them.

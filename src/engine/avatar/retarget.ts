@@ -527,7 +527,13 @@ export const CLIP_SPEED = new Map<string, number>();
  * leans in like the static crouch, and the hips sway and bob a little. Its ground speed is recorded in CLIP_SPEED
  * so playback can match the player's speed (feet don't slide).
  */
-export function buildCrouchWalkClip(rig: RetargetRig, name = "CrouchWalk", duration = 1.1): AnimationClip {
+export function buildCrouchWalkClip(
+  rig: RetargetRig,
+  name = "CrouchWalk",
+  duration = 1.1,
+  /** Buzzar: step towards the character's left instead of forwards (played in reverse for the right). */
+  sideways = false
+): AnimationClip {
   type V = [number, number, number];
   const FRAMES = 24;
   const TAU = Math.PI * 2;
@@ -551,7 +557,11 @@ export function buildCrouchWalkClip(rig: RetargetRig, name = "CrouchWalk", durat
   // Rig space may have the character's left on −x; directions are given left = +x and mirrored by buildPoseClip.
   const sideSign = legs[0].hip!.x < hips.x ? -1 : 1;
   const legLength = legs[0].hip!.distanceTo(legs[0].knee!) + legs[0].knee!.distanceTo(legs[0].foot!);
-  const stride = 0.55 * legLength;
+  // Sideways steps are shorter (the feet must not meet) and the stance a little wider.
+  const stride = (sideways ? 0.16 : 0.55) * legLength;
+  const width = sideways ? 1.9 : 1.15;
+  // Rig-space x of the character's left (the left hip's side of the hips).
+  const leftX = legs[0].hip!.x > hips.x ? 1 : -1;
   const lift = 0.14 * legLength;
   const drop = hips.y * (1 - HIPS_HEIGHT);
 
@@ -562,7 +572,10 @@ export function buildCrouchWalkClip(rig: RetargetRig, name = "CrouchWalk", durat
     const a = Math.acos(Math.min(1, Math.max(-1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d))));
     const hint = new Vector3(0.3 * out, 0, 1);
     const perp = hint.sub(v.clone().multiplyScalar(hint.dot(v))).normalize();
-    const knee = hip.clone().add(v.clone().multiplyScalar(Math.cos(a) * l1)).add(perp.multiplyScalar(Math.sin(a) * l1));
+    const knee = hip
+      .clone()
+      .add(v.clone().multiplyScalar(Math.cos(a) * l1))
+      .add(perp.multiplyScalar(Math.sin(a) * l1));
     const thigh = knee.clone().sub(hip).normalize();
     const shin = hip.clone().add(v.multiplyScalar(d)).sub(knee).normalize();
     return [
@@ -591,10 +604,11 @@ export function buildCrouchWalkClip(rig: RetargetRig, name = "CrouchWalk", durat
       }
       const out = side === "left" ? 1 : -1;
       const hipPosed = hip!.clone().setY(hip!.y - drop);
-      // Feet a little ahead of the hips (the hips sit back) and a little wider than standing.
+      // Feet a little ahead of the hips (the hips sit back) and a little wider than standing. Planted feet move
+      // back (forwards walk) or to the right (sideways walk) relative to the body as it travels.
       const target = foot!.clone();
-      target.x = hips.x + (foot!.x - hips.x) * 1.15;
-      target.z = hipPosed.z + 0.18 * legLength + z;
+      target.x = hips.x + (foot!.x - hips.x) * width + (sideways ? z * leftX : 0);
+      target.z = hipPosed.z + 0.18 * legLength + (sideways ? 0 : z);
       target.y = foot!.y + y;
       const [thigh, shin] = ik(hipPosed, target, hip!.distanceTo(knee!), knee!.distanceTo(foot!), out * sideSign);
       directions[`${side}UpperLeg`] = thigh;
@@ -644,7 +658,11 @@ export function buildCrawlClip(rig: RetargetRig, name = "Crawl", duration = 1.6)
   const FRAMES = 24;
   const TAU = Math.PI * 2;
   const smooth = (t: number) => t * t * (3 - 2 * t);
-  const mix = (a: V, b: V, t: number): V => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const mix = (a: V, b: V, t: number): V => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
   const wrap = (x: number) => x - Math.floor(x);
   // Left side is +x; the right side mirrors x.
   const side = (v: V, s: number): V => [v[0] * s, v[1], v[2]];

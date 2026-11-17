@@ -49,6 +49,7 @@ export enum AnimationClipType {
   Crawl = "Crawl",
   /** Buzzar: walking crouched (a generated cycle; the crouch layer twisted the walk's legs). */
   CrouchWalk = "CrouchWalk",
+  CrouchStrafe = "CrouchStrafe",
 }
 
 /**
@@ -143,16 +144,27 @@ function processAnimations(ctx: GameContext) {
             animation.actionMap.get(AnimationClipType.Prone)
           : undefined;
       // Buzzar: walking crouched plays its own cycle, at the player's speed (backwards when backing up).
-      const crouchWalkAction =
-        !sitAction && !proneAction && posture === Posture.Crouching && proneMoving
-          ? animation.actionMap.get(AnimationClipType.CrouchWalk)
-          : undefined;
-      if (crouchWalkAction && proneVelocity) {
+      // Buzzar: moving mostly sideways (50°–130° off facing) steps sideways: the clip steps left, reversed for right.
+      let crouchWalkAction: AnimationAction | undefined;
+      if (!sitAction && !proneAction && posture === Posture.Crouching && proneMoving && proneVelocity) {
         const speed = Math.hypot(proneVelocity[0], proneVelocity[2]);
         // Same forward test as the locomotion clips (WalkBack is played from 120° on).
         const forward = getForwardVector(_forward, getPitch(parent.quaternion), getYaw(parent.quaternion));
-        const backwards = radToDeg(vec3.angle(proneVelocity, forward)) > 120;
-        crouchWalkAction.timeScale = (backwards ? -1 : 1) * (speed / (CLIP_SPEED.get(AnimationClipType.CrouchWalk) ?? 0.8));
+        const angle = radToDeg(vec3.angle(proneVelocity, forward));
+        const strafeAction = animation.actionMap.get(AnimationClipType.CrouchStrafe);
+        if (strafeAction && angle > 50 && angle < 130) {
+          // Forward × velocity points up when moving to the left.
+          const left = forward[2] * proneVelocity[0] - forward[0] * proneVelocity[2] > 0;
+          crouchWalkAction = strafeAction;
+          crouchWalkAction.timeScale =
+            (left ? 1 : -1) * (speed / (CLIP_SPEED.get(AnimationClipType.CrouchStrafe) ?? 0.3));
+        } else {
+          crouchWalkAction = animation.actionMap.get(AnimationClipType.CrouchWalk);
+          if (crouchWalkAction) {
+            crouchWalkAction.timeScale =
+              (angle > 120 ? -1 : 1) * (speed / (CLIP_SPEED.get(AnimationClipType.CrouchWalk) ?? 0.8));
+          }
+        }
       }
       let actionsToPlay = sitAction
         ? [sitAction]
@@ -219,7 +231,10 @@ function settleClipActionWeights(
     const action = actions[i];
     const target = selected.includes(action) ? 1 : 0;
     const delta = target - action.weight;
-    action.weight = delta > 0 ? Math.min(1, action.weight + Math.min(delta, fadeIn)) : Math.max(0, action.weight + Math.max(delta, -fadeOut));
+    action.weight =
+      delta > 0
+        ? Math.min(1, action.weight + Math.min(delta, fadeIn))
+        : Math.max(0, action.weight + Math.max(delta, -fadeOut));
     action.enabled = action.weight > 0 || target > 0;
   }
 }
