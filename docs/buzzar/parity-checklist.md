@@ -188,7 +188,8 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
 - [ ] ❌ **S** On-screen / in-XR keyboard for the chatbox and search when there's no physical keyboard.
 - [ ] ❌ **S** Gamepad while in WebXR (seated VR with an Xbox pad): VRChat lacks this (VRChat feedback #1482). Cheap differentiator.
 - [ ] 🟡 **S** VR controller bindings: map the `a-button`/`b-button`/`x-button`/`y-button` components of
-      WebXR input profiles to jump, quick menu and mute (today only trigger, squeeze and thumbstick press are bound;
+      WebXR input profiles to jump, quick menu and mute (**2026-11-17:** right A jumps; the quick menu and mute
+      need the XR menu layer first. Before that only trigger, squeeze and thumbstick press were bound;
       pressed/released state fixed 2026-11-17).
 - [ ] ❌ **M** Finger-curl gestures from capacitive touch where WebXR exposes `touched` (Touch/Index thumb and
       trigger), and from hand tracking. **Browser limit:** WebXR doesn't expose Index per-finger curl, so full

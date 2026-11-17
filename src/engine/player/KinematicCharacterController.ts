@@ -64,6 +64,11 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "XRInputSource/primary/xr-standard-thumbstick/button",
         },
+        // Buzzar: A on the right controller jumps, as in VRChat (Touch, Index).
+        {
+          type: BindingType.Button,
+          path: "XRInputSource/right/a-button",
+        },
       ],
     },
     {
