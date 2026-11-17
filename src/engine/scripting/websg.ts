@@ -96,6 +96,7 @@ import { addInteractableComponent } from "../../plugins/interaction/interaction.
 import { addUIElementChild, initNodeUICanvas, removeUIElementChild } from "../ui/ui.game";
 import { startOrbit, stopOrbit } from "../player/CameraRig";
 import { GLTFComponentPropertyStorageTypeToEnum, setComponentStore } from "../resource/ComponentStore";
+import { getRemoteResource } from "../resource/resource.game";
 import { getPrimaryInputSourceNode } from "../input/input.game";
 import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
 
@@ -3627,6 +3628,19 @@ export function createWebSGModule(ctx: GameContext, wasmCtx: WASMModuleContext) 
   const disposeWebSGWASMModule = () => {
     for (const query of wasmCtx.resourceManager.registeredQueries.values()) {
       removeQuery(ctx.world, query);
+    }
+
+    // Buzzar: a node the script gave a physics body but never added to a scene (e.g. it errored first) was never
+    // disposed, so its body stayed in the physics world for the rest of the session, across world changes
+    // (Third Room #605). Take such bodies out when the script goes away.
+    for (const id of wasmCtx.resourceManager.resourceIds) {
+      const node = getRemoteResource<RemoteNode>(ctx, id);
+      if (!(node instanceof RemoteNode) || node.parent || node.parentScene) continue;
+      const body = node.physicsBody?.body;
+      if (!body || !physics.physicsWorld.getRigidBody(body.handle)) continue;
+      for (let i = 0; i < body.numColliders(); i++) physics.handleToEid.delete(body.collider(i).handle);
+      physics.physicsWorld.removeRigidBody(body);
+      node.physicsBody!.body = undefined;
     }
 
     disposeCollisionHandler();
