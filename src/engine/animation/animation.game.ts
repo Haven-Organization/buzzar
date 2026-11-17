@@ -1,6 +1,6 @@
 import RAPIER, { Capsule } from "@dimforge/rapier3d-compat";
 import { defineQuery, exitQuery } from "bitecs";
-import { vec3 } from "gl-matrix";
+import { mat4, vec3 } from "gl-matrix";
 import { AnimationAction, AnimationMixer, Bone, Object3D, Quaternion, Vector3 } from "three";
 import { radToDeg } from "three/src/math/MathUtils";
 
@@ -15,6 +15,7 @@ import type { GameAnimation } from "../gltf/gltf.game";
 import { playerShapeCastCollisionGroups } from "../physics/CollisionGroups";
 import { Posture, PostureEntities } from "../player/posture.common";
 import { CLIP_SPEED } from "../avatar/retarget";
+import { findLadder } from "../player/climbing";
 
 export interface IAnimationComponent {
   animations: GameAnimation[];
@@ -50,6 +51,7 @@ export enum AnimationClipType {
   /** Buzzar: walking crouched (a generated cycle; the crouch layer twisted the walk's legs). */
   CrouchWalk = "CrouchWalk",
   CrouchStrafe = "CrouchStrafe",
+  Climb = "Climb",
 }
 
 /**
@@ -74,6 +76,9 @@ export function AnimationSystem(ctx: GameContext) {
 }
 
 const _forward = vec3.create();
+const _feet = vec3.create();
+/** Buzzar: feet this far above a ladder's bottom (metres) count as climbing it rather than standing beside it. */
+const LADDER_OFF_GROUND = 0.15;
 const _right = vec3.create();
 
 const idleThreshold = 0.5;
@@ -144,6 +149,23 @@ function processAnimations(ctx: GameContext) {
             animation.actionMap.get(AnimationClipType.Prone)
           : undefined;
       // Buzzar: walking crouched plays its own cycle, at the player's speed (backwards when backing up).
+      // Buzzar: on a ladder (off the ground beside one, standing posture) the climbing cycle plays at the climber's
+      // vertical speed, and holds still while they hang there. Ladders are part of the world, so this works the same
+      // for remote players as for ourselves.
+      let climbAction: AnimationAction | undefined;
+      if (!sitAction && !proneAction && (posture === undefined || posture === Posture.Standing)) {
+        mat4.getTranslation(_feet, parent.worldMatrix);
+        const ladder = findLadder(ctx, _feet);
+        const climb =
+          ladder && _feet[1] > ladder.min[1] + LADDER_OFF_GROUND
+            ? animation.actionMap.get(AnimationClipType.Climb)
+            : undefined;
+        if (climb) {
+          climbAction = climb;
+          const vy = proneVelocity ? proneVelocity[1] : 0;
+          climb.timeScale = Math.abs(vy) < 0.05 ? 0 : vy / (CLIP_SPEED.get(AnimationClipType.Climb) ?? 0.67);
+        }
+      }
       // Buzzar: moving mostly sideways (50°–130° off facing) steps sideways: the clip steps left, reversed for right.
       let crouchWalkAction: AnimationAction | undefined;
       if (!sitAction && !proneAction && posture === Posture.Crouching && proneMoving && proneVelocity) {
@@ -168,6 +190,8 @@ function processAnimations(ctx: GameContext) {
       }
       let actionsToPlay = sitAction
         ? [sitAction]
+        : climbAction
+        ? [climbAction]
         : proneAction
         ? [proneAction]
         : crouchWalkAction

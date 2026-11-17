@@ -648,6 +648,83 @@ export function buildCrouchWalkClip(
 }
 
 /**
+ * Buzzar: climbing a ladder (Third Room #367), facing it (+Z). Each hand in turn reaches up for a higher rung while the
+ * other pulls down to chest height, and the opposite knee lifts to step up with it; the body leans in a little and the
+ * head looks up. One cycle climbs about CLIMB_CYCLE_HEIGHT; its speed is recorded in CLIP_SPEED so playback can match
+ * the climber's vertical speed (and hold still while hanging).
+ */
+export function buildClimbClip(rig: RetargetRig, name = "Climb", duration = 1.2): AnimationClip {
+  type V = [number, number, number];
+  const FRAMES = 24;
+  const TAU = Math.PI * 2;
+  const mix = (a: V, b: V, t: number): V => [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
+  // Directions with left = +x (buildPoseClip mirrors the right side). Arms: low = holding a rung at chest height,
+  // high = reaching up for the next one.
+  const upperArmLow: V = [0.25, -0.15, 0.95];
+  const upperArmHigh: V = [0.15, 0.85, 0.5];
+  const lowerArmLow: V = [-0.1, 0.75, 0.65];
+  const lowerArmHigh: V = [0.0, 0.97, 0.25];
+  // Legs: down = standing on a rung, up = knee lifted to step onto the next.
+  const upperLegDown: V = [0.06, -0.97, 0.22];
+  const upperLegUp: V = [0.06, -0.3, 0.95];
+  const lowerLegDown: V = [0.0, -1, -0.05];
+  const lowerLegUp: V = [0.0, -0.95, -0.3];
+
+  const frames: AnimationClip[] = [];
+  const times: number[] = [];
+  for (let f = 0; f < FRAMES; f++) {
+    const phase = f / FRAMES;
+    const c = Math.cos(TAU * phase);
+    // 1 when the left hand is at its highest; the right hand and left leg are opposite.
+    const leftHand = (1 + c) / 2;
+    const rightHand = 1 - leftHand;
+    const directions: PoseSpec["directions"] = {};
+    for (const [side, hand, leg, out] of [
+      ["left", leftHand, rightHand, 1],
+      ["right", rightHand, leftHand, -1],
+    ] as const) {
+      const flip = (v: V): V => [v[0] * out, v[1], v[2]];
+      directions[`${side}UpperArm`] = flip(mix(upperArmLow, upperArmHigh, hand));
+      directions[`${side}LowerArm`] = flip(mix(lowerArmLow, lowerArmHigh, hand));
+      directions[`${side}UpperLeg`] = flip(mix(upperLegDown, upperLegUp, leg));
+      directions[`${side}LowerLeg`] = flip(mix(lowerLegDown, lowerLegUp, leg));
+      directions[`${side}Foot`] = [0, -0.25, 1];
+    }
+    const bob = Math.abs(Math.sin(TAU * phase)); // up a touch as each step is taken
+    frames.push(
+      buildPoseClip(rig, `${name}${f}`, {
+        directions,
+        hipsPitch: 6,
+        bends: { spine: 2, neck: -12, head: -10 },
+        sway: { hips: [3 * c, 0], chest: [-4 * c, 0] },
+        hipsHeight: 0.97 + 0.02 * bob,
+      })
+    );
+    times.push((f / FRAMES) * duration);
+  }
+  times.push(duration);
+  const tracks = frames[0].tracks.map((track) => {
+    const size = track.getValueSize();
+    const values: number[] = [];
+    for (const index of [...frames.keys(), 0]) {
+      const other = frames[index].tracks.find((t) => t.name === track.name) ?? track;
+      values.push(...Array.from(other.values.slice(0, size)));
+    }
+    const TrackType = track.constructor as new (name: string, times: number[], values: number[]) => KeyframeTrack;
+    return new TrackType(track.name, times, values);
+  });
+  CLIP_SPEED.set(name, CLIMB_CYCLE_HEIGHT / duration);
+  return new AnimationClip(name, duration, tracks);
+}
+
+/** Buzzar: metres of ladder one climbing cycle covers (two rungs). */
+export const CLIMB_CYCLE_HEIGHT = 0.8;
+
+/**
  * Buzzar: an army crawl, generated as continuous motion: each arm reaches far forward, plants and drags its elbow back
  * along the ground, then lifts and swings forward again (the arms half a cycle apart); each knee slides up along the
  * ground and then pushes the leg straight back, with the opposite arm. The hips and chest roll and swing against each
