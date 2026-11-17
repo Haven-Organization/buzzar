@@ -892,6 +892,12 @@ function updateGrabThrowXR(
   }
 }
 
+/** Buzzar: whether the local player is holding `eid`. */
+export function isHeldByUs(ctx: GameContext, eid: number) {
+  const player = ourPlayerQuery(ctx.world)[0];
+  return !!player && hasComponent(ctx.world, GrabComponent, player) && GrabComponent.grabbedEntity[player] === eid;
+}
+
 export function sendInteractionMessage(ctx: GameContext, action: InteractableAction, eid = NOOP) {
   const network = getModule(ctx, NetworkModule);
 
@@ -934,7 +940,9 @@ export function sendInteractionMessage(ctx: GameContext, action: InteractableAct
       type: InteractionMessageType,
       interactableType,
       name,
-      held: hasComponent(ctx.world, GrabComponent, eid),
+      // Buzzar: GrabComponent sits on the player doing the grabbing, not on the object, so this was always false
+      // and the prompt never switched to Drop / Throw.
+      held: isHeldByUs(ctx, eid),
       action,
       peerId,
       ownerId,
