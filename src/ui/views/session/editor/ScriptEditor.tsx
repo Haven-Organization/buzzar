@@ -21,9 +21,29 @@ import DarkLightIC from "../../../../../res/ic/dark-light.svg";
 import { Tooltip } from "../../../atoms/tooltip/Tooltip";
 import websgTypes from "../../../../../packages/websg-types/types/websg.d.ts?raw";
 import { DnDItemTypes, NodeDragItem } from "./HierarchyPanel";
-import { MainThreadResource, getLocalResource } from "../../../../engine/resource/resource.main";
+import { getLocalResource } from "../../../../engine/resource/resource.main";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { camelizeVariableName } from "../../../utils/common";
+import { ResourceType } from "../../../../engine/resource/schema";
+
+/** Buzzar: the WebSG world.find…ByName function for a kind of resource (see websg.d.ts), if there is one. */
+const FIND_BY_NAME: Partial<Record<ResourceType, string>> = {
+  [ResourceType.Node]: "findNodeByName",
+  [ResourceType.Mesh]: "findMeshByName",
+  [ResourceType.Material]: "findMaterialByName",
+  [ResourceType.Light]: "findLightByName",
+  [ResourceType.Scene]: "findSceneByName",
+  [ResourceType.Texture]: "findTextureByName",
+  [ResourceType.Image]: "findImageByName",
+  [ResourceType.Accessor]: "findAccessorByName",
+  [ResourceType.Collider]: "findColliderByName",
+  [ResourceType.UICanvas]: "findUICanvasByName",
+  [ResourceType.UIElement]: "findUIElementByName",
+};
+
+function findFunctionFor(resourceType: ResourceType | undefined) {
+  return resourceType === undefined ? undefined : FIND_BY_NAME[resourceType];
+}
 
 const MONACO_THEME_KEY = "monaco_theme";
 
@@ -95,7 +115,10 @@ export function ScriptEditor({ room }: { room: Room }) {
       drop(item: NodeDragItem) {
         const { activeNodeId } = item;
         if (!item) return;
-        const resource = getLocalResource(mainThread, activeNodeId) as unknown as MainThreadResource;
+        const resource = getLocalResource(mainThread, activeNodeId) as unknown as {
+          name: string;
+          resourceType?: ResourceType;
+        };
 
         const editor = editorRef.current;
         if (!monaco || !editor) return;
@@ -103,7 +126,12 @@ export function ScriptEditor({ room }: { room: Room }) {
         if (!line) return;
         const range = new monaco.Range(line.lineNumber, line.column, line.lineNumber, line.column);
         const id = { major: 1, minor: 1 };
-        const text = `const ${camelizeVariableName(resource.name)} = world.findNodeByName("${resource.name}");\n`;
+        // Buzzar: look the resource up with the finder for its type; every drop used findNodeByName (Third Room #641).
+        const finder = findFunctionFor(resource.resourceType);
+        const name = JSON.stringify(resource.name);
+        const text = finder
+          ? `const ${camelizeVariableName(resource.name)} = world.${finder}(${name});\n`
+          : `// ${name} (no world.find…ByName for this kind of resource)\n`;
         const edit = {
           identifier: id,
           range,
