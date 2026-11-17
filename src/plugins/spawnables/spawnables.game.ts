@@ -47,6 +47,7 @@ import { createDisposables } from "../../engine/utils/createDisposables";
 import randomRange from "../../engine/utils/randomRange";
 import { addInteractableComponent } from "../interaction/interaction.game";
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
+import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { ThirdRoomModule } from "../thirdroom/thirdroom.game";
 import { ThirdRoomMessageType } from "../thirdroom/thirdroom.common";
 
@@ -333,6 +334,10 @@ function createCrate(
 
 const _direction = vec3.create();
 const _spawnWorldQuat = quat.create();
+const _spawnVelocity = new RAPIER.Vector3(0, 0, 0);
+/** Buzzar: spawned objects leave your hand at this speed (m/s), tilted randomly by up to SPAWN_TOSS_JITTER. */
+const SPAWN_TOSS_SPEED = 0.4;
+const SPAWN_TOSS_JITTER = (20 * Math.PI) / 180;
 
 // Returns false if the object exceeded the object cap
 export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: string, isXR: boolean): boolean {
@@ -382,6 +387,14 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   }
 
   applyTransformToRigidBody(body, prefab);
+  // Buzzar: a gentle, slightly random toss, so objects spawned in a row don't all drop along the same path
+  // (Third Room #297).
+  vec3.scale(direction, direction, SPAWN_TOSS_SPEED);
+  jitterDirection(direction, SPAWN_TOSS_JITTER);
+  _spawnVelocity.x = direction[0];
+  _spawnVelocity.y = direction[1];
+  _spawnVelocity.z = direction[2];
+  body.setLinvel(_spawnVelocity, true);
 
   const privateScene = ctx.worldResource.environment?.privateScene;
 

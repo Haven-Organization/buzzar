@@ -45,6 +45,7 @@ import { InteractableAction, InteractionMessage, InteractionMessageType } from "
 import { ActionMap, ActionType, BindingType, ButtonActionState } from "../../engine/input/ActionMap";
 import { XRAvatarRig } from "../../engine/input/WebXRAvatarRigSystem";
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
+import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { PlayerModule } from "../../engine/player/Player.game";
 import { ZoomComponent, orbitAnchorQuery, OrbitAnchor } from "../../engine/player/CameraRig";
 import {
@@ -262,6 +263,8 @@ export const GRAB_DISTANCE = 3.3;
 export const INTERACTION_DISTANCE = 3;
 const HELD_MOVE_SPEED = 10;
 const THROW_FORCE = 10;
+/** Buzzar: throws tilt randomly by up to this much (3°). */
+const THROW_JITTER = (3 * Math.PI) / 180;
 
 const _direction = vec3.create();
 const _source = vec3.create();
@@ -611,6 +614,8 @@ function updateGrabThrow(
     const direction = vec3.set(_direction, 0, 0, -1);
     vec3.transformQuat(direction, direction, _worldQuat);
     vec3.scale(direction, direction, THROW_FORCE);
+    // Buzzar: a little variation, so repeated throws don't all fly the exact same path (Third Room #297).
+    jitterDirection(direction, THROW_JITTER);
 
     // fire!
     _impulse.fromArray(direction);
