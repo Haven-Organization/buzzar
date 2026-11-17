@@ -1,4 +1,4 @@
-import { parseSpaceAccountData, planSpaceChildren, viaServers } from "./buzzarSpace";
+import { AUTO_KEY, LEGACY_AUTO_KEY, parseSpaceAccountData, planSpaceChildren, viaServers } from "./buzzarSpace";
 
 describe("Buzzar space", () => {
   it("parses account data defensively", () => {
@@ -35,5 +35,17 @@ describe("Buzzar space", () => {
   it("keeps an auto-added room the user is still joined to even if it isn't listed as a world", () => {
     const children = new Map([["!x", { via: ["s"], "software.haven.auto": true }]]);
     expect(planSpaceChildren(children, [], new Set(["!x"])).remove).toEqual([]);
+  });
+
+  it("recognises the old tag name and retags those children with the new one", () => {
+    const children = new Map<string, Record<string, unknown>>([
+      ["!old-kept", { via: ["s"], [LEGACY_AUTO_KEY]: true }],
+      ["!old-left", { via: ["s"], [LEGACY_AUTO_KEY]: true }],
+      ["!new-tag", { via: ["s"], [AUTO_KEY]: true }],
+    ]);
+    const plan = planSpaceChildren(children, ["!old-kept", "!new-tag"], new Set(["!old-kept", "!new-tag"]));
+    expect(plan.remove).toEqual(["!old-left"]);
+    expect(plan.retag).toEqual(["!old-kept"]);
+    expect(plan.add).toEqual([]);
   });
 });

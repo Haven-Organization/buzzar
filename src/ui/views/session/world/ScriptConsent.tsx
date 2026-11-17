@@ -3,7 +3,7 @@
  * The dialog is client UI that scripts can't draw over or click.
  *
  * - Reading the live world chat: asked once per world and script version, remembered in account data
- *   (software.haven.script_grants) if the visitor ticks "Remember", revocable in Settings.
+ *   (software.haven.world.script_grants) if the visitor ticks "Remember", revocable in Settings.
  * - Posting a message: asked every time, showing exactly what would be sent.
  */
 import { useEffect, useRef, useState } from "react";

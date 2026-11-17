@@ -8,10 +8,11 @@
  *
  * Resolution order for a player in a world: member event key → profile field → built-in default.
  *
- * Buzzar also keeps a personal collection of uploaded avatars in the `software.haven.avatars` account data
+ * Buzzar also keeps a personal collection of uploaded avatars in the `software.haven.world.avatars` account data
  * (private to the user, on every device), so an upload can be worn again later without re-uploading it.
  */
 import type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
+import { getAccountData } from "./legacyAccountData";
 export const AVATAR_KEY = "software.haven.world.avatar";
 /**
  * The key's name before 2026-11-17. Still read when the new key is absent, and removed whenever Buzzar writes the
@@ -178,7 +179,7 @@ export async function uploadMedia(auth: MatrixAuth, blob: Blob, filename: string
 
 // --- Personal avatar collection (account data) ----------------------------------------------------
 
-export const AVATAR_COLLECTION_TYPE = "software.haven.avatars";
+export const AVATAR_COLLECTION_TYPE = "software.haven.world.avatars";
 const MAX_SAVED_AVATARS = 100;
 
 export interface SavedAvatar extends AvatarContent {
@@ -215,11 +216,7 @@ export function parseAvatarCollection(value: unknown): AvatarCollection {
 }
 
 export async function fetchAvatarCollection(auth: MatrixAuth, userId: string): Promise<AvatarCollection> {
-  const res = await request(
-    auth,
-    "GET",
-    `/_matrix/client/v3/user/${enc(userId)}/account_data/${AVATAR_COLLECTION_TYPE}`
-  );
+  const res = await getAccountData(auth, userId, AVATAR_COLLECTION_TYPE);
   if (res.status === 404) return { avatars: [], builtin: {} };
   if (!res.ok) throw new Error(`Couldn't load your saved avatars: ${res.status}`);
   return parseAvatarCollection(await res.json());

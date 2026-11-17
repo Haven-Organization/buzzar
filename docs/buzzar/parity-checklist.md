@@ -305,14 +305,14 @@ replaced that with default-deny and consent (`src/engine/matrix/scriptConsent.ma
 - [x] ✅ Consent tiers (v1):
       - **Free:** read the world room's *state* (any member can see it).
       - **Once per world and script version** (keyed on `script_url`; mxc URIs are immutable): read the *live*
-        chat, never history. Remembered in account data `software.haven.script_grants` if the visitor ticks
+        chat, never history. Remembered in account data `software.haven.world.script_grants` if the visitor ticks
         "Remember"; listed and revocable in Settings → World Scripts.
       - **Every time, showing the exact text:** post an `m.text`/`m.emote`/`m.notice` as the visitor. One prompt
         at a time; after 3 declines in a visit the world's sends are refused without asking.
       - **Never:** state events, any other event type, chat history, other rooms (and still: to-device, keys,
         power levels, moderation, OpenID).
       - The prompt is client UI (a React dialog) that scripts can't draw over. **Still to do:** an XR version.
-- [x] ✅ Tag script-originated events: `software.haven.via_script: { world, script }` in the content.
+- [x] ✅ Tag script-originated events: `software.haven.world.via_script: { world, script }` in the content.
 - [x] ✅ "Run world scripts" setting (off = every world loads without its script, with a notice).
 - [x] ✅ Scripts only from `mxc://` by default; http(s) script URLs need the visitor's opt-in
       ("Allow scripts from web addresses", which warns that it reveals their IP). *Scene/asset URLs not yet.*

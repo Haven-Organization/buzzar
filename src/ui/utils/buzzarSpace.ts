@@ -2,17 +2,20 @@
  * Buzzar space: every Buzzar user gets a personal Matrix space ("Buzzar", with the Buzzar icon) that lists the
  * worlds they're in, so other Matrix clients (Element, Cinny…) show their worlds grouped together.
  *
- * - The space's room ID is kept in the `software.haven.space` account data, so every device finds the same one.
+ * - The space's room ID is kept in the `software.haven.world.space` account data, so every device finds the same one.
  * - Buzzar adds each joined world (`org.matrix.msc3815.world` rooms) as an `m.space.child`, and removes worlds
- *   the user has left. It only ever removes children it added itself (marked with `software.haven.auto`), so
+ *   the user has left. It only ever removes children it added itself (marked with `software.haven.world.auto`), so
  *   rooms the user added to the space by hand stay.
  * - Only `m.space.child` events in the space are written; the worlds themselves are never modified.
  */
 import { MatrixAuth, uploadMedia } from "./avatarMatrix";
+import { getAccountData } from "./legacyAccountData";
 
-export const SPACE_ACCOUNT_DATA_TYPE = "software.haven.space";
+export const SPACE_ACCOUNT_DATA_TYPE = "software.haven.world.space";
 export const WORLD_ROOM_TYPE = "org.matrix.msc3815.world";
-const AUTO_KEY = "software.haven.auto";
+export const AUTO_KEY = "software.haven.world.auto";
+/** The tag's name before 2026-11-17: still recognised, and replaced on the next sync. */
+export const LEGACY_AUTO_KEY = "software.haven.auto";
 const SPACE_ICON_PATH = "/icon-512.png";
 
 export interface SpaceAccountData {
@@ -68,6 +71,8 @@ export function viaServers(roomId: string, userId: string): string[] {
 export interface SpaceChildPlan {
   add: string[];
   remove: string[];
+  /** Children Buzzar added that still carry the old tag name: rewritten with the new one. */
+  retag: string[];
 }
 
 /**
@@ -82,17 +87,19 @@ export function planSpaceChildren(
   const worlds = new Set(worldIds);
   const isChild = (content?: Record<string, unknown>) =>
     Array.isArray(content?.via) && (content!.via as unknown[]).length > 0;
+  const isAuto = (content: Record<string, unknown>) => content[AUTO_KEY] === true || content[LEGACY_AUTO_KEY] === true;
   const add = [...worlds].filter((id) => !isChild(children.get(id)));
   const remove = [...children]
-    .filter(
-      ([id, content]) => isChild(content) && content[AUTO_KEY] === true && !worlds.has(id) && !joinedRoomIds.has(id)
-    )
+    .filter(([id, content]) => isChild(content) && isAuto(content) && !worlds.has(id) && !joinedRoomIds.has(id))
     .map(([id]) => id);
-  return { add, remove };
+  const retag = [...children]
+    .filter(([id, content]) => isChild(content) && LEGACY_AUTO_KEY in content && !remove.includes(id))
+    .map(([id]) => id);
+  return { add, remove, retag };
 }
 
 export async function getSpaceAccountData(auth: MatrixAuth, userId: string) {
-  const res = await api(auth, "GET", `/_matrix/client/v3/user/${enc(userId)}/account_data/${SPACE_ACCOUNT_DATA_TYPE}`);
+  const res = await getAccountData(auth, userId, SPACE_ACCOUNT_DATA_TYPE);
   if (res.status === 404) return undefined;
   return parseSpaceAccountData(await json(res, "Reading the Buzzar space pointer"));
 }
@@ -196,13 +203,18 @@ export async function syncBuzzarSpace(auth: MatrixAuth, userId: string, worldIds
   if ((await getSpaceAccountData(auth, userId))?.disabled) return undefined;
   const joined = await getJoinedRoomIds(auth);
   const spaceId = await ensureBuzzarSpace(auth, userId, joined);
+  const children = await getSpaceChildren(auth, spaceId);
   const plan = planSpaceChildren(
-    await getSpaceChildren(auth, spaceId),
+    children,
     [...worldIds].filter((id) => joined.has(id)),
     joined
   );
   for (const id of plan.add) await setSpaceChild(auth, spaceId, id, { via: viaServers(id, userId), [AUTO_KEY]: true });
   for (const id of plan.remove) await setSpaceChild(auth, spaceId, id, {});
+  for (const id of plan.retag) {
+    const { [LEGACY_AUTO_KEY]: legacyTag, ...content } = children.get(id) ?? {};
+    await setSpaceChild(auth, spaceId, id, legacyTag === true ? { ...content, [AUTO_KEY]: true } : content);
+  }
   return { spaceId, ...plan };
 }
 

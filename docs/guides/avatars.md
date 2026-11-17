@@ -21,7 +21,7 @@ You don't need to rejoin a world after you switch. Your own avatar changes as so
 
 ### Your avatars
 
-Every avatar you upload is saved to **Your Avatars** in the avatar editor, so you can wear it again later in any world, even one without a pedestal for it, without uploading it again. The list is kept in your Matrix account data (`software.haven.avatars`), which only you can see and which follows you to every device. Removing an avatar from the list doesn't delete the uploaded file.
+Every avatar you upload is saved to **Your Avatars** in the avatar editor, so you can wear it again later in any world, even one without a pedestal for it, without uploading it again. The list is kept in your Matrix account data (`software.haven.world.avatars`), which only you can see and which follows you to every device. Removing an avatar from the list doesn't delete the uploaded file.
 
 ### Avatar pedestals
 

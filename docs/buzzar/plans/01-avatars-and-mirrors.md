@@ -77,7 +77,7 @@ Resolution per player: member-event key → profile field → default rig.
 ### A4. UI
 
 - Avatar picker in the user menu (replaces/extends `Edit3DAvatar.tsx`): upload, preview, list of
-  previously used avatars (account data `software.haven.avatars`), "set as default", "use in this world".
+  previously used avatars (account data `software.haven.world.avatars`), "set as default", "use in this world".
 - In-world switching: picking an avatar updates the member event. Everyone else (and you) swaps on
   receipt. No rejoin needed.
 

@@ -40,7 +40,7 @@ export async function requestScriptConsent(request: ScriptConsentRequest): Promi
 }
 
 /** Marker added to every event a script sends, so other clients and moderators can tell. */
-export const VIA_SCRIPT_KEY = "software.haven.via_script";
+export const VIA_SCRIPT_KEY = "software.haven.world.via_script";
 
 /** Message types a script may ask to send (each one confirmed by the visitor). */
 export const SCRIPT_SENDABLE_MSGTYPES = new Set(["m.text", "m.emote", "m.notice"]);

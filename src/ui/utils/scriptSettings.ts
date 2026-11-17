@@ -3,6 +3,7 @@
  * (account data, so they follow them to other devices).
  */
 import { MatrixAuth } from "./avatarMatrix";
+import { getAccountData } from "./legacyAccountData";
 
 export const RUN_SCRIPTS_KEY = "buzzar.scripts.enabled";
 export const WEB_SCRIPTS_KEY = "buzzar.scripts.allowWeb";
@@ -32,7 +33,7 @@ export function scriptPolicy(scriptUrl: string): ScriptPolicy {
 
 // --- Remembered grants -------------------------------------------------------------------------------------------
 
-export const SCRIPT_GRANTS_TYPE = "software.haven.script_grants";
+export const SCRIPT_GRANTS_TYPE = "software.haven.world.script_grants";
 
 export interface ScriptGrant {
   /** The script_url the grant is for: a new script asks again. */
@@ -51,7 +52,7 @@ function grantsUrl(auth: MatrixAuth, userId: string) {
 }
 
 export async function fetchScriptGrants(auth: MatrixAuth, userId: string): Promise<ScriptGrants> {
-  const res = await fetch(grantsUrl(auth, userId), { headers: { Authorization: `Bearer ${auth.accessToken}` } });
+  const res = await getAccountData(auth, userId, SCRIPT_GRANTS_TYPE);
   if (res.status === 404) return {};
   if (!res.ok) throw new Error(`Couldn't load your script permissions: ${res.status}`);
   const body = (await res.json()) as { grants?: unknown };

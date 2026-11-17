@@ -1,6 +1,6 @@
 /**
  * Buzzar: the Avatars screen. Stock avatars that ship with Buzzar, avatars you've bookmarked (or uploaded; kept in
- * account data, software.haven.avatars), and the avatars people around you in the world are wearing.
+ * account data, software.haven.world.avatars), and the avatars people around you in the world are wearing.
  *
  * "Wear" changes your default avatar and the one in the world you're in, like VRChat; the "…" menu has "Wear Only
  * in This World" for a per-world choice.

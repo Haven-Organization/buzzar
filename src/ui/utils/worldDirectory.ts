@@ -4,6 +4,7 @@
  * homeserver instead of depending on Third Room's repository room on thirdroom.io.
  */
 import { MatrixAuth } from "./avatarMatrix";
+import { getAccountData } from "./legacyAccountData";
 
 export const WORLD_ROOM_TYPE = "org.matrix.msc3815.world";
 
@@ -109,7 +110,7 @@ export function serverNameOf(userId: string) {
 
 // --- Explore servers (account data, so the list follows you to other devices) ------------------------------------
 
-export const EXPLORE_SERVERS_TYPE = "software.haven.explore_servers";
+export const EXPLORE_SERVERS_TYPE = "software.haven.world.explore_servers";
 const MAX_EXPLORE_SERVERS = 30;
 const SERVER_NAME_REGEX = /^[A-Za-z0-9.\-:[\]]{1,255}$/;
 
@@ -125,10 +126,7 @@ export function normalizeServerName(input: string): string | undefined {
 
 /** Extra homeservers whose directories Explore lists (your own is always included and isn't stored). */
 export async function fetchExploreServers(auth: MatrixAuth, userId: string): Promise<string[]> {
-  const res = await fetch(
-    `${base(auth)}/_matrix/client/v3/user/${encodeURIComponent(userId)}/account_data/${EXPLORE_SERVERS_TYPE}`,
-    { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-  );
+  const res = await getAccountData(auth, userId, EXPLORE_SERVERS_TYPE);
   if (res.status === 404) return [];
   if (!res.ok) throw new Error(`Couldn't load your Explore servers: ${await errorText(res)}`);
   const body = (await res.json()) as { servers?: unknown };
