@@ -240,6 +240,9 @@ export function ScriptEditor({ room }: { room: Room }) {
         </EditorHeader>
         <div className="ScriptEditor__code grow">
           <Editor
+            // Buzzar: one model per world, kept when the editor closes, so undo/redo survives (Third Room #578).
+            path={`world-script/${room?.id ?? "gltf-viewer"}.js`}
+            keepCurrentModel
             defaultLanguage="javascript"
             defaultValue={DEFAULT_SCRIPT_SOURCE}
             value={activeScriptSource}
