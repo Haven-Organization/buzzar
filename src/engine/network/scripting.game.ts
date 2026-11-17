@@ -34,6 +34,16 @@ import { ScriptComponent, scriptQuery } from "../scripting/scripting.game";
 import { Replication, createReplicator } from "./Replicator";
 import { Networked, Owned } from "./NetworkComponents";
 import { addPrefabComponent } from "../prefab/prefab.game";
+import {
+  allowMessage,
+  createMessageLimiter,
+  MessageLimiter,
+  SCRIPT_RECEIVE_BYTES_PER_SECOND,
+  SCRIPT_RECEIVE_MESSAGES_PER_SECOND,
+  SCRIPT_SEND_BYTES_PER_SECOND,
+  SCRIPT_SEND_MESSAGES_PER_SECOND,
+  shouldWarn,
+} from "./rateLimit";
 
 export const WebSGNetworkModule = defineModule<GameContext, {}>({
   name: "WebSGNetwork",
@@ -67,6 +77,8 @@ function onPeerEntered(ctx: GameContext, msg: PeerEnteredMessage) {
 }
 
 function onPeerExited(ctx: GameContext, msg: PeerExitedMessage) {
+  const peerId = getModule(ctx, NetworkModule).indexToPeerId.get(msg.peerIndex);
+  if (peerId) receiveLimiters.delete(peerId);
   const entities = scriptQuery(ctx.world);
 
   for (const eid of entities) {
@@ -77,6 +89,25 @@ function onPeerExited(ctx: GameContext, msg: PeerExitedMessage) {
 
 export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleContext) {
   const network = getModule(ctx, NetworkModule);
+
+  // Buzzar: a world script may only send so much (see rateLimit.ts); excess sends fail with -1.
+  const sendLimiter = createMessageLimiter(
+    SCRIPT_SEND_MESSAGES_PER_SECOND,
+    SCRIPT_SEND_BYTES_PER_SECOND,
+    performance.now()
+  );
+  const allowSend = (byteLength: number) => {
+    const now = performance.now();
+    if (allowMessage(sendLimiter, byteLength, now)) return true;
+    if (shouldWarn(sendLimiter, now)) {
+      console.warn(
+        `WebSGNetworking: the world script is sending too much (over ${SCRIPT_SEND_MESSAGES_PER_SECOND} messages or ${
+          SCRIPT_SEND_BYTES_PER_SECOND / 1024
+        } KB a second); messages are being dropped.`
+      );
+    }
+    return false;
+  };
 
   const networkWASMModule = {
     network_get_host_peer_index() {
@@ -99,6 +130,7 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
     },
     network_broadcast: (packetPtr: number, byteLength: number, binary: number, reliable: number) => {
       try {
+        if (!allowSend(byteLength)) return -1;
         const scriptPacket = readUint8Array(wasmCtx, packetPtr, byteLength);
 
         const msg = createScriptMessage(ctx, scriptPacket, !!binary);
@@ -319,6 +351,8 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
           console.error(`WebSGNetworking: Peer ${peerIndex} does not exist.`);
           return -1;
         }
+
+        if (!allowSend(byteLength)) return -1;
 
         const scriptPacket = readUint8Array(wasmCtx, packetPtr, byteLength);
 
@@ -665,9 +699,23 @@ function serializeScriptMessage(v: CursorView, packet: ArrayBuffer) {
   cursorWriteArrayBuffer(v, packet);
 }
 
+/** Buzzar: per-peer limits on incoming script messages, so one peer can't flood every script (see rateLimit.ts). */
+const receiveLimiters = new Map<string, MessageLimiter>();
+
 function deserializeScriptMessage(ctx: GameContext, v: CursorView, peerId: string, binary: boolean) {
   const len = readUint32(v);
   const packet = readArrayBuffer(v, len);
+
+  const now = performance.now();
+  let limiter = receiveLimiters.get(peerId);
+  if (!limiter) {
+    limiter = createMessageLimiter(SCRIPT_RECEIVE_MESSAGES_PER_SECOND, SCRIPT_RECEIVE_BYTES_PER_SECOND, now);
+    receiveLimiters.set(peerId, limiter);
+  }
+  if (!allowMessage(limiter, len, now)) {
+    if (shouldWarn(limiter, now)) console.warn(`WebSGNetworking: dropping script messages from ${peerId} (too many).`);
+    return;
+  }
 
   const message: [string, ArrayBuffer, boolean] = [peerId, packet, binary];
 
