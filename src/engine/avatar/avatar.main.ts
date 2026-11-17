@@ -11,11 +11,13 @@ import { registerMessageHandler, Thread } from "../module/module.common";
 import { MainContext } from "../MainThread";
 import {
   AvatarContent,
+  fetchAvatarCollection,
   fetchProfileAvatar,
   fetchWorldAvatar,
   getBuiltinAvatarContent,
   getSessionAuth,
   MatrixAuth,
+  outdatedBuiltinForUrl,
   setProfileAvatar,
   setWorldAvatar,
 } from "../../ui/utils/avatarMatrix";
@@ -126,6 +128,29 @@ export function startAvatarSync(
     const unsubscribe = observable.subscribe(() => refresh(userId));
     watched.set(userId, unsubscribe);
   }
+
+  // A built-in avatar (Devil, Rose) we put on before its model was updated still points at the old upload: switch
+  // to the new version, so everyone sees the current model.
+  async function upgradeOwnBuiltinAvatar() {
+    const auth = await getSessionAuth(platform as any, sessionId);
+    if (!auth || disposed) return;
+    const collection = await fetchAvatarCollection(auth, session.userId);
+    const profile = await fetchProfileAvatar(auth, session.userId);
+    const inWorld = await fetchWorldAvatar(auth, world.id, session.userId);
+    const profileBuiltin = outdatedBuiltinForUrl(collection, profile?.url);
+    const worldBuiltin = outdatedBuiltinForUrl(collection, inWorld?.url);
+    if ((!profileBuiltin && !worldBuiltin) || disposed) return;
+    if (profileBuiltin) {
+      await setProfileAvatar(auth, session.userId, await getBuiltinAvatarContent(auth, session.userId, profileBuiltin));
+    }
+    if (worldBuiltin) {
+      const content = await getBuiltinAvatarContent(auth, session.userId, worldBuiltin);
+      await setWorldAvatar(auth, world.id, session.userId, content);
+    }
+    profileCache.delete(session.userId);
+    refresh(session.userId);
+  }
+  upgradeOwnBuiltinAvatar().catch((error) => console.warn("Couldn't update built-in avatar", error));
 
   watch(session.userId);
   for (const [, member] of groupCall.members) watch(member.userId);

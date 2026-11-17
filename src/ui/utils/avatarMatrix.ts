@@ -12,6 +12,7 @@
  * (private to the user, on every device), so an upload can be worn again later without re-uploading it.
  */
 import type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
+import { BUILTIN_AVATARS as BUILTINS, builtinUploadKey, parseBuiltinUploadKey } from "../../engine/avatar/avatar.common";
 import { getAccountData } from "./legacyAccountData";
 export const AVATAR_KEY = "software.haven.world.avatar";
 /**
@@ -190,7 +191,7 @@ export interface SavedAvatar extends AvatarContent {
 export interface AvatarCollection {
   /** Newest first. */
   avatars: SavedAvatar[];
-  /** mxc URIs of the built-in avatars, once uploaded to this homeserver (by built-in id). */
+  /** mxc URIs of the built-in avatars, once uploaded to this homeserver (by upload key: id, or id@version). */
   builtin: Record<string, string>;
 }
 
@@ -291,7 +292,7 @@ async function uploadBundledOnce(auth: MatrixAuth, userId: string, key: string, 
 }
 
 export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, avatar: BuiltinAvatar) {
-  const url = await uploadBundledOnce(auth, userId, avatar.id, avatar.path, avatar.name);
+  const url = await uploadBundledOnce(auth, userId, builtinUploadKey(avatar), avatar.path, avatar.name);
   // Buzzar: the preview picture goes along, so other people see it (e.g. on their Avatars screen's In World tab).
   const previewUrl = await uploadBundledOnce(auth, userId, `${avatar.id}_preview`, avatar.preview, avatar.name).catch(
     () => undefined
@@ -304,5 +305,21 @@ export async function getBuiltinAvatarContent(auth: MatrixAuth, userId: string, 
 /** The built-in avatar an mxc URI was uploaded from (by this user), if any. */
 export function builtinIdForUrl(collection: AvatarCollection | undefined, url: string | undefined) {
   if (!collection || !url) return undefined;
-  return Object.entries(collection.builtin).find(([key, mxc]) => mxc === url && !key.endsWith("_preview"))?.[0];
+  const key = Object.entries(collection.builtin).find(([key, mxc]) => mxc === url && !key.endsWith("_preview"))?.[0];
+  return key ? parseBuiltinUploadKey(key).id : undefined;
+}
+
+/**
+ * The current version of a built-in avatar, if `url` is this user's upload of an older version of it (the model
+ * changed since they put it on), so it can be swapped for the new upload.
+ */
+export function outdatedBuiltinForUrl(collection: AvatarCollection | undefined, url: string | undefined) {
+  if (!collection || !url) return undefined;
+  for (const [key, mxc] of Object.entries(collection.builtin)) {
+    if (mxc !== url || key.endsWith("_preview")) continue;
+    const { id, version } = parseBuiltinUploadKey(key);
+    const avatar = BUILTINS.find((a) => a.id === id);
+    if (avatar && version < avatar.version) return avatar;
+  }
+  return undefined;
 }

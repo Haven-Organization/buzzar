@@ -2,7 +2,9 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   AVATAR_KEY,
+  builtinIdForUrl,
   LEGACY_AVATAR_KEY,
+  outdatedBuiltinForUrl,
   parseAvatarCollection,
   parseAvatarContent,
   resolveAvatar,
@@ -154,5 +156,31 @@ describe("parseAvatarCollection", () => {
   test("missing or garbage account data is an empty collection", () => {
     expect(parseAvatarCollection(undefined)).toEqual({ avatars: [], builtin: {} });
     expect(parseAvatarCollection({ avatars: "x", builtin: 3 })).toEqual({ avatars: [], builtin: {} });
+  });
+});
+
+describe("built-in avatar versions", () => {
+  const collection = {
+    avatars: [],
+    builtin: {
+      devil: "mxc://hs/old-devil",
+      devil_preview: "mxc://hs/devil-preview",
+      "devil@2": "mxc://hs/new-devil",
+      rose: "mxc://hs/rose",
+    },
+  };
+
+  test("an upload of an older version is outdated, the current one isn't", () => {
+    expect(outdatedBuiltinForUrl(collection, "mxc://hs/old-devil")?.id).toBe("devil");
+    expect(outdatedBuiltinForUrl(collection, "mxc://hs/new-devil")).toBeUndefined();
+    expect(outdatedBuiltinForUrl(collection, "mxc://hs/rose")).toBeUndefined();
+    expect(outdatedBuiltinForUrl(collection, "mxc://hs/devil-preview")).toBeUndefined();
+    expect(outdatedBuiltinForUrl(collection, "mxc://hs/someone-else")).toBeUndefined();
+  });
+
+  test("every version of an upload maps back to its built-in id", () => {
+    expect(builtinIdForUrl(collection, "mxc://hs/old-devil")).toBe("devil");
+    expect(builtinIdForUrl(collection, "mxc://hs/new-devil")).toBe("devil");
+    expect(builtinIdForUrl(collection, "mxc://hs/devil-preview")).toBeUndefined();
   });
 });

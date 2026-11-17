@@ -73,6 +73,8 @@ export const BUILTIN_AVATARS = [
     path: "/avatars/031_Devil.vrm",
     preview: "/avatars/previews/devil.png",
     credit: "Polygonal Mind (CC0)",
+    // 2: the tail got its own spring bones (2026-11-17).
+    version: 2,
   },
   {
     id: "rose",
@@ -80,10 +82,25 @@ export const BUILTIN_AVATARS = [
     path: "/avatars/057_Rose.vrm",
     preview: "/avatars/previews/rose.png",
     credit: "Polygonal Mind (CC0)",
+    version: 1,
   },
 ] as const;
 
 export type BuiltinAvatar = (typeof BUILTIN_AVATARS)[number];
+
+/**
+ * Wearing a built-in avatar uploads it once and reuses that upload, so a changed model needs a new upload: bump the
+ * avatar's `version` when its file changes. Version 1 keeps the plain id, so existing uploads still count.
+ */
+export function builtinUploadKey(avatar: BuiltinAvatar) {
+  return avatar.version > 1 ? `${avatar.id}@${avatar.version}` : avatar.id;
+}
+
+/** The built-in avatar id and version an upload key stands for. */
+export function parseBuiltinUploadKey(key: string): { id: string; version: number } {
+  const [id, version] = key.split("@");
+  return { id, version: version ? Number(version) || 1 : 1 };
+}
 
 /**
  * Worlds can offer a bundled avatar with `buzzar-builtin:<id>` (e.g. on a HAVEN_avatar_pedestal), so the scene
