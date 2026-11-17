@@ -2,8 +2,12 @@
   height: 100%;
   padding: var(--sp-md);
   background-color: var(--bg-surface-low);
+  overflow-y: auto;
 }
+/* Buzzar: centred on the page like the sign-in portal (Third Room #176). Auto margins rather than align-items, so a
+   short window scrolls instead of cutting off the top. */
 .LoginView__card {
+  margin: auto 0;
   width: 100%;
   max-width: 450px;
   padding: var(--sp-lg);
