@@ -262,7 +262,9 @@ export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: Cre
           src={
             isBundledPath(roomAvatarUrl ?? previewUrl)
               ? roomAvatarUrl ?? previewUrl
-              : getHttpUrl(session, roomAvatarUrl ?? previewUrl)!
+              : // Buzzar: a server-made thumbnail, not the full-size picture (Third Room #301).
+                session.mediaRepository.mxcUrlThumbnail(roomAvatarUrl ?? previewUrl, 160, 160, "crop") ??
+                getHttpUrl(session, roomAvatarUrl ?? previewUrl)!
           }
         />
       </Thumbnail>
