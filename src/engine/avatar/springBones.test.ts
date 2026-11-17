@@ -67,6 +67,17 @@ describe("spring bone simulation", () => {
     expect(t.distanceTo(new Vector3().setFromMatrixPosition(hair.matrixWorld))).toBeCloseTo(0.1, 4);
   });
 
+  it("lies on the ground under the avatar's feet instead of sinking through it", () => {
+    const { root, head, hair, tip, objectFor } = makeChain();
+    head.position.set(0, 0, 0); // the joint is 10 cm above the feet, the tip 10 cm out
+    const rig = createSpringRig([spec({ stiffness: 0.2, gravityPower: 2, hitRadius: 0.02 })], objectFor)!;
+    for (let i = 0; i < 240; i++) updateSpringRig(rig, root, at(0, 0, 0), 1 / 60);
+    const t = tipWorld(tip);
+    expect(t.y).toBeGreaterThanOrEqual(0.02 - 1e-4);
+    expect(t.y).toBeLessThan(0.05);
+    expect(t.distanceTo(new Vector3().setFromMatrixPosition(hair.matrixWorld))).toBeCloseTo(0.1, 4);
+  });
+
   it("lags behind when the avatar moves, then settles back", () => {
     const { root, tip, objectFor } = makeChain();
     const rig = createSpringRig([spec({ stiffness: 2, dragForce: 0.5 })], objectFor)!;

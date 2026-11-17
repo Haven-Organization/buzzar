@@ -387,7 +387,7 @@ function collide(joint: SpringJoint, worldPos: Vector3, tail: Vector3, boneLengt
   }
 }
 
-function stepJoint(joint: SpringJoint, dt: number) {
+function stepJoint(joint: SpringJoint, dt: number, floorY: number) {
   const { bone, settings } = joint;
   const parent = bone.parent;
   const parentWorld = parent ? parent.matrixWorld : _identity;
@@ -412,6 +412,17 @@ function stepJoint(joint: SpringJoint, dt: number) {
   // Keep the bone length, then push out of colliders.
   _next.sub(_worldPos).normalize().multiplyScalar(boneLength).add(_worldPos);
   if (joint.colliders.length > 0) collide(joint, _worldPos, _next, boneLength);
+  // The ground under the avatar's feet: a tail or long hair lies on it (lying down) instead of sinking through.
+  const floor = floorY + settings.hitRadius;
+  if (_next.y < floor) {
+    // Keep the horizontal direction, put the end on the floor (or straight up if the joint itself is too low).
+    const dy = Math.min(Math.max(floor - _worldPos.y, -boneLength), boneLength);
+    const across = Math.sqrt(boneLength * boneLength - dy * dy);
+    _tmpV.set(_next.x - _worldPos.x, 0, _next.z - _worldPos.z);
+    if (_tmpV.lengthSq() < 1e-12) _tmpV.set(1, 0, 0);
+    _next.copy(_worldPos).addScaledVector(_tmpV.normalize(), across);
+    _next.y = _worldPos.y + dy;
+  }
 
   joint.prevTail.copy(joint.currentTail);
   joint.currentTail.copy(_next);
@@ -454,6 +465,6 @@ export function updateSpringRig(rig: SpringRig, root: Object3D, rootWorldMatrix:
       for (const joint of rig.joints) joint.bone.quaternion.copy(joint.initialLocalRotation);
       root.updateMatrixWorld(true);
     }
-    for (const joint of rig.joints) stepJoint(joint, step);
+    for (const joint of rig.joints) stepJoint(joint, step, _rootPos.y);
   }
 }
