@@ -21,6 +21,7 @@ import { ScriptConsent } from "./world/ScriptConsent";
 import { CmdPanel, defaultActions } from "./cmd-panel/CmdPanel";
 import { useAccountManagementAction, useUserProfileAction } from "./cmd-panel/actions";
 import { editorEnabledAtom } from "../../state/editor";
+import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 
@@ -42,6 +43,7 @@ export default function SessionView() {
   const selectWorld = useSetAtom(overlayWorldAtom);
 
   const editorEnabled = useAtomValue(editorEnabledAtom);
+  const hudHidden = useAtomValue(hudHiddenAtom);
 
   useEffect(() => {
     if (!worldId && !worldAlias && homeWorldId) {
@@ -66,7 +68,7 @@ export default function SessionView() {
             <MainThreadContextProvider value={mainThread}>
               <Outlet />
               {overlayVisible && <Overlay />}
-              {!editorEnabled && <StatusBar />}
+              {!editorEnabled && !(hudHidden && !overlayVisible) && <StatusBar />}
               <FirefoxPerfAlert />
               {/* Buzzar: world scripts ask here before reading the chat or posting as you. */}
               <ScriptConsent />

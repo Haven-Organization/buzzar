@@ -45,6 +45,7 @@ import {
   useToggleEditorAction,
   useTogglePhysicsDebugAction,
   useToggleNamesAction,
+  useToggleHudAction,
   useToggleStatsAction,
 } from "../cmd-panel/actions";
 import { inputFocused } from "../../../utils/common";
@@ -54,6 +55,7 @@ import { editorEnabledAtom } from "../../../state/editor";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useResumePlay } from "../../../hooks/useResumePlay";
 import { awaitingLockAtom, mouseFreedAtom } from "../../../state/mouseMode";
+import { hudHiddenAtom } from "../../../state/hud";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
 
 interface WorldViewProps {
@@ -185,6 +187,9 @@ export function WorldView({ world }: WorldViewProps) {
   useDisableInput(kbarVisible);
 
   useToggleNamesAction(nameMode, setNameMode, showToast);
+  useToggleHudAction(showToast);
+  const [hudHidden, setHudHidden] = useAtom(hudHiddenAtom);
+  useEffect(() => () => setHudHidden(false), [setHudHidden]);
   useToggleEditorAction(setEditorEnabled, canEditScene, showToast);
   useTogglePhysicsDebugAction();
   useToggleStatsAction(setStatsEnabled);
@@ -330,13 +335,15 @@ export function WorldView({ world }: WorldViewProps) {
       {!("isBeingCreated" in world) && <WorldUpgradedDialog world={world} />}
       <Stats statsEnabled={statsEnabled} />
       <div className={classNames("WorldView__chat flex", { "WorldView__chat--open": worldChatVisible })}>
-        {!("isBeingCreated" in world) && !editorEnabled && <WorldChat open={worldChatVisible} room={world} />}
+        {!("isBeingCreated" in world) && !editorEnabled && (!hudHidden || worldChatVisible) && (
+          <WorldChat open={worldChatVisible} room={world} />
+        )}
       </div>
       {world && !editorEnabled && (
         <>
-          {!worldChatVisible && <HotbarControls />}
+          {!worldChatVisible && !hudHidden && <HotbarControls />}
           <WorldControls
-            className="WorldView__controls"
+            className={classNames("WorldView__controls", { "WorldView__controls--hidden": hudHidden })}
             session={session}
             world={world}
             activeCall={activeCall}

@@ -74,6 +74,7 @@ export function ShortcutUI() {
           {renderItem("Fly Mode", <Kbd size="xs">B</Kbd>)}
           {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
           {renderItem("Names: banners / names only / hidden", <Kbd size="xs">N</Kbd>)}
+          {renderItem("Hide / show the HUD", <Kbd size="xs">H</Kbd>)}
           {renderItem(
             "Show Statistics",
             <>

@@ -15,6 +15,7 @@ import { useHydrogen } from "../../../hooks/useHydrogen";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
+import { hudHiddenAtom } from "../../../state/hud";
 import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../components/MuteButtonProvider";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { ShortcutUI } from "../world/ShortcutUI";
@@ -160,9 +161,7 @@ export const MembersDialogAction = () => {
         icon: undefined,
         subtitle: undefined,
         perform: () =>
-          showingPeople
-            ? setOverlayVisibility(false)
-            : openOverlayWindow({ type: OverlayWindow.People, tab: "world" }),
+          showingPeople ? setOverlayVisibility(false) : openOverlayWindow({ type: OverlayWindow.People, tab: "world" }),
         parent: undefined,
       },
     ],
@@ -170,6 +169,31 @@ export const MembersDialogAction = () => {
   );
 
   return null;
+};
+
+/** Buzzar: H hides and shows the HUD (see hudHiddenAtom). */
+export const useToggleHudAction = (showToast?: (text: string) => void) => {
+  const [hudHidden, setHudHidden] = useAtom(hudHiddenAtom);
+
+  useRegisterActions(
+    [
+      {
+        id: "toggle-hud",
+        name: "Toggle HUD",
+        shortcut: ["H"],
+        keywords: "hide interface ui screenshot",
+        section: ActionSection.World,
+        icon: undefined,
+        subtitle: undefined,
+        perform: () => {
+          showToast?.(hudHidden ? "HUD shown" : "HUD hidden. Press H to show it.");
+          setHudHidden(!hudHidden);
+        },
+        parent: undefined,
+      },
+    ],
+    [hudHidden, setHudHidden, showToast]
+  );
 };
 
 export const ShortcutDialogAction = () => {

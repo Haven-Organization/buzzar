@@ -55,6 +55,7 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Interact, sit, enter a portal | E or left click                              |
 | Free / capture the mouse      | Shift + Tab                                  |
 | Menu                          | Tab (or Escape)                              |
+| Hide / show the HUD           | H                                            |
 
 ### 4. Invite people and manage your world
 

@@ -162,8 +162,8 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
 | Gesture wheel | Shift+F1–F8 | R2 | Finger pose / capacitive | ❌ | R2 |
 | Mute mic | V (PTT or toggle) | Y | X (left Touch) / A (left Index) | Local mute in UI | Y |
 | Chatbox | Y | – | – | Chat overlay (2D) | Via quick menu + on-screen keyboard |
-| Toggle nameplates | Ctrl+N | D-pad up | – | ❌ | D-pad up |
-| Toggle HUD | Ctrl+H | D-pad down | – | ❌ | D-pad down |
+| Toggle nameplates | Ctrl+N | D-pad up | – | ✅ N (banners / names / off) | D-pad up |
+| Toggle HUD | Ctrl+H | D-pad down | – | ✅ H (browsers keep Ctrl+H for history) | D-pad down |
 | Screenshot | F12 | View (Back) | – | ❌ | View |
 | Safe / panic mode | Shift+F11 | – | Both triggers + both menu buttons | ❌ | Hold View + Menu (and a quick-menu button) |
 | 1st/3rd person | – | – | – | V | Settings / quick menu |

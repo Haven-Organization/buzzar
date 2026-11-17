@@ -97,3 +97,8 @@
     opacity: 1;
   }
 }
+
+/* Buzzar: H hides the HUD; the controls stay mounted so their keys (Alt+L…) keep working. */
+.WorldView__controls--hidden {
+  visibility: hidden;
+}
