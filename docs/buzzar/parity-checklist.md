@@ -285,7 +285,7 @@ Notes and open questions:
 ## 6. Portals and world navigation
 
 - [x] ✅ `OMI_link` portals with `matrix:r/` URIs, click-to-activate (reference worlds).
-- [ ] ❌ **S** Destination preview card (name, scene_preview, members, instance count).
+- [x] ✅ **S** Destination preview card (name, scene_preview, members, instance count). **Buzzar (2026-11-17):** the portal tooltip shows the picture, name, topic and member count (room summary API for worlds you haven't joined). Instance count waits for instances.
 - [x] ✅ **S** Dead-destination handling (`#mars:thirdroom.dev` no longer resolves), plus following tombstones.
 - [x] ✅ **S** Accept `matrix:roomid/…?via=` and `https://matrix.to/#/…`. Web-link portals now ask first and open in a new tab.
 - [ ] ❌ **S** Optional walk-through activation (world opt-in).

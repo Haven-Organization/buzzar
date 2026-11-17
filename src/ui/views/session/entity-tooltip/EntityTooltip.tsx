@@ -4,6 +4,8 @@ import { Icon } from "../../../atoms/icon/Icon";
 import { Dots } from "../../../atoms/loading/Dots";
 import { Text } from "../../../atoms/text/Text";
 import { InteractionState } from "../../../hooks/useWorldInteraction";
+import { usePortalDestination } from "../../../hooks/usePortalDestination";
+import { useHydrogen } from "../../../hooks/useHydrogen";
 import "./EntityTooltip.css";
 
 export interface IPortalProcess {
@@ -107,9 +109,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             {portalProcess.joining ? "Joining portal" : "Portal"}
           </Text>
           <div className="flex flex-column gap-xxs">
-            <Text variant="b3" color="world">
-              {activeEntity.name}
-            </Text>
+            <PortalDestinationCard uri={activeEntity.uri} fallbackName={activeEntity.name} />
             {portalProcess.error && (
               <Text variant="b3" color="world">
                 {portalProcess.error.message ?? "Unknown error joining portal."}
@@ -126,5 +126,37 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
         </>
       )}
     </div>
+  );
+}
+
+/** Buzzar: where a portal leads: the world's picture, name, topic and how many people are in it. */
+function PortalDestinationCard({ uri, fallbackName }: { uri?: string; fallbackName: string }) {
+  const { session } = useHydrogen(true);
+  const destination = usePortalDestination(uri);
+  const image = destination?.image?.startsWith("mxc:")
+    ? session.mediaRepository.mxcUrlThumbnail(destination.image, 320, 180, "scale") ?? undefined
+    : destination?.image;
+  return (
+    <>
+      {image && <img className="EntityTooltip__preview" src={image} alt="" />}
+      <Text variant="b3" color="world" weight={destination?.name ? "semi-bold" : undefined}>
+        {destination?.web ? `Web page: ${destination.name}` : destination?.name ?? fallbackName}
+      </Text>
+      {destination?.name && !destination.web && destination.name !== fallbackName && (
+        <Text variant="b3" color="world" className="EntityTooltip__address">
+          {fallbackName}
+        </Text>
+      )}
+      {destination?.topic && (
+        <Text variant="b3" color="world" className="EntityTooltip__topic">
+          {destination.topic}
+        </Text>
+      )}
+      {destination?.members !== undefined && (
+        <Text variant="b3" color="world">
+          {destination.members === 1 ? "1 member" : `${destination.members} members`}
+        </Text>
+      )}
+    </>
   );
 }
