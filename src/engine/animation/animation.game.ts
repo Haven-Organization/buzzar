@@ -14,6 +14,7 @@ import { RemoteNode } from "../resource/RemoteResources";
 import type { GameAnimation } from "../gltf/gltf.game";
 import { playerShapeCastCollisionGroups } from "../physics/CollisionGroups";
 import { Posture, PostureEntities } from "../player/posture.common";
+import { CLIP_SPEED } from "../avatar/retarget";
 
 export interface IAnimationComponent {
   animations: GameAnimation[];
@@ -46,6 +47,8 @@ export enum AnimationClipType {
   Prone = "Prone",
   /** Buzzar: moving while prone (army crawl). */
   Crawl = "Crawl",
+  /** Buzzar: walking crouched (a generated cycle; the crouch layer twisted the walk's legs). */
+  CrouchWalk = "CrouchWalk",
 }
 
 /**
@@ -139,15 +142,29 @@ function processAnimations(ctx: GameContext) {
           ? (proneMoving && animation.actionMap.get(AnimationClipType.Crawl)) ||
             animation.actionMap.get(AnimationClipType.Prone)
           : undefined;
+      // Buzzar: walking crouched plays its own cycle, at the player's speed (backwards when backing up).
+      const crouchWalkAction =
+        !sitAction && !proneAction && posture === Posture.Crouching && proneMoving
+          ? animation.actionMap.get(AnimationClipType.CrouchWalk)
+          : undefined;
+      if (crouchWalkAction && proneVelocity) {
+        const speed = Math.hypot(proneVelocity[0], proneVelocity[2]);
+        // Same forward test as the locomotion clips (WalkBack is played from 120° on).
+        const forward = getForwardVector(_forward, getPitch(parent.quaternion), getYaw(parent.quaternion));
+        const backwards = radToDeg(vec3.angle(proneVelocity, forward)) > 120;
+        crouchWalkAction.timeScale = (backwards ? -1 : 1) * (speed / (CLIP_SPEED.get(AnimationClipType.CrouchWalk) ?? 0.8));
+      }
       let actionsToPlay = sitAction
         ? [sitAction]
         : proneAction
         ? [proneAction]
+        : crouchWalkAction
+        ? [crouchWalkAction]
         : getClipActionsUsingVelocity(ctx, physics, parent, body, animation);
       // synchronize selected clip action times
       synchronizeClipActions(actionsToPlay);
       const crouchAction =
-        !sitAction && !proneAction && posture === Posture.Crouching
+        !sitAction && !proneAction && !crouchWalkAction && posture === Posture.Crouching
           ? animation.actionMap.get(AnimationClipType.Crouch)
           : undefined;
       if (crouchAction) actionsToPlay = [...actionsToPlay, crouchAction];

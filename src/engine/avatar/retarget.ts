@@ -328,6 +328,8 @@ const POSE_DIRECTION_CHILD: Partial<Record<HumanBone, HumanBone>> = {
   rightUpperArm: "rightLowerArm",
   leftLowerArm: "leftHand",
   rightLowerArm: "rightHand",
+  leftFoot: "leftToes",
+  rightFoot: "rightToes",
 };
 
 /**
@@ -513,83 +515,214 @@ export const CROUCH_POSE: PoseSpec = {
 };
 
 /**
- * Buzzar: an army crawl, cycling through four prone poses (built like the static ones, then joined into one looping
- * clip): left arm reaching with the right knee drawn up, flat, right arm reaching with the left knee up, flat.
+ * Buzzar: metres per second a generated walking clip covers at time scale 1, by clip name (retargeted copies keep the
+ * name; avatars differ in size, but close enough to keep the feet from visibly sliding).
  */
-export function buildCrawlClip(rig: RetargetRig, name = "Crawl", duration = 1.5): AnimationClip {
-  const stroke = (side: "left" | "right"): PoseSpec => {
-    const s = side === "left" ? 1 : -1;
-    const o = side === "left" ? "right" : "left";
-    return {
+export const CLIP_SPEED = new Map<string, number>();
+
+/**
+ * Buzzar: walking crouched, generated rather than layering the crouch on the walk (whose leg swing twisted the bent
+ * legs). Each foot is placed on the ground, planted while the body passes over it and then lifted forward, and the
+ * leg reaches it with two-bone IK (knee forward and a little out). Arms swing gently against the legs, the body
+ * leans in like the static crouch, and the hips sway and bob a little. Its ground speed is recorded in CLIP_SPEED
+ * so playback can match the player's speed (feet don't slide).
+ */
+export function buildCrouchWalkClip(rig: RetargetRig, name = "CrouchWalk", duration = 1.1): AnimationClip {
+  type V = [number, number, number];
+  const FRAMES = 24;
+  const TAU = Math.PI * 2;
+  const STANCE = 0.6;
+  const HIPS_HEIGHT = 0.64;
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+  const pos = (bone: HumanBone) => {
+    const obj = rig.bones.get(bone);
+    return obj ? new Vector3().setFromMatrixPosition(restWorldMatrix(rig, obj)) : undefined;
+  };
+  const hips = pos("hips");
+  const legs = (["left", "right"] as const).map((side) => ({
+    side,
+    hip: pos(`${side}UpperLeg`),
+    knee: pos(`${side}LowerLeg`),
+    foot: pos(`${side}Foot`),
+  }));
+  if (!hips || legs.some((l) => !l.hip || !l.knee || !l.foot)) {
+    return buildPoseClip(rig, name, CROUCH_POSE); // can't place feet: hold the static crouch
+  }
+  // Rig space may have the character's left on −x; directions are given left = +x and mirrored by buildPoseClip.
+  const sideSign = legs[0].hip!.x < hips.x ? -1 : 1;
+  const legLength = legs[0].hip!.distanceTo(legs[0].knee!) + legs[0].knee!.distanceTo(legs[0].foot!);
+  const stride = 0.55 * legLength;
+  const lift = 0.14 * legLength;
+  const drop = hips.y * (1 - HIPS_HEIGHT);
+
+  const ik = (hip: Vector3, foot: Vector3, l1: number, l2: number, out: number): [V, V] => {
+    const v = foot.clone().sub(hip);
+    const d = Math.min(Math.max(v.length(), Math.abs(l1 - l2) + 1e-4), l1 + l2 - 1e-4);
+    v.normalize();
+    const a = Math.acos(Math.min(1, Math.max(-1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d))));
+    const hint = new Vector3(0.3 * out, 0, 1);
+    const perp = hint.sub(v.clone().multiplyScalar(hint.dot(v))).normalize();
+    const knee = hip.clone().add(v.clone().multiplyScalar(Math.cos(a) * l1)).add(perp.multiplyScalar(Math.sin(a) * l1));
+    const thigh = knee.clone().sub(hip).normalize();
+    const shin = hip.clone().add(v.multiplyScalar(d)).sub(knee).normalize();
+    return [
+      [thigh.x * sideSign, thigh.y, thigh.z],
+      [shin.x * sideSign, shin.y, shin.z],
+    ];
+  };
+
+  const frames: AnimationClip[] = [];
+  const times: number[] = [];
+  for (let f = 0; f < FRAMES; f++) {
+    const phase = f / FRAMES;
+    const directions: PoseSpec["directions"] = {};
+    legs.forEach(({ side, hip, knee, foot }, i) => {
+      const p = (phase + i * 0.5) % 1;
+      let z: number;
+      let y = 0;
+      let toe = 0; // foot pitch: toes down while lifting off, up as it reaches
+      if (p < STANCE) {
+        z = stride / 2 - (p / STANCE) * stride;
+      } else {
+        const t = (p - STANCE) / (1 - STANCE);
+        z = -stride / 2 + smooth(t) * stride;
+        y = lift * Math.sin(Math.PI * t);
+        toe = Math.sin(Math.PI * t) * (t < 0.5 ? -0.5 : 0.3);
+      }
+      const out = side === "left" ? 1 : -1;
+      const hipPosed = hip!.clone().setY(hip!.y - drop);
+      // Feet a little ahead of the hips (the hips sit back) and a little wider than standing.
+      const target = foot!.clone();
+      target.x = hips.x + (foot!.x - hips.x) * 1.15;
+      target.z = hipPosed.z + 0.18 * legLength + z;
+      target.y = foot!.y + y;
+      const [thigh, shin] = ik(hipPosed, target, hip!.distanceTo(knee!), knee!.distanceTo(foot!), out * sideSign);
+      directions[`${side}UpperLeg`] = thigh;
+      directions[`${side}LowerLeg`] = shin;
+      directions[`${side}Foot`] = [0, -0.35 + toe, 1];
+      // Arms hang forward and swing against their leg.
+      const swing = Math.cos(TAU * p) * -1; // arm forward while the opposite... same-side leg is back
+      directions[`${side}UpperArm`] = [0.22 * out, -0.92, 0.2 + 0.22 * swing];
+      directions[`${side}LowerArm`] = [0.08 * out, -0.75, 0.6 + 0.2 * swing];
+    });
+    const c = Math.cos(TAU * phase);
+    const bob = (1 + Math.cos(TAU * 2 * phase)) / 2; // lowest as a foot passes under the body
+    const spec: PoseSpec = {
+      ...CROUCH_POSE,
+      directions,
+      groundFeet: false,
+      hipsHeight: HIPS_HEIGHT - 0.015 * (1 - bob),
+      sway: { hips: [5 * c, 3 * c], chest: [-4 * c, -2 * c], head: [-1 * c, 0] },
+    };
+    frames.push(buildPoseClip(rig, `${name}${f}`, spec));
+    times.push((f / FRAMES) * duration);
+  }
+  times.push(duration);
+  const tracks = frames[0].tracks.map((track) => {
+    const size = track.getValueSize();
+    const values: number[] = [];
+    for (const index of [...frames.keys(), 0]) {
+      const other = frames[index].tracks.find((t) => t.name === track.name) ?? track;
+      values.push(...Array.from(other.values.slice(0, size)));
+    }
+    const TrackType = track.constructor as new (name: string, times: number[], values: number[]) => KeyframeTrack;
+    return new TrackType(track.name, times, values);
+  });
+  const clip = new AnimationClip(name, duration, tracks);
+  CLIP_SPEED.set(name, stride / (STANCE * duration));
+  return clip;
+}
+
+/**
+ * Buzzar: an army crawl, generated as continuous motion: each arm reaches far forward, plants and drags its elbow back
+ * along the ground, then lifts and swings forward again (the arms half a cycle apart); each knee slides up along the
+ * ground and then pushes the leg straight back, with the opposite arm. The hips and chest roll and swing against each
+ * other and the body lifts a little on each push. Sampled into a looping clip.
+ */
+export function buildCrawlClip(rig: RetargetRig, name = "Crawl", duration = 1.6): AnimationClip {
+  type V = [number, number, number];
+  const FRAMES = 24;
+  const TAU = Math.PI * 2;
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+  const mix = (a: V, b: V, t: number): V => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const wrap = (x: number) => x - Math.floor(x);
+  // Left side is +x; the right side mirrors x.
+  const side = (v: V, s: number): V => [v[0] * s, v[1], v[2]];
+
+  // Arm cycle a ∈ [0,1): 0–0.55 pull (planted, reach → elbow dragged back), 0.55–1 recover (lifted, swing forward).
+  const UPPER_REACH: V = [0.14, -0.2, 1];
+  const UPPER_PULLED: V = [0.85, -0.42, -0.2];
+  const LOWER_REACH: V = [0.03, -0.12, 1];
+  const LOWER_PULLED: V = [-0.4, -0.15, 0.9];
+  const arm = (a: number): [V, V] => {
+    if (a < 0.55) {
+      const t = smooth(a / 0.55);
+      return [mix(UPPER_REACH, UPPER_PULLED, t), mix(LOWER_REACH, LOWER_PULLED, t)];
+    }
+    const t = smooth((a - 0.55) / 0.45);
+    const lift = Math.sin(Math.PI * t);
+    const upper = mix(UPPER_PULLED, UPPER_REACH, t);
+    const lower = mix(LOWER_PULLED, LOWER_REACH, t);
+    upper[1] += 0.35 * lift; // shoulder lifts the arm clear of the ground
+    lower[1] += 0.25 * lift;
+    lower[0] += 0.2 * lift; // hand swings round the outside
+    return [upper, lower];
+  };
+
+  // Leg cycle l ∈ [0,1): 0–0.5 push (knee up → leg straight back), 0.5–1 draw the knee up along the ground.
+  const THIGH_UP: V = [0.9, -0.1, -0.2];
+  const THIGH_STRAIGHT: V = [0.08, 0, -1];
+  const SHIN_UP: V = [-0.4, 0.02, -0.92];
+  const SHIN_STRAIGHT: V = [0.06, 0.06, -1];
+  const leg = (l: number): [V, V] => {
+    const t = l < 0.5 ? 1 - smooth(l / 0.5) : smooth((l - 0.5) / 0.5); // 1 = knee fully up
+    return [mix(THIGH_STRAIGHT, THIGH_UP, t), mix(SHIN_STRAIGHT, SHIN_UP, t)];
+  };
+
+  const times: number[] = [];
+  const frames: AnimationClip[] = [];
+  for (let f = 0; f < FRAMES; f++) {
+    const phase = f / FRAMES;
+    // Left arm reaches at phase 0 while the right knee is up; everything else follows from that.
+    const [lUpperArm, lLowerArm] = arm(phase);
+    const [rUpperArm, rLowerArm] = arm(wrap(phase + 0.5));
+    const [lUpperLeg, lLowerLeg] = leg(wrap(phase + 0.5));
+    const [rUpperLeg, rLowerLeg] = leg(phase);
+    const c = Math.cos(TAU * phase); // +1: right knee up / left arm reaching; −1: the other side
+    const push = (1 - Math.cos(TAU * 2 * phase)) / 2; // twice a cycle, mid-push
+    const spec: PoseSpec = {
       ...PRONE_POSE,
       directions: {
         ...PRONE_POSE.directions,
-        // Reaching arm stretched far forward past the head; the other elbow planted out to the side, its forearm
-        // under the chest, pulling.
-        [`${side}UpperArm`]: [0.15 * s, -0.15, 1],
-        [`${side}LowerArm`]: [0.04 * s, -0.1, 1],
-        [`${o}UpperArm`]: [-0.75 * s, -0.5, 0.0],
-        [`${o}LowerArm`]: [0.3 * s, -0.12, 0.94],
-        // The opposite knee pulled well up and out to the side (frog leg), its foot back behind; the other leg
-        // pushing straight back.
-        [`${o}UpperLeg`]: [-0.9 * s, -0.08, -0.25],
-        [`${o}LowerLeg`]: [0.35 * s, 0.0, -0.94],
-        [`${side}UpperLeg`]: [0.06 * s, 0, -1],
-        [`${side}LowerLeg`]: [0.06 * s, 0.08, -1],
+        leftUpperArm: lUpperArm,
+        leftLowerArm: lLowerArm,
+        rightUpperArm: side(rUpperArm, -1),
+        rightLowerArm: side(rLowerArm, -1),
+        leftUpperLeg: lUpperLeg,
+        leftLowerLeg: lLowerLeg,
+        rightUpperLeg: side(rUpperLeg, -1),
+        rightLowerLeg: side(rLowerLeg, -1),
       },
-      // The body snakes: the hips swing toward the drawn-up knee and roll up on that side, the chest swings the
-      // other way and rolls toward the reaching arm, and the head stays looking ahead.
+      // Hips swing and roll toward the drawn-up knee; the chest counters toward the reaching arm; head steadies.
       sway: {
-        hips: [-10 * s, -9 * s],
-        spine: [6 * s, 4 * s],
-        chest: [6 * s, 5 * s],
-        neck: [-2 * s, 0],
+        hips: [-14 * c, -12 * c],
+        spine: [7 * c, 5 * c],
+        chest: [9 * c, 9 * c],
+        neck: [-5 * c, -4 * c],
+        head: [-3 * c, -3 * c],
       },
-    } as PoseSpec;
-  };
-  // Between strokes: legs back together, both elbows tucked under the chest, body straight.
-  const between: PoseSpec = {
-    ...PRONE_POSE,
-    directions: {
-      ...PRONE_POSE.directions,
-      leftUpperArm: [0.5, -0.6, 0.6],
-      rightUpperArm: [-0.5, -0.6, 0.6],
-      leftLowerArm: [-0.15, -0.1, 0.98],
-      rightLowerArm: [0.15, -0.1, 0.98],
-    },
-  };
-  const poses = [stroke("left"), between, stroke("right"), between].map((spec, i) =>
-    buildPoseClip(rig, `${name}${i}`, spec)
-  );
-  // Eased in and out of each key pose (keyframes are interpolated linearly): left → between → right → between.
-  const STEPS = 6;
-  const segment = duration / poses.length;
-  const times: number[] = [];
-  const weights: [number, number, number][] = []; // [from pose, to pose, eased t]
-  for (let k = 0; k < poses.length; k++) {
-    for (let i = 0; i < STEPS; i++) {
-      const t = i / STEPS;
-      times.push(k * segment + t * segment);
-      weights.push([k, (k + 1) % poses.length, t * t * (3 - 2 * t)]);
-    }
+      hipsHeight: (PRONE_POSE.hipsHeight ?? 0.2) + 0.025 * push,
+    };
+    frames.push(buildPoseClip(rig, `${name}${f}`, spec));
+    times.push((f / FRAMES) * duration);
   }
   times.push(duration);
-  weights.push([0, 0, 0]);
-  const q0 = new Quaternion();
-  const q1 = new Quaternion();
-  const tracks = poses[0].tracks.map((track) => {
+  const tracks = frames[0].tracks.map((track) => {
     const size = track.getValueSize();
-    const ends = poses.map((clip) => Array.from((clip.tracks.find((t) => t.name === track.name) ?? track).values.slice(0, size)));
     const values: number[] = [];
-    for (const [from, to, t] of weights) {
-      const a = ends[from];
-      const b = ends[to];
-      if (size === 4) {
-        q0.fromArray(a).slerp(q1.fromArray(b), t);
-        values.push(...q0.toArray());
-      } else {
-        for (let k = 0; k < size; k++) values.push(a[k] + (b[k] - a[k]) * t);
-      }
+    for (const index of [...frames.keys(), 0]) {
+      const other = frames[index].tracks.find((t) => t.name === track.name) ?? track;
+      values.push(...Array.from(other.values.slice(0, size)));
     }
     const TrackType = track.constructor as new (name: string, times: number[], values: number[]) => KeyframeTrack;
     return new TrackType(track.name, times, values);
