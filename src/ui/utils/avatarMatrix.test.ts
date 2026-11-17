@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AVATAR_KEY, parseAvatarCollection, parseAvatarContent, resolveAvatar, setWorldAvatar } from "./avatarMatrix";
+import {
+  AVATAR_KEY,
+  LEGACY_AVATAR_KEY,
+  parseAvatarCollection,
+  parseAvatarContent,
+  resolveAvatar,
+  setProfileAvatar,
+  setWorldAvatar,
+} from "./avatarMatrix";
 
 const auth = { homeserver: "https://hs.example/", accessToken: "tok" };
 
@@ -45,6 +53,9 @@ describe("parseAvatarContent", () => {
 
 const memberUrl = "https://hs.example/_matrix/client/v3/rooms/!w%3Ahs/state/m.room.member/%40u%3Ahs";
 const profileUrl = `https://hs.example/_matrix/client/v3/profile/%40u%3Ahs/${encodeURIComponent(AVATAR_KEY)}`;
+const legacyProfileUrl = `https://hs.example/_matrix/client/v3/profile/%40u%3Ahs/${encodeURIComponent(
+  LEGACY_AVATAR_KEY
+)}`;
 
 describe("resolveAvatar", () => {
   test("prefers the per-world member event", async () => {
@@ -65,6 +76,31 @@ describe("resolveAvatar", () => {
     mockFetch({ [`GET ${memberUrl}`]: { body: { membership: "join" } } });
     expect(await resolveAvatar(auth, "!w:hs", "@u:hs")).toBeUndefined();
   });
+
+  test("still reads avatars saved under the old key name", async () => {
+    mockFetch({
+      [`GET ${memberUrl}`]: { body: { membership: "join", [LEGACY_AVATAR_KEY]: { url: "mxc://hs/old-world" } } },
+    });
+    expect((await resolveAvatar(auth, "!w:hs", "@u:hs"))?.url).toBe("mxc://hs/old-world");
+
+    mockFetch({
+      [`GET ${memberUrl}`]: { body: { membership: "join" } },
+      [`GET ${legacyProfileUrl}`]: { body: { [LEGACY_AVATAR_KEY]: { url: "mxc://hs/old-profile" } } },
+    });
+    expect((await resolveAvatar(auth, "!w:hs", "@u:hs"))?.url).toBe("mxc://hs/old-profile");
+  });
+});
+
+describe("setProfileAvatar", () => {
+  test("writes the new key and removes the old one", async () => {
+    const calls = mockFetch({
+      [`PUT ${profileUrl}`]: { body: {} },
+      [`DELETE ${legacyProfileUrl}`]: { body: {} },
+    });
+    await setProfileAvatar(auth, "@u:hs", { url: "mxc://hs/new" });
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`PUT ${profileUrl}`, `DELETE ${legacyProfileUrl}`]);
+    expect(calls[0].body).toEqual({ [AVATAR_KEY]: { url: "mxc://hs/new" } });
+  });
 });
 
 describe("setWorldAvatar", () => {
@@ -79,6 +115,15 @@ describe("setWorldAvatar", () => {
       url: memberUrl,
       body: { membership: "join", displayname: "U", avatar_url: "mxc://hs/pfp", [AVATAR_KEY]: { url: "mxc://hs/new" } },
     });
+  });
+
+  test("moves an avatar off the old key name", async () => {
+    const calls = mockFetch({
+      [`GET ${memberUrl}`]: { body: { membership: "join", [LEGACY_AVATAR_KEY]: { url: "mxc://hs/old" } } },
+      [`PUT ${memberUrl}`]: { body: { event_id: "$e" } },
+    });
+    await setWorldAvatar(auth, "!w:hs", "@u:hs", { url: "mxc://hs/new" });
+    expect(calls.at(-1)?.body).toEqual({ membership: "join", [AVATAR_KEY]: { url: "mxc://hs/new" } });
   });
 
   test("refuses when not joined", async () => {

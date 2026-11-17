@@ -47,7 +47,7 @@ While an avatar downloads, other players see a placeholder with a progress bar. 
 
 ## How avatars are stored on Matrix
 
-Buzzar only uses standard Matrix features, so nothing depends on a Buzzar server. Both places use the key `software.haven.avatar` and the same content:
+Buzzar only uses standard Matrix features, so nothing depends on a Buzzar server. Both places use the key `software.haven.world.avatar` and the same content:
 
 ```json
 {
@@ -65,9 +65,11 @@ Buzzar only uses standard Matrix features, so nothing depends on a Buzzar server
 | `format`      | no       | `"vrm0"`, `"vrm1"` or `"glb"`. Advisory only: the loader detects the rig type from the file itself.                        |
 | `name`        | no       | Display name shown on the loading placeholder. Cut off at 100 characters.                                                  |
 
-**Default avatar.** A custom profile field ([MSC4133](https://github.com/matrix-org/matrix-spec-proposals/pull/4133)), read and written at `/_matrix/client/v3/profile/{userId}/software.haven.avatar`. Resetting your default avatar deletes the field. Your homeserver needs to support custom profile fields for this to work.
+**Default avatar.** A custom profile field ([MSC4133](https://github.com/matrix-org/matrix-spec-proposals/pull/4133)), read and written at `/_matrix/client/v3/profile/{userId}/software.haven.world.avatar`. Resetting your default avatar deletes the field. Your homeserver needs to support custom profile fields for this to work.
 
-**World-only avatar.** An extra `software.haven.avatar` key in your own `m.room.member` state event in the world room. Buzzar copies your current member event, adds or removes the key, and sends it back, so your display name and other fields stay as they were. Matrix only lets you change your own member event and needs no extra power level for it, so this works in any world you've joined, including worlds created with Third Room. You have to be joined to set it.
+**World-only avatar.** An extra `software.haven.world.avatar` key in your own `m.room.member` state event in the world room. Buzzar copies your current member event, adds or removes the key, and sends it back, so your display name and other fields stay as they were. Matrix only lets you change your own member event and needs no extra power level for it, so this works in any world you've joined, including worlds created with Third Room. You have to be joined to set it.
+
+**Older Buzzar versions** used the key `software.haven.avatar`. Buzzar still reads it when the new key is missing, and removes it the next time it saves your avatar there.
 
 **Third Room's old storage.** When you **Save as Default** and you have a Third Room profile room, Buzzar also writes `avatar_url` and `avatar_preview_url` into that room's `org.matrix.msc3815.world.profile` state event, which is where Third Room's own avatar editor saved them.
 
@@ -146,6 +148,6 @@ To test an avatar without a Matrix account, run Buzzar locally and open `/viewer
 
 Buzzar and Third Room can be in the same world, but they don't see each other's avatars:
 
-- **Third Room clients** draw every player with the built-in Default rig. They ignore `software.haven.avatar` in profiles and member events, so a Buzzar player looks like the Default rig to them.
+- **Third Room clients** draw every player with the built-in Default rig. They ignore `software.haven.world.avatar` in profiles and member events, so a Buzzar player looks like the Default rig to them.
 - **Buzzar** doesn't read Third Room's `org.matrix.msc3815.world.profile` avatar when choosing what to show, because Third Room never let other players see that event: it lived in a private profile room. A Third Room player with no `software.haven.avatar` setting appears as the Default rig in Buzzar.
 - The extra key in your `m.room.member` event is ignored by Third Room and other Matrix clients.

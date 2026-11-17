@@ -1,8 +1,8 @@
 /**
  * Buzzar avatar protocol (pure Matrix; see docs/buzzar/plans/01-avatars-and-mirrors.md §A1).
  *
- * - Default avatar: MSC4133 custom profile field `software.haven.avatar` (follows the user everywhere).
- * - Per-world avatar: key `software.haven.avatar` in the user's own `m.room.member` content in the world
+ * - Default avatar: MSC4133 custom profile field `software.haven.world.avatar` (follows the user everywhere).
+ * - Per-world avatar: key `software.haven.world.avatar` in the user's own `m.room.member` content in the world
  *   room. Only the user can change their own member event, and it needs no extra power level, so it also
  *   works in existing Third Room (MSC3815) worlds.
  *
@@ -12,7 +12,12 @@
  * (private to the user, on every device), so an upload can be worn again later without re-uploading it.
  */
 import type { BuiltinAvatar } from "../../engine/avatar/avatar.common";
-export const AVATAR_KEY = "software.haven.avatar";
+export const AVATAR_KEY = "software.haven.world.avatar";
+/**
+ * The key's name before 2026-11-17. Still read when the new key is absent, and removed whenever Buzzar writes the
+ * avatar, so a cleared avatar doesn't come back from it.
+ */
+export const LEGACY_AVATAR_KEY = "software.haven.avatar";
 
 export type AvatarFormat = "vrm0" | "vrm1" | "glb";
 
@@ -77,14 +82,20 @@ export async function fetchMemberContent(
 
 export async function fetchWorldAvatar(auth: MatrixAuth, roomId: string, userId: string) {
   const content = await fetchMemberContent(auth, roomId, userId);
-  return parseAvatarContent(content?.[AVATAR_KEY]);
+  return parseAvatarContent(content?.[AVATAR_KEY]) ?? parseAvatarContent(content?.[LEGACY_AVATAR_KEY]);
+}
+
+async function fetchProfileField(auth: MatrixAuth, userId: string, key: string): Promise<AvatarContent | undefined> {
+  const res = await request(auth, "GET", `/_matrix/client/v3/profile/${enc(userId)}/${enc(key)}`);
+  if (!res.ok) return undefined;
+  const body = (await res.json()) as Record<string, unknown>;
+  return parseAvatarContent(body[key]);
 }
 
 export async function fetchProfileAvatar(auth: MatrixAuth, userId: string): Promise<AvatarContent | undefined> {
-  const res = await request(auth, "GET", `/_matrix/client/v3/profile/${enc(userId)}/${enc(AVATAR_KEY)}`);
-  if (!res.ok) return undefined;
-  const body = (await res.json()) as Record<string, unknown>;
-  return parseAvatarContent(body[AVATAR_KEY]);
+  return (
+    (await fetchProfileField(auth, userId, AVATAR_KEY)) ?? (await fetchProfileField(auth, userId, LEGACY_AVATAR_KEY))
+  );
 }
 
 /** member event key → profile field → undefined (default avatar). */
@@ -97,6 +108,15 @@ export async function setProfileAvatar(auth: MatrixAuth, userId: string, avatar:
   const res = avatar ? await request(auth, "PUT", path, { [AVATAR_KEY]: avatar }) : await request(auth, "DELETE", path);
   if (!res.ok && !(res.status === 404 && !avatar)) {
     throw new Error(`Failed to update profile avatar: ${res.status} ${await res.text()}`);
+  }
+  // Drop the field under its old name (404 when there was none).
+  const legacy = await request(
+    auth,
+    "DELETE",
+    `/_matrix/client/v3/profile/${enc(userId)}/${enc(LEGACY_AVATAR_KEY)}`
+  ).catch(() => undefined);
+  if (legacy && !legacy.ok && legacy.status !== 404) {
+    console.warn(`Couldn't remove the old ${LEGACY_AVATAR_KEY} profile field: ${legacy.status}`);
   }
 }
 
@@ -116,6 +136,7 @@ export async function setWorldAvatar(
   const next: Record<string, unknown> = { ...current };
   if (avatar) next[AVATAR_KEY] = avatar;
   else delete next[AVATAR_KEY];
+  delete next[LEGACY_AVATAR_KEY];
 
   const res = await request(
     auth,

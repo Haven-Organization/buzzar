@@ -26,8 +26,8 @@ Two places to publish an avatar, both writable by the user themselves at PL 0:
 
 | What | Where | Why |
 |---|---|---|
-| **Default avatar** (follows you everywhere) | MSC4133 custom profile field `software.haven.avatar` | MSC4133 is merged (Jan 2025). matrix.org advertises `m.profile_fields: enabled` (checked 2026-11-13). Anyone can read it via `GET /profile/{user}/software.haven.avatar`. |
-| **Per-world choice** (avatar you enter *this* world with / switch to in-world) | Extra key `software.haven.avatar` in your own `m.room.member` content in the world room | The server only lets you change your own member event, so it's spoof-proof. Needs no power level, so it **works in the reference worlds as they are today** (their PL map would block a new state event at `state_default: 50`). |
+| **Default avatar** (follows you everywhere) | MSC4133 custom profile field `software.haven.world.avatar` (named `software.haven.avatar` until 2026-11-17) | MSC4133 is merged (Jan 2025). matrix.org advertises `m.profile_fields: enabled` (checked 2026-11-13). Anyone can read it via `GET /profile/{user}/software.haven.avatar`. |
+| **Per-world choice** (avatar you enter *this* world with / switch to in-world) | Extra key `software.haven.world.avatar` in your own `m.room.member` content in the world room | The server only lets you change your own member event, so it's spoof-proof. Needs no power level, so it **works in the reference worlds as they are today** (their PL map would block a new state event at `state_default: 50`). |
 
 Content (same shape in both places):
 
