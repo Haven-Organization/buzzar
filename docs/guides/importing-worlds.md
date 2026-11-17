@@ -80,6 +80,7 @@ Coordinates are in the model's own space, before the move.
 Buzzar reads extra behaviour from glTF extensions on nodes. In Blender, add them as **custom properties** on an object (they're exported as glTF `extras`); `finish-world.mjs` turns any `HAVEN_*`, `MX_*` or `OMI_*` extras into real extensions.
 
 - [HAVEN_seat](/gltf/HAVEN_seat/README): a place to sit. Click it to sit, move to stand up.
+- [HAVEN_climbable](/gltf/HAVEN_climbable/README): a ladder. Walk into it to climb. Meshes named "ladder" are climbable even without it.
 - [HAVEN_grabbable](/gltf/HAVEN_grabbable/README): an object people can pick up and throw, like a mug.
 - [HAVEN_mirror](/gltf/HAVEN_mirror/README): a mirror, off by default to save performance.
 - [HAVEN_avatar_pedestal](/gltf/HAVEN_avatar_pedestal/README): a stand that lets people try on and wear an avatar.

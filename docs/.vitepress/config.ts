@@ -102,6 +102,7 @@ export default defineConfig({
             { text: "HAVEN_grabbable", link: "/gltf/HAVEN_grabbable/README" },
             { text: "HAVEN_mirror", link: "/gltf/HAVEN_mirror/README" },
             { text: "HAVEN_seat", link: "/gltf/HAVEN_seat/README" },
+            { text: "HAVEN_climbable", link: "/gltf/HAVEN_climbable/README" },
           ],
         },
         {

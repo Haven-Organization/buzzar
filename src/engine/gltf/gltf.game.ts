@@ -92,6 +92,7 @@ import { RemoteResource } from "../resource/RemoteResourceClass";
 import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
 import { TypedArray32 } from "../utils/typedarray";
 import { addResourceRef } from "../resource/resource.game";
+import { addClimbable } from "../player/climbing";
 
 /**
  * GLTFResource stores references to all of the resources loaded from a glTF file.
@@ -233,6 +234,21 @@ export function GLTFResourceDisposalSystem(ctx: GameContext) {
       GLTFResourceComponent.delete(eid);
     }
   }
+}
+
+/** Buzzar: a mesh's local bounding box from its POSITION accessors' min/max (required by the glTF spec). */
+export function gltfMeshBounds(root: GLTFRoot, meshIndex: number): { min: number[]; max: number[] } | undefined {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const primitive of root.meshes?.[meshIndex]?.primitives ?? []) {
+    const accessor = root.accessors?.[primitive.attributes.POSITION];
+    if (!accessor?.min || !accessor?.max) continue;
+    for (let i = 0; i < 3; i++) {
+      min[i] = Math.min(min[i], accessor.min[i]);
+      max[i] = Math.max(max[i], accessor.max[i]);
+    }
+  }
+  return min[0] <= max[0] ? { min, max } : undefined;
 }
 
 export function createNodeFromGLTFURI(
@@ -1271,6 +1287,22 @@ const loadGLTFNode = createInstancedSubresourceLoader(
 
       if (extensions?.HAVEN_grabbable) {
         addSceneGrabbable(loaderCtx.ctx, node, extensions.HAVEN_grabbable, index);
+      }
+
+      // Buzzar: ladders: marked with HAVEN_climbable, or (in world scenes) any mesh node named like "ladder".
+      const climbable = extensions?.HAVEN_climbable;
+      if (
+        climbable ||
+        (loaderCtx.createDefaultMeshColliders && meshIndex !== undefined && /ladder/i.test(name ?? ""))
+      ) {
+        const size = climbable?.size;
+        const box = size
+          ? { min: [-size[0] / 2, -size[1] / 2, -size[2] / 2], max: [size[0] / 2, size[1] / 2, size[2] / 2] }
+          : meshIndex !== undefined
+          ? gltfMeshBounds(resource.root, meshIndex)
+          : undefined;
+        if (box) addClimbable(node, box.min, box.max);
+        else console.warn(`HAVEN_climbable on "${name}": needs a size or a mesh`);
       }
 
       if (extensions?.HAVEN_mirror) {

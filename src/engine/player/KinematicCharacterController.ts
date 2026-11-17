@@ -16,6 +16,7 @@ import { tryGetRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
+import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder } from "./climbing";
 
 function kinematicCharacterControllerAction(key: string) {
   return "KinematicCharacterController/" + key;
@@ -155,6 +156,9 @@ export const _slideForce = new Vector3();
 export let lastSlideTime = 0;
 
 let lastFootstepFrame = 0;
+/** Buzzar: after jumping off a ladder, when (seconds) it can be grabbed again. */
+let climbRegrabAt = 0;
+const _climbDir = new Vector3();
 
 export function addKinematicControls(ctx: GameContext, eid: number) {
   addComponent(ctx.world, KinematicControls, eid);
@@ -267,11 +271,45 @@ export function updateKinematicControls(
     _acceleration.add(_dragForce);
   }
 
-  cameraHeadBob(ctx, rig, speed, isGrounded, isSprinting);
+  // Buzzar: ladders (see climbing.ts). On one, input moves you up/down and sideways at set speeds, with no gravity.
+  let climbing = false;
+  if (standing && nowSeconds >= climbRegrabAt) {
+    const feet = body.translation();
+    const ladder = findLadder(ctx, [feet.x, feet.y, feet.z]);
+    if (ladder) {
+      _climbDir.set(0, 0, -1).applyQuaternion(_q).setY(0).normalize();
+      const action = decideClimb(
+        [feet.x, feet.y, feet.z],
+        ladder,
+        [_climbDir.x, _climbDir.z],
+        moveVec[1],
+        isGrounded,
+        jump.pressed
+      );
+      if (action.type === "release") {
+        climbRegrabAt = nowSeconds + CLIMB_REGRAB_DELAY;
+        _linearVelocity.x += action.away[0] * 3;
+        _linearVelocity.z += action.away[1] * 3;
+        _linearVelocity.y = jumpForce * 0.6;
+      } else if (action.type === "climb") {
+        climbing = true;
+        _climbDir
+          .set(1, 0, 0)
+          .applyQuaternion(_q)
+          .setY(0)
+          .normalize()
+          .multiplyScalar(moveVec[0] * CLIMB_SIDE_SPEED);
+        _linearVelocity.set(_climbDir.x, action.vertical, _climbDir.z);
+      }
+    }
+  }
+
+  cameraHeadBob(ctx, rig, climbing ? 0 : speed, isGrounded, isSprinting);
 
   _acceleration.multiplyScalar(ctx.dt);
 
-  _linearVelocity.add(_acceleration).multiplyScalar(ctx.dt);
+  if (climbing) _linearVelocity.multiplyScalar(ctx.dt);
+  else _linearVelocity.add(_acceleration).multiplyScalar(ctx.dt);
 
   const translation = body.nextTranslation();
 

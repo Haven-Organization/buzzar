@@ -47,3 +47,4 @@ Extensions defined by Buzzar. They are experimental, and Third Room and other cl
 - [HAVEN_grabbable](./HAVEN_grabbable/README)
 - [HAVEN_mirror](./HAVEN_mirror/README)
 - [HAVEN_seat](./HAVEN_seat/README)
+- [HAVEN_climbable](./HAVEN_climbable/README)

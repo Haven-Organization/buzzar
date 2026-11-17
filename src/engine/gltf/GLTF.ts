@@ -5,6 +5,12 @@ import type { GLTFGrabbableExtension } from "../../plugins/scene-grabbables/grab
 
 export type GLTFId = number;
 
+/** Buzzar: a ladder (see engine/player/climbing.ts and docs/gltf/HAVEN_climbable). */
+export interface GLTFClimbableExtension {
+  /** Full width, height and depth in metres of the climbable box, centred on the node. Default: the node's mesh bounds. */
+  size?: [number, number, number];
+}
+
 export type GLTFExtensions = { [key: string]: unknown };
 
 export type GLTFExtras = { [key: string]: unknown };
@@ -542,6 +548,7 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     HAVEN_avatar_pedestal?: GLTFAvatarPedestalExtension;
     HAVEN_seat?: GLTFSeatExtension;
     HAVEN_grabbable?: GLTFGrabbableExtension;
+    HAVEN_climbable?: GLTFClimbableExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;

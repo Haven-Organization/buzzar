@@ -73,6 +73,7 @@ export function ShortcutUI() {
           {renderItem("Delete Object", <Kbd size="xs">X</Kbd>)}
           {renderItem("Fly Mode", <Kbd size="xs">B</Kbd>)}
           {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
+          {renderItem("Climb a ladder: walk into it (S down, Space lets go)", <Kbd size="xs">W</Kbd>)}
           {renderItem("Names: banners / names only / hidden", <Kbd size="xs">N</Kbd>)}
           {renderItem("Hide / show the HUD", <Kbd size="xs">H</Kbd>)}
           {renderItem(
