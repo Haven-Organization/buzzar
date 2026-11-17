@@ -5,7 +5,9 @@ import { getAccountData } from "./legacyAccountData";
 const auth = { homeserver: "https://hs.example", accessToken: "tok" };
 const url = (type: string) => `https://hs.example/_matrix/client/v3/user/%40u%3Ahs/account_data/${type}`;
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function mockFetch(store: Record<string, unknown>) {
   const calls: string[] = [];
