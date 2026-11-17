@@ -14,19 +14,26 @@ function defineActionType<A>(actionDef: A): A {
   return actionDef;
 }
 
+/** Buzzar: an analog button (WebXR trigger/squeeze) counts as pressed from this value… */
+export const PRESS_THRESHOLD = 0.6;
+/** …and stays held until it drops below this one. */
+export const RELEASE_THRESHOLD = 0.3;
+
 export const ActionTypesToBindings = {
   [ActionType.Button]: defineActionType({
     create: () => ({ pressed: false, released: false, held: false }),
     reduce: (input: GameInputModule, bindings: ActionBindingTypes[], state: ButtonActionState) => {
-      // TODO: In WebXR the pressed/release state doesn't work correctly.
-      // It changes back and forth between pressed and released.
+      // Buzzar: WebXR reports analog values (a trigger's 0–1 pull), and any non-zero value used to count as held,
+      // so a lightly touched trigger flickered between pressed and released. Press past PRESS_THRESHOLD, release
+      // below RELEASE_THRESHOLD. Keys and mouse buttons are exactly 0 or 1, so they behave as before.
+      const threshold = state.held ? RELEASE_THRESHOLD : PRESS_THRESHOLD;
       let down = false;
 
       for (let i = 0; i < bindings.length; i++) {
         const binding = bindings[i];
 
         if (binding.type === BindingType.Button) {
-          down = down || !!input.raw[binding.path];
+          down = down || (input.raw[binding.path] ?? 0) >= threshold;
         }
       }
 

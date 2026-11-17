@@ -115,7 +115,7 @@ per-player voice override (§5 voice zones/broadcast). All are listed above.
 |---|---|---|---|
 | ✅ | Immersive VR/AR sessions, controllers with input-profile models, smooth locomotion, 30° snap turn | – | XR forces main-thread rendering (`MainThread.ts:110`). Measure the perf cost. |
 | 🟡 | Hand tracking | M | Joint poses are captured on the render side, but nothing on the game side uses them. Need hand → avatar fingers + pinch UI. |
-| ❌ | Fix pressed/released input state in WebXR (`ActionMappingSystem.ts:21`) | S | |
+| ✅ | Fix pressed/released input state in WebXR (`ActionMappingSystem.ts:21`) | S | **Buzzar (2026-11-17):** analog triggers press at 0.6 and release below 0.3 instead of on any non-zero value. Not yet tried on a headset. |
 | ❌ | Teleport locomotion, smooth turn, comfort options (vignette, seated mode, height calibration) | M | |
 | ❌ | **XR menus**: quick menu, radial action menu (emotes/toggles), avatar picker, moderation panel, settings | L | React overlays don't exist in the headset today. Needs an in-world UI layer the world cannot draw over (also needed for §7 consent prompts). |
 | ❌ | Full-body IK + trackers | XL | See §1. |
@@ -189,7 +189,7 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
 - [ ] ❌ **S** Gamepad while in WebXR (seated VR with an Xbox pad): VRChat lacks this (VRChat feedback #1482). Cheap differentiator.
 - [ ] 🟡 **S** VR controller bindings: map the `a-button`/`b-button`/`x-button`/`y-button` components of
       WebXR input profiles to jump, quick menu and mute (today only trigger, squeeze and thumbstick press are bound;
-      pressed/released state is buggy, `ActionMappingSystem.ts:21`).
+      pressed/released state fixed 2026-11-17).
 - [ ] ❌ **M** Finger-curl gestures from capacitive touch where WebXR exposes `touched` (Touch/Index thumb and
       trigger), and from hand tracking. **Browser limit:** WebXR doesn't expose Index per-finger curl, so full
       Index finger tracking needs hand-tracking emulation or an OSC/OpenXR bridge.
