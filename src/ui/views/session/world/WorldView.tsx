@@ -71,17 +71,19 @@ export function WorldView({ world }: WorldViewProps) {
   const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
   const [editorEnabled, setEditorEnabled] = useAtom(editorEnabledAtom);
   const [pointerLocked, setPointerLocked] = useState(document.pointerLockElement === mainThread.canvas);
-  // Buzzar: "Click to play" only when the player stepped away on purpose (Tab, or switching windows). Otherwise the
-  // keyboard already works without the lock and the first click on the world takes the mouse for looking around.
+  // Buzzar: "Click to play" only after the player freed the mouse with Tab, and only clicking the world leaves that
+  // mode. Opening and closing the overlay, chat or editor keeps whichever mode the player was in: closing them goes
+  // back to play, or back to the freed mouse after Tab. Coming back from another window never shows the prompt;
+  // the keyboard works without the lock and the first click on the world takes the mouse for looking around.
   const [mouseFreed, setMouseFreed] = useState(false);
+  const mouseFreedRef = useRef(mouseFreed);
+  mouseFreedRef.current = mouseFreed;
   useEffect(() => {
     if (pointerLocked) setMouseFreed(false);
   }, [pointerLocked]);
-  useEffect(() => {
-    const onBlur = () => setMouseFreed(true);
-    window.addEventListener("blur", onBlur);
-    return () => window.removeEventListener("blur", onBlur);
-  }, []);
+  const resumePlay = useCallback(() => {
+    if (!mouseFreedRef.current) requestGamePointerLock(mainThread.canvas);
+  }, [mainThread]);
   // If the click that entered the world still counts as a user gesture, take the pointer now (the lock taken on
   // that click may have been refused, e.g. right after Escape released one).
   useEffect(() => {
@@ -176,7 +178,7 @@ export function WorldView({ world }: WorldViewProps) {
         // Buzzar: a held Escape repeats; only the first press toggles anything.
         if (e.repeat) return;
         if (worldChatVisible) {
-          requestGamePointerLock(mainThread.canvas);
+          resumePlay();
           setWorldChatVisibility(false);
           return;
         }
@@ -184,14 +186,14 @@ export function WorldView({ world }: WorldViewProps) {
         if (inputFocused()) return;
 
         if (editorEnabled) {
-          requestGamePointerLock(mainThread.canvas);
+          resumePlay();
           setEditorEnabled(false);
           return;
         }
 
         if (overlayVisible) {
           markGameResumed();
-          requestGamePointerLock(mainThread.canvas);
+          resumePlay();
           setOverlayVisibility(false);
           return;
         } else {
