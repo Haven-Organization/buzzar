@@ -5,7 +5,7 @@ import { mat4, vec3, quat } from "gl-matrix";
 import { playOneShotAudio } from "../../engine/audio/audio.game";
 import { Player } from "../../engine/player/Player";
 import { GameContext } from "../../engine/GameTypes";
-import { createNodeFromGLTFURI } from "../../engine/gltf/gltf.game";
+import { createNodeFromGLTFURI, loadGLTF } from "../../engine/gltf/gltf.game";
 import { createSphereMesh } from "../../engine/mesh/mesh.game";
 import { defineModule, getModule, Thread } from "../../engine/module/module.common";
 import { ownedNetworkedQuery } from "../../engine/network/network.game";
@@ -280,6 +280,23 @@ function createBall(
   return node;
 }
 
+const CRATE_GLTF_URI = "/gltf/sci_fi_crate.glb";
+let cratePreloaded = false;
+
+/**
+ * Buzzar: load the crate model once you're in a world, so the first crate you spawn appears straight away instead of
+ * after its download and parse (Third Room #416). The reference taken here is never released, so the model stays
+ * cached even after every crate is deleted. (The balls are generated meshes and need nothing.)
+ */
+export function preloadSpawnables(ctx: GameContext) {
+  if (cratePreloaded) return;
+  cratePreloaded = true;
+  loadGLTF(ctx, CRATE_GLTF_URI).catch((error) => {
+    cratePreloaded = false;
+    console.warn("Couldn't preload the crate model:", error);
+  });
+}
+
 function createCrate(
   ctx: GameContext,
   module: SpawnablesModuleState,
@@ -288,7 +305,7 @@ function createCrate(
   crateAudioData: RemoteAudioData,
   kinematic = false
 ) {
-  const node = createNodeFromGLTFURI(ctx, "/gltf/sci_fi_crate.glb");
+  const node = createNodeFromGLTFURI(ctx, CRATE_GLTF_URI);
 
   node.scale.set([size, size, size]);
 

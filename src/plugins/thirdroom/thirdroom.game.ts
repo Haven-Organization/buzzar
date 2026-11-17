@@ -78,6 +78,7 @@ import {
   spawnPlayer,
 } from "../../engine/player/PlayerRig";
 import { MAX_OBJECT_CAP } from "../../engine/config.common";
+import { preloadSpawnables } from "../spawnables/spawnables.game";
 
 type WorldLoaderMessage = LoadWorldMessage | EnterWorldMessage | ExitWorldMessage | ReloadWorldMessage;
 
@@ -363,6 +364,7 @@ async function loadWorld(ctx: GameContext, environmentUrl: string, options: Load
 function onEnterWorld(ctx: GameContext, message: EnterWorldMessage) {
   try {
     enterWorld(ctx, message.localPeerId);
+    preloadSpawnables(ctx);
 
     ctx.sendMessage<EnteredWorldMessage>(Thread.Main, {
       type: ThirdRoomMessageType.EnteredWorld,
