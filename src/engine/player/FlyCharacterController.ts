@@ -65,7 +65,13 @@ export const FlyCharacterControllerModule = defineModule<GameContext, FlyCharact
 
 interface IFlyPlayerRig {
   speed: number;
+  /** Buzzar: metres still to rise after switching to flying (a little hop that shows you're now flying). */
+  lift?: number;
 }
+
+/** Buzzar: pressing B lifts you this far, so it's obvious you're flying (Third Room #421). */
+export const FLY_TAKEOFF_HEIGHT = 1;
+const FLY_TAKEOFF_SPEED = 4;
 
 export const FlyControls: Map<number, IFlyPlayerRig> = new Map();
 export const flyControlsQuery = defineQuery([FlyControls]);
@@ -107,6 +113,13 @@ function applyFlyControls(
   vec3.normalize(velocityVec, velocityVec);
   vec3.scale(velocityVec, velocityVec, ctx.dt * speed * boostModifier);
   vec3.add(playerRig.position, playerRig.position, velocityVec);
+
+  const rig = FlyControls.get(playerRig.eid)!;
+  if (rig.lift && rig.lift > 0) {
+    const rise = Math.min(rig.lift, ctx.dt * FLY_TAKEOFF_SPEED);
+    playerRig.position[1] += rise;
+    rig.lift -= rise;
+  }
 
   _q.fromArray(playerRig.quaternion);
   _p.fromArray(playerRig.position);

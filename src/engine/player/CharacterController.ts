@@ -9,7 +9,7 @@ import { getModule } from "../module/module.common";
 import { PhysicsModuleState, PhysicsModule } from "../physics/physics.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { tryGetRemoteResource } from "../resource/resource.game";
-import { addFlyControls, FlyControls } from "./FlyCharacterController";
+import { addFlyControls, FLY_TAKEOFF_HEIGHT, FlyControls } from "./FlyCharacterController";
 import { getAvatar } from "./getAvatar";
 import { getCamera } from "./getCamera";
 import { KinematicControls } from "./KinematicCharacterController";
@@ -62,6 +62,7 @@ export const SceneCharacterControllerComponent: Map<number, ISceneCharacterContr
 function swapToFlyPlayerRig(ctx: GameContext, physics: PhysicsModuleState, node: RemoteNode) {
   removeComponent(ctx.world, KinematicControls, node.eid);
   addFlyControls(ctx, node.eid);
+  FlyControls.get(node.eid)!.lift = FLY_TAKEOFF_HEIGHT;
 }
 
 function swapToPlayerRig(ctx: GameContext, physics: PhysicsModuleState, node: RemoteNode) {
