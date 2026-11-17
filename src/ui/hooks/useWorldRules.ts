@@ -3,7 +3,7 @@
  * max_member_object_cap) to the engine, and tells moderators when someone's blocked by them.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { GroupCall, Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
+import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 
 import { useMainThreadContext } from "./useMainThread";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
@@ -17,9 +17,10 @@ import {
   SpawnRuleViolationMessage,
   WORLD_RULES_EVENT,
 } from "../../engine/network/spawnRules.common";
-import { getMxIdUsername } from "../utils/matrixUtils";
+import { useMemberDisplayName } from "./useMemberDisplayName";
 
-export function useWorldRules(room: Room, activeCall: GroupCall | undefined, notify: (text: string) => void) {
+export function useWorldRules(room: Room, notify: (text: string) => void) {
+  const displayNameOf = useMemberDisplayName(room);
   const { session } = useHydrogen(true);
   const mainThread = useMainThreadContext();
   const latest = useRef<{ rules?: unknown; legacyCap?: unknown }>({});
@@ -62,10 +63,10 @@ export function useWorldRules(room: Room, activeCall: GroupCall | undefined, not
         SpawnRulesMessageType.SpawnRuleViolation,
         (_ctx, message: SpawnRuleViolationMessage) => {
           if (!isModeratorRef.current) return;
-          const name = activeCall?.members.get(message.peerId)?.member.displayName || getMxIdUsername(message.peerId);
+          const name = displayNameOf(message.peerId);
           notify(`Blocked ${name} (${message.peerId}): ${message.reason}.`);
         }
       ),
-    [mainThread, activeCall, notify]
+    [mainThread, displayNameOf, notify]
   );
 }

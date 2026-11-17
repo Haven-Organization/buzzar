@@ -1,4 +1,4 @@
-import { GroupCall, Room, Session } from "@thirdroom/hydrogen-view-sdk";
+import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 
@@ -8,7 +8,7 @@ import { useIsMounted } from "../../../hooks/useIsMounted";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { useMemoizedState } from "../../../hooks/useMemoizedState";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
-import { aliasToRoomId, getMxIdUsername, parseMatrixUri } from "../../../utils/matrixUtils";
+import { aliasToRoomId, parseMatrixUri } from "../../../utils/matrixUtils";
 import { InteractionState, useWorldInteraction } from "../../../hooks/useWorldInteraction";
 import { EntityTooltip } from "../entity-tooltip/EntityTooltip";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
@@ -19,6 +19,7 @@ import { Reticle } from "../reticle/Reticle";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
 import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMemberDisplayName } from "../../../hooks/useMemberDisplayName";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { waitForJoinedRoom } from "../../../utils/roomUpgrade";
 import { joinRoomVia, MatrixRequestError, serverNameOf } from "../../../utils/worldDirectory";
@@ -62,12 +63,12 @@ export interface IPortalProcess {
 interface WorldInteractionProps {
   session: Session;
   world: Room;
-  activeCall?: GroupCall;
 }
 
-export function WorldInteraction({ session, world, activeCall }: WorldInteractionProps) {
+export function WorldInteraction({ session, world }: WorldInteractionProps) {
   const mainThread = useMainThreadContext();
   const { platform, client } = useHydrogen(true);
+  const displayNameOf = useMemberDisplayName(world);
   const camRigModule = getModule(mainThread, PlayerModule);
 
   const [activeEntity, setActiveEntity] = useMemoizedState<InteractionState | undefined>();
@@ -160,17 +161,15 @@ export function WorldInteraction({ session, world, activeCall }: WorldInteractio
         }
       }
 
-      if (interactableType === InteractableType.Player) {
-        const entity: InteractionState = {
-          ...interaction,
-          name: peerId ? activeCall?.members.get(peerId)?.member.displayName || getMxIdUsername(peerId) : "Player",
-        };
-        setActiveEntity(entity);
+      // Buzzar: show the player's display name. (The name used to be worked out and then overwritten straight away.)
+      if (interactableType === InteractableType.Player && peerId) {
+        setActiveEntity({ ...interaction, name: displayNameOf(peerId) });
+        return;
       }
 
       setActiveEntity(interaction);
     },
-    [handlePortalGrab, setActiveEntity, activeCall, openOverlayWindow]
+    [handlePortalGrab, setActiveEntity, displayNameOf, openOverlayWindow]
   );
 
   useWorldInteraction(mainThread, handleInteraction);

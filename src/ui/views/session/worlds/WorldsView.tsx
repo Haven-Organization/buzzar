@@ -77,9 +77,7 @@ export function WorldsView() {
       <Content
         top={
           <Header
-            left={
-              <HeaderTitle icon={<Icon color="surface" className="shrink-0" src={PlanetIC} />}>Worlds</HeaderTitle>
-            }
+            left={<HeaderTitle icon={<Icon color="surface" className="shrink-0" src={PlanetIC} />}>Worlds</HeaderTitle>}
             right={
               <>
                 <Dialog open={join.open} onOpenChange={join.setOpen}>
@@ -262,7 +260,11 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
         }
         memberCount={room.joinedMemberCount}
         badge={isHere ? "You're here" : undefined}
-        overlay={groupCall ? <WorldTileMembers session={session} platform={platform} groupCall={groupCall} /> : undefined}
+        overlay={
+          groupCall ? (
+            <WorldTileMembers session={session} platform={platform} groupCall={groupCall} room={room} />
+          ) : undefined
+        }
         action={
           isHere ? (
             <Button size="sm" variant="primary" onClick={() => returnToWorld()}>
@@ -288,7 +290,9 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
               {room.canonicalAlias ? "Copy Alias" : "Copy Room ID"}
             </DropdownMenuItem>
             {canSendStateEvent(undefined, getPowerLevel(session.userId)) && (
-              <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.WorldSettings, roomId: room.id })}>
+              <DropdownMenuItem
+                onSelect={() => setOverlayWindow({ type: OverlayWindow.WorldSettings, roomId: room.id })}
+              >
                 Settings
               </DropdownMenuItem>
             )}
@@ -325,10 +329,10 @@ function ExploreWorlds() {
   const ownServer = serverNameOf(session.userId);
 
   const [extraServers, setExtraServers] = useState<string[]>();
-  const servers = useMemo(() => [ownServer, ...(extraServers ?? []).filter((s) => s !== ownServer)], [
-    ownServer,
-    extraServers,
-  ]);
+  const servers = useMemo(
+    () => [ownServer, ...(extraServers ?? []).filter((s) => s !== ownServer)],
+    [ownServer, extraServers]
+  );
   /** undefined = all servers (the default each time you open the tab). */
   const [selected, setSelected] = useState<string[]>();
   const activeServers = useMemo(
@@ -360,9 +364,7 @@ function ExploreWorlds() {
       if (extraServers === undefined) return;
       setLoading(true);
       const auth = await getSessionAuth(platform, client.sessionId);
-      const targets = more
-        ? activeServers.filter((server) => more[server]?.nextBatch)
-        : activeServers;
+      const targets = more ? activeServers.filter((server) => more[server]?.nextBatch) : activeServers;
       const pages = await Promise.all(
         targets.map(async (server) => {
           try {
@@ -498,7 +500,11 @@ function ExploreWorlds() {
           )}
           <WorldTileGrid>
             {found.map(({ world, server }) => (
-              <ExploreWorldTile key={world.room_id} world={world} viaServer={server === ownServer ? undefined : server} />
+              <ExploreWorldTile
+                key={world.room_id}
+                world={world}
+                viaServer={server === ownServer ? undefined : server}
+              />
             ))}
           </WorldTileGrid>
           {loading && <Dots size="md" />}

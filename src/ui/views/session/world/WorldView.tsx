@@ -140,7 +140,7 @@ export function WorldView({ world }: WorldViewProps) {
 
   // Buzzar: the world's object rules go to the engine; moderators hear about blocked attempts.
   const notifyModerator = useCallback((text: string) => showToast(text, 6000), [showToast]);
-  useWorldRules(world, activeCall, notifyModerator);
+  useWorldRules(world, notifyModerator);
 
   // Buzzar: one-off notices about this world (e.g. its script wasn't run or stopped).
   const [worldNotice, setWorldNotice] = useAtom(worldNoticeAtom);
@@ -328,7 +328,7 @@ export function WorldView({ world }: WorldViewProps) {
       )}
 
       {!overlayVisible && !editorEnabled && (
-        <WorldInteraction session={session} world={world} activeCall={activeCall} />
+        <WorldInteraction session={session} world={world} />
       )}
 
       <div className="WorldView__toast-container">
