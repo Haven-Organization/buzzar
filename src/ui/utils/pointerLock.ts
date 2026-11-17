@@ -14,8 +14,13 @@ export function installPointerLockTracking() {
   const original = document.exitPointerLock.bind(document);
   document.exitPointerLock = () => {
     lastCodeExit = performance.now();
+    // Buzzar: our own code letting go of the mouse (overlay, chat, Tab…) cancels any pending retry.
+    pendingLock = undefined;
     original();
   };
+  document.addEventListener("pointerlockchange", () => {
+    if (document.pointerLockElement) pendingLock = undefined;
+  });
 }
 
 /**
@@ -42,12 +47,10 @@ export function wasReleasedByCode(withinMs = 500) {
  */
 export function requestGamePointerLock(canvas: HTMLCanvasElement | null | undefined) {
   if (!canvas || document.pointerLockElement === canvas) return;
-  // Buzzar: browsers refuse the lock without a user gesture, and Escape (closing the overlay) doesn't count as one.
-  // Remember the request so the desktop app can retry it as a gesture (see buzzarResumePointerLock below).
-  const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
-  if (activation && !activation.isActive) {
-    pendingLock = { canvas, at: performance.now() };
-  }
+  // Buzzar: browsers refuse the lock without a user gesture (Escape, which closes the overlay, doesn't count as one)
+  // and for a moment after the user released it with Escape. Remember the request until it succeeds, so the desktop
+  // app can retry it as a gesture (see buzzarResumePointerLock below).
+  pendingLock = { canvas, at: performance.now() };
   const request = canvas.requestPointerLock as (options?: { unadjustedMovement?: boolean }) => Promise<void> | void;
   try {
     const result = request.call(canvas, { unadjustedMovement: true });
@@ -61,15 +64,22 @@ export function requestGamePointerLock(canvas: HTMLCanvasElement | null | undefi
 
 
 /**
- * Buzzar: the desktop app (Electron) calls this as a user gesture right after an Escape key press. If Escape just
- * closed the overlay (or chat/editor) and the lock was refused for lack of a gesture, take it now, so the player goes
- * straight back to looking around without clicking. Does nothing otherwise.
+ * Buzzar: the desktop app (Electron) calls this as a user gesture a few times over the ~1.5 s after an Escape key is
+ * released. If Escape just closed the overlay (or chat/editor) and the lock was refused (no gesture, or too soon after
+ * the previous Escape released it), take it now, so the player goes straight back to looking around without
+ * clicking. Does nothing once the lock is held, or when nothing asked for it.
  */
 function resumePointerLockFromApp() {
   const pending = pendingLock;
-  pendingLock = undefined;
-  if (!pending || performance.now() - pending.at > 1000 || !pending.canvas.isConnected) return;
+  if (!pending || document.pointerLockElement === pending.canvas) return;
+  if (performance.now() - pending.at > 3000 || !pending.canvas.isConnected) {
+    pendingLock = undefined;
+    return;
+  }
+  // A lock taken and then dropped again by the browser must not read as "Escape pressed, open the overlay".
+  markGameResumed();
   requestGamePointerLock(pending.canvas);
+  pendingLock = pending;
 }
 
 (window as Window & { buzzarResumePointerLock?: () => void }).buzzarResumePointerLock = resumePointerLockFromApp;
