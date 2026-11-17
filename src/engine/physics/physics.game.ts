@@ -93,13 +93,28 @@ const applyRigidBodyToTransform = (body: RapierRigidBody, node: RemoteNode) => {
   quaternion[3] = rigidRot.w;
 };
 
+export const MAX_PHYSICS_STEP = 1 / 60;
+export const MAX_PHYSICS_SUBSTEPS = 4;
+
+/** Buzzar: how to cover a frame of `dt` seconds in physics steps no longer than MAX_PHYSICS_STEP. */
+export function physicsSubsteps(dt: number): { steps: number; timestep: number } {
+  if (!(dt > 0)) return { steps: 0, timestep: MAX_PHYSICS_STEP };
+  const steps = Math.min(Math.ceil(dt / MAX_PHYSICS_STEP - 1e-6), MAX_PHYSICS_SUBSTEPS);
+  return { steps, timestep: Math.min(dt / steps, MAX_PHYSICS_STEP) };
+}
+
 export function PhysicsSystem(ctx: GameContext) {
   const { world, dt } = ctx;
   const physics = getModule(ctx, PhysicsModule);
   const { physicsWorld, handleToEid, eventQueue, collisionHandlers } = physics;
 
-  physicsWorld.timestep = dt;
-  physicsWorld.step(eventQueue);
+  // Buzzar: never step more than MAX_PHYSICS_STEP at once. A long frame (e.g. the game thread stalled while a world
+  // script loaded) used to be one giant step, and falling objects passed straight through the floor (Third Room
+  // #613). Long frames are split into substeps, at most MAX_PHYSICS_SUBSTEPS; time beyond that is dropped, so the
+  // world runs slow for a moment instead of tunnelling.
+  const { steps, timestep } = physicsSubsteps(dt);
+  physicsWorld.timestep = timestep;
+  for (let i = 0; i < steps; i++) physicsWorld.step(eventQueue);
 
   eventQueue.drainCollisionEvents((handle1: number, handle2: number, started: boolean) => {
     const eid1 = handleToEid.get(handle1);
