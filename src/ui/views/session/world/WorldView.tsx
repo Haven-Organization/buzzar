@@ -6,7 +6,6 @@ import { useKBar, VisualState } from "kbar";
 
 import {
   installPointerLockTracking,
-  markGameResumed,
   requestGamePointerLock,
   resumedRecently,
   wasReleasedByCode,
@@ -53,6 +52,8 @@ import { useDisableInput } from "../../../hooks/useDisableInput";
 import { WorldUpgradedDialog } from "./WorldUpgradedDialog";
 import { editorEnabledAtom } from "../../../state/editor";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
+import { useResumePlay } from "../../../hooks/useResumePlay";
+import { awaitingLockAtom, mouseFreedAtom } from "../../../state/mouseMode";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
 
 interface WorldViewProps {
@@ -71,19 +72,26 @@ export function WorldView({ world }: WorldViewProps) {
   const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
   const [editorEnabled, setEditorEnabled] = useAtom(editorEnabledAtom);
   const [pointerLocked, setPointerLocked] = useState(document.pointerLockElement === mainThread.canvas);
-  // Buzzar: "Click to play" only after the player freed the mouse with Tab, and only clicking the world leaves that
-  // mode. Opening and closing the overlay, chat or editor keeps whichever mode the player was in: closing them goes
-  // back to play, or back to the freed mouse after Tab. Coming back from another window never shows the prompt;
-  // the keyboard works without the lock and the first click on the world takes the mouse for looking around.
-  const [mouseFreed, setMouseFreed] = useState(false);
-  const mouseFreedRef = useRef(mouseFreed);
-  mouseFreedRef.current = mouseFreed;
+  // Buzzar: "Click to play" shows after the player freed the mouse with Tab, or when going back to the game (closing
+  // the overlay, chat or editor with Escape) didn't get the mouse back. Opening and closing those keeps whichever mode
+  // the player was in. Coming back from another window never shows the prompt: the keyboard works without the lock
+  // and the first click on the world takes the mouse for looking around.
+  const [mouseFreed, setMouseFreed] = useAtom(mouseFreedAtom);
+  const [awaitingLock, setAwaitingLock] = useAtom(awaitingLockAtom);
   useEffect(() => {
-    if (pointerLocked) setMouseFreed(false);
-  }, [pointerLocked]);
-  const resumePlay = useCallback(() => {
-    if (!mouseFreedRef.current) requestGamePointerLock(mainThread.canvas);
-  }, [mainThread]);
+    if (pointerLocked) {
+      setMouseFreed(false);
+      setAwaitingLock(false);
+    }
+  }, [pointerLocked, setMouseFreed, setAwaitingLock]);
+  useEffect(
+    () => () => {
+      setMouseFreed(false);
+      setAwaitingLock(false);
+    },
+    [setMouseFreed, setAwaitingLock]
+  );
+  const resumePlay = useResumePlay();
   // If the click that entered the world still counts as a user gesture, take the pointer now (the lock taken on
   // that click may have been refused, e.g. right after Escape released one).
   useEffect(() => {
@@ -192,7 +200,6 @@ export function WorldView({ world }: WorldViewProps) {
         }
 
         if (overlayVisible) {
-          markGameResumed();
           resumePlay();
           setOverlayVisibility(false);
           return;
@@ -254,14 +261,20 @@ export function WorldView({ world }: WorldViewProps) {
 
   return (
     <div className="WorldView">
-      {isWorldEntered && mouseFreed && !pointerLocked && !overlayVisible && !worldChatVisible && !editorEnabled && (
-        // Buzzar: the pointer is only captured by clicking the world (see useDisableInput for why).
-        <div className="WorldView__click-to-play">
-          <Text color="world" weight="semi-bold">
-            Click to play
-          </Text>
-        </div>
-      )}
+      {isWorldEntered &&
+        (mouseFreed || awaitingLock) &&
+        !pointerLocked &&
+        !overlayVisible &&
+        !worldChatVisible &&
+        !editorEnabled && (
+          // Buzzar: after Escape the prompt fades in a moment later, so it doesn't flash when the desktop app gets the
+          // mouse back on its own.
+          <div className={classNames("WorldView__click-to-play", { "WorldView__click-to-play--delayed": !mouseFreed })}>
+            <Text color="world" weight="semi-bold">
+              Click to play
+            </Text>
+          </div>
+        )}
       <MuteButtonAction activeCall={activeCall} showToast={showToast} />
       <MembersDialogAction />
       <ShortcutDialogAction />
@@ -290,7 +303,9 @@ export function WorldView({ world }: WorldViewProps) {
         </>
       )}
       {world && editorEnabled && <EditorView room={world} />}
-      {!("isBeingCreated" in world) && <Nametags room={world} show={showNames && !overlayVisible} showBanners={nameMode === "all"} />}
+      {!("isBeingCreated" in world) && (
+        <Nametags room={world} show={showNames && !overlayVisible} showBanners={nameMode === "all"} />
+      )}
 
       {!overlayVisible && !editorEnabled && (
         <WorldInteraction session={session} world={world} activeCall={activeCall} />

@@ -51,17 +51,44 @@ export function requestGamePointerLock(canvas: HTMLCanvasElement | null | undefi
   // and for a moment after the user released it with Escape. Remember the request until it succeeds, so the desktop
   // app can retry it as a gesture (see buzzarResumePointerLock below).
   pendingLock = { canvas, at: performance.now() };
-  const request = canvas.requestPointerLock as (options?: { unadjustedMovement?: boolean }) => Promise<void> | void;
-  try {
-    const result = request.call(canvas, { unadjustedMovement: true });
-    if (result && typeof result.catch === "function") {
-      result.catch(() => canvas.requestPointerLock());
-    }
-  } catch {
-    canvas.requestPointerLock();
-  }
+  attemptLock(canvas, 0);
 }
 
+type LockRequest = (options?: { unadjustedMovement?: boolean }) => Promise<void> | void;
+
+function attemptLock(canvas: HTMLCanvasElement, attempt: number) {
+  // Refused because the previous lock was released with Escape a moment ago: a click's gesture stays valid for a few
+  // seconds, so try again shortly (clicking "Close Overlay" right after opening it with Escape).
+  const retryIfTooSoon = (error: unknown) => {
+    if (!(error instanceof DOMException) || error.name !== "SecurityError" || attempt >= 6) return;
+    setTimeout(() => {
+      const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } }).userActivation;
+      if (pendingLock?.canvas !== canvas || document.pointerLockElement === canvas) return;
+      if (activation && !activation.isActive) return;
+      attemptLock(canvas, attempt + 1);
+    }, 250);
+  };
+  const plainLock = () => {
+    try {
+      const result = (canvas.requestPointerLock as LockRequest).call(canvas);
+      if (result && typeof result.catch === "function") result.catch(retryIfTooSoon);
+    } catch (error) {
+      retryIfTooSoon(error);
+    }
+  };
+  try {
+    const result = (canvas.requestPointerLock as LockRequest).call(canvas, { unadjustedMovement: true });
+    if (result && typeof result.catch === "function") {
+      result.catch((error: unknown) => {
+        // Raw input isn't supported everywhere (e.g. Linux): fall back to a normal lock.
+        if (error instanceof DOMException && error.name === "SecurityError") retryIfTooSoon(error);
+        else plainLock();
+      });
+    }
+  } catch {
+    plainLock();
+  }
+}
 
 /**
  * Buzzar: the desktop app (Electron) calls this as a user gesture a few times over the ~1.5 s after an Escape key is

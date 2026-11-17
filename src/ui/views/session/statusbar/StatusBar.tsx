@@ -5,6 +5,7 @@ import { useAtom, useSetAtom } from "jotai";
 
 import { Text } from "../../../atoms/text/Text";
 import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useResumePlay } from "../../../hooks/useResumePlay";
 import "./StatusBar.css";
 import { useWorldPath } from "../../../hooks/useWorld";
 import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
@@ -71,8 +72,11 @@ export function StatusBar() {
   const [knownWorldId] = useWorldPath();
   const world = knownWorldId ? session.rooms.get(knownWorldId) : undefined;
 
+  // Buzzar: clicking "Close Overlay" is a user gesture, so it takes the mouse back for play too.
+  const resumePlay = useResumePlay();
   const openOverlay = () => {
     if (overlayVisible) {
+      resumePlay();
       setOverlayVisibility(false);
     } else {
       document.exitPointerLock();
@@ -83,6 +87,7 @@ export function StatusBar() {
 
   const openNotifications = () => {
     if (overlayVisible) {
+      resumePlay();
       setOverlayVisibility(false);
     } else {
       document.exitPointerLock();
