@@ -178,6 +178,28 @@ export function WorldView({ world }: WorldViewProps) {
     return () => window.clearTimeout(timer);
   }, [showToast]);
 
+  // Buzzar: say when a controller is picked up (browsers only list one after a button press on it), and remember
+  // whether one is connected: then closing the menu needs no click to play, since the pad doesn't use the mouse.
+  const [padConnected, setPadConnected] = useState(false);
+  useEffect(() => {
+    const anyPad = () => Array.from(navigator.getGamepads?.() ?? []).some((pad) => !!pad && pad.connected);
+    setPadConnected(anyPad());
+    const onConnected = (e: GamepadEvent) => {
+      setPadConnected(true);
+      showToast(
+        `Controller connected${e.gamepad.id ? `: ${e.gamepad.id.split("(")[0].trim()}` : ""}. Back shows the controls.`,
+        5000
+      );
+    };
+    const onDisconnected = () => setPadConnected(anyPad());
+    window.addEventListener("gamepadconnected", onConnected);
+    window.addEventListener("gamepaddisconnected", onDisconnected);
+    return () => {
+      window.removeEventListener("gamepadconnected", onConnected);
+      window.removeEventListener("gamepaddisconnected", onDisconnected);
+    };
+  }, [showToast]);
+
   const camRigModule = getModule(mainThread, PlayerModule);
   const [nameMode, setNameMode] = useNameMode();
   const showNames = nameMode !== "off";
@@ -313,7 +335,7 @@ export function WorldView({ world }: WorldViewProps) {
   return (
     <div className="WorldView">
       {isWorldEntered &&
-        (mouseFreed || awaitingLock) &&
+        (mouseFreed || (awaitingLock && !padConnected)) &&
         !pointerLocked &&
         !overlayVisible &&
         !worldChatVisible &&

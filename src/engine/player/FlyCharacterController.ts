@@ -13,6 +13,7 @@ import { defineModule, getModule } from "../module/module.common";
 import { tryGetRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
+import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
 
 type FlyCharacterControllerModuleState = {};
 
@@ -36,6 +37,7 @@ export const FlyCharacterControllerActionMap: ActionMap = {
           left: "Keyboard/KeyA",
           right: "Keyboard/KeyD",
         },
+        { type: BindingType.Axes, x: PAD_LEFT_X, y: PAD_LEFT_Y },
       ],
     },
     {
@@ -47,6 +49,7 @@ export const FlyCharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/ShiftLeft",
         },
+        { type: BindingType.Button, path: padButton(PadButton.Sprint) },
       ],
     },
   ],

@@ -46,6 +46,16 @@ export function UpdateRawInputSystem(ctx: GameContext) {
       case InputComponentId.KeyboardButton:
         applyKeyboardButton(raw, out);
         break;
+      // Buzzar: gamepads (gamepad.main.ts).
+      case InputComponentId.GamepadButton:
+        raw[`Gamepad/button/${out.state}`] = out.button;
+        break;
+      case InputComponentId.GamepadStick: {
+        const stick = out.state === 0 ? "leftStick" : "rightStick";
+        raw[`Gamepad/${stick}/x-axis`] = out.xAxis;
+        raw[`Gamepad/${stick}/y-axis`] = out.yAxis;
+        break;
+      }
       // TODO: Refactor to use componentType not componentId
       case InputComponentId.XRFaceButton:
       case InputComponentId.XRAButton:

@@ -16,6 +16,7 @@ import { tryGetRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
+import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
 import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder } from "./climbing";
 
 function kinematicCharacterControllerAction(key: string) {
@@ -50,6 +51,8 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
           x: "XRInputSource/secondary/xr-standard-thumbstick/x-axis",
           y: "XRInputSource/secondary/xr-standard-thumbstick/y-axis",
         },
+        // Buzzar: gamepad left stick.
+        { type: BindingType.Axes, x: PAD_LEFT_X, y: PAD_LEFT_Y },
       ],
     },
     {
@@ -61,6 +64,7 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/Space",
         },
+        { type: BindingType.Button, path: padButton(PadButton.A) },
         {
           type: BindingType.Button,
           path: "XRInputSource/primary/xr-standard-thumbstick/button",
@@ -81,6 +85,8 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/KeyC",
         },
+        // Buzzar: L3 click crouches, holding it goes prone (like C).
+        { type: BindingType.Button, path: padButton(PadButton.L3) },
       ],
     },
     {
@@ -103,6 +109,7 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/ShiftLeft",
         },
+        { type: BindingType.Button, path: padButton(PadButton.Sprint) },
         {
           type: BindingType.Button,
           path: "XRInputSource/secondary/xr-standard-thumbstick/button",
@@ -209,7 +216,13 @@ export function updateKinematicControls(
 
   const speed = Math.sqrt(_linearVelocity.x * _linearVelocity.x + _linearVelocity.z * _linearVelocity.z);
 
-  _acceleration.set(moveVec[0], 0, -moveVec[1]).normalize().applyQuaternion(_q).multiplyScalar(walkAccel);
+  // Buzzar: a gamepad stick only part-way over walks slower (keys, and diagonals of two keys, are full speed).
+  const moveAmount = Math.min(1, Math.hypot(moveVec[0], moveVec[1]));
+  _acceleration
+    .set(moveVec[0], 0, -moveVec[1])
+    .normalize()
+    .applyQuaternion(_q)
+    .multiplyScalar(walkAccel * moveAmount);
 
   // Buzzar: crouching and prone (plugins/posture) are slower; only standing players sprint.
   const standing = localPosture.value === Posture.Standing;

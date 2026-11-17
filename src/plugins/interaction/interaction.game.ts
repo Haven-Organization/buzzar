@@ -58,6 +58,7 @@ import { getCamera } from "../../engine/player/getCamera";
 import { ThirdRoomMessageType } from "../thirdroom/thirdroom.common";
 import { ThirdRoomModule, ThirdRoomModuleState } from "../thirdroom/thirdroom.game";
 import { clamp } from "../../engine/common/math";
+import { padButton, PadButton } from "../../engine/input/gamepad.common";
 
 // TODO: importing from spawnables.game in this file induces a runtime error
 // import { SpawnablesModule } from "../spawnables/spawnables.game";
@@ -135,6 +136,9 @@ const InteractionActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/KeyE",
         },
+        // Buzzar: gamepad R1 (or R2) grabs, uses and lets go, like E.
+        { type: BindingType.Button, path: padButton(PadButton.RB) },
+        { type: BindingType.Button, path: padButton(PadButton.RT) },
       ],
     },
     {
@@ -191,6 +195,7 @@ const InteractionActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Mouse/Right",
         },
+        { type: BindingType.Button, path: padButton(PadButton.X) },
       ],
     },
     {

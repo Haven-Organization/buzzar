@@ -13,6 +13,8 @@ export const InputSourceId = {
   Unknown: 0,
   Keyboard: 1,
   Mouse: 2,
+  // Buzzar: gamepads (all connected pads, merged; see gamepad.main.ts).
+  Gamepad: 3,
 };
 
 // Additional component ids allocated by XRInputModule
@@ -37,6 +39,9 @@ export enum InputComponentId {
   XRBumper,
   XRThumbrest,
   XRMenu,
+  // Buzzar: gamepads. GamepadButton: state = button index, button = value. GamepadStick: state = 0 left / 1 right.
+  GamepadButton,
+  GamepadStick,
 }
 
 export enum XRInputComponentId {

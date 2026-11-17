@@ -8,6 +8,7 @@ import { PlayerModule } from "../player/Player.main";
 import { InitializeInputStateMessage, InputComponentId, InputMessageType, InputSourceId } from "./input.common";
 import { enqueueInputRingBuffer, InputRingBuffer } from "../common/InputRingBuffer";
 import { EditorModule } from "../editor/editor.main";
+import { startGamepadPolling } from "./gamepad.main";
 
 /*********
  * Types *
@@ -364,11 +365,23 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
 
     document.addEventListener("pointerlockchange", onPointerLockChange);
 
+    // Buzzar: gamepads (gamepad.main.ts). Like the keyboard without pointer lock, they drive the game only while no
+    // menu, dialog or text field is in the way; releases always get through.
+    const stopGamepads = startGamepadPolling(
+      forceEnqueue,
+      () =>
+        inputModule.disableInputStack.length === 0 &&
+        !camRigModule.orbiting &&
+        document.hasFocus() &&
+        (document.activeElement === document.body || document.activeElement === canvas)
+    );
+
     if (debugMovement) {
       console.info("[movement-debug] input listeners attached");
     }
 
     return () => {
+      stopGamepads();
       if (debugMovement) {
         // A dispose without a fresh init would leave the page deaf to the keyboard; make that visible.
         fetch("/__buzzar/debug-log", {

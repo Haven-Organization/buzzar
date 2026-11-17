@@ -57,6 +57,21 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Menu                          | Tab (or Escape)                              |
 | Hide / show the HUD           | H                                            |
 
+With a game controller (Xbox, PlayStation, Switch Pro, Steam Deck…), press any button on it once so the browser
+sees it:
+
+| Action                    | Controller       |
+| ------------------------- | ---------------- |
+| Move (all the way to run) | Left stick       |
+| Look                      | Right stick      |
+| Jump                      | A (Cross)        |
+| Crouch (hold to go prone) | Left stick click |
+| Grab, use, let go         | R1 or R2         |
+| Throw what you're holding | X (Square)       |
+| Mute                      | Y (Triangle)     |
+| Names / hide the HUD      | D-pad up / down  |
+| Menu / controls           | Start / Back     |
+
 ### 4. Invite people and manage your world
 
 ![Screenshot of the invite dialog](/images/InviteUsers.png)

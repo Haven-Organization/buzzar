@@ -172,9 +172,13 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
 
 ### Gamepad and controller checklist
 
-- [ ] ❌ **M** Gamepad API polling into the raw input buffer (`Gamepad/<index>/button/*`, `Gamepad/<index>/axis/*`)
+- [x] ✅ **M** Gamepad API polling into the raw input buffer (`Gamepad/<index>/button/*`, `Gamepad/<index>/axis/*`)
       on the main thread, using the W3C `standard` mapping. Fallback profiles for non-standard pads.
       Hot-plug, multiple pads, deadzones, response curves.
+      **Buzzar (2026-11-17):** `src/engine/input/gamepad.main.ts` polls every 8 ms, merges all pads, radial dead
+      zone, squared look curve, analog walking speed, sprint at full tilt; layout as in the table above (L3 hold for
+      prone, R1/R2 grab, X throw, Y mute, D-pad names/HUD, Start menu, Back controls). Non-standard pads aren't
+      remapped yet. Tested with a simulated pad only.
 - [ ] ❌ **M** **Centralized, rebindable action registry**, with a rebinding UI per device and saved
       bindings in Matrix account data (`software.haven.input_bindings`) so they follow the user across devices.
 - [ ] ❌ **M** **Gamepad UI navigation:** every 2D menu (React overlays) and in-world UI panel can be

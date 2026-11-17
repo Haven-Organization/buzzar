@@ -88,6 +88,27 @@ export function ShortcutUI() {
           )}
         </div>
       </Category>
+      {/* Buzzar: gamepad layout (standard mapping; see engine/input/gamepad.main.ts). */}
+      <Category header={<CategoryHeader title="Controller" options={<Label>Button</Label>} />}>
+        <div className="ShortcutUI__list">
+          {renderItem("Move (push all the way to run)", <Kbd size="xs">Left Stick</Kbd>)}
+          {renderItem("Look", <Kbd size="xs">Right Stick</Kbd>)}
+          {renderItem("Jump", <Kbd size="xs">A</Kbd>)}
+          {renderItem("Crouch (hold to go prone)", <Kbd size="xs">L3</Kbd>)}
+          {renderItem(
+            "Grab / Use / Drop",
+            <>
+              <Kbd size="xs">R1</Kbd> / <Kbd size="xs">R2</Kbd>
+            </>
+          )}
+          {renderItem("Throw Held Object", <Kbd size="xs">X</Kbd>)}
+          {renderItem("Mute", <Kbd size="xs">Y</Kbd>)}
+          {renderItem("Names", <Kbd size="xs">D-pad Up</Kbd>)}
+          {renderItem("Hide / show the HUD", <Kbd size="xs">D-pad Down</Kbd>)}
+          {renderItem("Menu", <Kbd size="xs">Start</Kbd>)}
+          {renderItem("Controls", <Kbd size="xs">Back</Kbd>)}
+        </div>
+      </Category>
     </div>
   );
 }
