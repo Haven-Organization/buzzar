@@ -60,6 +60,8 @@ interface WorldViewProps {
   world: Room;
 }
 
+const HEADPHONES_TIP_KEY = "buzzar.headphonesTipShown";
+
 export function WorldView({ world }: WorldViewProps) {
   const mainThread = useMainThreadContext();
   const { session } = useHydrogen(true);
@@ -149,6 +151,30 @@ export function WorldView({ world }: WorldViewProps) {
     showToast(worldNotice.text, 8000);
     setWorldNotice(undefined);
   }, [worldNotice, setWorldNotice, showToast]);
+
+  // Buzzar: voices come from other players' positions, which echo cancellation copes with badly, so speakers feed
+  // everyone's voices back into the mic. Suggest headphones once, a few seconds into the first world (Third Room #339).
+  useEffect(() => {
+    let seen = false;
+    try {
+      seen = localStorage.getItem(HEADPHONES_TIP_KEY) === "1";
+    } catch {
+      // storage unavailable: show it every time rather than never
+    }
+    if (seen) return;
+    const timer = window.setTimeout(() => {
+      showToast(
+        "Tip: wear headphones in worlds. With speakers, others can hear themselves echo back through your mic.",
+        9000
+      );
+      try {
+        localStorage.setItem(HEADPHONES_TIP_KEY, "1");
+      } catch {
+        // storage unavailable
+      }
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [showToast]);
 
   const camRigModule = getModule(mainThread, PlayerModule);
   const [nameMode, setNameMode] = useNameMode();
@@ -327,9 +353,7 @@ export function WorldView({ world }: WorldViewProps) {
         <Nametags room={world} show={showNames && !overlayVisible} showBanners={nameMode === "all"} />
       )}
 
-      {!overlayVisible && !editorEnabled && (
-        <WorldInteraction session={session} world={world} />
-      )}
+      {!overlayVisible && !editorEnabled && <WorldInteraction session={session} world={world} />}
 
       <div className="WorldView__toast-container">
         <div className={classNames("WorldView__toast", { "WorldView__toast--shown": toastShown })}>
