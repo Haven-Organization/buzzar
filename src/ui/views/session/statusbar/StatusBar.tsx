@@ -100,7 +100,10 @@ export function StatusBar() {
   return (
     <div className="StatusBar shrink-0 flex items-center">
       <div className="StatusBar__left grow basis-0 flex">
-        {knownWorldId && (
+        {knownWorldId && overlayVisible && (
+          // Buzzar: in the world, the menu button and its Tab key sit with the other controls at the bottom right,
+          // and the rest of the keys are in the "/" help. Those controls are behind the overlay, so closing it is
+          // offered here.
           <OverlayButton style={{ paddingLeft: "var(--sp-xxs)" }} onClick={openOverlay}>
             <Text
               color="world"
@@ -115,29 +118,9 @@ export function StatusBar() {
               TAB
             </Text>
             <Text className="flex items-center" color="world" variant="b3">
-              {overlayVisible ? "Close Overlay" : "Open Overlay"}
+              Close Overlay
             </Text>
           </OverlayButton>
-        )}
-        {knownWorldId && !overlayVisible && (
-          // Buzzar: Shift+Tab frees the mouse without opening the overlay (see WorldView).
-          <div className="flex items-center gap-xxs" style={{ paddingLeft: "var(--sp-sm)" }}>
-            <Text
-              color="world"
-              weight="medium"
-              variant="b3"
-              style={{
-                padding: "0 3px",
-                borderRadius: "var(--br-xxs)",
-                border: "1px solid var(--bg-world-border)",
-              }}
-            >
-              SHIFT+TAB
-            </Text>
-            <Text className="flex items-center" color="world" variant="b3">
-              Free Mouse
-            </Text>
-          </div>
         )}
       </div>
       <div className="StatusBar__center">

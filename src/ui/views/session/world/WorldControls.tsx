@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
 import { GroupCall, Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import classNames from "classnames";
 
@@ -14,6 +15,7 @@ import CallCrossIC from "../../../../../res/ic/call-cross.svg";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import HelpIC from "../../../../../res/ic/help.svg";
 import XRIC from "../../../../../res/ic/xr.svg";
+import MenuIC from "../../../../../res/ic/menu.svg";
 import { Text } from "../../../atoms/text/Text";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
 import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";
@@ -28,6 +30,8 @@ import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { OverlayWindow } from "../../../state/overlayWindow";
 import { setLocalStorageItem } from "../../../hooks/useLocalStorage";
 import { useKeyDown } from "../../../hooks/useKeyDown";
+import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
+import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
 import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../components/MuteButtonProvider";
 import { inputFocused } from "../../../utils/common";
 import { useDisableInput } from "../../../hooks/useDisableInput";
@@ -107,6 +111,13 @@ export function WorldControls({
   const { navigateExitWorld } = useWorldNavigator(session);
 
   const [shortcutUI, setShortcutUI] = useState(false);
+  const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
+  const setWorldChatVisibility = useSetAtom(worldChatVisibilityAtom);
+  const openOverlay = () => {
+    document.exitPointerLock();
+    setWorldChatVisibility(false);
+    setOverlayVisibility(true);
+  };
 
   const openOverlayWindow = useOpenOverlayWindow();
   const showPeople = () => openOverlayWindow({ type: OverlayWindow.People, tab: "world" });
@@ -145,6 +156,14 @@ export function WorldControls({
 
   return (
     <div className={classNames(className, "flex")}>
+      <div className="flex flex-column items-center">
+        <Tooltip content="Menu">
+          <IconButton variant="world" label="Menu" iconSrc={MenuIC} onClick={openOverlay} />
+        </Tooltip>
+        <Text variant="b3" color="world" weight="bold">
+          Tab
+        </Text>
+      </div>
       <div className="flex flex-column items-center">
         <Tooltip content={shortcutUI ? "Hide Help" : "Show Help"}>
           <IconButton variant="world" label="help" iconSrc={HelpIC} onClick={toggleShortcutUI} />
