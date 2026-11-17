@@ -112,7 +112,7 @@ export function StatusBar() {
                 border: "1px solid var(--bg-world-border)",
               }}
             >
-              ESC
+              TAB
             </Text>
             <Text className="flex items-center" color="world" variant="b3">
               {overlayVisible ? "Close Overlay" : "Open Overlay"}
@@ -120,7 +120,7 @@ export function StatusBar() {
           </OverlayButton>
         )}
         {knownWorldId && !overlayVisible && (
-          // Buzzar: Tab frees the mouse without opening the overlay (see WorldView).
+          // Buzzar: Shift+Tab frees the mouse without opening the overlay (see WorldView).
           <div className="flex items-center gap-xxs" style={{ paddingLeft: "var(--sp-sm)" }}>
             <Text
               color="world"
@@ -132,7 +132,7 @@ export function StatusBar() {
                 border: "1px solid var(--bg-world-border)",
               }}
             >
-              TAB
+              SHIFT+TAB
             </Text>
             <Text className="flex items-center" color="world" variant="b3">
               Free Mouse

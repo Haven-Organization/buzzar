@@ -53,8 +53,8 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Crouch                        | C                                            |
 | First / third person          | V                                            |
 | Interact, sit, enter a portal | E or left click                              |
-| Free the mouse                | Tab                                          |
-| Menu                          | Escape                                       |
+| Free / capture the mouse      | Shift + Tab                                  |
+| Menu                          | Tab (or Escape)                              |
 
 ### 4. Invite people and manage your world
 

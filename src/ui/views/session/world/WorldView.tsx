@@ -212,11 +212,31 @@ export function WorldView({ world }: WorldViewProps) {
 
       if (inputFocused()) return;
 
-      // Buzzar: Tab frees the mouse without opening anything (Escape now frees it and opens the overlay).
-      if (e.code === "Tab" && document.pointerLockElement === mainThread.canvas) {
+      // Buzzar: Tab opens and closes the overlay, Shift+Tab frees and re-captures the mouse. Unlike Escape (which the
+      // browser itself uses to release the mouse, and which doesn't count as a user gesture), these are ordinary key
+      // presses, so the mouse comes back the moment the overlay closes. In a text field Tab still moves focus.
+      if (e.code === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (worldChatVisible || editorEnabled) return;
         e.preventDefault();
-        setMouseFreed(true);
-        document.exitPointerLock();
+        if (e.repeat) return;
+        if (e.shiftKey) {
+          if (overlayVisible) return;
+          if (document.pointerLockElement === mainThread.canvas) {
+            setMouseFreed(true);
+            document.exitPointerLock();
+          } else {
+            // A key press is a user gesture, so the lock is allowed here; gaining it ends the free-mouse mode.
+            requestGamePointerLock(mainThread.canvas);
+          }
+          return;
+        }
+        if (overlayVisible) {
+          resumePlay();
+          setOverlayVisibility(false);
+        } else {
+          document.exitPointerLock();
+          setOverlayVisibility(true);
+        }
         return;
       }
 

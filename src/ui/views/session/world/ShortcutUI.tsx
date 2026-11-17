@@ -34,6 +34,20 @@ export function ShortcutUI() {
       </div>
       <Category header={<CategoryHeader title="Action" options={<Label>Key</Label>} />}>
         <div className="ShortcutUI__list">
+          {renderItem(
+            "Open/Close Overlay",
+            <>
+              <Kbd size="xs">Tab</Kbd> / <Kbd size="xs">Esc</Kbd>
+            </>
+          )}
+          {renderItem(
+            "Free/Capture Mouse",
+            <>
+              <Kbd size="xs">Shift</Kbd>
+              <span>+</span>
+              <Kbd size="xs">Tab</Kbd>
+            </>
+          )}
           {renderItem("Run", <Kbd size="xs">Shift</Kbd>)}
           {renderItem("Jump", <Kbd size="xs">Space</Kbd>)}
           {renderItem(
