@@ -100,14 +100,24 @@ export function LadderSystem(ctx: GameContext) {
     const rig = eid !== undefined ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
     if (!rig) return;
     worldBox(climbable.node.worldMatrix, climbable.min, climbable.max, _min, _max);
-    const feet = rig.position;
+    // The physics body is where the player really is (the node's position can lag a frame or be relative).
+    const t = rig.physicsBody?.body?.translation();
+    const feet = t ? [t.x, t.y, t.z] : rig.position;
     const cx = (_min[0] + _max[0]) / 2;
     const cz = (_min[2] + _max[2]) / 2;
     if (Math.abs(feet[1] - _max[1]) > TOP_REACH_HEIGHT || Math.hypot(feet[0] - cx, feet[2] - cz) > TOP_REACH_DISTANCE) {
       continue; // only from up at the top
     }
     const { position, yaw } = climbDownPlacement(_min, _max, feet);
-    teleportEntity(rig, vec3.fromValues(...position), quat.setAxisAngle(quat.create(), [0, 1, 0], yaw));
+    const rotation = quat.setAxisAngle(quat.create(), [0, 1, 0], yaw);
+    teleportEntity(rig, vec3.fromValues(...position), rotation);
+    // The character controller already queued this frame's move from up on the top; replace it, or the physics
+    // step carries the player back there.
+    const body = rig.physicsBody?.body;
+    if (body?.isKinematic()) {
+      body.setNextKinematicTranslation({ x: position[0], y: position[1], z: position[2] });
+      body.setNextKinematicRotation({ x: rotation[0], y: rotation[1], z: rotation[2], w: rotation[3] });
+    }
     ladderGrab.pending = true;
     return;
   }
