@@ -801,6 +801,82 @@ export function buildClimbClip(rig: RetargetRig, name = "Climb", duration = 1.2)
   return new AnimationClip(name, duration, tracks);
 }
 
+/**
+ * Buzzar: pulls a locomotion clip's legs in toward the body's midline. The built-in "RunBack" clip swings the thighs
+ * out and kicks the feet wide (knees in, feet out), so the legs make an upside-down V. For each frame, `amount` of
+ * each thigh's and shin's sideways lean beyond the rest stance is removed (a swing toward the midline, keeping twist).
+ * Modifies `clip` in place and returns it.
+ */
+export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 0.8): AnimationClip {
+  const hips = rig.bones.get("hips");
+  if (!hips) return clip;
+  const legs = (["left", "right"] as const)
+    .map((side) => ({
+      thigh: rig.bones.get(`${side}UpperLeg` as HumanBone),
+      knee: rig.bones.get(`${side}LowerLeg` as HumanBone),
+      foot: rig.bones.get(`${side}Foot` as HumanBone),
+    }))
+    .filter((l): l is { thigh: Object3D; knee: Object3D; foot: Object3D } => !!l.thigh && !!l.knee && !!l.foot);
+  if (legs.length < 2) return clip;
+
+  // Sideways, in the thighs' parent space: from one hip joint to the other.
+  const parent = legs[0].thigh.parent;
+  if (!parent || legs[1].thigh.parent !== parent) return clip;
+  const lateral = new Vector3()
+    .subVectors(restLocal(rig, legs[0].thigh).position, restLocal(rig, legs[1].thigh).position)
+    .normalize();
+  if (lateral.lengthSq() < 0.5) return clip;
+
+  // Tracks name their bone by object ID (the engine) or by name (three.js's loader).
+  const trackFor = (obj: Object3D) =>
+    clip.tracks.find((t) => t.name === `${obj.uuid}.quaternion` || t.name === `${obj.name}.quaternion`);
+  const q = new Quaternion();
+  const parentQ = new Quaternion();
+  const swing = new Quaternion();
+  const dir = new Vector3();
+  const target = new Vector3();
+
+  /** Swings one bone's keys so its direction (in the thighs' parent space) loses `amount` of its extra spread. */
+  const narrow = (track: KeyframeTrack, toChild: Vector3, restSide: number, parentAt?: (time: number) => Quaternion) => {
+    const values = track.values;
+    for (let k = 0, i = 0; i < values.length; k++, i += 4) {
+      q.fromArray(values, i);
+      parentQ.copy(parentAt ? parentAt(track.times[k]) : swing.identity());
+      // Direction in the thighs' parent space.
+      dir.copy(toChild).applyQuaternion(q).applyQuaternion(parentQ);
+      const extra = dir.dot(lateral) - restSide;
+      target.copy(dir).addScaledVector(lateral, -extra * amount).normalize();
+      // The swing in that space, brought into the bone's parent space: parent⁻¹ · swing · parent · q.
+      swing.setFromUnitVectors(dir, target);
+      q.premultiply(parentQ).premultiply(swing).premultiply(parentQ.invert()).normalize();
+      q.toArray(values, i);
+    }
+  };
+
+  for (const { thigh, knee, foot } of legs) {
+    const thighTrack = trackFor(thigh);
+    const kneeTrack = trackFor(knee);
+    const thighRest = restLocal(rig, thigh).quaternion;
+    const toKnee = restLocal(rig, knee).position.clone().normalize();
+    const toFoot = restLocal(rig, foot).position.clone().normalize();
+    if (thighTrack) narrow(thighTrack, toKnee, dir.copy(toKnee).applyQuaternion(thighRest).dot(lateral));
+    if (kneeTrack) {
+      // The shin's sideways lean, with the (already narrowed) thigh's rotation as its parent.
+      const restShin = dir
+        .copy(toFoot)
+        .applyQuaternion(restLocal(rig, knee).quaternion)
+        .applyQuaternion(thighRest)
+        .dot(lateral);
+      const thighAt = thighTrack ? thighTrack.createInterpolant() : undefined;
+      const sample = new Quaternion();
+      narrow(kneeTrack, toFoot, restShin, (time) =>
+        thighAt ? sample.fromArray(thighAt.evaluate(time) as unknown as number[]) : sample.copy(thighRest)
+      );
+    }
+  }
+  return clip;
+}
+
 /** Buzzar: metres of ladder one climbing cycle covers (two rungs). */
 export const CLIMB_CYCLE_HEIGHT = 0.8;
 

@@ -12,7 +12,16 @@ import {
 } from "three";
 
 import { HumanBone } from "./humanoid";
-import { buildPoseClip, buildSitClip, captureRestTransforms, CROUCH_POSE, PRONE_POSE, retargetClip, RetargetRig } from "./retarget";
+import {
+  buildPoseClip,
+  buildSitClip,
+  captureRestTransforms,
+  CROUCH_POSE,
+  narrowLegSpread,
+  PRONE_POSE,
+  retargetClip,
+  RetargetRig,
+} from "./retarget";
 
 type Spec = [HumanBone, HumanBone | undefined, [number, number, number], [number, number, number]];
 
@@ -298,3 +307,45 @@ describe("crouch and prone poses", () => {
     expect(at("head").y).toBeGreaterThan(at("neck").y);
   });
 });
+
+describe("narrowLegSpread", () => {
+  const legs: Spec[] = [
+    ["hips", undefined, [0, 1, 0], [0, 0, 0]],
+    ["leftUpperLeg", "hips", [0.1, 0, 0], [0, 0, 0]],
+    ["leftLowerLeg", "leftUpperLeg", [0, -0.45, 0], [0, 0, 0]],
+    ["leftFoot", "leftLowerLeg", [0, -0.45, 0], [0, 0, 0]],
+    ["rightUpperLeg", "hips", [-0.1, 0, 0], [0, 0, 0]],
+    ["rightLowerLeg", "rightUpperLeg", [0, -0.45, 0], [0, 0, 0]],
+    ["rightFoot", "rightLowerLeg", [0, -0.45, 0], [0, 0, 0]],
+  ];
+  const turn = (x: number, z: number) =>
+    new Quaternion().setFromEuler(new Euler((x * Math.PI) / 180, 0, (z * Math.PI) / 180)).toArray();
+
+  test("pulls splayed thighs and shins back toward the midline, keeping the stride", () => {
+    const rig = buildRig(legs);
+    const bone = (b: HumanBone) => rig.bones.get(b)!;
+    // Left thigh swung 30° out (and 20° forward), shin kicked a further 25° out; right leg mirrored.
+    const clip = new AnimationClip("RunBack", 1, [
+      new QuaternionKeyframeTrack(`${bone("leftUpperLeg").uuid}.quaternion`, [0], turn(-20, 30)),
+      new QuaternionKeyframeTrack(`${bone("leftLowerLeg").uuid}.quaternion`, [0], turn(0, 25)),
+      new QuaternionKeyframeTrack(`${bone("rightUpperLeg").uuid}.quaternion`, [0], turn(-20, -30)),
+      new QuaternionKeyframeTrack(`${bone("rightLowerLeg").uuid}.quaternion`, [0], turn(0, -25)),
+    ]);
+    const footX = () => {
+      const mixer = new AnimationMixer(rig.root);
+      mixer.clipAction(clip).play();
+      mixer.setTime(0);
+      rig.root.updateMatrixWorld(true);
+      return [bone("leftFoot"), bone("rightFoot")].map((f) => f.getWorldPosition(new Vector3()));
+    };
+    const [before] = footX();
+    narrowLegSpread(clip, rig);
+    const [after, afterRight] = footX();
+    // Feet end up much closer to under the hips (x = ±0.1) …
+    expect(Math.abs(after.x - 0.1)).toBeLessThan(Math.abs(before.x - 0.1) * 0.35);
+    expect(afterRight.x).toBeCloseTo(-after.x, 5);
+    // … while the forward swing stays.
+    expect(after.z).toBeGreaterThan(0.2);
+  });
+});
+

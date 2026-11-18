@@ -63,6 +63,7 @@ import {
   captureRestTransforms,
   estimateEyeHeight,
   retargetClip,
+  narrowLegSpread,
   RetargetRig,
 } from "./retarget";
 import {
@@ -116,6 +117,7 @@ function defaultAvatarOptions(
       const hips = hipsNodeFor(loaderCtx, mapping);
       if (hips) AvatarHips.set(rig, hips);
       const own = buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion());
+      fixSourceClips(ownClips, own);
       return makeCrouchAdditive([...ownClips, buildSitClip(own), ...buildPostureClips(own)], own).filter(
         (clip) => !ownClips.includes(clip)
       );
@@ -125,6 +127,21 @@ function defaultAvatarOptions(
       return mapping ? createAvatarAnimationExtras(ctx, loaderCtx, rootObj, mapping) : undefined;
     },
   };
+}
+
+/** Clips already corrected (the same clip objects can come back on a later load). */
+const fixedClips = new WeakSet<AnimationClip>();
+
+/**
+ * Buzzar: corrections to the built-in locomotion clips, before they play on the default avatar or are retargeted:
+ * running backwards keeps its legs together (the clip splays them into an upside-down V).
+ */
+function fixSourceClips(clips: AnimationClip[], rig: RetargetRig) {
+  for (const clip of clips) {
+    if (fixedClips.has(clip)) continue;
+    fixedClips.add(clip);
+    if (clip.name === "RunBack") narrowLegSpread(clip, rig);
+  }
 }
 
 interface SourceRig {
@@ -404,6 +421,7 @@ function getSourceRig(ctx: GameContext): Promise<SourceRig> {
       const template = loadIntoNode(ctx, resource, {
         extraAnimationClips: (loaderCtx, rootObj, ownClips) => {
           const rig = buildRetargetRig(loaderCtx, rootObj, mapping, new Quaternion());
+          fixSourceClips(ownClips, rig);
           // The Sit pose is built on the source rig so it retargets to every avatar like the locomotion clips.
           captured = { rig, clips: [...ownClips, buildSitClip(rig), ...buildPostureClips(rig)] };
           return [];
