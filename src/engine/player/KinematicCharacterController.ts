@@ -1,4 +1,4 @@
-import { addComponent, defineComponent, defineQuery, enterQuery } from "bitecs";
+import { addComponent, defineComponent, defineQuery, enterQuery, hasComponent } from "bitecs";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RawCharacterCollision } from "@dimforge/rapier3d-compat/raw";
 import { Quaternion, Vector3 } from "three";
@@ -18,6 +18,7 @@ import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
 import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
 import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder, ladderGrab } from "./climbing";
+import { OurPlayer } from "./Player";
 
 function kinematicCharacterControllerAction(key: string) {
   return "KinematicCharacterController/" + key;
@@ -167,6 +168,9 @@ let lastFootstepFrame = 0;
 const climbRegrabAt = new Map<number, number>();
 /** Buzzar: rigs that were on a ladder last frame (they keep hold until they climb or jump off). */
 const climbingRigs = new Set<number>();
+/** Buzzar debug (playerDebug): each rig's last ladder decision. */
+const lastClimbDebug = new Map<number, { grabbed: boolean; action?: string; at: number }>();
+let lastClimbAction: ReturnType<typeof decideClimb> | undefined;
 const _climbDir = new Vector3();
 
 export function addKinematicControls(ctx: GameContext, eid: number) {
@@ -305,7 +309,7 @@ export function updateKinematicControls(
     const ladder = findLadder(ctx, [feet.x, feet.y, feet.z]);
     if (ladder) {
       _climbDir.set(0, 0, -1).applyQuaternion(_q).setY(0).normalize();
-      const action = decideClimb(
+      const action = (lastClimbAction = decideClimb(
         [feet.x, feet.y, feet.z],
         ladder,
         [_climbDir.x, _climbDir.z],
@@ -313,7 +317,7 @@ export function updateKinematicControls(
         isGrounded,
         jump.pressed,
         wasClimbing
-      );
+      ));
       if (action.type === "release") {
         climbRegrabAt.set(rig.eid, nowSeconds + CLIMB_REGRAB_DELAY);
         _linearVelocity.x += action.away[0] * 3;
@@ -332,6 +336,8 @@ export function updateKinematicControls(
     }
   }
 
+  lastClimbDebug.set(rig.eid, { grabbed: wasClimbing, action: lastClimbAction?.type, at: +nowSeconds.toFixed(2) });
+  lastClimbAction = undefined;
   if (climbing) climbingRigs.add(rig.eid);
   else climbingRigs.delete(rig.eid);
   cameraHeadBob(ctx, rig, climbing ? 0 : speed, isGrounded, isSprinting);
@@ -535,6 +541,10 @@ function logPlayerDebug(ctx: GameContext) {
       moveVec: moveVec ? Array.from(moveVec) : null,
       grounded: controller?.computedGrounded(),
       hasController: !!controller,
+      ourPlayer: hasComponent(ctx.world, OurPlayer, node.eid),
+      climbing: climbingRigs.has(node.eid),
+      ladder: body ? !!findLadder(ctx, Object.values(body.translation()) as number[]) : null,
+      lastClimb: lastClimbDebug.get(node.eid),
       // Buzzar debug: camera anchor (local) and camera (world) height, to chase camera shake.
       camera: (() => {
         try {
