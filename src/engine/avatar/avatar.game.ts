@@ -135,16 +135,20 @@ const fixedClips = new WeakSet<AnimationClip>();
 
 /**
  * Buzzar: corrections to the built-in locomotion clips, before they play on the default avatar or are retargeted:
- * running backwards keeps its legs together (the clip splays them sideways and scissors them very wide front to
- * back, an upside-down V).
+ * walking and running backwards keep the legs within hip width (the clips put the feet nearly twice hip width apart
+ * running, and bow the knees out walking: an upside-down V, worst on long-legged avatars), and running backwards
+ * takes shorter strides.
  */
 function fixSourceClips(clips: AnimationClip[], rig: RetargetRig) {
   for (const clip of clips) {
     if (fixedClips.has(clip)) continue;
     fixedClips.add(clip);
     if (clip.name === "RunBack") {
-      narrowLegSpread(clip, rig);
+      narrowLegSpread(clip, rig, 1);
       shortenStride(clip, rig);
+    } else if (clip.name === "WalkBack") {
+      // Walking backwards bows the knees out wider than the hips.
+      narrowLegSpread(clip, rig, 1);
     }
   }
 }
