@@ -376,6 +376,39 @@ export interface PoseSpec {
   groundFeet?: boolean;
   /** Put the hips at this fraction of their rest height (e.g. lying down). */
   hipsHeight?: number;
+  /**
+   * Buzzar: curl the fingers toward the palm by this many degrees at each joint (thumb half as much), as when
+   * gripping something. Measured across each hand's own knuckles, so it works however the hand is turned.
+   */
+  fingerCurl?: number;
+}
+
+const FINGER_BONES = ["Thumb", "Index", "Middle", "Ring", "Little"].flatMap((finger) =>
+  ["Metacarpal", "Proximal", "Intermediate", "Distal"].map((joint) => finger + joint)
+);
+
+/**
+ * Buzzar: for a hand, the axis (in the hand's rest world space) that curls its fingers toward the palm under a
+ * positive rotation: the line across the knuckles, pointed so the fingertips swing to the thumb's (palm) side.
+ */
+function fingerCurlAxis(rig: RetargetRig, side: "left" | "right"): Vector3 | undefined {
+  const pos = (bone: string) => {
+    const obj = rig.bones.get(`${side}${bone}` as HumanBone);
+    return obj ? new Vector3().setFromMatrixPosition(restWorldMatrix(rig, obj)) : undefined;
+  };
+  const hand = pos("Hand");
+  const index = pos("IndexProximal");
+  const little = pos("LittleProximal") ?? pos("RingProximal");
+  const middleTip = pos("MiddleDistal") ?? pos("MiddleIntermediate") ?? pos("MiddleProximal");
+  const thumb = pos("ThumbDistal") ?? pos("ThumbProximal");
+  if (!hand || !index || !little || !middleTip || !thumb) return undefined;
+  const across = index.clone().sub(little).normalize();
+  const along = middleTip.clone().sub(hand).normalize();
+  // Rotating `along` about `across` moves the tip toward across × along; that should be the palm (thumb) side.
+  const palmward = new Vector3().crossVectors(across, along);
+  const thumbOffset = thumb.clone().sub(hand);
+  thumbOffset.addScaledVector(along, -thumbOffset.dot(along)).addScaledVector(across, -thumbOffset.dot(across));
+  return thumbOffset.dot(palmward) >= 0 ? across : across.negate();
 }
 
 const X_AXIS = new Vector3(1, 0, 0);
@@ -408,6 +441,10 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
   const direction = new Vector3();
   const target = new Vector3();
   const alignMatrix = new Matrix4().makeRotationFromQuaternion(rig.align);
+  const curlAxes = spec.fingerCurl
+    ? { left: fingerCurlAxis(rig, "left"), right: fingerCurlAxis(rig, "right") }
+    : undefined;
+  const curlAxis = new Vector3();
 
   rig.root.traverse((obj) => {
     if (obj === rig.root || !rig.rest.has(obj)) return;
@@ -440,6 +477,18 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
     }
     const bend = bone ? spec.bends?.[bone] : undefined;
     if (bend) current.premultiply(swing.setFromAxisAngle(X_AXIS, (bend * Math.PI) / 180));
+    const handSide = bone?.startsWith("left") ? "left" : "right";
+    const curlRest = curlAxes && bone && FINGER_BONES.includes(bone.replace(/^(left|right)/, "")) && curlAxes[handSide];
+    const hand = curlRest && rig.bones.get(`${handSide}Hand` as HumanBone);
+    if (curlRest && hand && spec.fingerCurl) {
+      // The knuckle axis, carried along by the hand's change from rest.
+      const handPosed = desiredWorld.get(hand);
+      if (handPosed) {
+        curlAxis.copy(curlRest).applyQuaternion(handPosed.clone().multiply(restWorldQuat(rig, hand).invert()));
+        const angle = bone.includes("Thumb") ? spec.fingerCurl / 2 : spec.fingerCurl;
+        current.premultiply(swing.setFromAxisAngle(curlAxis, (angle * Math.PI) / 180));
+      }
+    }
     const sway = bone ? spec.sway?.[bone] : undefined;
     if (sway) {
       current.premultiply(swing.setFromAxisAngle(Y_AXIS, (sway[0] * sideSign * Math.PI) / 180));
@@ -702,6 +751,8 @@ export function buildClimbClip(rig: RetargetRig, name = "Climb", duration = 1.2)
         bends: { spine: 2, neck: -12, head: -10 },
         sway: { hips: [3 * c, 0], chest: [-4 * c, 0] },
         hipsHeight: 0.97 + 0.02 * bob,
+        // Gripping the rungs.
+        fingerCurl: 55,
       })
     );
     times.push((f / FRAMES) * duration);

@@ -35,9 +35,12 @@ describe("climbing decisions", () => {
   });
 
   it("on the ladder: back climbs down, no input holds on, jump lets go away from it", () => {
-    expect(decideClimb(feet, ladder, facing, -1, false, false)).toEqual({ type: "climb", vertical: -CLIMB_SPEED });
-    expect(decideClimb(feet, ladder, facing, 0, false, false)).toEqual({ type: "climb", vertical: 0 });
-    const release = decideClimb(feet, ladder, facing, 0, false, true);
+    expect(decideClimb(feet, ladder, facing, -1, false, false, true)).toEqual({
+      type: "climb",
+      vertical: -CLIMB_SPEED,
+    });
+    expect(decideClimb(feet, ladder, facing, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
+    const release = decideClimb(feet, ladder, facing, 0, false, true, true);
     expect(release.type).toBe("release");
     if (release.type === "release") expect(release.away[1]).toBeCloseTo(1);
   });
@@ -45,5 +48,20 @@ describe("climbing decisions", () => {
   it("standing at the foot of it without pressing forward is just standing", () => {
     expect(decideClimb(feet, ladder, facing, 0, true, false)).toEqual({ type: "none" });
     expect(decideClimb(feet, ladder, facing, -1, true, false)).toEqual({ type: "none" });
+  });
+
+  it("being near it in the air doesn't grab it: a jump beside it isn't stopped", () => {
+    // Mid-jump next to the ladder, no forward input (or facing elsewhere): not holding on.
+    expect(decideClimb([0, 1, 0.35], ladder, facing, 0, false, false)).toEqual({ type: "none" });
+    expect(decideClimb([0, 1, 0.35], ladder, away, 1, false, false)).toEqual({ type: "none" });
+  });
+
+  it("stepping off the top past the ladder, facing away from it, doesn't hang you in the air", () => {
+    // Walked off the platform behind the ladder (the platform is on its -z side) and out over the room side.
+    expect(decideClimb([0, 2.9, 0.2], ladder, [0, 1], 1, false, false)).toEqual({ type: "none" });
+  });
+
+  it("once climbing, you keep hold even when turning to look around", () => {
+    expect(decideClimb(feet, ladder, away, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
   });
 });

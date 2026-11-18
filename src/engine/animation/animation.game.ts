@@ -15,7 +15,7 @@ import type { GameAnimation } from "../gltf/gltf.game";
 import { playerShapeCastCollisionGroups } from "../physics/CollisionGroups";
 import { Posture, PostureEntities } from "../player/posture.common";
 import { CLIP_SPEED } from "../avatar/retarget";
-import { findLadder } from "../player/climbing";
+import { CLIMB_SPEED, facesLadder, findLadder } from "../player/climbing";
 
 export interface IAnimationComponent {
   animations: GameAnimation[];
@@ -156,13 +156,17 @@ function processAnimations(ctx: GameContext) {
       if (!sitAction && !proneAction && (posture === undefined || posture === Posture.Standing)) {
         mat4.getTranslation(_feet, parent.worldMatrix);
         const ladder = findLadder(ctx, _feet);
-        const climb =
-          ladder && _feet[1] > ladder.min[1] + LADDER_OFF_GROUND
-            ? animation.actionMap.get(AnimationClipType.Climb)
-            : undefined;
+        const vy = proneVelocity ? proneVelocity[1] : 0;
+        // Facing it, and hanging still or moving at ladder speed: not jumping or falling past it.
+        const forward = getForwardVector(_forward, 0, getYaw(parent.quaternion));
+        const onLadder =
+          !!ladder &&
+          _feet[1] > ladder.min[1] + LADDER_OFF_GROUND &&
+          facesLadder(_feet, ladder, [forward[0], forward[2]]) &&
+          (Math.abs(vy) < 0.15 || Math.abs(Math.abs(vy) - CLIMB_SPEED) < 0.3);
+        const climb = onLadder ? animation.actionMap.get(AnimationClipType.Climb) : undefined;
         if (climb) {
           climbAction = climb;
-          const vy = proneVelocity ? proneVelocity[1] : 0;
           climb.timeScale = Math.abs(vy) < 0.05 ? 0 : vy / (CLIP_SPEED.get(AnimationClipType.Climb) ?? 0.67);
         }
       }

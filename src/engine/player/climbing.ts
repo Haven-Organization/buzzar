@@ -89,9 +89,22 @@ export type ClimbAction =
   /** Let go: jump away from the ladder. `away` is a unit horizontal direction. */
   | { type: "release"; away: [number, number] };
 
+/** Whether a character at `feet` facing `forward` (horizontal unit vector) faces the ladder: within about 70°. */
+export function facesLadder(feet: ArrayLike<number>, ladder: LadderHit, forward: [number, number]) {
+  const dx = (ladder.min[0] + ladder.max[0]) / 2 - feet[0];
+  const dz = (ladder.min[2] + ladder.max[2]) / 2 - feet[2];
+  const distance = Math.hypot(dx, dz);
+  if (distance < 1e-4) return true;
+  return (dx * forward[0] + dz * forward[1]) / distance > 0.35;
+}
+
 /**
  * What to do this frame near a ladder. `forward` is the horizontal unit direction the character faces; `moveY` is
- * the forward/back input (+1 forward).
+ * the forward/back input (+1 forward); `wasClimbing` whether they were on the ladder last frame.
+ *
+ * You only grab a ladder by walking into it while facing it. Being near one while off the ground (jumping beside it,
+ * stepping off the platform at its top facing away) doesn't grab it, so it never stops a jump or holds you in the air
+ * with your back to it. Once on it, you hold on until you climb off the top or bottom or jump off.
  */
 export function decideClimb(
   feet: ArrayLike<number>,
@@ -99,19 +112,24 @@ export function decideClimb(
   forward: [number, number],
   moveY: number,
   grounded: boolean,
-  jumpPressed: boolean
+  jumpPressed: boolean,
+  wasClimbing = false
 ): ClimbAction {
-  let dx = (ladder.min[0] + ladder.max[0]) / 2 - feet[0];
-  let dz = (ladder.min[2] + ladder.max[2]) / 2 - feet[2];
-  const distance = Math.hypot(dx, dz);
-  if (distance > 1e-4) {
-    dx /= distance;
-    dz /= distance;
-  }
-  // Facing the ladder: within about 70° of it, or standing in it.
-  const facing = distance < 0.15 || dx * forward[0] + dz * forward[1] > 0.35;
+  const facing = facesLadder(feet, ladder, forward);
+  if (!wasClimbing && !(facing && moveY > 0.1)) return { type: "none" };
 
-  if (!grounded && jumpPressed) return { type: "release", away: [-dx, -dz] };
+  if (!grounded && jumpPressed) {
+    let dx = (ladder.min[0] + ladder.max[0]) / 2 - feet[0];
+    let dz = (ladder.min[2] + ladder.max[2]) / 2 - feet[2];
+    const distance = Math.hypot(dx, dz);
+    if (distance > 1e-4) {
+      dx /= distance;
+      dz /= distance;
+    } else {
+      [dx, dz] = forward;
+    }
+    return { type: "release", away: [-dx, -dz] };
+  }
   if (moveY > 0.1 && facing) return { type: "climb", vertical: CLIMB_SPEED };
   if (!grounded && moveY < -0.1) return { type: "climb", vertical: -CLIMB_SPEED };
   // On the ladder without pressing up or down: hold on.

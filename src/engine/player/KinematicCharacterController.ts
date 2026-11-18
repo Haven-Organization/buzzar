@@ -165,6 +165,8 @@ export let lastSlideTime = 0;
 let lastFootstepFrame = 0;
 /** Buzzar: after jumping off a ladder, when (seconds) it can be grabbed again. */
 let climbRegrabAt = 0;
+/** Buzzar: whether the player was on a ladder last frame (they keep hold until they climb or jump off). */
+let wasClimbing = false;
 const _climbDir = new Vector3();
 
 export function addKinematicControls(ctx: GameContext, eid: number) {
@@ -297,7 +299,8 @@ export function updateKinematicControls(
         [_climbDir.x, _climbDir.z],
         moveVec[1],
         isGrounded,
-        jump.pressed
+        jump.pressed,
+        wasClimbing
       );
       if (action.type === "release") {
         climbRegrabAt = nowSeconds + CLIMB_REGRAB_DELAY;
@@ -317,6 +320,7 @@ export function updateKinematicControls(
     }
   }
 
+  wasClimbing = climbing;
   cameraHeadBob(ctx, rig, climbing ? 0 : speed, isGrounded, isSprinting);
 
   _acceleration.multiplyScalar(ctx.dt);
