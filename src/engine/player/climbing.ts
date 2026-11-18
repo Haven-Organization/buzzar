@@ -48,10 +48,10 @@ export function liveClimbables(ctx: GameContext): readonly Climbable[] {
 }
 
 /**
- * Buzzar: set by "Climb Down" (plugins/ladders) after it puts the player on a ladder; the character controller
+ * Buzzar: the rig "Climb Down" (plugins/ladders) just put on a ladder; the character controller
  * reads it so the player starts out holding on rather than falling.
  */
-export const ladderGrab = { pending: false };
+export const ladderGrab: { eid?: number } = {};
 
 /** The world-space box of a climbable (the eight local corners transformed, then bounded). */
 export function worldBox(worldMatrix: mat4, min: vec3, max: vec3, outMin: vec3, outMax: vec3) {

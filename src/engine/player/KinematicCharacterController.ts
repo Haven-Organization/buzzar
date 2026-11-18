@@ -163,10 +163,10 @@ export const _slideForce = new Vector3();
 export let lastSlideTime = 0;
 
 let lastFootstepFrame = 0;
-/** Buzzar: after jumping off a ladder, when (seconds) it can be grabbed again. */
-let climbRegrabAt = 0;
-/** Buzzar: whether the player was on a ladder last frame (they keep hold until they climb or jump off). */
-let wasClimbing = false;
+/** Buzzar: per rig, after jumping off a ladder, when (seconds) it can be grabbed again. */
+const climbRegrabAt = new Map<number, number>();
+/** Buzzar: rigs that were on a ladder last frame (they keep hold until they climb or jump off). */
+const climbingRigs = new Set<number>();
 const _climbDir = new Vector3();
 
 export function addKinematicControls(ctx: GameContext, eid: number) {
@@ -293,12 +293,14 @@ export function updateKinematicControls(
   // Buzzar: ladders (see climbing.ts). On one, input moves you up/down and sideways at set speeds, with no gravity.
   let climbing = false;
   // "Climb Down" (plugins/ladders) just put us on a ladder: start out holding on.
-  if (ladderGrab.pending) {
-    ladderGrab.pending = false;
-    wasClimbing = true;
-    climbRegrabAt = 0;
+  // Per rig: more than one rig can be controlled here, and shared state let one overwrite another's hold.
+  if (ladderGrab.eid === rig.eid) {
+    ladderGrab.eid = undefined;
+    climbingRigs.add(rig.eid);
+    climbRegrabAt.delete(rig.eid);
   }
-  if (standing && nowSeconds >= climbRegrabAt) {
+  const wasClimbing = climbingRigs.has(rig.eid);
+  if (standing && nowSeconds >= (climbRegrabAt.get(rig.eid) ?? 0)) {
     const feet = body.translation();
     const ladder = findLadder(ctx, [feet.x, feet.y, feet.z]);
     if (ladder) {
@@ -313,7 +315,7 @@ export function updateKinematicControls(
         wasClimbing
       );
       if (action.type === "release") {
-        climbRegrabAt = nowSeconds + CLIMB_REGRAB_DELAY;
+        climbRegrabAt.set(rig.eid, nowSeconds + CLIMB_REGRAB_DELAY);
         _linearVelocity.x += action.away[0] * 3;
         _linearVelocity.z += action.away[1] * 3;
         _linearVelocity.y = jumpForce * 0.6;
@@ -330,7 +332,8 @@ export function updateKinematicControls(
     }
   }
 
-  wasClimbing = climbing;
+  if (climbing) climbingRigs.add(rig.eid);
+  else climbingRigs.delete(rig.eid);
   cameraHeadBob(ctx, rig, climbing ? 0 : speed, isGrounded, isSprinting);
 
   _acceleration.multiplyScalar(ctx.dt);

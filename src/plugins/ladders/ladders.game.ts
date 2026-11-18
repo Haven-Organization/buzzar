@@ -118,7 +118,7 @@ export function LadderSystem(ctx: GameContext) {
       body.setNextKinematicTranslation({ x: position[0], y: position[1], z: position[2] });
       body.setNextKinematicRotation({ x: rotation[0], y: rotation[1], z: rotation[2], w: rotation[3] });
     }
-    ladderGrab.pending = true;
+    ladderGrab.eid = rig.eid;
     return;
   }
 }
