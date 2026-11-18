@@ -225,12 +225,12 @@ v12 power-level fix) from `public/gltf/test/mirror-room-matrix.glb`, generated b
 
 ```
 node scripts/buzzar/make-mirror-test-scene.mjs \
-  --devil-uri=mxc://matrix.org/MShLqAEyZQgOHoEAGXQfCzBX \
+  --devil-uri=mxc://glowers.club/uNVIIrOMFNxhmMVMfOgmMOtj \
   --rose-uri=mxc://matrix.org/UBOGinazYEjdBpSRsgIkCCoo --out=mirror-room-matrix.glb
 ```
 
 It contains the two mirrors plus pedestals for Default, Devil and Rose along the right-hand wall. Since 2026-11-17 it is the general debug/physics test room ("Buzzar Test Room", now owned by q as
 `!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4`) and also has an 8 m ladder up to a platform past the front-left corner. The pillars stand clear of the pedestals. The room's scene is the compressed copy
 (`node scripts/buzzar/gltf-tools/compress-world.mjs public/gltf/test/mirror-room-matrix.glb public/gltf/test/test-room-compressed.glb`,
-146 KB → 30 KB), uploaded as q: `mxc://glowers.club/cOSjerjnmTwiRubMuvFBfjaL`. To update it,
+146 KB → 30 KB), uploaded as q: `mxc://glowers.club/oQaOjwzfnfaEseqOuDWtZFpd`. When a pedestal avatar changes (e.g. the Devil's tail, 2026-11-18), upload the new .vrm, regenerate with its mxc, and re-upload the scene; the pedestal otherwise keeps offering the old upload. To update it,
 regenerate the .glb, upload it, and change `scene_url` in the `org.matrix.msc3815.world` state event.
