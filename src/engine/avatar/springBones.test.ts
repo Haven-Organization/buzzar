@@ -267,4 +267,57 @@ describe("spring rig building", () => {
     for (let i = 0; i < 300; i++) updateSpringRig(rig, root, at(0, 0, 0), 1 / 60, () => 0);
     expect(tipWorld(tip).y).toBeGreaterThan(1.5 + 0.1 + 0.05);
   });
+
+  it("moves ears like a horse's: rarely, one or both, at different speeds", () => {
+    const root = new Group();
+    const head = new Bone();
+    head.position.set(0, 1.5, 0);
+    root.add(head);
+    const objs: Bone[] = [head];
+    for (const side of [1, -1]) {
+      const ear = Object.assign(new Bone(), { name: side > 0 ? "Ear_L" : "Ear_R" });
+      ear.position.set(0.05 * side, 0.1, 0);
+      const tip = new Bone();
+      tip.position.set(0, 0.06, 0);
+      head.add(ear);
+      ear.add(tip);
+      objs.push(ear, tip);
+    }
+    const settings = { stiffness: 3.2, gravityPower: 0, gravityDir: new Vector3(0, -1, 0), dragForce: 0.6, hitRadius: 0 };
+    const chains: SpringChainSpec[] = [
+      { joints: [1, 2], kind: "ear", settings, colliders: [] },
+      { joints: [3, 4], kind: "ear", settings, colliders: [] },
+    ];
+    root.updateMatrixWorld(true);
+    const rig = createSpringRig(chains, (i) => objs[i])!;
+    // A repeatable random sequence.
+    let seed = 7;
+    const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    const starts: number[] = [];
+    const moving: boolean[][] = [];
+    const durations: number[] = [];
+    let wasMoving = false;
+    let since = 0;
+    for (let f = 0; f < 60 * 300; f++) {
+      updateSpringRig(rig, root, at(0, 0, 0), 1 / 60, random);
+      const now = rig.ears!.joints.map((e) => e.amount > 0.05);
+      const any = now.some(Boolean);
+      if (any && !wasMoving) {
+        starts.push(f / 60);
+        moving.push(now);
+        since = f;
+      }
+      if (any) moving[moving.length - 1] = moving[moving.length - 1].map((m, i) => m || now[i]);
+      if (!any && wasMoving) durations.push((f - since) / 60);
+      wasMoving = any;
+    }
+    // Rare: at least 6 s apart; a handful in five minutes.
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThan(6);
+    expect(starts.length).toBeGreaterThan(5);
+    // Sometimes one ear, sometimes both.
+    expect(moving.some((m) => m.filter(Boolean).length === 1)).toBe(true);
+    expect(moving.some((m) => m.every(Boolean))).toBe(true);
+    // Quick twitches and slow folds.
+    expect(Math.max(...durations) / Math.min(...durations)).toBeGreaterThan(3);
+  });
 });

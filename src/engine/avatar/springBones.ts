@@ -55,6 +55,8 @@ interface SpringJoint {
   initialized: boolean;
   /** Buzzar: a turn of the rest direction (an ear folding), applied to what the stiffness pulls toward. */
   restOffset?: Quaternion;
+  /** Buzzar: stiffness multiplier while it's being moved on purpose (quick ear twitches stay quick). */
+  stiffnessScale?: number;
 }
 
 /** Buzzar: an ear that moves on its own: the first simulated joint(s) of an ear chain. */
@@ -70,15 +72,18 @@ interface EarJoint {
   amount: number;
   goal: number;
   pose: "fold" | "flick";
+  /** This move's speed (1 = normal), the wait before it starts, and how long until it relaxes. */
+  speed: number;
+  delay: number;
+  untilRelax: number;
 }
 
 /** Buzzar: idle ear motion for one avatar. */
 interface EarMotion {
   joints: EarJoint[];
   ears: number;
-  /** Seconds until the next move, and until the current one ends. */
+  /** Seconds until the next move. */
   untilNext: number;
-  untilRelax: number;
 }
 
 export interface SpringRig {
@@ -381,14 +386,26 @@ export function createSpringRig(
       });
       for (const joint of firsts) {
         const folds = earFolds(joint, facesNegativeZ);
-        if (folds) earJoints.push({ joint, ear: ears, ...folds, amount: 0, goal: 0, pose: "fold" });
+        if (folds) {
+          earJoints.push({
+            joint,
+            ear: ears,
+            ...folds,
+            amount: 0,
+            goal: 0,
+            pose: "fold",
+            speed: 1,
+            delay: 0,
+            untilRelax: 0,
+          });
+        }
       }
       if (firsts.length > 0) ears++;
     }
   }
   if (joints.length === 0) return undefined;
   const rig: SpringRig = { joints, lastRootPosition: new Vector3(), hasLastRoot: false };
-  if (earJoints.length > 0) rig.ears = { joints: earJoints, ears, untilNext: 2 + Math.random() * 4, untilRelax: 0 };
+  if (earJoints.length > 0) rig.ears = { joints: earJoints, ears, untilNext: 4 + Math.random() * 8 };
   return rig;
 }
 
@@ -425,37 +442,53 @@ function earFolds(joint: SpringJoint, facesNegativeZ: boolean) {
 
 const _noTurn = new Quaternion();
 
-/** Picks the next ear move now and then, and eases each ear toward where it should be. */
+/** Seconds between one ear move ending and the next starting. */
+const EAR_GAP = [6, 18];
+
+/**
+ * Picks the next ear move now and then, and eases each ear toward where it should be. Like a horse's: sometimes both
+ * ears, sometimes one; a fold back and down or a quick flick; at a random speed, from a twitch to a slow fold.
+ */
 function updateEars(ears: EarMotion, dt: number, random: () => number) {
   ears.untilNext -= dt;
-  ears.untilRelax -= dt;
-  if (ears.untilRelax <= 0) for (const e of ears.joints) e.goal = 0;
   if (ears.untilNext <= 0) {
-    if (random() < 0.55 || ears.ears < 2) {
-      // Both ears pinned back for a moment.
-      for (const e of ears.joints) {
-        e.pose = "fold";
-        e.goal = 0.75 + random() * 0.25;
-      }
-      ears.untilRelax = 0.7 + random() * 1.1;
-    } else {
-      // One ear flicks.
-      const which = Math.floor(random() * ears.ears);
-      for (const e of ears.joints) {
-        if (e.ear !== which) continue;
-        e.pose = "flick";
-        e.goal = 1;
-      }
-      ears.untilRelax = 0.25 + random() * 0.25;
+    const both = ears.ears < 2 || random() < 0.45;
+    const which = Math.floor(random() * ears.ears);
+    const pose = random() < 0.7 ? "fold" : "flick";
+    // Speed: about 0.35× (slow) to 2.6× (a twitch), skewed toward the middle.
+    const speed = 0.35 * Math.pow(2.6 / 0.35, (random() + random()) / 2);
+    const hold = pose === "fold" ? (0.4 + random() * 1.8) / Math.sqrt(speed) : 0.12 + random() * 0.3;
+    const goal = pose === "fold" ? 0.7 + random() * 0.3 : 0.7 + random() * 0.3;
+    let longest = 0;
+    for (const e of ears.joints) {
+      if (!both && e.ear !== which) continue;
+      // Two ears together never move quite in step.
+      const own = both ? 0.85 + random() * 0.3 : 1;
+      e.pose = pose;
+      e.goal = goal;
+      e.speed = speed * own;
+      e.delay = both ? random() * 0.12 : 0;
+      e.untilRelax = e.delay + hold;
+      longest = Math.max(longest, e.untilRelax + 1.5 / e.speed);
     }
-    ears.untilNext = ears.untilRelax + 2.5 + random() * 6;
+    ears.untilNext = longest + EAR_GAP[0] + random() * (EAR_GAP[1] - EAR_GAP[0]);
   }
-  // Quick to move, a little slower to relax; the spring adds the overshoot.
   for (const e of ears.joints) {
-    const rate = e.goal > e.amount ? 10 : 5;
+    if (e.delay > 0) {
+      e.delay -= dt;
+      continue;
+    }
+    if (e.goal > 0) {
+      e.untilRelax -= dt;
+      if (e.untilRelax <= 0) e.goal = 0;
+    }
+    // Out quicker than back; the spring adds the overshoot (stiffer for quick moves, so they stay quick).
+    const rate = (e.goal > e.amount ? 9 : 4.5) * e.speed;
     e.amount += (e.goal - e.amount) * (1 - Math.exp(-dt * rate));
+    e.joint.stiffnessScale = Math.min(2.5, Math.max(0.8, e.speed));
     if (e.amount < 0.001 && e.goal === 0) {
       e.joint.restOffset = undefined;
+      e.joint.stiffnessScale = undefined;
       continue;
     }
     e.joint.restOffset ??= new Quaternion();
@@ -539,7 +572,7 @@ function stepJoint(joint: SpringJoint, dt: number, floorY: number) {
   _stiff
     .copy(joint.boneAxis)
     .applyQuaternion(_tmpQ)
-    .multiplyScalar(dt * settings.stiffness);
+    .multiplyScalar(dt * settings.stiffness * (joint.stiffnessScale ?? 1));
   _next
     .copy(joint.currentTail)
     .add(_inertia)
