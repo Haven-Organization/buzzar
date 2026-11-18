@@ -298,7 +298,9 @@ export function updateKinematicControls(
   let climbing = false;
   // "Climb Down" (plugins/ladders) just put us on a ladder: start out holding on.
   // Per rig: more than one rig can be controlled here, and shared state let one overwrite another's hold.
-  if (ladderGrab.eid === rig.eid) {
+  // The ground check is from before the move (standing up top), so ignore it on that frame.
+  const justPlaced = ladderGrab.eid === rig.eid;
+  if (justPlaced) {
     ladderGrab.eid = undefined;
     climbingRigs.add(rig.eid);
     climbRegrabAt.delete(rig.eid);
@@ -314,7 +316,7 @@ export function updateKinematicControls(
         ladder,
         [_climbDir.x, _climbDir.z],
         moveVec[1],
-        isGrounded,
+        isGrounded && !justPlaced,
         jump.pressed,
         wasClimbing
       ));
