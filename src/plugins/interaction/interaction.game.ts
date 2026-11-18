@@ -342,6 +342,11 @@ const interactableQuery = defineQuery([Interactable]);
  * this instead.
  */
 export const pressedByOurPlayer = new Set<RemoteNode>();
+/**
+ * Buzzar: interactables our player can't use right now (e.g. a ladder's Climb Down while already on it). They aren't
+ * focused (no prompt) or pressed by our player; plugins keep this up to date.
+ */
+export const unavailableToOurPlayer = new Set<RemoteNode>();
 
 export function ResetInteractablesSystem(ctx: GameContext) {
   const interactableEntities = interactableQuery(ctx.world);
@@ -550,8 +555,13 @@ function updateFocus(ctx: GameContext, physics: PhysicsModuleState, rig: RemoteN
     return;
   }
 
+  const unavailable =
+    unavailableToOurPlayer.size > 0 &&
+    hasComponent(ctx.world, OurPlayer, rig.eid) &&
+    unavailableToOurPlayer.has(tryGetRemoteResource<RemoteNode>(ctx, eid));
+
   // if within interaction distance, deem entity as focused
-  if (hit.toi <= Interactable.interactionDistance[eid]) {
+  if (!unavailable && hit.toi <= Interactable.interactionDistance[eid]) {
     addComponent(ctx.world, FocusComponent, rig.eid);
     FocusComponent.focusedEntity[rig.eid] = eid;
 
@@ -677,6 +687,8 @@ function updateGrabThrow(
 
       if (!node || !eid) {
         console.warn(`Could not find entity for physics handle ${hit.collider.handle}`);
+      } else if (ourPlayer && unavailableToOurPlayer.has(node)) {
+        // Buzzar: not usable right now (no prompt shown either).
       } else if (hit.toi <= Interactable.interactionDistance[node.eid]) {
         if (grabPressed) {
           if (Interactable.type[node.eid] === InteractableType.Grabbable) {

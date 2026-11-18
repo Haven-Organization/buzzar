@@ -14,12 +14,13 @@ import { GameContext } from "../../engine/GameTypes";
 import { getModule } from "../../engine/module/module.common";
 import { addPhysicsBody, addPhysicsCollider, PhysicsModule } from "../../engine/physics/physics.game";
 import { ladderGrab, liveClimbables, worldBox } from "../../engine/player/climbing";
+import { isClimbing } from "../../engine/player/KinematicCharacterController";
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { RemoteCollider, RemoteNode, RemotePhysicsBody } from "../../engine/resource/RemoteResources";
 import { tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { ColliderType, InteractableType, PhysicsBodyType } from "../../engine/resource/schema";
 import { teleportEntity } from "../../engine/utils/teleportEntity";
-import { addInteractableComponent, pressedByOurPlayer } from "../interaction/interaction.game";
+import { addInteractableComponent, pressedByOurPlayer, unavailableToOurPlayer } from "../interaction/interaction.game";
 
 export const CLIMB_DOWN_LABEL = "Climb Down";
 /** Height of the Climb Down box above the ladder's top (metres), and how far it reaches out on each side. */
@@ -87,27 +88,35 @@ export function climbDownPlacement(min: ArrayLike<number>, max: ArrayLike<number
   return { position, yaw: Math.atan2(-dx, -dz) };
 }
 
+/** Whether someone with feet at `feet` is up at the top of a ladder (world box `min`/`max`). */
+function atTop(min: ArrayLike<number>, max: ArrayLike<number>, feet: ArrayLike<number>) {
+  const cx = (min[0] + max[0]) / 2;
+  const cz = (min[2] + max[2]) / 2;
+  return Math.abs(feet[1] - max[1]) <= TOP_REACH_HEIGHT && Math.hypot(feet[0] - cx, feet[2] - cz) <= TOP_REACH_DISTANCE;
+}
+
 export function LadderSystem(ctx: GameContext) {
   const ladders = liveClimbables(ctx);
+  const eid = ourPlayerQuery(ctx.world)[0];
+  const rig = eid !== undefined ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
+  // The physics body is where the player really is (the node's position can lag a frame or be relative).
+  const t = rig?.physicsBody?.body?.translation();
+  const feet = t ? [t.x, t.y, t.z] : rig?.position;
+  const climbing = rig ? isClimbing(rig.eid) : false;
+
+  unavailableToOurPlayer.clear();
   for (const climbable of ladders) {
     if (!climbable.top) climbable.top = makeTop(ctx, climbable.node, climbable.min, climbable.max);
+    // Climb Down is only offered to someone standing up at the top, not already on the ladder.
+    worldBox(climbable.node.worldMatrix, climbable.min, climbable.max, _min, _max);
+    if (!rig || !feet || climbing || !atTop(_min, _max, feet)) unavailableToOurPlayer.add(climbable.top);
   }
-  if (pressedByOurPlayer.size === 0) return;
+  if (pressedByOurPlayer.size === 0 || !rig || !feet || climbing) return;
 
   for (const climbable of ladders) {
     if (!climbable.top || !pressedByOurPlayer.has(climbable.top)) continue;
-    const eid = ourPlayerQuery(ctx.world)[0];
-    const rig = eid !== undefined ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
-    if (!rig) return;
     worldBox(climbable.node.worldMatrix, climbable.min, climbable.max, _min, _max);
-    // The physics body is where the player really is (the node's position can lag a frame or be relative).
-    const t = rig.physicsBody?.body?.translation();
-    const feet = t ? [t.x, t.y, t.z] : rig.position;
-    const cx = (_min[0] + _max[0]) / 2;
-    const cz = (_min[2] + _max[2]) / 2;
-    if (Math.abs(feet[1] - _max[1]) > TOP_REACH_HEIGHT || Math.hypot(feet[0] - cx, feet[2] - cz) > TOP_REACH_DISTANCE) {
-      continue; // only from up at the top
-    }
+    if (!atTop(_min, _max, feet)) continue;
     const { position, yaw } = climbDownPlacement(_min, _max, feet);
     const rotation = quat.setAxisAngle(quat.create(), [0, 1, 0], yaw);
     teleportEntity(rig, vec3.fromValues(...position), rotation);

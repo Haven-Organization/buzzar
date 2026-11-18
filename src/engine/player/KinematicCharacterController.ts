@@ -168,6 +168,8 @@ let lastFootstepFrame = 0;
 const climbRegrabAt = new Map<number, number>();
 /** Buzzar: rigs that were on a ladder last frame (they keep hold until they climb or jump off). */
 const climbingRigs = new Set<number>();
+/** Buzzar: whether this rig is holding on to a ladder. */
+export const isClimbing = (eid: number) => climbingRigs.has(eid);
 /** Buzzar debug (playerDebug): each rig's last ladder decision. */
 const lastClimbDebug = new Map<number, { grabbed: boolean; action?: string; at: number }>();
 let lastClimbAction: ReturnType<typeof decideClimb> | undefined;
