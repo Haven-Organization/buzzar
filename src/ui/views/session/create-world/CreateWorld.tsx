@@ -19,7 +19,7 @@ import { CreateWorldForm } from "./CreateWorldForm";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 
-export function CreateWorld() {
+export function CreateWorld({ scene }: { scene?: { url: string; previewUrl: string } } = {}) {
   const { session } = useHydrogen(true);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
 
@@ -54,6 +54,7 @@ export function CreateWorld() {
         <WindowContent
           children={
             <CreateWorldForm
+              initialScene={scene}
               onSceneChange={(sceneUrl, previewUrl) => setScenePreviewUrl(previewUrl)}
               onCreate={handleOnCreate}
               onClose={() => setOverlayWindow({ type: OverlayWindow.None })}

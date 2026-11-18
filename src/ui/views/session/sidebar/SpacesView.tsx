@@ -5,6 +5,7 @@ import PlanetIC from "../../../../../res/ic/planet.svg";
 import PeoplesIC from "../../../../../res/ic/peoples.svg";
 import ChatIC from "../../../../../res/ic/chat.svg";
 import AvatarIC from "../../../../../res/ic/avatar.svg";
+import BoxIC from "../../../../../res/ic/box-3d.svg";
 import NotificationIC from "../../../../../res/ic/notification.svg";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { BadgeWrapper } from "../../../atoms/badge/BadgeWrapper";
@@ -41,6 +42,13 @@ export function SpacesView() {
           isActive={overlayWindow.type === OverlayWindow.Avatars}
           name="Avatars"
           iconSrc={AvatarIC}
+          variant="surface-low"
+        />
+        <SidebarTab
+          onClick={() => setOverlayWindow({ type: OverlayWindow.Things })}
+          isActive={overlayWindow.type === OverlayWindow.Things}
+          name="Things"
+          iconSrc={BoxIC}
           variant="surface-low"
         />
         <SidebarTab

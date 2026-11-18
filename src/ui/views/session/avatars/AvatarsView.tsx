@@ -1,6 +1,6 @@
 /**
- * Buzzar: the Avatars screen. Stock avatars that ship with Buzzar, avatars you've bookmarked (or uploaded; kept in
- * account data, software.haven.world.avatars), and the avatars people around you in the world are wearing.
+ * Buzzar: the Avatars screen. Your Avatars: the stock ones that ship with Buzzar, then the ones you've bookmarked or
+ * uploaded (kept in account data, software.haven.world.avatars). In World: what the people around you are wearing.
  *
  * "Wear" changes your default avatar and the one in the world you're in, like VRChat; the "…" menu has "Wear Only
  * in This World" for a per-world choice.
@@ -84,7 +84,7 @@ export function AvatarsView() {
   const world = useRoom(session, inWorld ? worldId : undefined);
 
   const requested = overlayWindow.type === OverlayWindow.Avatars ? overlayWindow.tab : undefined;
-  const tab: AvatarsTab = requested === "world" && !inWorld ? "stock" : requested ?? "stock";
+  const tab: AvatarsTab = requested === "world" && !inWorld ? "yours" : requested ?? "yours";
   const setTab = (value: AvatarsTab) => setOverlayWindow({ type: OverlayWindow.Avatars, tab: value });
 
   const [collection, setCollection] = useState<AvatarCollection>();
@@ -251,11 +251,8 @@ export function AvatarsView() {
       >
         <div className="TileScreen__bar flex items-center gap-sm">
           <SegmentControl>
-            <SegmentControlItem value="stock" isSelected={tab === "stock"} onSelect={setTab}>
-              Stock
-            </SegmentControlItem>
-            <SegmentControlItem value="bookmarked" isSelected={tab === "bookmarked"} onSelect={setTab}>
-              Bookmarked
+            <SegmentControlItem value="yours" isSelected={tab === "yours"} onSelect={setTab}>
+              Your Avatars
             </SegmentControlItem>
             {inWorld ? (
               <SegmentControlItem value="world" isSelected={tab === "world"} onSelect={setTab}>
@@ -283,8 +280,7 @@ export function AvatarsView() {
                 {error}
               </Text>
             )}
-            {tab === "stock" && <StockAvatars ctx={ctx} collection={collection} />}
-            {tab === "bookmarked" && <BookmarkedAvatars ctx={ctx} collection={collection} />}
+            {tab === "yours" && <YourAvatars ctx={ctx} collection={collection} />}
             {tab === "world" && world && <InWorldAvatars ctx={ctx} worldId={world.id} />}
           </div>
         </Scroll>
@@ -308,7 +304,17 @@ interface TileContext {
   isWearing: (url: string | undefined) => boolean;
 }
 
-function WearButton({ ctx, id, onWear, wearing }: { ctx: TileContext; id: string; onWear: () => void; wearing: boolean }) {
+function WearButton({
+  ctx,
+  id,
+  onWear,
+  wearing,
+}: {
+  ctx: TileContext;
+  id: string;
+  onWear: () => void;
+  wearing: boolean;
+}) {
   if (wearing) {
     return (
       <Button size="sm" fill="outline" disabled>
@@ -386,30 +392,56 @@ function usePreview(mxc: string | undefined) {
   return session.mediaRepository.mxcUrlThumbnail(mxc, 360, 480, "scale") ?? undefined;
 }
 
-// --- Stock ------------------------------------------------------------------------------------------------------------
+// --- Your Avatars: stock, then bookmarked and uploaded ---------------------------------------------------------------
 
-function StockAvatars({ ctx, collection }: { ctx: TileContext; collection?: AvatarCollection }) {
+function YourAvatars({ ctx, collection }: { ctx: TileContext; collection?: AvatarCollection }) {
   const { session } = useHydrogen(true);
   return (
-    <WorldTileGrid tall>
-      {STOCK.map((avatar) => {
-        const builtin = BUILTIN_AVATARS.find((a) => a.id === avatar.id);
-        const uploadedUrl = builtin ? collection?.builtin[builtin.id] : undefined;
-        const wearing = builtin ? !!uploadedUrl && ctx.isWearing(uploadedUrl) : ctx.isWearing(undefined);
-        const getContent = async (auth: MatrixAuth) =>
-          builtin ? getBuiltinAvatarContent(auth, session.userId, builtin) : undefined;
-        return (
-          <StockTile
-            key={avatar.id}
-            avatar={avatar}
+    <div className="flex flex-column gap-md">
+      <WorldTileGrid tall>
+        {STOCK.map((avatar) => {
+          const builtin = BUILTIN_AVATARS.find((a) => a.id === avatar.id);
+          const uploadedUrl = builtin ? collection?.builtin[builtin.id] : undefined;
+          const wearing = builtin ? !!uploadedUrl && ctx.isWearing(uploadedUrl) : ctx.isWearing(undefined);
+          const getContent = async (auth: MatrixAuth) =>
+            builtin ? getBuiltinAvatarContent(auth, session.userId, builtin) : undefined;
+          return (
+            <StockTile
+              key={avatar.id}
+              avatar={avatar}
+              ctx={ctx}
+              wearing={wearing}
+              getContent={getContent}
+              builtin={!!builtin}
+            />
+          );
+        })}
+        {collection?.avatars.map((avatar) => (
+          <AvatarTile
+            key={avatar.url}
             ctx={ctx}
-            wearing={wearing}
-            getContent={getContent}
-            builtin={!!builtin}
+            avatar={avatar}
+            ownAvatar
+            subtitle={avatar.added_ts ? `Saved ${new Date(avatar.added_ts).toLocaleDateString()}` : "Saved avatar"}
+            extraMenu={
+              <DropdownMenuItem variant="danger" onSelect={() => ctx.unbookmark(avatar.url)}>
+                Remove Bookmark
+              </DropdownMenuItem>
+            }
           />
-        );
-      })}
-    </WorldTileGrid>
+        ))}
+      </WorldTileGrid>
+      {!collection ? (
+        <Dots size="md" />
+      ) : (
+        collection.avatars.length === 0 && (
+          <Text variant="b3" color="surface-low">
+            Avatars you upload or bookmark show up here too. Bookmark someone's avatar from the In World tab while
+            you're in a world.
+          </Text>
+        )
+      )}
+    </div>
   );
 }
 
@@ -439,7 +471,12 @@ function StockTile({
       badge={wearing ? "Wearing" : undefined}
       isActive={wearing}
       action={
-        <WearButton ctx={ctx} id={avatar.id} wearing={wearing} onWear={() => ctx.wear(avatar.id, "everywhere", getContent)} />
+        <WearButton
+          ctx={ctx}
+          id={avatar.id}
+          wearing={wearing}
+          onWear={() => ctx.wear(avatar.id, "everywhere", getContent)}
+        />
       }
       menu={
         ctx.inWorld ? (
@@ -449,40 +486,6 @@ function StockTile({
         ) : undefined
       }
     />
-  );
-}
-
-// --- Bookmarked ------------------------------------------------------------------------------------------------------
-
-function BookmarkedAvatars({ ctx, collection }: { ctx: TileContext; collection?: AvatarCollection }) {
-  if (!collection) return <Dots size="md" />;
-  if (collection.avatars.length === 0) {
-    return (
-      <Text variant="b2">
-        Avatars you upload or bookmark show up here. Bookmark someone's avatar from the In World tab while you're in a
-        world.
-      </Text>
-    );
-  }
-  return (
-    <WorldTileGrid tall>
-      {collection.avatars.map((avatar) => (
-        <AvatarTile
-          key={avatar.url}
-          ctx={ctx}
-          avatar={avatar}
-          ownAvatar
-          subtitle={
-            avatar.added_ts ? `Saved ${new Date(avatar.added_ts).toLocaleDateString()}` : "Saved avatar"
-          }
-          extraMenu={
-            <DropdownMenuItem variant="danger" onSelect={() => ctx.unbookmark(avatar.url)}>
-              Remove Bookmark
-            </DropdownMenuItem>
-          }
-        />
-      ))}
-    </WorldTileGrid>
   );
 }
 
@@ -539,7 +542,12 @@ function AvatarTile({
       badge={wearing ? "Wearing" : undefined}
       isActive={wearing}
       action={
-        <WearButton ctx={ctx} id={avatar.url} wearing={wearing} onWear={() => ctx.wear(avatar.url, "everywhere", content)} />
+        <WearButton
+          ctx={ctx}
+          id={avatar.url}
+          wearing={wearing}
+          onWear={() => ctx.wear(avatar.url, "everywhere", content)}
+        />
       }
       menu={
         <>
@@ -580,7 +588,15 @@ function InWorldAvatars({ ctx, worldId }: { ctx: TileContext; worldId: string })
   );
 }
 
-function InWorldAvatarsOfCall({ ctx, worldId, groupCall }: { ctx: TileContext; worldId: string; groupCall: GroupCall }) {
+function InWorldAvatarsOfCall({
+  ctx,
+  worldId,
+  groupCall,
+}: {
+  ctx: TileContext;
+  worldId: string;
+  groupCall: GroupCall;
+}) {
   const { session, platform, client } = useHydrogen(true);
   const members = useObservableMap(() => groupCall.members, [groupCall]);
   const userIds = useMemo(
@@ -652,7 +668,9 @@ function InWorldAvatarsOfCall({ ctx, worldId, groupCall }: { ctx: TileContext; w
           );
         }
         // A stock avatar uploaded before previews were bundled with it: show the stock picture.
-        const stock = !avatar.preview_url ? STOCK.find((s) => s.id === builtinIdForUrl(collection, avatar.url)) : undefined;
+        const stock = !avatar.preview_url
+          ? STOCK.find((s) => s.id === builtinIdForUrl(collection, avatar.url))
+          : undefined;
         return (
           <AvatarTile
             key={avatar.url}

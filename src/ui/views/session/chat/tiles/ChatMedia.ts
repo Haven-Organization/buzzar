@@ -2,6 +2,7 @@ import { Builder, BaseMessageTile } from "@thirdroom/hydrogen-view-sdk";
 
 import { ChatBaseMessage } from "./ChatBaseMessage";
 import { mediaRepositoryOf, renderReplyQuote } from "./messageParts";
+import { isModelFile } from "../../../../utils/chatEmbeds";
 import "./ChatMedia.css";
 
 type MediaContent = {
@@ -44,6 +45,22 @@ export class ChatMedia extends ChatBaseMessage {
         preload: "metadata",
         ...(poster ? { poster } : {}),
       });
+    } else if (content.url && !content.file && isModelFile(name, content.info?.mimetype)) {
+      // Buzzar: a 3D model (avatar, world or Thing): ChatTimeline renders its tile here (ChatModelEmbed).
+      body = t.div(
+        {
+          className: "ChatEmbed",
+          "data-model-mxc": content.url,
+          "data-model-name": name,
+          "data-model-size": String(content.info?.size ?? ""),
+        },
+        [
+          t.a(
+            { className: "ChatMedia__file Text Text-b2 Text--surface", href: url, download: name },
+            `📎 ${name}${content.info?.size ? ` (${formatSize(content.info.size)})` : ""}`
+          ),
+        ]
+      );
     } else if (content.msgtype === "m.audio") {
       body = t.audio({ className: "ChatMedia__audio", src: url, controls: true, preload: "none" });
     } else {

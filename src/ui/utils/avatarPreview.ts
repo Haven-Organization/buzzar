@@ -98,8 +98,21 @@ function skinnedBounds(root: Object3D) {
   return box;
 }
 
-/** Renders a PNG preview of an avatar file (.glb / .vrm). */
-export async function renderAvatarPreview(file: ArrayBuffer): Promise<Blob> {
+/**
+ * Buzzar: how a preview is framed. "avatar": full body from the front (360×480). "thing": an object from a front
+ * corner, a little above (360×480). "world": a scene seen from above one corner (640×360).
+ */
+export type PreviewView = "avatar" | "thing" | "world";
+
+const VIEWS: Record<PreviewView, { width: number; height: number; direction: Vector3; margin: number }> = {
+  avatar: { width: WIDTH, height: HEIGHT, direction: new Vector3(0, 0, 1), margin: 1.1 },
+  thing: { width: WIDTH, height: HEIGHT, direction: new Vector3(0.75, 0.55, 1).normalize(), margin: 1.35 },
+  world: { width: 640, height: 360, direction: new Vector3(0.7, 0.75, 1).normalize(), margin: 1.05 },
+};
+
+/** Renders a PNG preview of an avatar file (.glb / .vrm), or with `view`, of a Thing or a world. */
+export async function renderAvatarPreview(file: ArrayBuffer, view: PreviewView = "avatar"): Promise<Blob> {
+  const frame = VIEWS[view];
   const loader = new GLTFLoader();
   const gltf = await loader.parseAsync(file, "");
   const scene = new Scene();
@@ -131,11 +144,23 @@ export async function renderAvatarPreview(file: ArrayBuffer): Promise<Blob> {
   if (box.isEmpty()) throw new Error("Avatar has no visible geometry");
   const center = box.getCenter(new Vector3());
   const size = box.getSize(new Vector3());
-  const facing = new Vector3(0, 0, mapping?.facesNegativeZ ? -1 : 1);
+  const facing = frame.direction.clone();
+  if (mapping?.facesNegativeZ) facing.z = -facing.z;
 
-  const camera = new PerspectiveCamera(FOV, WIDTH / HEIGHT, 0.01, 100);
-  const fitHeight = Math.max(size.y, (size.x * HEIGHT) / WIDTH) * 1.1;
-  const dist = fitHeight / 2 / Math.tan((FOV * Math.PI) / 360) + size.z / 2;
+  const camera = new PerspectiveCamera(FOV, frame.width / frame.height, 0.01, 100000);
+  let dist: number;
+  if (view === "avatar") {
+    const fitHeight = Math.max(size.y, (size.x * frame.height) / frame.width) * frame.margin;
+    dist = fitHeight / 2 / Math.tan((FOV * Math.PI) / 360) + size.z / 2;
+  } else {
+    // Fit the bounding sphere, whichever way it's seen from.
+    const radius = (size.length() / 2) * frame.margin;
+    const fov = Math.min(
+      FOV,
+      (2 * Math.atan(Math.tan((FOV * Math.PI) / 360) * (frame.width / frame.height)) * 180) / Math.PI
+    );
+    dist = radius / Math.sin((fov * Math.PI) / 360);
+  }
   camera.position.copy(center).addScaledVector(facing, dist);
   camera.lookAt(center);
 
@@ -146,9 +171,15 @@ export async function renderAvatarPreview(file: ArrayBuffer): Promise<Blob> {
   scene.add(key, key.target);
 
   const canvas = document.createElement("canvas");
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true, multiviewStereo: false });
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  const renderer = new WebGLRenderer({
+    canvas,
+    alpha: true,
+    antialias: true,
+    preserveDrawingBuffer: true,
+    multiviewStereo: false,
+  });
   try {
     renderer.outputEncoding = sRGBEncoding;
     renderer.setClearColor(0x000000, 0);
@@ -165,7 +196,8 @@ export async function renderAvatarPreview(file: ArrayBuffer): Promise<Blob> {
       const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
       for (const material of materials as { dispose(): void; [key: string]: unknown }[]) {
         for (const value of Object.values(material)) {
-          if (value && typeof value === "object" && "isTexture" in value) (value as unknown as { dispose(): void }).dispose();
+          if (value && typeof value === "object" && "isTexture" in value)
+            (value as unknown as { dispose(): void }).dispose();
         }
         material.dispose();
       }
@@ -177,13 +209,14 @@ export async function renderAvatarPreview(file: ArrayBuffer): Promise<Blob> {
 let queue: Promise<unknown> = Promise.resolve();
 const cache = new Map<string, Promise<Blob>>();
 
-export function renderAvatarPreviewFromUrl(key: string, httpUrl: string): Promise<Blob> {
+export function renderAvatarPreviewFromUrl(key: string, httpUrl: string, view: PreviewView = "avatar"): Promise<Blob> {
+  key = view === "avatar" ? key : `${view}:${key}`;
   let result = cache.get(key);
   if (!result) {
     result = queue.then(async () => {
       const res = await fetch(httpUrl);
-      if (!res.ok) throw new Error(`Couldn't download the avatar (${res.status})`);
-      return renderAvatarPreview(await res.arrayBuffer());
+      if (!res.ok) throw new Error(`Couldn't download the file (${res.status})`);
+      return renderAvatarPreview(await res.arrayBuffer(), view);
     });
     queue = result.catch(() => undefined);
     // Failures aren't cached, so a later look tries again.

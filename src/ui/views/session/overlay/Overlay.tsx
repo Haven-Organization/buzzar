@@ -31,6 +31,7 @@ import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
 import { WorldsView } from "../worlds/WorldsView";
 import { AvatarsView } from "../avatars/AvatarsView";
+import { ThingsView } from "../things/ThingsView";
 import { PeopleView } from "../people/PeopleView";
 import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
@@ -100,7 +101,7 @@ export function Overlay() {
       />
       {overlayWindow.type !== OverlayWindow.None ? (
         <div className="Overlay__window grow flex">
-          {overlayWindow.type === OverlayWindow.CreateWorld && <CreateWorld />}
+          {overlayWindow.type === OverlayWindow.CreateWorld && <CreateWorld scene={overlayWindow.scene} />}
           {overlayWindow.type === OverlayWindow.UserProfile && <UserProfile />}
           {overlayWindow.type === OverlayWindow.WorldSettings && worldSettingRoom && (
             <WorldSettings room={worldSettingRoom} />
@@ -108,6 +109,7 @@ export function Overlay() {
           {/* Buzzar: full-screen Worlds (yours + Explore), Avatars and People. */}
           {overlayWindow.type === OverlayWindow.Worlds && <WorldsView />}
           {overlayWindow.type === OverlayWindow.Avatars && <AvatarsView />}
+          {overlayWindow.type === OverlayWindow.Things && <ThingsView />}
           {overlayWindow.type === OverlayWindow.People && <PeopleView />}
         </div>
       ) : (

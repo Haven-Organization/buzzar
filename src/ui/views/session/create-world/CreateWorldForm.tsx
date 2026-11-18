@@ -147,11 +147,13 @@ export interface CreateWorldFormProps {
     roomId: string;
     event: StateEvent;
   };
+  /** Buzzar: a scene to start with (mxc URLs), e.g. a world file posted in chat. */
+  initialScene?: { url: string; previewUrl: string };
   onSceneChange?: (sceneUrl?: string, scenePreviewUrl?: string) => void;
   onCreate: (roomId: string) => void;
   onClose: () => void;
 }
-export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: CreateWorldFormProps) {
+export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, onClose }: CreateWorldFormProps) {
   const { session, platform, client } = useHydrogen(true);
   const userHSDomain = getMxIdDomain(session.userId);
   const isMounted = useIsMounted();
@@ -166,7 +168,7 @@ export function CreateWorldForm({ scene, onSceneChange, onCreate, onClose }: Cre
           url: eventSceneUrl,
           previewUrl: eventPreviewUrl,
         }
-      : undefined;
+      : initialScene;
 
   const [uploadScene, setUploadScene] = useState<{ url: string; previewUrl: string } | undefined>(controlledScene);
   const [selectedScene, setSelectedScene] = useState<{ url: string; previewUrl: string } | undefined>(controlledScene);

@@ -80,6 +80,13 @@ export const defaultActionBarItems: ActionBarItem[] = [
   },
 ];
 
+/** Buzzar: Things asked for from the Things screen, spawned on the next frame like a number-key press. */
+const pendingThingSpawns: string[] = [];
+
+export function queueThingSpawn(id: string) {
+  if (defaultActionBarItems.some((item) => item.id === id)) pendingThingSpawns.push(id);
+}
+
 export function setDefaultActionBarItems(ctx: GameContext) {
   const thirdroom = getModule(ctx, ThirdRoomModule);
 
@@ -117,10 +124,15 @@ export function ActionBarSystem(ctx: GameContext) {
   });
 
   const eid = ourPlayerQuery(ctx.world)[0];
+  const queued = pendingThingSpawns.splice(0);
 
   if (eid) {
     const node = tryGetRemoteResource<RemoteNode>(ctx, eid);
     const xr = XRAvatarRig.get(eid);
+
+    // Buzzar: from the Things screen (the overlay is open, so it's never XR).
+    const camera = getCamera(ctx, node).parent;
+    for (const id of queued) if (camera && spawnPrefab(ctx, camera, id, false) === false) break;
 
     processPressedActionBarActions(actionBarItems, input, (actionBarItem) => {
       if (actionBarItem.spawnable !== true) {

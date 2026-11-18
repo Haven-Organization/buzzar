@@ -1,0 +1,18 @@
+/* Buzzar: tiles inside chat messages (ChatEmbeds.tsx). */
+.ChatEmbed:empty {
+  display: none;
+}
+
+.ChatEmbed__card {
+  max-width: 360px;
+  margin-top: var(--sp-xs);
+}
+
+.ChatEmbed__card--tall {
+  max-width: 220px;
+}
+
+/* The tile replaces the plain download link once it shows. */
+.ChatEmbed:has(.ChatEmbed__card) > .ChatMedia__file {
+  display: none;
+}

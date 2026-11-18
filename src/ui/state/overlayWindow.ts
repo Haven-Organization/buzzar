@@ -7,23 +7,27 @@ export enum OverlayWindow {
   WorldSettings = "world_settings",
   /** Buzzar: your worlds and exploring public ones. */
   Worlds = "worlds",
-  /** Buzzar: stock, bookmarked and in-world avatars. */
+  /** Buzzar: your avatars (stock, bookmarked) and in-world avatars. */
   Avatars = "avatars",
+  /** Buzzar: Things: objects to spawn and use with your avatar (stock and bookmarked). */
+  Things = "things",
   /** Buzzar: people in the world you're in, and friends. */
   People = "people",
 }
 
 export type WorldsTab = "yours" | "explore";
-export type AvatarsTab = "stock" | "bookmarked" | "world";
+export type AvatarsTab = "yours" | "world";
 export type PeopleTab = "world" | "friends";
 
 export type OverlayWindowValue =
   | { type: OverlayWindow.None }
-  | { type: OverlayWindow.CreateWorld }
+  /** Buzzar: `scene` prefills the world's scene (e.g. a world .glb posted in chat). */
+  | { type: OverlayWindow.CreateWorld; scene?: { url: string; previewUrl: string } }
   | { type: OverlayWindow.UserProfile }
   | { type: OverlayWindow.WorldSettings; roomId: string }
   | { type: OverlayWindow.Worlds; tab?: WorldsTab }
   | { type: OverlayWindow.Avatars; tab?: AvatarsTab }
+  | { type: OverlayWindow.Things }
   | { type: OverlayWindow.People; tab?: PeopleTab };
 
 // Buzzar: open on the Worlds screen (it used to open on the sidebar's world list).

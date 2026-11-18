@@ -19,6 +19,14 @@ export enum ThirdRoomMessageType {
   ReloadWorldError = "reload-world-error",
   /** Buzzar: the world script failed to load or crashed; the world carries on without it. */
   ScriptFailed = "script-failed",
+  /** Buzzar: spawn a stock Thing in front of the player (from the Things screen). */
+  SpawnThing = "spawn-thing",
+}
+
+export interface SpawnThingMessage {
+  type: ThirdRoomMessageType.SpawnThing;
+  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"). */
+  id: string;
 }
 
 export interface ScriptFailedMessage {

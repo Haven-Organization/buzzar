@@ -2,6 +2,7 @@ import { TextTile, Builder, BaseMessageTile } from "@thirdroom/hydrogen-view-sdk
 
 import { ChatBaseMessage } from "./ChatBaseMessage";
 import { renderFormattedBody, renderReplyQuote } from "./messageParts";
+import { extractRoomLinks } from "../../../../utils/chatEmbeds";
 
 import "./ChatMessage.css";
 
@@ -18,6 +19,17 @@ export class ChatMessage extends ChatBaseMessage {
         isEmote ? `* ${vm.displayName} ` : "",
         renderFormattedBody(t, vm, "ChatMessage__text"),
       ]),
+      // Buzzar: rooms it links to; ChatTimeline turns the ones that are worlds into tiles (ChatWorldEmbed).
+      t.map(
+        (vm: BaseMessageTile) => vm._getContent(),
+        (content: Record<string, unknown> | undefined, t: Builder<BaseMessageTile>) =>
+          t.div(
+            { className: "ChatMessage__embeds" },
+            extractRoomLinks(content).map((link) =>
+              t.div({ className: "ChatEmbed", "data-world-link": link.target, "data-world-via": link.via.join(",") })
+            )
+          )
+      ),
     ]);
   }
   onClick() {}
