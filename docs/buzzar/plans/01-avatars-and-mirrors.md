@@ -232,5 +232,5 @@ node scripts/buzzar/make-mirror-test-scene.mjs \
 It contains the two mirrors plus pedestals for Default, Devil and Rose along the right-hand wall. Since 2026-11-17 it is the general debug/physics test room ("Buzzar Test Room", now owned by q as
 `!0EdzIIO3iLiVS41BI3KxqUhppMV0gkcvzl_6bB8svXE`) and also has an 8 m ladder up to a platform past the front-left corner. The pillars stand clear of the pedestals. The room's scene is the compressed copy
 (`node scripts/buzzar/gltf-tools/compress-world.mjs public/gltf/test/mirror-room-matrix.glb public/gltf/test/test-room-compressed.glb`,
-146 KB → 31 KB), uploaded as q: `mxc://glowers.club/HHBeHGPiglHyyWlCQTzvlhuI`. To update it,
+146 KB → 30 KB), uploaded as q: `mxc://glowers.club/cOSjerjnmTwiRubMuvFBfjaL`. To update it,
 regenerate the .glb, upload it, and change `scene_url` in the `org.matrix.msc3815.world` state event.
