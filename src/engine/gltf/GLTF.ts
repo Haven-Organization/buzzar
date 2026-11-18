@@ -9,6 +9,11 @@ export type GLTFId = number;
 export interface GLTFClimbableExtension {
   /** Full width, height and depth in metres of the climbable box, centred on the node. Default: the node's mesh bounds. */
   size?: [number, number, number];
+  /**
+   * Which sides it can be climbed from: "front-back" (default) its two broad faces, never its narrow edges; "front"
+   * only the broad face on the node's +Z side; "all" any side (a pole, a crate, a climbing frame).
+   */
+  sides?: "front" | "front-back" | "all";
 }
 
 export type GLTFExtensions = { [key: string]: unknown };

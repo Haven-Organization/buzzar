@@ -295,13 +295,15 @@ pedestals.forEach((p, i) => {
   );
 });
 
-// Ladder test: an 8 m ladder on the -Z face of a platform, climbed from inside the room (facing +Z).
+// Ladder test: an 8 m ladder on the -Z face of a platform, climbed only from inside the room (facing +Z). It's
+// turned half round so its front (the node's +Z) looks into the room, and marked climbable from the front only.
 const ladderWood = material("Ladder", [0.74, 0.6, 0.45]);
 const platformTop = 8;
 rootChildren.push(solid("LadderPlatform", [4, 0.2, 4], [-3.5, platformTop - 0.1, 10], grey));
 rootChildren.push(
   solid("Ladder", [0.6, platformTop, 0.1], [-3.5, platformTop / 2, 7.95], ladderWood, {
-    extensions: { HAVEN_climbable: {} },
+    rotation: rotY(180),
+    extensions: { HAVEN_climbable: { sides: "front" } },
   })
 );
 

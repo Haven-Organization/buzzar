@@ -26,4 +26,11 @@ describe("climbDownPlacement", () => {
     expect(position[0] - 0.1).toBeLessThan(CLIMB_REACH);
     expect(-Math.sin(yaw)).toBeCloseTo(-1); // facing -X, back toward the ladder
   });
+
+  it("a front-only ladder always hangs you on its front, wherever you stood", () => {
+    // Front toward -Z (the room): standing on the room side still puts you there, not behind it.
+    const { position } = climbDownPlacement(min, max, [-3.5, 8, 7.5], -1);
+    expect(position[2]).toBeLessThan(7.9);
+    expect(climbDownPlacement(min, max, [-3.5, 8, 7.5], 1).position[2]).toBeGreaterThan(8.0);
+  });
 });

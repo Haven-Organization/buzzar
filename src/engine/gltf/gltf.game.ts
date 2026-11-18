@@ -1318,7 +1318,7 @@ const loadGLTFNode = createInstancedSubresourceLoader(
           : meshIndex !== undefined
           ? gltfMeshBounds(resource.root, meshIndex)
           : undefined;
-        if (box) addClimbable(node, box.min, box.max);
+        if (box) addClimbable(node, box.min, box.max, climbable?.sides);
         else console.warn(`HAVEN_climbable on "${name}": needs a size or a mesh`);
       }
 

@@ -72,4 +72,41 @@ describe("climbing decisions", () => {
     expect(decideClimb(feet, ladder, facing, 0, false, false, true)).toEqual({ type: "none" });
     expect(decideClimb(feet, ladder, facing, 0, false, true, true)).toEqual({ type: "none" });
   });
+
+  it("brushing past a ladder's narrow edge doesn't grab it; walking into either face does", () => {
+    // Beside its +x edge, facing it (-x) or walking along it (-z).
+    expect(decideClimb([0.5, 0, 0], ladder, [-1, 0], 1, true, false)).toEqual({ type: "none" });
+    expect(decideClimb([0.5, 0, 0.3], ladder, [0, -1], 1, true, false)).toEqual({ type: "none" });
+    // Diagonally at its corner from in front, well off to the side of the face.
+    expect(decideClimb([0.45, 0, 0.35], ladder, [-0.7071, -0.7071], 1, true, false)).toEqual({ type: "none" });
+    // Front and back faces, including a slight angle and standing near (not past) an edge.
+    expect(decideClimb(feet, ladder, facing, 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb([0, 0, -0.35], ladder, [0, 1], 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb([0.2, 0, 0.35], ladder, [-0.34, -0.94], 1, true, false)).toEqual({
+      type: "climb",
+      vertical: CLIMB_SPEED,
+    });
+  });
+
+  it("something marked climbable from all sides can be grabbed from its edges too", () => {
+    const frame = { ...ladder, sides: "all" as const };
+    expect(decideClimb([0.5, 0, 0], frame, [-1, 0], 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb(feet, frame, facing, 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+  });
+
+  it("a front-only ladder is climbed from its front, not its back", () => {
+    // Front toward +z (where `feet` stands), then toward -z.
+    const front = { ...ladder, sides: "front" as const, front: 1 };
+    expect(decideClimb(feet, front, facing, 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb([0, 0, -0.35], front, [0, 1], 1, true, false)).toEqual({ type: "none" });
+    const back = { ...front, front: -1 };
+    expect(decideClimb(feet, back, facing, 1, true, false)).toEqual({ type: "none" });
+    expect(decideClimb([0, 0, -0.35], back, [0, 1], 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+  });
+
+  it("a square ladder (not all sides) is still only climbed from front and back", () => {
+    const square = { min: vec3.fromValues(-0.2, 0, -0.2), max: vec3.fromValues(0.2, 3, 0.2) };
+    expect(decideClimb([0, 0, 0.5], square, [0, -1], 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb([0.5, 0, 0], square, [-1, 0], 1, true, false)).toEqual({ type: "none" });
+  });
 });

@@ -13,7 +13,7 @@ import { addChild } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
 import { getModule } from "../../engine/module/module.common";
 import { addPhysicsBody, addPhysicsCollider, PhysicsModule } from "../../engine/physics/physics.game";
-import { ladderGrab, liveClimbables, worldBox } from "../../engine/player/climbing";
+import { frontSign, ladderGrab, liveClimbables, worldBox } from "../../engine/player/climbing";
 import { isClimbing } from "../../engine/player/KinematicCharacterController";
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { RemoteCollider, RemoteNode, RemotePhysicsBody } from "../../engine/resource/RemoteResources";
@@ -67,15 +67,21 @@ function makeTop(ctx: GameContext, ladder: RemoteNode, min: vec3, max: vec3) {
 
 /**
  * Where to hang on a ladder (world box `min`/`max`) for someone standing at `feet` at its top: the far side of the
- * ladder's thin axis from them, facing it. Returns feet position and yaw (radians, 0 = facing -Z).
+ * ladder's thin axis from them (or, for a front-only ladder, its front: `front` is +1 or -1 along that axis), facing
+ * it. Returns feet position and yaw (radians, 0 = facing -Z).
  */
-export function climbDownPlacement(min: ArrayLike<number>, max: ArrayLike<number>, feet: ArrayLike<number>) {
+export function climbDownPlacement(
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  feet: ArrayLike<number>,
+  front?: number
+) {
   const cx = (min[0] + max[0]) / 2;
   const cz = (min[2] + max[2]) / 2;
   const alongX = max[0] - min[0] < max[2] - min[2]; // the ladder is thinnest along X: its faces look along X
   const half = alongX ? (max[0] - min[0]) / 2 : (max[2] - min[2]) / 2;
   // Away from where they stand (standing exactly over it: toward -axis).
-  const side = (alongX ? feet[0] - cx : feet[2] - cz) > 0 ? -1 : 1;
+  const side = front ?? ((alongX ? feet[0] - cx : feet[2] - cz) > 0 ? -1 : 1);
   const offset = side * (half + HANG_GAP);
   const position: [number, number, number] = [
     alongX ? cx + offset : cx,
@@ -117,7 +123,8 @@ export function LadderSystem(ctx: GameContext) {
     if (!climbable.top || !pressedByOurPlayer.has(climbable.top)) continue;
     worldBox(climbable.node.worldMatrix, climbable.min, climbable.max, _min, _max);
     if (!atTop(_min, _max, feet)) continue;
-    const { position, yaw } = climbDownPlacement(_min, _max, feet);
+    const front = climbable.sides === "front" ? frontSign(climbable.node.worldMatrix, _min, _max) : undefined;
+    const { position, yaw } = climbDownPlacement(_min, _max, feet, front);
     const rotation = quat.setAxisAngle(quat.create(), [0, 1, 0], yaw);
     teleportEntity(rig, vec3.fromValues(...position), rotation);
     // The character controller already queued this frame's move from up on the top; replace it, or the physics

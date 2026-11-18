@@ -1,8 +1,8 @@
 /**
  * Buzzar: climbable ladders (Third Room #367).
  *
- * A world marks a ladder with the HAVEN_climbable glTF extension (a box in the node's space), and nodes named like
- * "ladder" with a mesh are picked up automatically, using the mesh's bounds. Near one, walking forward while facing it
+ * A world marks a ladder with the HAVEN_climbable glTF extension (a box in the node's space; climbed from its front
+ * and back, only its front, or any side), and nodes named like "ladder" with a mesh are picked up automatically, using the mesh's bounds. Near one, walking forward while facing it
  * climbs, backing off climbs down, and gravity is off while you're on it, so you can hang there. Jump lets go.
  */
 import { mat4, vec3 } from "gl-matrix";
@@ -29,14 +29,29 @@ export interface Climbable {
   /** Box in the node's local space. */
   min: vec3;
   max: vec3;
+  /** Which sides it's climbed from (HAVEN_climbable `sides`). */
+  sides: ClimbSides;
   /** The "Climb Down" box on top (plugins/ladders), once made. */
   top?: RemoteNode;
 }
 
 const climbables: Climbable[] = [];
 
-export function addClimbable(node: RemoteNode, min: ArrayLike<number>, max: ArrayLike<number>) {
-  climbables.push({ node, min: vec3.fromValues(min[0], min[1], min[2]), max: vec3.fromValues(max[0], max[1], max[2]) });
+/** Which sides a climbable is climbed from: its front (the node's +Z side), front and back, or any side. */
+export type ClimbSides = "front" | "front-back" | "all";
+
+export function addClimbable(
+  node: RemoteNode,
+  min: ArrayLike<number>,
+  max: ArrayLike<number>,
+  sides: ClimbSides = "front-back"
+) {
+  climbables.push({
+    node,
+    min: vec3.fromValues(min[0], min[1], min[2]),
+    max: vec3.fromValues(max[0], max[1], max[2]),
+    sides: sides === "front" || sides === "all" ? sides : "front-back",
+  });
 }
 
 /** Ladders in loaded worlds (forgets ones whose world was unloaded). */
@@ -69,6 +84,10 @@ export function worldBox(worldMatrix: mat4, min: vec3, max: vec3, outMin: vec3, 
 export interface LadderHit {
   min: vec3;
   max: vec3;
+  /** Which sides it's climbed from (default front and back; see canGrab). */
+  sides?: ClimbSides;
+  /** Which way its front faces along its thinnest horizontal axis (+1 or -1), for `sides: "front"`. */
+  front?: number;
 }
 
 const _min = vec3.create();
@@ -77,15 +96,28 @@ const _max = vec3.create();
 /** The ladder the character standing at `feet` can reach, if any. Forgets ladders from worlds that were unloaded. */
 export function findLadder(ctx: GameContext, feet: ArrayLike<number>): LadderHit | undefined {
   for (let i = climbables.length - 1; i >= 0; i--) {
-    const { node, min, max } = climbables[i];
+    const { node, min, max, sides } = climbables[i];
     if (getRemoteResource(ctx, node.eid) !== node) {
       climbables.splice(i, 1);
       continue;
     }
     worldBox(node.worldMatrix, min, max, _min, _max);
-    if (reaches(feet, _min, _max)) return { min: vec3.clone(_min), max: vec3.clone(_max) };
+    if (reaches(feet, _min, _max)) {
+      return { min: vec3.clone(_min), max: vec3.clone(_max), sides, front: frontSign(node.worldMatrix, _min, _max) };
+    }
   }
   return undefined;
+}
+
+/** Its faces look along world X (0) or Z (2): whichever way the box is thinnest. */
+export function faceAxis(min: ArrayLike<number>, max: ArrayLike<number>): 0 | 2 {
+  return max[0] - min[0] < max[2] - min[2] ? 0 : 2;
+}
+
+/** Which way along its face axis a climbable's front (its node's +Z) points: +1 or -1. */
+export function frontSign(worldMatrix: mat4, min: ArrayLike<number>, max: ArrayLike<number>) {
+  // The node's +Z axis in the world is the matrix's third column.
+  return (faceAxis(min, max) === 0 ? worldMatrix[8] : worldMatrix[10]) < 0 ? -1 : 1;
 }
 
 /** Whether a character at `feet` overlaps the box grown by CLIMB_REACH sideways. */
@@ -116,11 +148,36 @@ export function facesLadder(feet: ArrayLike<number>, ladder: LadderHit, forward:
   return (dx * forward[0] + dz * forward[1]) / distance > 0.35;
 }
 
+/** How far past a ladder's side edges (metres) you can still be "in front of" it. */
+const FACE_MARGIN = 0.1;
+/** Facing within about 50° of straight at a ladder's face. */
+const FACE_FACING = 0.64;
+
+/**
+ * Whether a character at `feet` facing `forward` can take hold of the ladder. A ladder is climbed from its broad
+ * faces (front and back, or only its front): you have to be in front of one, not off to the side of it, and facing
+ * it. A climbable for all sides (a pole, a crate) only needs facing.
+ */
+export function canGrab(feet: ArrayLike<number>, ladder: LadderHit, forward: [number, number]) {
+  if (ladder.sides === "all") return facesLadder(feet, ladder, forward);
+  // Thin along X: its faces look along ±X, and its width runs along Z (and the other way round).
+  const thin = faceAxis(ladder.min, ladder.max);
+  const wide = thin === 0 ? 2 : 0;
+  if (feet[wide] < ladder.min[wide] - FACE_MARGIN || feet[wide] > ladder.max[wide] + FACE_MARGIN) return false;
+  const centre = (ladder.min[thin] + ladder.max[thin]) / 2;
+  // The way into the face from where you stand.
+  const into = feet[thin] < centre ? 1 : -1;
+  // Only from the front: standing on the side its front looks out to.
+  if (ladder.sides === "front" && into === (ladder.front ?? 1)) return false;
+  const facing = thin === 0 ? forward[0] : forward[1];
+  return facing * into > FACE_FACING;
+}
+
 /**
  * What to do this frame near a ladder. `forward` is the horizontal unit direction the character faces; `moveY` is
  * the forward/back input (+1 forward); `wasClimbing` whether they were on the ladder last frame.
  *
- * You only grab a ladder by walking into it while facing it. Being near one while off the ground (jumping beside it,
+ * You only grab a ladder by walking into one of its faces while facing it (see canGrab). Being near one while off the ground (jumping beside it,
  * stepping off the platform at its top facing away) doesn't grab it, so it never stops a jump or holds you in the air
  * with your back to it. Once on it, you hold on until you climb off the top or bottom or jump off.
  */
@@ -134,7 +191,7 @@ export function decideClimb(
   wasClimbing = false
 ): ClimbAction {
   const facing = facesLadder(feet, ladder, forward);
-  if (!wasClimbing && !(facing && moveY > 0.1)) return { type: "none" };
+  if (!wasClimbing && !(moveY > 0.1 && canGrab(feet, ladder, forward))) return { type: "none" };
   // At the foot of the ladder you're standing on the ground, not hanging (the ground check can miss it while climbing).
   const atBottom = feet[1] <= ladder.min[1] + LADDER_BOTTOM;
   if (atBottom && moveY <= 0.1) return { type: "none" };
