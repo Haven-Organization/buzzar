@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Generates public/gltf/test/mirror-room.glb: a small room for testing HAVEN_mirror.
+// Generates public/gltf/test/mirror-room.glb: Buzzar's general debug/physics test room ("Buzzar Test Room" on
+// matrix.org). It started as the HAVEN_mirror test; add new test fixtures here rather than making new rooms.
 //
 //   node scripts/buzzar/make-mirror-test-scene.mjs
 //   open http://localhost:3000/viewer?src=/gltf/test/mirror-room.glb
@@ -9,6 +10,9 @@
 // - Side wall mirror starting "low" (avatars only), so both modes can be compared side by side.
 // - Coloured pillars + a large green block behind the spawn point: visible in "high" reflections,
 //   absent from "low" ones.
+// - Avatar pedestals (Default, Devil, Rose) along the right wall.
+// - An 8 m ladder (HAVEN_climbable) up to a platform, past the front-left corner: tall enough to jump onto it
+//   partway up without being near the top.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -176,12 +180,12 @@ function node(def) {
 }
 
 /** A solid box with a matching collider. */
-function solid(name, size, translation, materialIndex, extra = {}) {
+function solid(name, size, translation, materialIndex, { extensions = {}, ...extra } = {}) {
   return node({
     name,
     translation,
     mesh: boxMesh(name, size, materialIndex),
-    extensions: { OMI_collider: { collider: boxCollider(size) } },
+    extensions: { OMI_collider: { collider: boxCollider(size) }, ...extensions },
     ...extra,
   });
 }
@@ -205,7 +209,7 @@ const green = material("Green", [0.1, 0.75, 0.25]);
 
 const rootChildren = [];
 
-rootChildren.push(solid("Floor", [16, 0.2, 16], [0, -0.1, 0], grey));
+rootChildren.push(solid("Floor", [16, 0.2, 24], [0, -0.1, 4], grey));
 rootChildren.push(solid("BackWall", [16, 4, 0.2], [0, 2, -6.1], wall));
 rootChildren.push(solid("LeftWall", [0.2, 4, 16], [-6.1, 2, 0], wall));
 
@@ -290,6 +294,16 @@ pedestals.forEach((p, i) => {
   );
 });
 
+// Ladder test: an 8 m ladder on the -Z face of a platform, climbed from inside the room (facing +Z).
+const ladderWood = material("Ladder", [0.74, 0.6, 0.45]);
+const platformTop = 8;
+rootChildren.push(solid("LadderPlatform", [4, 0.2, 4], [-3.5, platformTop - 0.1, 10], grey));
+rootChildren.push(
+  solid("Ladder", [0.6, platformTop, 0.1], [-3.5, platformTop / 2, 7.95], ladderWood, {
+    extensions: { HAVEN_climbable: {} },
+  })
+);
+
 // Lights
 rootChildren.push(
   node({
@@ -312,7 +326,7 @@ rootChildren.push(
 
 const gltf = {
   asset: { version: "2.0", generator: "buzzar make-mirror-test-scene" },
-  extensionsUsed: ["KHR_lights_punctual", "OMI_collider", "MX_spawn_point", "HAVEN_mirror", "HAVEN_avatar_pedestal"],
+  extensionsUsed: ["KHR_lights_punctual", "OMI_collider", "MX_spawn_point", "HAVEN_mirror", "HAVEN_avatar_pedestal", "HAVEN_climbable"],
   extensions: {
     KHR_lights_punctual: {
       lights: [

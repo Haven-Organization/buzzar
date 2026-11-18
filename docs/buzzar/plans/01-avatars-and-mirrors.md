@@ -229,5 +229,6 @@ node scripts/buzzar/make-mirror-test-scene.mjs \
   --rose-uri=mxc://matrix.org/UBOGinazYEjdBpSRsgIkCCoo --out=mirror-room-matrix.glb
 ```
 
-It contains the two mirrors plus pedestals for Default, Devil and Rose along the right-hand wall. To update it,
+It contains the two mirrors plus pedestals for Default, Devil and Rose along the right-hand wall. Since 2026-11-17 it is the general debug/physics test room ("Buzzar Test Room", now owned by q as
+`!0EdzIIO3iLiVS41BI3KxqUhppMV0gkcvzl_6bB8svXE`) and also has an 8 m ladder up to a platform past the front-left corner. To update it,
 regenerate the .glb, upload it, and change `scene_url` in the `org.matrix.msc3815.world` state event.
