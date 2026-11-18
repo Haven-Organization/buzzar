@@ -2,11 +2,16 @@
 # and without changing how it looks:
 # - body and finger bones are renamed to CATS names (Hips, Spine, Left arm, IndexFinger1_L, …), which Buzzar
 #   recognises, using a preset for the game's rig naming (--rig);
-# - joints that weight no vertices (IK handles, locators, helpers) are dropped from each skin, keeping under the bone
-#   limit;
+# - joints that weight no vertices and have none below them (IK handles, locators, helpers) are dropped from each
+#   skin, keeping under the bone limit;
+# - game face bones are renamed so Buzzar's lip sync finds them (Umamusume: lip corners, upper and lower lips);
+# - --atlas-mouth: for a face drawn from a texture sheet of mouth shapes (Pokémon), adds lip-sync blend shapes
+#   (mouth_a/i/u/e/o) that bring copies of the mouth patch, showing other cells of the sheet, in front of it;
 # - UV sets no material reads are dropped, and embedded animations removed (Buzzar brings its own);
 # - the binary is repacked from the data still in use (each accessor copied byte for byte, nothing re-encoded).
-# Usage: python3 -I prepare-avatar.py --rig umamusume|pokemon in.glb out.glb
+# Usage: python3 -I prepare-avatar.py --rig umamusume|pokemon [--atlas-mouth SPEC] in.glb out.glb
+#   SPEC: mesh=<mesh index>,grid=<columns>x<rows>,a=<col>:<row>,i=…,u=…,e=…,o=… (cells for each vowel; the mesh's
+#   own UVs show the closed mouth). Pikachu: mesh=2,grid=2x4,a=0:2,i=0:1,e=0:1,u=1:0,o=1:0
 import argparse
 import json
 import re
@@ -14,6 +19,7 @@ import struct
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--rig", required=True, choices=["umamusume", "pokemon"])
+parser.add_argument("--atlas-mouth")
 parser.add_argument("src")
 parser.add_argument("dst")
 args = parser.parse_args()
@@ -41,6 +47,16 @@ if args.rig == "umamusume":
             CATS[f"Thumb_0{k}_{S}"] = f"Thumb{k - 1}_{S}"
             for game, cats in (("Index", "Index"), ("Middle", "Middle"), ("Ring", "Ring"), ("Pinky", "Little")):
                 CATS[f"{game}_0{k}_{S}"] = f"{cats}Finger{k}_{S}"
+        # Face (lip sync): Mouth_middle_L/R are the corners (Mouth_L/R are pivots at the mouth's centre); each lip
+        # has bones at the centre (01) and toward the corners (02, 03).
+        CATS[f"Mouth_middle_{S}"] = f"Lip_Corner_{S}"
+        for k in ("02", "03"):
+            CATS[f"Mouth_up_{k}_{S}"] = f"UpperLip_{k}_{S}"
+            CATS[f"Mouth_bottom_{k}_{S}"] = f"LowerLip_{k}_{S}"
+    for C in ("C", "L", "R"):
+        CATS[f"Mouth_up_01_{C}"] = f"UpperLip_01_{C}"
+        CATS[f"Mouth_bottom_01_{C}"] = f"LowerLip_01_{C}"
+    # (The lower teeth stay put: Buzzar's general teeth movement pushes these through the chin.)
 elif args.rig == "pokemon":
     # Waist is the parent of both the pelvis ("Hips") and the spine, so it is the humanoid hips.
     CATS.update({"Waist": "Hips", "Hips": "Pelvis", "Spine1": "Spine", "Spine2": "Chest", "Head": "Head"})
@@ -75,6 +91,8 @@ def layout(acc_i):
 
 
 def read(acc_i):
+    if acc_i in new_accessor_rows:
+        return new_accessor_rows[acc_i]
     a, off, stride, fmt, size, n = layout(acc_i)
     return [list(struct.unpack_from("<" + fmt * n, binary, off + k * stride)) for k in range(a["count"])]
 
@@ -89,6 +107,79 @@ def raw(acc_i):
 
 
 new_accessor_rows = {}  # accessor index -> (rows) to write instead of the stored data
+
+
+def new_accessor(rows, type_, component, target=None, bounds=False):
+    a = {"bufferView": None, "componentType": component, "count": len(rows), "type": type_, "_target": target}
+    if bounds:
+        a["min"] = [min(r[k] for r in rows) for k in range(len(rows[0]))]
+        a["max"] = [max(r[k] for r in rows) for k in range(len(rows[0]))]
+    gltf["accessors"].append(a)
+    new_accessor_rows[len(gltf["accessors"]) - 1] = rows
+    return len(gltf["accessors"]) - 1
+
+
+# --- Texture-sheet mouth -> lip-sync blend shapes ------------------------------------------------------------------
+if args.atlas_mouth:
+    spec = dict(part.split("=", 1) for part in args.atlas_mouth.split(","))
+    mesh = gltf["meshes"][int(spec["mesh"])]
+    assert len(mesh["primitives"]) == 1, "the mouth mesh should have one primitive"
+    prim = mesh["primitives"][0]
+    cols, rows = (int(x) for x in spec["grid"].split("x"))
+    du, dv = 1 / cols, 1 / rows
+    vowels = ["a", "i", "u", "e", "o"]
+    cell_of = {v: tuple(int(x) for x in spec[v].split(":")) for v in vowels if v in spec}
+    cells = sorted(set(cell_of.values()))
+    attrs = prim["attributes"]
+    pos = read(attrs["POSITION"])
+    nor = read(attrs["NORMAL"]) if "NORMAL" in attrs else None
+    uv = read(attrs["TEXCOORD_0"])
+    joints = read(attrs["JOINTS_0"]) if "JOINTS_0" in attrs else None
+    weights = read(attrs["WEIGHTS_0"]) if "WEIGHTS_0" in attrs else None
+    idx = [r[0] for r in read(prim["indices"])]
+    n = len(pos)
+    assert nor, "the mouth mesh needs normals"
+    size = max(max(p[k] for p in pos) - min(p[k] for p in pos) for k in range(3))
+    # The closed mouth never moves (it fills a hole in the face). Each other shape is a copy of it, the same outline
+    # showing another cell of the sheet, waiting just behind it; its vowel brings it forward until it passes in front,
+    # at half weight, so shapes swap cleanly like the game's texture swap instead of morphing.
+    gap = 0.004 * size
+    def along(p, q, t):
+        return [p[0] + q[0] * t, p[1] + q[1] * t, p[2] + q[2] * t]
+    new_pos = [list(p) for p in pos]
+    new_uv = [list(t) for t in uv]
+    for c, (col, row) in enumerate(cells):
+        new_pos += [along(p, nor[i], -gap) for i, p in enumerate(pos)]
+        new_uv += [[t[0] + col * du, t[1] + row * dv] for t in uv]
+    copies = len(cells) + 1
+    new_idx = [[i + n * c] for c in range(copies) for i in idx]
+    targets = []
+    names = []
+    for v in vowels:
+        if v not in cell_of:
+            continue
+        c = cells.index(cell_of[v])
+        # Forward through the closed mouth to just in front of it (each copy a little further, so two half-raised
+        # shapes never fight over the same depth).
+        travel = gap * (2 + 0.2 * c)
+        delta = [[0.0, 0.0, 0.0]] * n
+        for k in range(len(cells)):
+            delta += [along([0.0, 0.0, 0.0], nor[i], travel) if k == c else [0.0, 0.0, 0.0] for i in range(n)]
+        targets.append({"POSITION": new_accessor(delta, "VEC3", 5126, bounds=True)})
+        names.append(f"mouth_{v}")
+    comp = lambda a: gltf["accessors"][a]["componentType"]
+    attrs["POSITION"] = new_accessor(new_pos, "VEC3", 5126, 34962, bounds=True)
+    attrs["TEXCOORD_0"] = new_accessor(new_uv, "VEC2", 5126, 34962)
+    if nor:
+        attrs["NORMAL"] = new_accessor(nor * copies, "VEC3", 5126, 34962)
+    if joints:
+        attrs["JOINTS_0"] = new_accessor(joints * copies, "VEC4", comp(attrs["JOINTS_0"]), 34962)
+        attrs["WEIGHTS_0"] = new_accessor(weights * copies, "VEC4", comp(attrs["WEIGHTS_0"]), 34962)
+    prim["indices"] = new_accessor(new_idx, "SCALAR", 5125 if n * copies > 65535 else comp(prim["indices"]), 34963)
+    prim["targets"] = targets
+    mesh["weights"] = [0.0] * len(targets)
+    mesh.setdefault("extras", {})["targetNames"] = names
+    print(f"atlas mouth: {len(cells)} extra mouth shapes, blend shapes {names}")
 
 # --- Drop joints that weight no vertices -------------------------------------------------------------------------
 skins = gltf.get("skins", [])
@@ -107,7 +198,18 @@ for si, s in enumerate(skins):
             used.update(j for j, w in zip(js, ws) if w > 0)
     # Keep the humanoid bones even if unweighted (e.g. a shoulder), so the rig stays recognisable.
     named = {k for k, j in enumerate(s["joints"]) if nodes[j].get("name") in CATS.values()}
-    keep = sorted(used | named)
+    # And every joint above a kept one (e.g. a mouth corner that moves only its child lip bones): a joint keeps its
+    # bind pose only while it's in the skin, and its children are placed under it.
+    parent_of = {c: i for i, n in enumerate(nodes) for c in n.get("children", [])}
+    slot = {j: k for k, j in enumerate(s["joints"])}
+    keep = set(used | named)
+    for k in list(keep):
+        node = parent_of.get(s["joints"][k])
+        while node is not None:
+            if node in slot:
+                keep.add(slot[node])
+            node = parent_of.get(node)
+    keep = sorted(keep)
     remap = {old: new for new, old in enumerate(keep)}
     done = set()
     for p in prims:
@@ -188,7 +290,12 @@ accessors = []
 for old in used_acc:
     a = dict(gltf["accessors"][old])
     assert "sparse" not in a, "sparse accessors aren't handled"
-    if "bufferView" in a:
+    if "_target" in a:  # made by this script
+        target = a.pop("_target")
+        fmt, size = FMT[a["componentType"]]
+        chunk = b"".join(struct.pack("<" + fmt * len(r), *r) for r in new_accessor_rows[old])
+        a["bufferView"] = add_view(chunk, target)
+    elif "bufferView" in a:
         target = gltf["bufferViews"][a["bufferView"]].get("target")
         if old in new_accessor_rows:
             fmt, size = FMT[a["componentType"]]
