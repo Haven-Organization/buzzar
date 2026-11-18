@@ -1,37 +1,30 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  BLOCKED_WORLD_SCRIPTS_KEY,
-  blockedWorldScripts,
-  RUN_SCRIPTS_KEY,
-  scriptPolicy,
-  setWorldScriptBlocked,
-} from "./scriptSettings";
+import { RUN_SCRIPTS_KEY, scriptPolicy, setEnterWithoutScript, takeEnterWithoutScript } from "./scriptSettings";
 
 beforeEach(() => {
   localStorage.clear();
+  setEnterWithoutScript(undefined);
 });
 
-describe("per-world script blocking", () => {
-  it("blocks only the chosen world, and can be undone", () => {
-    setWorldScriptBlocked("!a:hs", true);
-    expect(scriptPolicy("mxc://hs/script", "!a:hs")).toEqual({ run: false, reason: "blocked" });
-    expect(scriptPolicy("mxc://hs/script", "!b:hs")).toEqual({ run: true });
-    setWorldScriptBlocked("!a:hs", false);
-    expect(scriptPolicy("mxc://hs/script", "!a:hs")).toEqual({ run: true });
-    expect(blockedWorldScripts()).toEqual([]);
+describe("Enter Without Script", () => {
+  it("applies to one entry into that world only", () => {
+    setEnterWithoutScript("!a:hs");
+    expect(takeEnterWithoutScript("!a:hs")).toBe(true);
+    // Used up: the next entry runs the script again.
+    expect(takeEnterWithoutScript("!a:hs")).toBe(false);
   });
 
-  it("scripts turned off everywhere still say so", () => {
-    setWorldScriptBlocked("!a:hs", true);
+  it("is cleared by entering any other world", () => {
+    setEnterWithoutScript("!a:hs");
+    expect(takeEnterWithoutScript("!b:hs")).toBe(false);
+    expect(takeEnterWithoutScript("!a:hs")).toBe(false);
+  });
+
+  it("skips the script, unless scripts are off everywhere (which says so)", () => {
+    expect(scriptPolicy("mxc://hs/script", true)).toEqual({ run: false, reason: "skipped" });
+    expect(scriptPolicy("mxc://hs/script")).toEqual({ run: true });
     localStorage.setItem(RUN_SCRIPTS_KEY, "false");
-    expect(scriptPolicy("mxc://hs/script", "!a:hs")).toEqual({ run: false, reason: "disabled" });
-  });
-
-  it("ignores garbage in storage", () => {
-    localStorage.setItem(BLOCKED_WORLD_SCRIPTS_KEY, '{"nope": 1}');
-    expect(blockedWorldScripts()).toEqual([]);
-    localStorage.setItem(BLOCKED_WORLD_SCRIPTS_KEY, '["!a:hs", 3]');
-    expect(blockedWorldScripts()).toEqual(["!a:hs"]);
+    expect(scriptPolicy("mxc://hs/script", true)).toEqual({ run: false, reason: "disabled" });
   });
 });

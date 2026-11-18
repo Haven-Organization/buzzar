@@ -39,7 +39,6 @@ import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerL
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
-import { isWorldScriptBlocked, setWorldScriptBlocked } from "../../../utils/scriptSettings";
 import { copyToClipboard } from "../../../utils/common";
 import {
   DirectoryWorld,
@@ -232,7 +231,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
   const { preview, topic, hasScript } = useJoinedWorldPreview(room);
   const previewSrc = useThumbnail(preview);
   const avatarSrc = useThumbnail(room.avatarUrl ?? undefined);
-  const [scriptBlocked, setScriptBlocked] = useState(() => isWorldScriptBlocked(room.id));
+  const [withoutScriptRequest, setWithoutScriptRequest] = useState(0);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const returnToWorld = useReturnToWorld();
@@ -275,7 +274,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
               Return
             </Button>
           ) : (
-            <EnterWorldButton room={room} size="sm" label="Enter" />
+            <EnterWorldButton room={room} size="sm" label="Enter" withoutScriptRequest={withoutScriptRequest} />
           )
         }
         menu={
@@ -300,15 +299,11 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
                 Settings
               </DropdownMenuItem>
             )}
-            {hasScript && (
-              // Buzzar: skip this one world's script without turning off scripts everywhere. Applies on next entry.
-              <DropdownMenuItem
-                onSelect={() => {
-                  setWorldScriptBlocked(room.id, !scriptBlocked);
-                  setScriptBlocked(!scriptBlocked);
-                }}
-              >
-                {scriptBlocked ? "Run This World's Script" : "Don't Run This World's Script"}
+            {hasScript && !isHere && (
+              // Buzzar: this visit only, so a world never stays without its script by accident. (Planned: show this
+              // only in a developer mode.)
+              <DropdownMenuItem onSelect={() => setWithoutScriptRequest((n) => n + 1)}>
+                Enter Without Script
               </DropdownMenuItem>
             )}
             <DropdownMenuItem

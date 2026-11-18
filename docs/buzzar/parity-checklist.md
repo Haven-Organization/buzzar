@@ -329,7 +329,8 @@ replaced that with default-deny and consent (`src/engine/matrix/scriptConsent.ma
 - [x] ✅ **S** Rate limits on script networking messages; per-world "disable this world's script".
       **Buzzar (2026-11-17):** each world script may send 30 messages and 32 KB a second (2 s burst); each peer's
       incoming script messages are capped at twice that, and excess is dropped with a warning. A world's ⋯ menu has
-      "Don't Run This World's Script" (this browser), undone there or in Settings → World Scripts.
+      "Enter Without Script", for that visit only (the next Enter runs it again, so it can't stay off by accident).
+      Planned: show it only in a developer mode.
 - [ ] ❌ **M** World-originated actions (scoreboards, persistence) are written by a world bot account
       (§9) with the right PL, never through visitors' accounts.
 - [ ] ❌ **L** 🅼 **External server access (later phase).** VRChat's model is a good start:

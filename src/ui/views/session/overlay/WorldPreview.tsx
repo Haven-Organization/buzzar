@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Room, RoomStatus, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useAtomValue, useSetAtom } from "jotai";
 
@@ -23,6 +23,7 @@ import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
+import { setEnterWithoutScript } from "../../../utils/scriptSettings";
 
 interface InviteWorldPreviewProps {
   session: Session;
@@ -105,10 +106,13 @@ export function EnterWorldButton({
   room,
   size = "lg",
   label = "Enter World",
+  withoutScriptRequest = 0,
 }: {
   room: Room;
   size?: "sm" | "md" | "lg";
   label?: string;
+  /** Buzzar: increase to enter through this button's usual steps, but without the world's script (this visit only). */
+  withoutScriptRequest?: number;
 }) {
   const { session, platform } = useHydrogen(true);
   const micPermission = usePermissionState("microphone");
@@ -122,7 +126,9 @@ export function EnterWorldButton({
   const { checkForUpdate, updateScene } = useUpdateScene(session, room);
 
   const mainThread = useMainThreadContext();
+  const withoutScriptRef = useRef(false);
   const handleLoadWorld = async () => {
+    setEnterWithoutScript(withoutScriptRef.current ? room.id : undefined);
     // Buzzar: take the pointer now, while this click still counts as a user gesture (browsers only allow a lock
     // right after one), so the world is playable the moment it appears instead of asking for another click.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -158,6 +164,13 @@ export function EnterWorldButton({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (withoutScriptRequest === 0) return;
+    withoutScriptRef.current = true;
+    handleEnterWorld(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withoutScriptRequest]);
 
   const handleUpdateScene = async () => {
     setLoading(true);
@@ -209,7 +222,15 @@ export function EnterWorldButton({
           }
         />
       )}
-      <Button size={size} variant="primary" disabled={loading} onClick={() => handleEnterWorld(true)}>
+      <Button
+        size={size}
+        variant="primary"
+        disabled={loading}
+        onClick={() => {
+          withoutScriptRef.current = false;
+          handleEnterWorld(true);
+        }}
+      >
         {loading ? "Entering..." : label}
       </Button>
     </>

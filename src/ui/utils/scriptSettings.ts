@@ -22,38 +22,37 @@ export const runWorldScripts = () => readBool(RUN_SCRIPTS_KEY, true);
 /** Allow scripts hosted on web addresses (default off: fetching them reveals your IP to that site). */
 export const allowWebScripts = () => readBool(WEB_SCRIPTS_KEY, false);
 
-/** Buzzar: worlds whose script the visitor turned off (room IDs, this browser), from the world's ⋯ menu. */
-export const BLOCKED_WORLD_SCRIPTS_KEY = "buzzar.scripts.blockedWorlds";
+/**
+ * Buzzar: "Enter Without Script" (a world's ⋯ menu) skips the script for that one visit only. Nothing is stored, so a
+ * world never stays without its script by accident: the next ordinary Enter runs it again.
+ */
+let enterWithoutScriptRoomId: string | undefined;
 
-export function blockedWorldScripts(): string[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(BLOCKED_WORLD_SCRIPTS_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
+/** Call just before entering `roomId` from "Enter Without Script"; any other entry clears it. */
+export function setEnterWithoutScript(roomId: string | undefined) {
+  enterWithoutScriptRoomId = roomId;
 }
 
-export function isWorldScriptBlocked(roomId: string) {
-  return blockedWorldScripts().includes(roomId);
+/** Whether this entry into `roomId` should skip the script. Reading it uses it up. */
+export function takeEnterWithoutScript(roomId: string) {
+  const skip = enterWithoutScriptRoomId === roomId;
+  enterWithoutScriptRoomId = undefined;
+  return skip;
 }
 
-export function setWorldScriptBlocked(roomId: string, blocked: boolean) {
-  const ids = blockedWorldScripts().filter((id) => id !== roomId);
-  if (blocked) ids.push(roomId);
-  try {
-    localStorage.setItem(BLOCKED_WORLD_SCRIPTS_KEY, JSON.stringify(ids));
-  } catch {
-    // storage unavailable
-  }
+// The per-world "turned off" list this replaced lived in localStorage; drop it so it can't linger.
+try {
+  localStorage.removeItem("buzzar.scripts.blockedWorlds");
+} catch {
+  // storage unavailable
 }
 
-export type ScriptPolicy = { run: true } | { run: false; reason: "disabled" | "web" | "blocked" };
+export type ScriptPolicy = { run: true } | { run: false; reason: "disabled" | "web" | "skipped" };
 
-/** Whether to run a world's script_url under the visitor's settings. */
-export function scriptPolicy(scriptUrl: string, roomId?: string): ScriptPolicy {
+/** Whether to run a world's script_url under the visitor's settings (`skipped`: entered without script). */
+export function scriptPolicy(scriptUrl: string, skipped = false): ScriptPolicy {
   if (!runWorldScripts()) return { run: false, reason: "disabled" };
-  if (roomId && isWorldScriptBlocked(roomId)) return { run: false, reason: "blocked" };
+  if (skipped) return { run: false, reason: "skipped" };
   if (!scriptUrl.startsWith("mxc://") && !allowWebScripts()) return { run: false, reason: "web" };
   return { run: true };
 }

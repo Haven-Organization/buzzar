@@ -13,13 +13,16 @@ import {
 import { enterWorld, loadWorld, reloadWorld } from "../../plugins/thirdroom/thirdroom.main";
 import { worldAtom } from "../state/world";
 import { makeWorldNotice, worldNoticeAtom } from "../state/worldNotice";
-import { scriptPolicy } from "../utils/scriptSettings";
+import { scriptPolicy, takeEnterWithoutScript } from "../utils/scriptSettings";
 import { removeStaleCallMemberships } from "../utils/callCleanup";
 import { useHydrogen } from "./useHydrogen";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { MediaConfigMessage, MediaConfigMessageType } from "../../engine/avatar/avatar.common";
+
+/** The world being visited without its script ("Enter Without Script"), if any. */
+let visitWithoutScript: string | undefined;
 
 export interface WorldLoader {
   loadAndEnterWorld: (
@@ -55,6 +58,10 @@ export function useWorldLoader(): WorldLoader {
 
       setWorld({ type: "LOAD", roomId });
 
+      // Buzzar: "Enter Without Script" lasts for this visit (scene/script reloads included), not beyond it.
+      const skipScript = takeEnterWithoutScript(roomId);
+      visitWithoutScript = skipScript ? roomId : undefined;
+
       const maxObjectCap = content.max_member_object_cap;
       let environmentUrl = content.scene_url;
       let environmentScriptUrl = content.script_url;
@@ -66,15 +73,15 @@ export function useWorldLoader(): WorldLoader {
       // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
       const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
       if (environmentScriptUrl) {
-        const policy = scriptPolicy(environmentScriptUrl, roomId);
+        const policy = scriptPolicy(environmentScriptUrl, skipScript);
         if (!policy.run) {
           environmentScriptUrl = undefined;
           setWorldNotice(
             makeWorldNotice(
               policy.reason === "disabled"
                 ? "World scripts are turned off in your settings, so this world's script wasn't run."
-                : policy.reason === "blocked"
-                ? "You turned off this world's script, so it wasn't run. Turn it back on from the world's ⋯ menu."
+                : policy.reason === "skipped"
+                ? "You entered without this world's script. Enter again normally to run it."
                 : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
             )
           );
@@ -164,15 +171,15 @@ export function useWorldLoader(): WorldLoader {
       // Buzzar: the visitor's script settings (scripts off, or a web-hosted script without permission).
       const publishedScriptUrl = typeof content.script_url === "string" ? content.script_url : undefined;
       if (environmentScriptUrl) {
-        const policy = scriptPolicy(environmentScriptUrl, world.id);
+        const policy = scriptPolicy(environmentScriptUrl, visitWithoutScript === world.id);
         if (!policy.run) {
           environmentScriptUrl = undefined;
           setWorldNotice(
             makeWorldNotice(
               policy.reason === "disabled"
                 ? "World scripts are turned off in your settings, so this world's script wasn't run."
-                : policy.reason === "blocked"
-                ? "You turned off this world's script, so it wasn't run. Turn it back on from the world's ⋯ menu."
+                : policy.reason === "skipped"
+                ? "You entered without this world's script. Enter again normally to run it."
                 : "This world's script is on a web address, which would reveal your IP to that site, so it wasn't run. You can allow web-hosted scripts in Settings."
             )
           );
