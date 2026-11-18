@@ -877,6 +877,40 @@ export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 
   return clip;
 }
 
+/**
+ * Buzzar: shortens a locomotion clip's stride. The built-in "RunBack" clip scissors the legs very wide front to back
+ * (an upside-down V from the side). Each leg bone's keys are blended `amount` of the way toward that bone's average
+ * pose over the clip, so the legs keep running but swing less. Modifies `clip` in place and returns it.
+ */
+export function shortenStride(clip: AnimationClip, rig: RetargetRig, amount = 0.5): AnimationClip {
+  const bones: HumanBone[] = ["leftUpperLeg", "rightUpperLeg", "leftLowerLeg", "rightLowerLeg", "leftFoot", "rightFoot"];
+  const q = new Quaternion();
+  const mean = new Quaternion();
+  for (const name of bones) {
+    const bone = rig.bones.get(name);
+    if (!bone) continue;
+    const track = clip.tracks.find(
+      (t) => t.name === `${bone.uuid}.quaternion` || t.name === `${bone.name}.quaternion`
+    );
+    if (!track) continue;
+    const values = track.values;
+    // Average rotation (keys are close together, so a sign-aligned normalized sum is a good mean).
+    const sum = [0, 0, 0, 0];
+    const first = new Quaternion().fromArray(values, 0);
+    for (let i = 0; i < values.length; i += 4) {
+      q.fromArray(values, i);
+      const sign = q.dot(first) < 0 ? -1 : 1;
+      for (let c = 0; c < 4; c++) sum[c] += values[i + c] * sign;
+    }
+    mean.set(sum[0], sum[1], sum[2], sum[3]).normalize();
+    for (let i = 0; i < values.length; i += 4) {
+      q.fromArray(values, i).slerp(mean, amount);
+      q.toArray(values, i);
+    }
+  }
+  return clip;
+}
+
 /** Buzzar: metres of ladder one climbing cycle covers (two rungs). */
 export const CLIMB_CYCLE_HEIGHT = 0.8;
 

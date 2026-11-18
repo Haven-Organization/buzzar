@@ -64,6 +64,7 @@ import {
   estimateEyeHeight,
   retargetClip,
   narrowLegSpread,
+  shortenStride,
   RetargetRig,
 } from "./retarget";
 import {
@@ -134,13 +135,17 @@ const fixedClips = new WeakSet<AnimationClip>();
 
 /**
  * Buzzar: corrections to the built-in locomotion clips, before they play on the default avatar or are retargeted:
- * running backwards keeps its legs together (the clip splays them into an upside-down V).
+ * running backwards keeps its legs together (the clip splays them sideways and scissors them very wide front to
+ * back, an upside-down V).
  */
 function fixSourceClips(clips: AnimationClip[], rig: RetargetRig) {
   for (const clip of clips) {
     if (fixedClips.has(clip)) continue;
     fixedClips.add(clip);
-    if (clip.name === "RunBack") narrowLegSpread(clip, rig);
+    if (clip.name === "RunBack") {
+      narrowLegSpread(clip, rig);
+      shortenStride(clip, rig);
+    }
   }
 }
 
