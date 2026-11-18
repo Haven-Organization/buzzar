@@ -19,6 +19,8 @@ Each script prints its usage in the comment at the top of the file.
 | `heightmap.mjs` | Top-down height map (PGM + JSON) for finding floors, spawn points and gaps. |
 | `raycast.mjs` | Casts rays from a point and reports the first hit's material, distance and facing; for checking enclosures. |
 | `fix-ripped-avatar.py` | Python: makes a game-ripped Sketchfab avatar usable (3ds Max Biped body + separate accessory skeletons): attaches accessories to the body, drops bones that move nothing, renames body bones to CATS names. `python3 -I fix-ripped-avatar.py in.glb out.glb`, then `gltf-transform prune`. |
+| `prepare-avatar.py` | Python: makes a game-ripped avatar with a single skeleton usable, without changing how it looks: renames body and finger bones to CATS names from a rig preset (`--rig umamusume` or `pokemon`), drops bones that move nothing and UV sets no material reads, removes embedded animations, and repacks the file. `python3 -I prepare-avatar.py --rig umamusume in.glb out.glb`. |
+| `compact-avatar.mjs` | Lossless shrink for avatars (run after prepare-avatar.py): removes vertices no triangle uses, stores identical data once, prunes the rest. Kitasan Black: 7.8 MB → 3.1 MB with every vertex and pixel unchanged. `node compact-avatar.mjs in.glb out.glb`. |
 | `compress-world.mjs` | Run last, on a finished world or avatar: Meshopt + quantized geometry and WebP textures (roughly halves the size), keeping Buzzar's own extensions and every node, material and mesh in place. Needs Buzzar from 2026-11-17 on. `--quality`, `--no-textures`, `--no-geometry`. |
 | `check-normals.mjs` | Finds NaN / zero-length normals (they show as black bloom blow-outs) and can repair them. |
 
