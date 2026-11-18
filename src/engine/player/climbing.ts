@@ -24,11 +24,13 @@ export const LADDER_BOTTOM = 0.15;
 /** After jumping off, the ladder can't be grabbed again for this long (seconds). */
 export const CLIMB_REGRAB_DELAY = 0.4;
 
-interface Climbable {
+export interface Climbable {
   node: RemoteNode;
   /** Box in the node's local space. */
   min: vec3;
   max: vec3;
+  /** The "Climb Down" box on top (plugins/ladders), once made. */
+  top?: RemoteNode;
 }
 
 const climbables: Climbable[] = [];
@@ -36,6 +38,20 @@ const climbables: Climbable[] = [];
 export function addClimbable(node: RemoteNode, min: ArrayLike<number>, max: ArrayLike<number>) {
   climbables.push({ node, min: vec3.fromValues(min[0], min[1], min[2]), max: vec3.fromValues(max[0], max[1], max[2]) });
 }
+
+/** Ladders in loaded worlds (forgets ones whose world was unloaded). */
+export function liveClimbables(ctx: GameContext): readonly Climbable[] {
+  for (let i = climbables.length - 1; i >= 0; i--) {
+    if (getRemoteResource(ctx, climbables[i].node.eid) !== climbables[i].node) climbables.splice(i, 1);
+  }
+  return climbables;
+}
+
+/**
+ * Buzzar: set by "Climb Down" (plugins/ladders) after it puts the player on a ladder; the character controller
+ * reads it so the player starts out holding on rather than falling.
+ */
+export const ladderGrab = { pending: false };
 
 /** The world-space box of a climbable (the eight local corners transformed, then bounded). */
 export function worldBox(worldMatrix: mat4, min: vec3, max: vec3, outMin: vec3, outMax: vec3) {

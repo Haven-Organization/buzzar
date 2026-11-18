@@ -17,7 +17,7 @@ import { RemoteNode } from "../resource/RemoteResources";
 import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
 import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
-import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder } from "./climbing";
+import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder, ladderGrab } from "./climbing";
 
 function kinematicCharacterControllerAction(key: string) {
   return "KinematicCharacterController/" + key;
@@ -292,6 +292,12 @@ export function updateKinematicControls(
 
   // Buzzar: ladders (see climbing.ts). On one, input moves you up/down and sideways at set speeds, with no gravity.
   let climbing = false;
+  // "Climb Down" (plugins/ladders) just put us on a ladder: start out holding on.
+  if (ladderGrab.pending) {
+    ladderGrab.pending = false;
+    wasClimbing = true;
+    climbRegrabAt = 0;
+  }
   if (standing && nowSeconds >= climbRegrabAt) {
     const feet = body.translation();
     const ladder = findLadder(ctx, [feet.x, feet.y, feet.z]);

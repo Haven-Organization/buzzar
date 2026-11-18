@@ -322,7 +322,10 @@ function holdRotation(
 /** Most speed a dropped (not thrown) object keeps from being carried (m/s), so letting go doesn't fling it (#323). */
 const MAX_DROP_SPEED = 2;
 
-function settleDroppedBody(body: { linvel(): { x: number; y: number; z: number }; setLinvel(v: Vector3, wake: boolean): void }) {
+function settleDroppedBody(body: {
+  linvel(): { x: number; y: number; z: number };
+  setLinvel(v: Vector3, wake: boolean): void;
+}) {
   const v = body.linvel();
   const speed = Math.hypot(v.x, v.y, v.z);
   if (speed > MAX_DROP_SPEED) {
@@ -333,8 +336,16 @@ function settleDroppedBody(body: { linvel(): { x: number; y: number; z: number }
 
 const interactableQuery = defineQuery([Interactable]);
 
+/**
+ * Buzzar: interactables pressed by this client's own player this frame. `interactable.pressed` is also set when
+ * another player's press arrives, so anything that acts on the local player (e.g. a ladder's Climb Down) checks
+ * this instead.
+ */
+export const pressedByOurPlayer = new Set<RemoteNode>();
+
 export function ResetInteractablesSystem(ctx: GameContext) {
   const interactableEntities = interactableQuery(ctx.world);
+  pressedByOurPlayer.clear();
 
   for (let i = 0; i < interactableEntities.length; i++) {
     const eid = interactableEntities[i];
@@ -479,6 +490,8 @@ function updateOrbitInteraction(
     interactable.pressed = true;
     interactable.released = false;
     interactable.held = true;
+    // Orbiting (this client's camera) is only ever our own player.
+    pressedByOurPlayer.add(focusedNode);
   }
 
   if (Interactable.type[focusedNode.eid] === InteractableType.Interactable) {
@@ -692,6 +705,7 @@ function updateGrabThrow(
             playOneShotAudio(ctx, interaction.clickEmitter?.sources[0] as RemoteAudioSource);
 
             if (ourPlayer) sendInteractionMessage(ctx, InteractableAction.Interact, eid);
+            if (ourPlayer) pressedByOurPlayer.add(node);
             const interactable = node.interactable;
 
             if (interactable) {
@@ -839,6 +853,7 @@ function updateGrabThrowXR(
       } else if (triggerState.pressed && Interactable.type[focusedNode.eid] === InteractableType.Interactable) {
         if (ourPlayer) sendInteractionMessage(ctx, InteractableAction.Interact, focusedEntity);
         const node = tryGetRemoteResource<RemoteNode>(ctx, focusedNode.eid);
+        if (ourPlayer) pressedByOurPlayer.add(node);
         const interactable = node.interactable;
 
         if (interactable) {
