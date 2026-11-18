@@ -238,15 +238,20 @@ export function GLTFResourceDisposalSystem(ctx: GameContext) {
 }
 
 /** Buzzar: a mesh's local bounding box from its POSITION accessors' min/max (required by the glTF spec). */
+/** The largest value of each normalized integer component type (BYTE, UNSIGNED_BYTE, SHORT, UNSIGNED_SHORT). */
+const NORMALIZED_MAX: Record<number, number> = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 };
+
 export function gltfMeshBounds(root: GLTFRoot, meshIndex: number): { min: number[]; max: number[] } | undefined {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
   for (const primitive of root.meshes?.[meshIndex]?.primitives ?? []) {
     const accessor = root.accessors?.[primitive.attributes.POSITION];
     if (!accessor?.min || !accessor?.max) continue;
+    // Quantized files (KHR_mesh_quantization) store normalized integers: min/max are in integer units.
+    const scale = accessor.normalized ? 1 / (NORMALIZED_MAX[accessor.componentType] ?? 1) : 1;
     for (let i = 0; i < 3; i++) {
-      min[i] = Math.min(min[i], accessor.min[i]);
-      max[i] = Math.max(max[i], accessor.max[i]);
+      min[i] = Math.min(min[i], accessor.min[i] * scale);
+      max[i] = Math.max(max[i], accessor.max[i] * scale);
     }
   }
   return min[0] <= max[0] ? { min, max } : undefined;

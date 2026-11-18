@@ -1,5 +1,7 @@
 // Compresses a finished Buzzar world (or avatar) for download size, keeping everything else exactly as it is:
-// - geometry: quantized (KHR_mesh_quantization) and meshopt-compressed (EXT_meshopt_compression);
+// - geometry: meshopt-compressed (EXT_meshopt_compression), with normals, UVs, colours and skin weights quantized
+//   (KHR_mesh_quantization). Positions stay floats: quantizing them moves each mesh's scale and offset into its
+//   node's transform, which would also scale the node's colliders, climbable boxes and other node-space extensions;
 // - textures: WebP (EXT_texture_webp), which keeps alpha, at the given quality.
 //
 // Unlike optimize-world.mjs it never merges, reorders or prunes nodes, materials, scenes or meshes, so Buzzar's own
@@ -14,8 +16,8 @@
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 
 import { NodeIO } from "@gltf-transform/core";
-import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
-import { meshopt, textureCompress } from "@gltf-transform/functions";
+import { ALL_EXTENSIONS, EXTMeshoptCompression } from "@gltf-transform/extensions";
+import { quantize, reorder, textureCompress } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
 import sharp from "sharp";
 
@@ -70,14 +72,21 @@ const names = (json, group) => (json[group] ?? []).map((item) => item.name ?? ""
 if (saved.used.length) console.log("keeping", saved.used.join(", "));
 
 // --- Compress ------------------------------------------------------------------------------------------------------
-const io = new NodeIO()
-  .registerExtensions(ALL_EXTENSIONS)
-  .registerDependencies({ "meshopt.encoder": MeshoptEncoder });
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.encoder": MeshoptEncoder });
 const doc = await io.read(input);
 if (doTextures) await doc.transform(textureCompress({ encoder: sharp, targetFormat: "webp", quality }));
 if (doGeometry) {
   await MeshoptEncoder.ready;
-  await doc.transform(meshopt({ encoder: MeshoptEncoder, level: "medium" }));
+  // meshopt({ level: "medium" }) without position quantization (see the top comment).
+  const notPositions = /^(NORMAL|TANGENT|TEXCOORD_\d+|COLOR_\d+|JOINTS_\d+|WEIGHTS_\d+)$/;
+  await doc.transform(
+    reorder({ encoder: MeshoptEncoder, target: "size" }),
+    quantize({ pattern: notPositions, patternTargets: notPositions })
+  );
+  doc
+    .createExtension(EXTMeshoptCompression)
+    .setRequired(true)
+    .setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE });
 }
 const tmp = `${output}.tmp.glb`;
 await io.write(tmp, doc);
@@ -86,7 +95,7 @@ await io.write(tmp, doc);
 const { json, bin } = readGLB(tmp);
 const fail = (why) => {
   console.error(`Refusing to write: ${why}`);
-  (await_unlink)();
+  await_unlink();
   process.exit(2);
 };
 const await_unlink = () => {
@@ -151,6 +160,13 @@ for (const group of GROUPS) {
   if (before.length !== after.length || before.some((n, i) => n !== after[i])) {
     fail(`${group} changed order or count (${before.length} → ${after.length})`);
   }
+  if (group === "nodes") {
+    // Node-space extensions (colliders, climbable boxes, mirrors …) are only right if transforms are untouched.
+    const transform = (n) =>
+      JSON.stringify([n.translation ?? [0, 0, 0], n.rotation ?? [0, 0, 0, 1], n.scale ?? [1, 1, 1], n.matrix]);
+    const moved = original.nodes.findIndex((n, i) => transform(n) !== transform(json.nodes[i]));
+    if (moved >= 0) fail(`node ${moved} (${original.nodes[moved].name}) changed its transform`);
+  }
   (json[group] ?? []).forEach((item, i) => {
     const extra = remap(saved[group][i]);
     if (Object.keys(extra).length) item.extensions = { ...(item.extensions ?? {}), ...extra };
@@ -170,5 +186,7 @@ unlinkSync(tmp);
 const size = (p) => readFileSync(p).length;
 const mb = (n) => (n / 1024 / 1024).toFixed(1);
 console.log(
-  `${input} (${mb(size(input))} MB) → ${output} (${mb(size(output))} MB), requires: ${(json.extensionsRequired ?? []).join(", ")}`
+  `${input} (${mb(size(input))} MB) → ${output} (${mb(size(output))} MB), requires: ${(
+    json.extensionsRequired ?? []
+  ).join(", ")}`
 );
