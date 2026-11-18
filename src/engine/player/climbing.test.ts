@@ -8,6 +8,8 @@ const ladder = { min: vec3.fromValues(-0.25, 0, -0.05), max: vec3.fromValues(0.2
 // The player stands 0.3 m in front of it (+z), facing it (-z).
 const feet = [0, 0, 0.35];
 const facing: [number, number] = [0, -1];
+// Partway up the ladder.
+const onLadder = [0, 1, 0.35];
 const away: [number, number] = [0, 1];
 
 describe("ladder reach", () => {
@@ -35,12 +37,12 @@ describe("climbing decisions", () => {
   });
 
   it("on the ladder: back climbs down, no input holds on, jump lets go away from it", () => {
-    expect(decideClimb(feet, ladder, facing, -1, false, false, true)).toEqual({
+    expect(decideClimb(onLadder, ladder, facing, -1, false, false, true)).toEqual({
       type: "climb",
       vertical: -CLIMB_SPEED,
     });
-    expect(decideClimb(feet, ladder, facing, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
-    const release = decideClimb(feet, ladder, facing, 0, false, true, true);
+    expect(decideClimb(onLadder, ladder, facing, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
+    const release = decideClimb(onLadder, ladder, facing, 0, false, true, true);
     expect(release.type).toBe("release");
     if (release.type === "release") expect(release.away[1]).toBeCloseTo(1);
   });
@@ -62,6 +64,12 @@ describe("climbing decisions", () => {
   });
 
   it("once climbing, you keep hold even when turning to look around", () => {
-    expect(decideClimb(feet, ladder, away, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
+    expect(decideClimb(onLadder, ladder, away, 0, false, false, true)).toEqual({ type: "climb", vertical: 0 });
+  });
+
+  it("letting go of forward at the foot of the ladder stands you there: a jump is an ordinary jump", () => {
+    // Climbing had started (walked into it holding forward), but the feet never left the ground.
+    expect(decideClimb(feet, ladder, facing, 0, false, false, true)).toEqual({ type: "none" });
+    expect(decideClimb(feet, ladder, facing, 0, false, true, true)).toEqual({ type: "none" });
   });
 });

@@ -19,6 +19,8 @@ export const CLIMB_SIDE_SPEED = 1;
 export const CLIMB_REACH = 0.4;
 /** The character's height for overlap tests, in metres (feet to head). */
 const BODY_HEIGHT = 1.7;
+/** Feet within this height of a ladder's bottom (metres) are standing at its foot, not hanging on it. */
+export const LADDER_BOTTOM = 0.15;
 /** After jumping off, the ladder can't be grabbed again for this long (seconds). */
 export const CLIMB_REGRAB_DELAY = 0.4;
 
@@ -117,6 +119,9 @@ export function decideClimb(
 ): ClimbAction {
   const facing = facesLadder(feet, ladder, forward);
   if (!wasClimbing && !(facing && moveY > 0.1)) return { type: "none" };
+  // At the foot of the ladder you're standing on the ground, not hanging (the ground check can miss it while climbing).
+  const atBottom = feet[1] <= ladder.min[1] + LADDER_BOTTOM;
+  if (atBottom && moveY <= 0.1) return { type: "none" };
 
   if (!grounded && jumpPressed) {
     let dx = (ladder.min[0] + ladder.max[0]) / 2 - feet[0];
