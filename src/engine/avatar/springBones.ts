@@ -8,6 +8,9 @@
  * 3. Detection for plain glTF avatars: non-humanoid skin joints whose names say hair/ear/tail/skirt/… and that
  *    hang off the humanoid skeleton, with per-kind defaults.
  *
+ * Animal ears also move on their own now and then (see EarMotion): both pinned back for a moment, like a horse's, or
+ * one flicked. That tilts the ear's rest direction and lets the spring carry it there and back.
+ *
  * The simulation is the standard VRM one (as in three-vrm): each joint keeps a "tail" point in world space,
  * moved by inertia, a stiffness force back toward the rest pose, and gravity; the tail is kept at bone length
  * and pushed out of colliders, and the joint is rotated to point at it. It runs on the three.js object graph
@@ -50,10 +53,38 @@ interface SpringJoint {
   currentTail: Vector3;
   prevTail: Vector3;
   initialized: boolean;
+  /** Buzzar: a turn of the rest direction (an ear folding), applied to what the stiffness pulls toward. */
+  restOffset?: Quaternion;
+}
+
+/** Buzzar: an ear that moves on its own: the first simulated joint(s) of an ear chain. */
+interface EarJoint {
+  joint: SpringJoint;
+  /** Which ear (chains are numbered), so one can flick on its own. */
+  ear: number;
+  /** The rest turn that folds it fully back and down. */
+  fold: Quaternion;
+  /** The rest turn for a quick flick (part of the way back, and outward). */
+  flick: Quaternion;
+  /** How far folded (0–1) right now, and toward what. */
+  amount: number;
+  goal: number;
+  pose: "fold" | "flick";
+}
+
+/** Buzzar: idle ear motion for one avatar. */
+interface EarMotion {
+  joints: EarJoint[];
+  ears: number;
+  /** Seconds until the next move, and until the current one ends. */
+  untilNext: number;
+  untilRelax: number;
 }
 
 export interface SpringRig {
   joints: SpringJoint[];
+  /** Buzzar: ears that fold and flick now and then. */
+  ears?: EarMotion;
   /** Where the avatar was last frame, to detect teleports. */
   lastRootPosition: Vector3;
   hasLastRoot: boolean;
@@ -67,6 +98,8 @@ export interface SpringChainSpec {
   settings: SpringSettings | SpringSettings[];
   /** VRM 1.0: the last joint only marks where the previous one ends; it isn't simulated itself. */
   lastIsTip?: boolean;
+  /** Buzzar: what it is, when detected by name ("ear", "tail", …). */
+  kind?: string;
   colliders: { node: number; offset: [number, number, number]; radius: number; tail?: [number, number, number] }[];
 }
 
@@ -191,15 +224,16 @@ export function parseVRM0Springs(gltf: GLTFLike): SpringChainSpec[] | undefined 
 }
 
 /** Kinds of secondary bones recognised by name, with defaults that look natural for each. */
-const DETECTED_KINDS: { pattern: RegExp; settings: Omit<SpringSettings, "gravityDir"> }[] = [
+const EAR = /(^|[^a-z])(ear|mimi|kemomimi)/i;
+const DETECTED_KINDS: { kind: string; pattern: RegExp; settings: Omit<SpringSettings, "gravityDir"> }[] = [
   // Animal ears: stiff, they flick and settle quickly.
-  { pattern: /(^|[^a-z])(ear|mimi|kemomimi)/i, settings: { stiffness: 3.2, gravityPower: 0, dragForce: 0.6, hitRadius: 0.01 } },
-  { pattern: /tail|shippo/i, settings: { stiffness: 1.2, gravityPower: 0.1, dragForce: 0.35, hitRadius: 0.02 } },
-  { pattern: /skirt|dress|sukato/i, settings: { stiffness: 1.6, gravityPower: 0.2, dragForce: 0.5, hitRadius: 0.03 } },
-  { pattern: /breast|bust|boob|oppai|mune/i, settings: { stiffness: 2.6, gravityPower: 0.05, dragForce: 0.6, hitRadius: 0.02 } },
-  { pattern: /hat|cap|brim|hood/i, settings: { stiffness: 3.0, gravityPower: 0.05, dragForce: 0.6, hitRadius: 0.02 } },
-  { pattern: /hair|ahoge|bang|fringe|kami|ponytail|twintail|braid/i, settings: { stiffness: 1.3, gravityPower: 0.15, dragForce: 0.45, hitRadius: 0.02 } },
-  { pattern: /ribbon|bow|ribon|cape|cloak|scarf|sleeve|sode|cloth|strap|string|chain|tassel|frill/i, settings: { stiffness: 1.2, gravityPower: 0.2, dragForce: 0.4, hitRadius: 0.02 } },
+  { kind: "ear", pattern: EAR, settings: { stiffness: 3.2, gravityPower: 0, dragForce: 0.6, hitRadius: 0.01 } },
+  { kind: "tail", pattern: /tail|shippo/i, settings: { stiffness: 1.2, gravityPower: 0.1, dragForce: 0.35, hitRadius: 0.02 } },
+  { kind: "skirt", pattern: /skirt|dress|sukato/i, settings: { stiffness: 1.6, gravityPower: 0.2, dragForce: 0.5, hitRadius: 0.03 } },
+  { kind: "breast", pattern: /breast|bust|boob|oppai|mune/i, settings: { stiffness: 2.6, gravityPower: 0.05, dragForce: 0.6, hitRadius: 0.02 } },
+  { kind: "hat", pattern: /hat|cap|brim|hood/i, settings: { stiffness: 3.0, gravityPower: 0.05, dragForce: 0.6, hitRadius: 0.02 } },
+  { kind: "hair", pattern: /hair|ahoge|bang|fringe|kami|ponytail|twintail|braid/i, settings: { stiffness: 1.3, gravityPower: 0.15, dragForce: 0.45, hitRadius: 0.02 } },
+  { kind: "cloth", pattern: /ribbon|bow|ribon|cape|cloak|scarf|sleeve|sode|cloth|strap|string|chain|tassel|frill/i, settings: { stiffness: 1.2, gravityPower: 0.2, dragForce: 0.4, hitRadius: 0.02 } },
 ]; // prettier-ignore
 
 /** Bones that look like secondary bones by name but are part of the rig (twist bones, IK targets, …). */
@@ -243,16 +277,19 @@ export function detectSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): Sp
 
     const kind = kindOf(root)!;
     const joints: number[] = [];
+    // Only skin joints are simulated: helper nodes beside them (game rigs' "…_Handle", "…_end") would make every
+    // joint look like a hub with several strands, which stays still.
     const visit = (i: number) => {
       if (humanoid.has(i) || claimed.has(i)) return;
       claimed.add(i);
-      joints.push(i);
+      if (jointSet.has(i)) joints.push(i);
       for (const c of nodes[i]?.children ?? []) visit(c);
     };
     visit(root);
     if (joints.length === 0) continue;
     chains.push({
       joints,
+      kind: kind.kind,
       settings: { ...kind.settings, gravityDir: new Vector3(0, -1, 0) },
       colliders: [],
     });
@@ -270,10 +307,13 @@ export function getSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): Sprin
 /** Builds a spring rig on the animation object graph (in its rest pose). `objectFor` maps node index → object. */
 export function createSpringRig(
   chains: SpringChainSpec[],
-  objectFor: (nodeIndex: number) => Object3D | undefined
+  objectFor: (nodeIndex: number) => Object3D | undefined,
+  { facesNegativeZ = false }: { facesNegativeZ?: boolean } = {}
 ): SpringRig | undefined {
   const joints: SpringJoint[] = [];
   const seen = new Set<Object3D>();
+  const earJoints: EarJoint[] = [];
+  let ears = 0;
 
   for (const chain of chains) {
     const colliders: SpringCollider[] = [];
@@ -289,6 +329,8 @@ export function createSpringRig(
     const objs = chain.joints.map(objectFor);
     const inChain = new Set(objs.filter((o): o is Object3D => !!o));
     const count = chain.lastIsTip ? objs.length - 1 : objs.length;
+    const isEar = chain.kind === "ear" || (!chain.kind && EAR.test(objs[0]?.name ?? ""));
+    const chainStart = joints.length;
     for (let i = 0; i < count; i++) {
       const bone = objs[i];
       if (!bone || seen.has(bone) || joints.length >= MAX_SPRING_JOINTS) continue;
@@ -322,9 +364,103 @@ export function createSpringRig(
         initialized: false,
       });
     }
+    if (isEar) {
+      // The chain's first simulated joints (under any hub) fold; the rest of the ear follows as springs.
+      const chainJoints = joints.slice(chainStart);
+      // Game rigs put a tiny-scaled helper pivot at the ear's base (e.g. Umamusume's Sp_He_Ear0, scale 0.01):
+      // fold the first full-size joint instead.
+      const fullSize = chainJoints.filter((j) => {
+        const scale = j.bone.getWorldScale(_earScale).x;
+        return scale > 0.2 && scale < 5;
+      });
+      const candidates = fullSize.length > 0 ? fullSize : chainJoints;
+      const bones = new Set(candidates.map((j) => j.bone));
+      const firsts = candidates.filter((j) => {
+        for (let p = j.bone.parent; p; p = p.parent) if (bones.has(p)) return false;
+        return true;
+      });
+      for (const joint of firsts) {
+        const folds = earFolds(joint, facesNegativeZ);
+        if (folds) earJoints.push({ joint, ear: ears, ...folds, amount: 0, goal: 0, pose: "fold" });
+      }
+      if (firsts.length > 0) ears++;
+    }
   }
   if (joints.length === 0) return undefined;
-  return { joints, lastRootPosition: new Vector3(), hasLastRoot: false };
+  const rig: SpringRig = { joints, lastRootPosition: new Vector3(), hasLastRoot: false };
+  if (earJoints.length > 0) rig.ears = { joints: earJoints, ears, untilNext: 2 + Math.random() * 4, untilRelax: 0 };
+  return rig;
+}
+
+/** Back (away from the face), and down. */
+const _back = new Vector3();
+const _earScale = new Vector3();
+const _earDir = new Vector3();
+const _earWorld = new Quaternion();
+/** A folded ear points this far from back-and-down toward its rest direction (0 = all the way). */
+const FOLD_KEEP = 0.2;
+
+/**
+ * The rest turns that fold an ear back and down (horses pin their ears back) and flick it (part way back and out),
+ * computed in the rest pose the rig is built in, with the avatar facing +Z (or -Z).
+ */
+function earFolds(joint: SpringJoint, facesNegativeZ: boolean) {
+  const bone = joint.bone;
+  bone.updateWorldMatrix(true, false);
+  bone.getWorldQuaternion(_earWorld);
+  const inverse = _earWorld.clone().invert();
+  _back.set(0, -0.55, facesNegativeZ ? 0.85 : -0.85).normalize();
+  const axisWorld = joint.boneAxis.clone().applyQuaternion(_earWorld);
+  // Folded: mostly back-and-down, a little of the rest direction kept.
+  _earDir.copy(_back).lerp(axisWorld, FOLD_KEEP).normalize().applyQuaternion(inverse);
+  if (_earDir.lengthSq() < 1e-8) return undefined;
+  const fold = new Quaternion().setFromUnitVectors(joint.boneAxis, _earDir.normalize());
+  // Flicked: outward (away from the head's middle) and a bit back.
+  const out = new Vector3().setFromMatrixPosition(bone.matrixWorld);
+  out.set(Math.sign(out.x) || 1, 0, 0);
+  _earDir.copy(axisWorld).addScaledVector(out, 0.7).addScaledVector(_back, 0.5).normalize().applyQuaternion(inverse);
+  const flick = new Quaternion().setFromUnitVectors(joint.boneAxis, _earDir.normalize());
+  return { fold, flick };
+}
+
+const _noTurn = new Quaternion();
+
+/** Picks the next ear move now and then, and eases each ear toward where it should be. */
+function updateEars(ears: EarMotion, dt: number, random: () => number) {
+  ears.untilNext -= dt;
+  ears.untilRelax -= dt;
+  if (ears.untilRelax <= 0) for (const e of ears.joints) e.goal = 0;
+  if (ears.untilNext <= 0) {
+    if (random() < 0.55 || ears.ears < 2) {
+      // Both ears pinned back for a moment.
+      for (const e of ears.joints) {
+        e.pose = "fold";
+        e.goal = 0.75 + random() * 0.25;
+      }
+      ears.untilRelax = 0.7 + random() * 1.1;
+    } else {
+      // One ear flicks.
+      const which = Math.floor(random() * ears.ears);
+      for (const e of ears.joints) {
+        if (e.ear !== which) continue;
+        e.pose = "flick";
+        e.goal = 1;
+      }
+      ears.untilRelax = 0.25 + random() * 0.25;
+    }
+    ears.untilNext = ears.untilRelax + 2.5 + random() * 6;
+  }
+  // Quick to move, a little slower to relax; the spring adds the overshoot.
+  for (const e of ears.joints) {
+    const rate = e.goal > e.amount ? 10 : 5;
+    e.amount += (e.goal - e.amount) * (1 - Math.exp(-dt * rate));
+    if (e.amount < 0.001 && e.goal === 0) {
+      e.joint.restOffset = undefined;
+      continue;
+    }
+    e.joint.restOffset ??= new Quaternion();
+    e.joint.restOffset.copy(_noTurn).slerp(e.pose === "fold" ? e.fold : e.flick, e.amount);
+  }
 }
 
 const _worldPos = new Vector3();
@@ -399,6 +535,7 @@ function stepJoint(joint: SpringJoint, dt: number, floorY: number) {
   // Verlet: inertia (with drag) + stiffness toward the rest direction + gravity.
   _inertia.subVectors(joint.currentTail, joint.prevTail).multiplyScalar(1 - settings.dragForce);
   _tmpQ.copy(_parentWorldRot).multiply(joint.initialLocalRotation);
+  if (joint.restOffset) _tmpQ.multiply(joint.restOffset);
   _stiff
     .copy(joint.boneAxis)
     .applyQuaternion(_tmpQ)
@@ -440,7 +577,13 @@ function stepJoint(joint: SpringJoint, dt: number, floorY: number) {
  * Advances the springs. `root` is the animation graph's root (the avatar node); `rootWorldMatrix` is that
  * node's world matrix in the engine (column-major), so springs react to the avatar moving through the world.
  */
-export function updateSpringRig(rig: SpringRig, root: Object3D, rootWorldMatrix: ArrayLike<number>, dt: number) {
+export function updateSpringRig(
+  rig: SpringRig,
+  root: Object3D,
+  rootWorldMatrix: ArrayLike<number>,
+  dt: number,
+  random: () => number = Math.random
+) {
   root.matrixAutoUpdate = false;
   root.matrix.fromArray(rootWorldMatrix as number[]);
   // The mixer just wrote the animated pose; springs start from their rest rotation each frame.
@@ -453,6 +596,7 @@ export function updateSpringRig(rig: SpringRig, root: Object3D, rootWorldMatrix:
   rig.hasLastRoot = true;
 
   if (!(dt > 0)) return;
+  if (rig.ears) updateEars(rig.ears, dt, random);
   const steps = Math.min(Math.ceil(dt / MAX_STEP), 4);
   const step = Math.min(dt / steps, MAX_STEP);
 

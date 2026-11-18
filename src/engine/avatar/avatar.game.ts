@@ -544,7 +544,7 @@ function createAvatarAnimationExtras(
   let springRig: SpringRig | undefined;
   try {
     const chains = getSpringChains(loaderCtx.resource.root, mapping);
-    if (chains.length > 0) springRig = createSpringRig(chains, objectFor);
+    if (chains.length > 0) springRig = createSpringRig(chains, objectFor, { facesNegativeZ: mapping.facesNegativeZ });
   } catch (error) {
     // Decoration only: never fail the avatar over it.
     console.warn("Avatar spring bones disabled:", error);

@@ -200,4 +200,71 @@ describe("spring rig building", () => {
     )!; // prettier-ignore
     expect(rig.joints.map((j) => j.bone)).toEqual([a, b]);
   });
+
+  it("simulates only skin joints, so helper nodes beside them (game rigs' Handle bones) don't freeze a chain", () => {
+    const gltf = {
+      nodes: [
+        { name: "Head", children: [1] },
+        { name: "Ear_01_L", children: [2, 3] },
+        { name: "Ear_02_L", children: [4] },
+        { name: "Ear_01_L_Handle" },
+        { name: "Ear_02_L_Handle" },
+      ],
+      skins: [{ joints: [0, 1, 2] }],
+    };
+    const chains = detectSpringChains(gltf, mapping({ head: 0 }));
+    expect(chains).toHaveLength(1);
+    expect(chains[0].joints).toEqual([1, 2]);
+    expect(chains[0].kind).toBe("ear");
+    // Built on objects, the ear's joints swing (the helper isn't a second strand that would make them hubs).
+    const root = new Group();
+    const objs = gltf.nodes.map((n) => Object.assign(new Bone(), { name: n.name }));
+    root.add(objs[0]);
+    objs[0].add(objs[1]);
+    objs[1].add(objs[2], objs[3]);
+    objs[2].add(objs[4]);
+    objs[0].position.set(0, 1.5, 0);
+    objs[1].position.set(0.05, 0.1, 0);
+    objs[2].position.set(0, 0.04, 0);
+    objs[3].position.set(0, 0.01, 0.01);
+    objs[4].position.set(0, 0.04, 0);
+    const rig = createSpringRig(chains, (i) => objs[i])!;
+    expect(rig.joints.map((j) => j.bone.name)).toEqual(["Ear_01_L", "Ear_02_L"]);
+  });
+
+  it("folds ears back and down now and then, and lets them come back up", () => {
+    const root = new Group();
+    const head = new Bone();
+    head.position.set(0, 1.5, 0);
+    const ear = Object.assign(new Bone(), { name: "Ear_L" });
+    ear.position.set(0.05, 0.1, 0);
+    const tip = new Bone();
+    tip.position.set(0, 0.06, 0);
+    root.add(head);
+    head.add(ear);
+    ear.add(tip);
+    const objs = [head, ear, tip];
+    const chain: SpringChainSpec = {
+      joints: [1, 2],
+      kind: "ear",
+      settings: { stiffness: 3.2, gravityPower: 0, gravityDir: new Vector3(0, -1, 0), dragForce: 0.6, hitRadius: 0 },
+      colliders: [],
+    };
+    root.updateMatrixWorld(true);
+    const rig = createSpringRig([chain], (i) => objs[i])!;
+    expect(rig.ears?.joints).toHaveLength(1);
+    rig.ears!.untilNext = 0;
+    // Always fold (random 0 picks a fold), then watch the tip go behind the head and come back.
+    let minZ = 0;
+    for (let i = 0; i < 600; i++) {
+      updateSpringRig(rig, root, at(0, 0, 0), 1 / 60, () => 0);
+      minZ = Math.min(minZ, tipWorld(tip).z);
+      if (i === 120) break;
+    }
+    expect(minZ).toBeLessThan(-0.03); // back (the avatar faces +Z)
+    // After the fold ends the ear rises again.
+    rig.ears!.untilNext = 1000;
+    for (let i = 0; i < 300; i++) updateSpringRig(rig, root, at(0, 0, 0), 1 / 60, () => 0);
+    expect(tipWorld(tip).y).toBeGreaterThan(1.5 + 0.1 + 0.05);
+  });
 });
