@@ -807,7 +807,23 @@ export function buildClimbClip(rig: RetargetRig, name = "Climb", duration = 1.2)
  * each thigh's and shin's sideways lean beyond the rest stance is removed (a swing toward the midline, keeping twist).
  * Modifies `clip` in place and returns it.
  */
-export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 0.8): AnimationClip {
+export function narrowLegSpread(
+  clip: AnimationClip,
+  rig: RetargetRig,
+  amount = 0.8,
+  {
+    thighs = true,
+    shinsToThighs = false,
+  }: {
+    /** Narrow the thighs too (else only the shins). */
+    thighs?: boolean;
+    /**
+     * Line each shin up with its thigh (seen from the front) instead of keeping the avatar's resting lean: avatars
+     * that stand with their ankles wider than their knees otherwise run knees-in, ankles-out.
+     */
+    shinsToThighs?: boolean;
+  } = {}
+): AnimationClip {
   const hips = rig.bones.get("hips");
   if (!hips) return clip;
   const legs = (["left", "right"] as const)
@@ -837,14 +853,19 @@ export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 
   const target = new Vector3();
 
   /** Swings one bone's keys so its direction (in the thighs' parent space) loses `amount` of its extra spread. */
-  const narrow = (track: KeyframeTrack, toChild: Vector3, restSide: number, parentAt?: (time: number) => Quaternion) => {
+  const narrow = (
+    track: KeyframeTrack,
+    toChild: Vector3,
+    restSideAt: (time: number) => number,
+    parentAt?: (time: number) => Quaternion
+  ) => {
     const values = track.values;
     for (let k = 0, i = 0; i < values.length; k++, i += 4) {
       q.fromArray(values, i);
       parentQ.copy(parentAt ? parentAt(track.times[k]) : swing.identity());
       // Direction in the thighs' parent space.
       dir.copy(toChild).applyQuaternion(q).applyQuaternion(parentQ);
-      const extra = dir.dot(lateral) - restSide;
+      const extra = dir.dot(lateral) - restSideAt(track.times[k]);
       target.copy(dir).addScaledVector(lateral, -extra * amount).normalize();
       // The swing in that space, brought into the bone's parent space: parent⁻¹ · swing · parent · q.
       swing.setFromUnitVectors(dir, target);
@@ -859,9 +880,13 @@ export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 
     const thighRest = restLocal(rig, thigh).quaternion;
     const toKnee = restLocal(rig, knee).position.clone().normalize();
     const toFoot = restLocal(rig, foot).position.clone().normalize();
-    if (thighTrack) narrow(thighTrack, toKnee, dir.copy(toKnee).applyQuaternion(thighRest).dot(lateral));
+    if (thighTrack && thighs) {
+      const restThigh = dir.copy(toKnee).applyQuaternion(thighRest).dot(lateral);
+      narrow(thighTrack, toKnee, () => restThigh);
+    }
     if (kneeTrack) {
-      // The shin's sideways lean, with the (already narrowed) thigh's rotation as its parent.
+      // The shin's sideways lean, with the (already narrowed) thigh's rotation as its parent; measured against the
+      // rest stance, or against the thigh's own lean at that moment.
       const restShin = dir
         .copy(toFoot)
         .applyQuaternion(restLocal(rig, knee).quaternion)
@@ -869,8 +894,14 @@ export function narrowLegSpread(clip: AnimationClip, rig: RetargetRig, amount = 
         .dot(lateral);
       const thighAt = thighTrack ? thighTrack.createInterpolant() : undefined;
       const sample = new Quaternion();
-      narrow(kneeTrack, toFoot, restShin, (time) =>
-        thighAt ? sample.fromArray(thighAt.evaluate(time) as unknown as number[]) : sample.copy(thighRest)
+      const thighQ = (time: number) =>
+        thighAt ? sample.fromArray(thighAt.evaluate(time) as unknown as number[]) : sample.copy(thighRest);
+      const thighSide = new Vector3();
+      narrow(
+        kneeTrack,
+        toFoot,
+        shinsToThighs ? (time) => thighSide.copy(toKnee).applyQuaternion(thighQ(time)).dot(lateral) : () => restShin,
+        thighQ
       );
     }
   }

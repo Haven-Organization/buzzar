@@ -130,6 +130,21 @@ function defaultAvatarOptions(
   };
 }
 
+/** Standing and moving clips whose leg shape is corrected per avatar (not sitting, crouching, crawling, climbing). */
+const LOCOMOTION_CLIPS = new Set([
+  "Idle",
+  "Walk",
+  "WalkBack",
+  "Run",
+  "RunBack",
+  "StrafeLeft",
+  "StrafeRight",
+  "StrafeLeftRun",
+  "StrafeRightRun",
+  "TurnLeft",
+  "TurnRight",
+]);
+
 /** Clips already corrected (the same clip objects can come back on a later load). */
 const fixedClips = new WeakSet<AnimationClip>();
 
@@ -485,6 +500,11 @@ async function loadCustomAvatar(
       eyeHeight = estimateEyeHeight({ ...target, align: new Quaternion() });
       // Avatars bound in an A-pose (common for game and VRChat models) get their limbs corrected to the clips' T-pose.
       const clips = source.clips.map((clip) => retargetClip(clip, source.rig, target, { normalizeRestPose: true }));
+      // Buzzar: avatars that stand with their ankles wider than their knees would walk and run knees-in, ankles-out:
+      // line each shin up with its thigh.
+      for (const clip of clips) {
+        if (LOCOMOTION_CLIPS.has(clip.name)) narrowLegSpread(clip, target, 1, { thighs: false, shinsToThighs: true });
+      }
       return makeCrouchAdditive(clips, target);
     },
     // Hair, ears, tails, skirts…: built after retargeting has put the skeleton in its bind pose (the springs' rest).

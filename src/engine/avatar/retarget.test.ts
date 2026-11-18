@@ -347,5 +347,25 @@ describe("narrowLegSpread", () => {
     // … while the forward swing stays.
     expect(after.z).toBeGreaterThan(0.2);
   });
+
+  test("can line shins up with their thighs (avatars that stand ankles-out)", () => {
+    const rig = buildRig(legs);
+    const bone = (b: HumanBone) => rig.bones.get(b)!;
+    // Thigh straight down, shin kicked 20° out: knee in, ankle out.
+    const clip = new AnimationClip("Run", 1, [
+      new QuaternionKeyframeTrack(`${bone("leftUpperLeg").uuid}.quaternion`, [0], turn(-10, 0)),
+      new QuaternionKeyframeTrack(`${bone("leftLowerLeg").uuid}.quaternion`, [0], turn(30, 20)),
+    ]);
+    narrowLegSpread(clip, rig, 1, { thighs: false, shinsToThighs: true });
+    const mixer = new AnimationMixer(rig.root);
+    mixer.clipAction(clip).play();
+    mixer.setTime(0);
+    rig.root.updateMatrixWorld(true);
+    const knee = bone("leftLowerLeg").getWorldPosition(new Vector3());
+    const foot = bone("leftFoot").getWorldPosition(new Vector3());
+    // The ankle is straight below the knee from the front, and the knee bend (forward) is kept.
+    expect(foot.x).toBeCloseTo(knee.x, 3);
+    expect(Math.abs(foot.z - knee.z)).toBeGreaterThan(0.1);
+  });
 });
 
