@@ -26,7 +26,6 @@ import { ProfileExtrasSettings } from "./ProfileExtrasSettings";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
 import { uploadAttachment } from "../../../utils/matrixUtils";
-import { Switch } from "../../../atoms/button/Switch";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import {
@@ -38,6 +37,26 @@ import {
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
+import { ControlsSettings } from "./ControlsSettings";
+import { DeveloperSettings } from "./DeveloperSettings";
+import { SettingsNav, SettingsNavItem } from "./SettingsNav";
+import AvatarIC from "../../../../../res/ic/avatar.svg";
+import MicIC from "../../../../../res/ic/mic.svg";
+import DarkLightIC from "../../../../../res/ic/dark-light.svg";
+import MouseIC from "../../../../../res/ic/mouse.svg";
+import PlanetIC from "../../../../../res/ic/planet.svg";
+import CurlyBracketIC from "../../../../../res/ic/curly-bracket.svg";
+
+// Buzzar: settings are split into categories, picked from a list down the left (like Element).
+type SettingsCategory = "profile" | "voice" | "graphics" | "controls" | "worlds" | "developer";
+const CATEGORIES: SettingsNavItem<SettingsCategory>[] = [
+  { id: "profile", label: "Profile", icon: AvatarIC },
+  { id: "voice", label: "Voice", icon: MicIC },
+  { id: "graphics", label: "Graphics", icon: DarkLightIC },
+  { id: "controls", label: "Controls", icon: MouseIC },
+  { id: "worlds", label: "Worlds & Scripts", icon: PlanetIC },
+  { id: "developer", label: "Developer", icon: CurlyBracketIC },
+];
 
 export function UserProfileOverview() {
   const { session, platform, profileRoom } = useHydrogen(true);
@@ -45,9 +64,8 @@ export function UserProfileOverview() {
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
 
   const [newDisplayName, setNewDisplayName] = useState(displayName);
-  const [immersiveAR, setImmersiveAR] = useLocalStorage("feature_immersiveAR", false);
   const [renderQuality, setRenderQuality] = useLocalStorage(LOCAL_STORAGE_RENDER_QUALITY, RenderQualitySetting.Auto);
-  const [sceneEditor, setSceneEditor] = useLocalStorage("feature_sceneEditor", false);
+  const [category, setCategory] = useState<SettingsCategory>("profile");
 
   const mainThread = useMainThreadContext();
 
@@ -107,56 +125,46 @@ export function UserProfileOverview() {
           onSubmit={handleSubmit}
           onReset={handleReset}
           children={
-            <Scroll>
-              <div className="UserProfileOverview__content">
-                <SettingTile label={<Label>Profile Picture</Label>}>
-                  <AvatarPicker url={httpAvatarUrl} onAvatarPick={pickAvatar} onAvatarDrop={dropAvatar} />
-                </SettingTile>
-                <div className="flex gap-lg">
-                  <SettingTile className="grow basis-0" label={<Label>Default Display Name</Label>}>
-                    <Input name="displayName" onChange={onDisplayNameChange} defaultValue={displayName} required />
-                  </SettingTile>
-                  <span className="grow basis-0" />
+            <div className="UserProfileOverview flex grow">
+              <SettingsNav items={CATEGORIES} selected={category} onSelect={setCategory} />
+              <Scroll className="grow">
+                <div className="UserProfileOverview__content">
+                  <Text variant="s1" weight="semi-bold">
+                    {CATEGORIES.find((item) => item.id === category)?.label}
+                  </Text>
+                  {/* The profile fields stay mounted (hidden) so unsaved edits survive switching categories. */}
+                  <div className="UserProfileOverview__section" hidden={category !== "profile"}>
+                    <SettingTile label={<Label>Profile Picture</Label>}>
+                      <AvatarPicker url={httpAvatarUrl} onAvatarPick={pickAvatar} onAvatarDrop={dropAvatar} />
+                    </SettingTile>
+                    <SettingTile label={<Label>Default Display Name</Label>}>
+                      <Input name="displayName" onChange={onDisplayNameChange} defaultValue={displayName} required />
+                    </SettingTile>
+                    <ProfileExtrasSettings />
+                  </div>
+                  {category === "voice" && (
+                    <div className="UserProfileOverview__section">
+                      <MicrophoneSettings />
+                    </div>
+                  )}
+                  {category === "graphics" && (
+                    <div className="UserProfileOverview__section">
+                      <SettingTile label={<Label>Graphics Quality (Requires Refresh)</Label>}>
+                        <SelectInput options={renderQualityOptions} value={renderQuality} onChange={setRenderQuality} />
+                      </SettingTile>
+                    </div>
+                  )}
+                  {category === "controls" && <ControlsSettings />}
+                  {category === "worlds" && (
+                    <div className="UserProfileOverview__section">
+                      <BuzzarSpaceSetting />
+                      <WorldScriptSettings />
+                    </div>
+                  )}
+                  {category === "developer" && <DeveloperSettings />}
                 </div>
-                <div className="flex gap-lg">
-                  <ProfileExtrasSettings />
-                  <span className="grow basis-0" />
-                </div>
-                <div className="flex gap-lg">
-                  <MicrophoneSettings />
-                  <span className="grow basis-0" />
-                </div>
-                <div className="flex gap-lg">
-                  <BuzzarSpaceSetting />
-                  <span className="grow basis-0" />
-                </div>
-                <WorldScriptSettings />
-                <div className="flex gap-lg">
-                  <SettingTile className="grow basis-0" label={<Label>Graphics Quality (REQUIRES REFRESH)</Label>}>
-                    <SelectInput options={renderQualityOptions} value={renderQuality} onChange={setRenderQuality} />
-                  </SettingTile>
-                  <span className="grow basis-0" />
-                </div>
-                <div className="flex gap-lg">
-                  <SettingTile
-                    className="grow basis-0"
-                    label={<Label>Immersive AR (EXPERIMENTAL, REQUIRES REFRESH)</Label>}
-                  >
-                    <Switch checked={immersiveAR} onCheckedChange={setImmersiveAR} />
-                  </SettingTile>
-                  <span className="grow basis-0" />
-                </div>
-                <div className="flex gap-lg">
-                  <SettingTile
-                    className="grow basis-0"
-                    label={<Label>Scene Editor (EXPERIMENTAL, REQUIRES REFRESH)</Label>}
-                  >
-                    <Switch checked={sceneEditor} onCheckedChange={setSceneEditor} />
-                  </SettingTile>
-                  <span className="grow basis-0" />
-                </div>
-              </div>
-            </Scroll>
+              </Scroll>
+            </div>
           }
           bottom={
             (displayName !== newDisplayName || isAvatarChanged) && (
@@ -173,47 +181,49 @@ export function UserProfileOverview() {
         />
       }
       aside={
-        <WindowAside className="flex">
-          <ScenePreviewOverlay
-            className="grow flex"
-            overlay={
-              /* DISABLED FEATURE */
-              false && (
-                <Content
-                  className="grow"
-                  children=" "
-                  bottom={
-                    <Footer
-                      center={
-                        <Edit3DAvatar
-                          renderTrigger={(openModal) => (
-                            <Button onClick={openModal}>
-                              {tDAvatarPreviewUrl ? "Edit 3D Avatar" : "Upload 3D Avatar"}
-                            </Button>
-                          )}
-                        />
-                      }
-                    />
-                  }
-                />
-              )
-            }
-          >
-            <ScenePreview
-              className="grow"
-              src={getHttpUrl(session, tDAvatarPreviewUrl)}
-              alt="3D Avatar preview"
-              fallback={
+        category === "profile" && (
+          <WindowAside className="flex">
+            <ScenePreviewOverlay
+              className="grow flex"
+              overlay={
                 /* DISABLED FEATURE */
                 false && (
-                  <Text variant="b3" color="surface-low" weight="medium">
-                    Your 3D avatar preview will appear here.
-                  </Text>
+                  <Content
+                    className="grow"
+                    children=" "
+                    bottom={
+                      <Footer
+                        center={
+                          <Edit3DAvatar
+                            renderTrigger={(openModal) => (
+                              <Button onClick={openModal}>
+                                {tDAvatarPreviewUrl ? "Edit 3D Avatar" : "Upload 3D Avatar"}
+                              </Button>
+                            )}
+                          />
+                        }
+                      />
+                    }
+                  />
                 )
               }
-            />
-          </ScenePreviewOverlay>
-        </WindowAside>
+            >
+              <ScenePreview
+                className="grow"
+                src={getHttpUrl(session, tDAvatarPreviewUrl)}
+                alt="3D Avatar preview"
+                fallback={
+                  /* DISABLED FEATURE */
+                  false && (
+                    <Text variant="b3" color="surface-low" weight="medium">
+                      Your 3D avatar preview will appear here.
+                    </Text>
+                  )
+                }
+              />
+            </ScenePreviewOverlay>
+          </WindowAside>
+        )
       }
     />
   );

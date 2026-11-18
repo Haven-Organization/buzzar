@@ -1,7 +1,22 @@
-.UserProfileOverview__content {
-  padding: var(--sp-xs) var(--sp-md);
+.UserProfileOverview {
+  min-width: 0;
+  height: 100%;
+}
 
-  & > * {
-    margin-top: var(--sp-lg);
+.UserProfileOverview__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+  max-width: 640px;
+  padding: var(--sp-md) var(--sp-lg) var(--sp-lg);
+}
+
+.UserProfileOverview__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+
+  &[hidden] {
+    display: none;
   }
 }

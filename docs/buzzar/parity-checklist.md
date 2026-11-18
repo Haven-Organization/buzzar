@@ -179,6 +179,9 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
       zone, squared look curve, analog walking speed, sprint at full tilt; layout as in the table above (L3 hold for
       prone, R1/R2 grab, X throw, Y mute, D-pad names/HUD, Start menu, Back controls). Non-standard pads aren't
       remapped yet. Tested with a simulated pad only.
+      **Buzzar (2026-11-18):** Settings → Controls lists the connected controllers (a light shows which one you're
+      pressing) and picks which to use: any (merged), one in particular, or none; plus the keyboard/mouse and
+      controller layouts (`gamepadPreference.ts`, `ControlsSettings.tsx`).
 - [ ] ❌ **M** **Centralized, rebindable action registry**, with a rebinding UI per device and saved
       bindings in Matrix account data (`software.haven.input_bindings`) so they follow the user across devices.
 - [ ] ❌ **M** **Gamepad UI navigation:** every 2D menu (React overlays) and in-world UI panel can be
@@ -330,7 +333,7 @@ replaced that with default-deny and consent (`src/engine/matrix/scriptConsent.ma
       **Buzzar (2026-11-17):** each world script may send 30 messages and 32 KB a second (2 s burst); each peer's
       incoming script messages are capped at twice that, and excess is dropped with a warning. A world's ⋯ menu has
       "Enter Without Script", for that visit only (the next Enter runs it again, so it can't stay off by accident).
-      Planned: show it only in a developer mode.
+      **2026-11-18:** it only shows with Developer Mode on (Settings → Developer).
 - [ ] ❌ **M** World-originated actions (scoreboards, persistence) are written by a world bot account
       (§9) with the right PL, never through visitors' accounts.
 - [ ] ❌ **L** 🅼 **External server access (later phase).** VRChat's model is a good start:

@@ -54,6 +54,7 @@ import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { activeChatsAtom } from "../../../state/overlayChat";
 import { OverlayWindow, overlayWindowAtom, WorldsTab } from "../../../state/overlayWindow";
 import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
+import { developerModeAtom } from "../../../state/developerMode";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import AddIC from "../../../../../res/ic/add.svg";
 
@@ -232,6 +233,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
   const previewSrc = useThumbnail(preview);
   const avatarSrc = useThumbnail(room.avatarUrl ?? undefined);
   const [withoutScriptRequest, setWithoutScriptRequest] = useState(0);
+  const developerMode = useAtomValue(developerModeAtom);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const returnToWorld = useReturnToWorld();
@@ -299,9 +301,8 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
                 Settings
               </DropdownMenuItem>
             )}
-            {hasScript && !isHere && (
-              // Buzzar: this visit only, so a world never stays without its script by accident. (Planned: show this
-              // only in a developer mode.)
+            {developerMode && hasScript && !isHere && (
+              // Buzzar: Developer Mode only; this visit only, so a world never stays without its script by accident.
               <DropdownMenuItem onSelect={() => setWithoutScriptRequest((n) => n + 1)}>
                 Enter Without Script
               </DropdownMenuItem>

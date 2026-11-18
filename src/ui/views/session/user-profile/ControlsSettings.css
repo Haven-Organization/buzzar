@@ -1,0 +1,19 @@
+.ControlsSettings__pad {
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--br-sm);
+  background-color: var(--bg-surface-low);
+  min-width: 0;
+}
+
+.ControlsSettings__light {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--bg-surface-border);
+  transition: background-color 80ms ease-out;
+}
+
+.ControlsSettings__light--on {
+  background-color: var(--bg-primary);
+}

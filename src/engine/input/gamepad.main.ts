@@ -8,7 +8,8 @@
  * - The right stick turns the view by sending mouse movement, so look sensitivity and smoothing are shared.
  * - Buttons for things the page handles (menu, mute, names, HUD, controls help) press those keyboard shortcuts.
  *
- * Browsers only list a pad after one of its buttons is pressed while the page has focus.
+ * Browsers only list a pad after one of its buttons is pressed while the page has focus. Settings → Controls picks which
+ * pads are read (gamepadPreference.ts).
  */
 import {
   applyDeadzone,
@@ -17,6 +18,7 @@ import {
   PadButton,
   SPRINT_THRESHOLD,
 } from "./gamepad.common";
+import { getGamepadChoice, pickGamepads } from "./gamepadPreference";
 import { InputComponentId, InputSourceId } from "./input.common";
 
 export type Enqueue = (
@@ -77,10 +79,13 @@ export function startGamepadPolling(enqueue: Enqueue, active: () => boolean): ()
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
 
-    const pads = Array.from(navigator.getGamepads?.() ?? []).filter((pad): pad is Gamepad => !!pad && pad.connected);
+    const connected = Array.from(navigator.getGamepads?.() ?? []).filter((pad): pad is Gamepad => !!pad && pad.connected);
+    const pads = pickGamepads(connected, getGamepadChoice());
 
-    // Buttons: the strongest press across pads.
-    const count = Math.max(0, ...pads.map((pad) => pad.buttons.length));
+    // Buttons: the strongest press across pads. Buttons held when a pad stops being read (unplugged, or another
+    // controller picked) are released too.
+    const held = [...buttons.keys()].filter((index) => index !== PadButton.Sprint);
+    const count = Math.max(0, ...pads.map((pad) => pad.buttons.length), ...held.map((index) => index + 1));
     for (let i = 0; i < count; i++) {
       let value = 0;
       for (const pad of pads) {
