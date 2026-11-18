@@ -237,11 +237,12 @@ rootChildren.push(
 );
 
 // World props that should appear in "high" reflections and never in "low" ones.
+// Kept out of the pedestals' line of sight (they face -X across z = -3…3), so nothing stands in front of them.
 [
-  [-3, 0.75, -3],
-  [3, 0.75, -3],
-  [-3, 0.75, 3],
-  [3, 0.75, 3],
+  [-4, 0.75, -4.8],
+  [3, 0.75, -4.8],
+  [-4, 0.75, 4.8],
+  [-2, 0.75, 4.8],
 ].forEach((t, i) => rootChildren.push(solid(`Pillar${i}`, [0.6, 1.5, 0.6], t, colours[i])));
 rootChildren.push(solid("BigGreenBlock", [4, 2.5, 1], [1.5, 1.25, 5.5], green));
 
