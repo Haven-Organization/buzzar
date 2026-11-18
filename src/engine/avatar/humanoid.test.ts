@@ -95,6 +95,23 @@ describe("getHumanoidMapping", () => {
     expect(mapping.bones.get("leftLowerLeg")).toBe(11);
   });
 
+  test("Biped and CATS finger names fill in a CATS rig's fingers", () => {
+    const names = ["Hips", "Spine", "Chest", "Neck", "Head", "Left arm", "Left elbow", "Left wrist", "Right arm"];
+    names.push("Right elbow", "Right wrist", "Left leg", "Left knee");
+    names.push("Bip001-L-Finger0_0111", "Bip001-L-Finger02_0113", "Bip001-L-Finger1_0114", "Bip001-L-Finger42_0125");
+    names.push("Bip001 R Finger21", "IndexFinger3_R", "Thumb1_R");
+    const mapping = getHumanoidMapping({ asset: { version: "2.0" }, nodes: nodes(names) } as any)!;
+    expect(mapping.format).toBe("cats");
+    const at = (name: string) => names.indexOf(name);
+    expect(mapping.bones.get("leftThumbMetacarpal")).toBe(at("Bip001-L-Finger0_0111"));
+    expect(mapping.bones.get("leftThumbDistal")).toBe(at("Bip001-L-Finger02_0113"));
+    expect(mapping.bones.get("leftIndexProximal")).toBe(at("Bip001-L-Finger1_0114"));
+    expect(mapping.bones.get("leftLittleDistal")).toBe(at("Bip001-L-Finger42_0125"));
+    expect(mapping.bones.get("rightMiddleIntermediate")).toBe(at("Bip001 R Finger21"));
+    expect(mapping.bones.get("rightIndexDistal")).toBe(at("IndexFinger3_R"));
+    expect(mapping.bones.get("rightThumbProximal")).toBe(at("Thumb1_R"));
+  });
+
   test("non-humanoid returns undefined", () => {
     expect(getHumanoidMapping({ asset: { version: "2.0" }, nodes: nodes(["Cube", "Light"]) } as any)).toBeUndefined();
   });

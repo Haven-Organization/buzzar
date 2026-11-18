@@ -207,6 +207,35 @@ const CATS_TO_HUMAN: Record<string, HumanBone> = {
   "right toe": "rightToes",
 };
 
+for (const side of ["left", "right"] as const) {
+  // CATS / VRChat finger names: Thumb0_L…Thumb2_L, IndexFinger1_L…LittleFinger3_L.
+  CATS_TO_HUMAN[`${side} thumb0`] = `${side}ThumbMetacarpal`;
+  CATS_TO_HUMAN[`${side} thumb1`] = `${side}ThumbProximal`;
+  CATS_TO_HUMAN[`${side} thumb2`] = `${side}ThumbDistal`;
+  for (const finger of ["Index", "Middle", "Ring", "Little"] as const) {
+    const cats = `${side} ${finger.toLowerCase()}finger`;
+    CATS_TO_HUMAN[`${cats}1`] = `${side}${finger}Proximal`;
+    CATS_TO_HUMAN[`${cats}2`] = `${side}${finger}Intermediate`;
+    CATS_TO_HUMAN[`${cats}3`] = `${side}${finger}Distal`;
+  }
+}
+
+/**
+ * Buzzar: 3ds Max Biped finger names, which turn up in rigs otherwise named some other way (e.g. CATS):
+ * `Bip001 L Finger0` (thumb) … `Finger4` (little), each followed by a joint digit (none, 1, 2), maybe with an
+ * exporter's `_0112` suffix. Returns the humanoid finger bone, or undefined.
+ */
+export function bipedFingerBone(name: string): HumanBone | undefined {
+  const match = /^bip\d*[-_ ]?(l|r)[-_ ]?finger([0-4])([12]?)(?:[._]\d+)?$/i.exec(name.trim());
+  if (!match) return undefined;
+  const side = match[1].toLowerCase() === "l" ? "left" : "right";
+  const finger = Number(match[2]);
+  const joint = match[3] === "" ? 0 : Number(match[3]);
+  if (finger === 0) return `${side}Thumb${(["Metacarpal", "Proximal", "Distal"] as const)[joint]}`;
+  const name4 = (["Index", "Middle", "Ring", "Little"] as const)[finger - 1];
+  return `${side}${name4}${(["Proximal", "Intermediate", "Distal"] as const)[joint]}`;
+}
+
 function normalizeCatsName(name: string): string {
   return name
     .replace(/[._]/g, " ")
@@ -267,6 +296,7 @@ export function getHumanoidMapping(root: GLTFRoot): HumanoidMapping | undefined 
   const nodes = root.nodes ?? [];
   const mixamo = new Map<HumanBone, number>();
   const cats = new Map<HumanBone, number>();
+  const fingers = new Map<HumanBone, number>();
   nodes.forEach((node, index) => {
     const name = node.name;
     if (!name) return;
@@ -276,7 +306,13 @@ export function getHumanoidMapping(root: GLTFRoot): HumanoidMapping | undefined 
     }
     const catsBone = CATS_TO_HUMAN[normalizeCatsName(name)];
     if (catsBone && !cats.has(catsBone)) cats.set(catsBone, index);
+    const finger = bipedFingerBone(name);
+    if (finger && !fingers.has(finger)) fingers.set(finger, index);
   });
+  // Fingers named the Biped way fill in whatever the main naming scheme didn't name.
+  for (const map of [mixamo, cats]) {
+    for (const [bone, index] of fingers) if (!map.has(bone)) map.set(bone, index);
+  }
 
   if (mixamo.has("hips") && mixamo.size >= 10) return { format: "mixamo", bones: mixamo, facesNegativeZ: false };
   if (cats.has("hips") && cats.size >= 10) return { format: "cats", bones: cats, facesNegativeZ: false };

@@ -381,6 +381,11 @@ export interface PoseSpec {
    * gripping something. Measured across each hand's own knuckles, so it works however the hand is turned.
    */
   fingerCurl?: number;
+  /**
+   * Buzzar: turn each hand about its own length so its palm faces this direction (rig space, mirrored for the right
+   * hand like `directions`), e.g. toward a ladder being gripped.
+   */
+  palms?: [number, number, number];
 }
 
 const FINGER_BONES = ["Thumb", "Index", "Middle", "Ring", "Little"].flatMap((finger) =>
@@ -388,10 +393,11 @@ const FINGER_BONES = ["Thumb", "Index", "Middle", "Ring", "Little"].flatMap((fin
 );
 
 /**
- * Buzzar: for a hand, the axis (in the hand's rest world space) that curls its fingers toward the palm under a
- * positive rotation: the line across the knuckles, pointed so the fingertips swing to the thumb's (palm) side.
+ * Buzzar: a hand's frame in its rest world space: `curl`, the line across the knuckles, pointed so a positive
+ * rotation about it swings the fingertips to the thumb's (palm) side; `along`, wrist to middle fingertip; and `palm`,
+ * the way the palm faces.
  */
-function fingerCurlAxis(rig: RetargetRig, side: "left" | "right"): Vector3 | undefined {
+function handFrame(rig: RetargetRig, side: "left" | "right") {
   const pos = (bone: string) => {
     const obj = rig.bones.get(`${side}${bone}` as HumanBone);
     return obj ? new Vector3().setFromMatrixPosition(restWorldMatrix(rig, obj)) : undefined;
@@ -408,7 +414,9 @@ function fingerCurlAxis(rig: RetargetRig, side: "left" | "right"): Vector3 | und
   const palmward = new Vector3().crossVectors(across, along);
   const thumbOffset = thumb.clone().sub(hand);
   thumbOffset.addScaledVector(along, -thumbOffset.dot(along)).addScaledVector(across, -thumbOffset.dot(across));
-  return thumbOffset.dot(palmward) >= 0 ? across : across.negate();
+  const curl = thumbOffset.dot(palmward) >= 0 ? across : across.negate();
+  const palm = new Vector3().crossVectors(curl, along).normalize();
+  return { curl, along, palm };
 }
 
 const X_AXIS = new Vector3(1, 0, 0);
@@ -441,10 +449,12 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
   const direction = new Vector3();
   const target = new Vector3();
   const alignMatrix = new Matrix4().makeRotationFromQuaternion(rig.align);
-  const curlAxes = spec.fingerCurl
-    ? { left: fingerCurlAxis(rig, "left"), right: fingerCurlAxis(rig, "right") }
-    : undefined;
+  const hands =
+    spec.fingerCurl || spec.palms ? { left: handFrame(rig, "left"), right: handFrame(rig, "right") } : undefined;
+  const curlAxes = spec.fingerCurl && hands ? { left: hands.left?.curl, right: hands.right?.curl } : undefined;
   const curlAxis = new Vector3();
+  const handAlong = new Vector3();
+  const handPalm = new Vector3();
 
   rig.root.traverse((obj) => {
     if (obj === rig.root || !rig.rest.has(obj)) return;
@@ -478,6 +488,24 @@ export function buildPoseClip(rig: RetargetRig, name: string, spec: PoseSpec): A
     const bend = bone ? spec.bends?.[bone] : undefined;
     if (bend) current.premultiply(swing.setFromAxisAngle(X_AXIS, (bend * Math.PI) / 180));
     const handSide = bone?.startsWith("left") ? "left" : "right";
+    const frame = spec.palms && (bone === "leftHand" || bone === "rightHand") ? hands?.[handSide] : undefined;
+    if (frame && spec.palms) {
+      // Twist the hand about its length until the palm faces the asked-for way (as near as the length allows).
+      const fromRest = current.clone().multiply(restWorldQuat(rig, obj, restWorld).invert());
+      handAlong.copy(frame.along).applyQuaternion(fromRest);
+      handPalm.copy(frame.palm).applyQuaternion(fromRest);
+      target.set(spec.palms[0] * sideSign * (handSide === "right" ? -1 : 1), spec.palms[1], spec.palms[2]);
+      target.addScaledVector(handAlong, -target.dot(handAlong));
+      handPalm.addScaledVector(handAlong, -handPalm.dot(handAlong));
+      if (target.lengthSq() > 1e-6 && handPalm.lengthSq() > 1e-6) {
+        handPalm.normalize();
+        target.normalize();
+        // Exactly opposite: half a turn about the hand's own length (setFromUnitVectors would pick any axis).
+        if (handPalm.dot(target) < -0.9999) swing.setFromAxisAngle(handAlong.normalize(), Math.PI);
+        else swing.setFromUnitVectors(handPalm, target);
+        current.premultiply(swing);
+      }
+    }
     const curlRest = curlAxes && bone && FINGER_BONES.includes(bone.replace(/^(left|right)/, "")) && curlAxes[handSide];
     const hand = curlRest && rig.bones.get(`${handSide}Hand` as HumanBone);
     if (curlRest && hand && spec.fingerCurl) {
@@ -751,7 +779,8 @@ export function buildClimbClip(rig: RetargetRig, name = "Climb", duration = 1.2)
         bends: { spine: 2, neck: -12, head: -10 },
         sway: { hips: [3 * c, 0], chest: [-4 * c, 0] },
         hipsHeight: 0.97 + 0.02 * bob,
-        // Gripping the rungs.
+        // Gripping the rungs: palms to the ladder, fingers curled round.
+        palms: [0, 0, 1],
         fingerCurl: 55,
       })
     );
