@@ -1302,11 +1302,15 @@ const loadGLTFNode = createInstancedSubresourceLoader(
         addSceneGrabbable(loaderCtx.ctx, node, extensions.HAVEN_grabbable, index);
       }
 
-      // Buzzar: ladders: marked with HAVEN_climbable, or (in world scenes) any mesh node named like "ladder".
+      // Buzzar: ladders: marked with HAVEN_climbable, or (in world scenes that don't use it) any mesh node named like
+      // "ladder". A file that marks its ladders gets no guessing, so e.g. a "LadderPlatform" isn't one.
       const climbable = extensions?.HAVEN_climbable;
       if (
         climbable ||
-        (loaderCtx.createDefaultMeshColliders && meshIndex !== undefined && /ladder/i.test(name ?? ""))
+        (loaderCtx.createDefaultMeshColliders &&
+          meshIndex !== undefined &&
+          !resource.root.extensionsUsed?.includes("HAVEN_climbable") &&
+          /ladder/i.test(name ?? ""))
       ) {
         const size = climbable?.size;
         const box = size

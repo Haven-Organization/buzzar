@@ -20,7 +20,9 @@ Within reach of the climbable box (it counts up to 0.4 m out to the sides), a pl
 
 The box is only for climbing: it doesn't block movement, so give the ladder its own collider (or let Buzzar build one from its mesh, as it does for every mesh in a world without `OMI_collider`).
 
-**Worlds without the extension:** in a world scene, any node with a mesh whose name contains "ladder" (any case) is climbable automatically, using its mesh's bounds. That covers existing worlds that already have ladders.
+**Worlds without the extension:** in a world scene, any node with a mesh whose name contains "ladder" (any case) is climbable automatically, using its mesh's bounds. That covers existing worlds that already have ladders. A file that uses `HAVEN_climbable` anywhere gets no guessing: only the nodes it marks are climbable.
+
+**Climb Down:** every climbable gets an invisible "Climb Down" target over its top end. Standing up there, aim at it and press interact (E, click or trigger) to be put on the ladder just below the top, on the side away from where you stood, facing it and holding on.
 
 ## glTF Schema Updates
 
