@@ -8,16 +8,11 @@ import { Scroll } from "../../../atoms/scroll/Scroll";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { Input } from "../../../atoms/input/Input";
 import { Label } from "../../../atoms/text/Label";
-import { ScenePreview } from "../../components/scene-preview/ScenePreview";
-import { ScenePreviewOverlay } from "../../components/scene-preview/ScenePreviewOverlay";
 import { Text } from "../../../atoms/text/Text";
-import { WindowAside } from "../../components/window/WindowAside";
-import { getAvatarHttpUrl, getHttpUrl } from "../../../utils/avatar";
+import { getAvatarHttpUrl } from "../../../utils/avatar";
 import { Footer } from "../../../atoms/footer/Footer";
 import { Button } from "../../../atoms/button/Button";
 import { useDebounce } from "../../../hooks/useDebounce";
-import { use3DAvatar } from "../../../hooks/use3DAvatar";
-import { Edit3DAvatar } from "./Edit3DAvatar";
 import "./UserProfileOverview.css";
 import { MicrophoneSettings } from "./MicrophoneSettings";
 import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
@@ -59,7 +54,7 @@ const CATEGORIES: SettingsNavItem<SettingsCategory>[] = [
 ];
 
 export function UserProfileOverview() {
-  const { session, platform, profileRoom } = useHydrogen(true);
+  const { session, platform } = useHydrogen(true);
   const { displayName, avatarUrl } = useAtomValue(userProfileAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
 
@@ -76,7 +71,6 @@ export function UserProfileOverview() {
     return [{ value: RenderQualitySetting.Auto, label: `Auto (${currentQuality?.label})` }, ...RenderQualityOptions];
   }, [mainThread.quality]);
 
-  const [, tDAvatarPreviewUrl] = use3DAvatar(profileRoom);
 
   let httpAvatarUrl = avatarUrl
     ? getAvatarHttpUrl(avatarUrl, 150, platform, session.mediaRepository) ?? undefined
@@ -179,51 +173,6 @@ export function UserProfileOverview() {
             )
           }
         />
-      }
-      aside={
-        category === "profile" && (
-          <WindowAside className="flex">
-            <ScenePreviewOverlay
-              className="grow flex"
-              overlay={
-                /* DISABLED FEATURE */
-                false && (
-                  <Content
-                    className="grow"
-                    children=" "
-                    bottom={
-                      <Footer
-                        center={
-                          <Edit3DAvatar
-                            renderTrigger={(openModal) => (
-                              <Button onClick={openModal}>
-                                {tDAvatarPreviewUrl ? "Edit 3D Avatar" : "Upload 3D Avatar"}
-                              </Button>
-                            )}
-                          />
-                        }
-                      />
-                    }
-                  />
-                )
-              }
-            >
-              <ScenePreview
-                className="grow"
-                src={getHttpUrl(session, tDAvatarPreviewUrl)}
-                alt="3D Avatar preview"
-                fallback={
-                  /* DISABLED FEATURE */
-                  false && (
-                    <Text variant="b3" color="surface-low" weight="medium">
-                      Your 3D avatar preview will appear here.
-                    </Text>
-                  )
-                }
-              />
-            </ScenePreviewOverlay>
-          </WindowAside>
-        )
       }
     />
   );

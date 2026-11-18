@@ -1,6 +1,6 @@
 .SettingsNav {
   flex-shrink: 0;
-  width: 200px;
+  width: 224px;
   padding: var(--sp-md) var(--sp-xs) var(--sp-md) var(--sp-md);
   border-right: 1px solid var(--bg-surface-border);
   overflow-y: auto;
