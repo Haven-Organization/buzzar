@@ -2,8 +2,8 @@
 # and without changing how it looks:
 # - body and finger bones are renamed to CATS names (Hips, Spine, Left arm, IndexFinger1_L, …), which Buzzar
 #   recognises, using a preset for the game's rig naming (--rig);
-# - joints that weight no vertices and have none below them (IK handles, locators, helpers) are dropped from each
-#   skin, keeping under the bone limit;
+# - joints that weight no vertices (IK handles, locators, helpers) are dropped from each skin, keeping under the bone
+#   limit;
 # - game face bones are renamed so Buzzar's lip sync finds them (Umamusume: lip corners, upper and lower lips);
 # - --atlas-mouth: for a face drawn from a texture sheet of mouth shapes (Pokémon), adds lip-sync blend shapes
 #   (mouth_a/i/u/e/o) that bring copies of the mouth patch, showing other cells of the sheet, in front of it;
@@ -198,18 +198,9 @@ for si, s in enumerate(skins):
             used.update(j for j, w in zip(js, ws) if w > 0)
     # Keep the humanoid bones even if unweighted (e.g. a shoulder), so the rig stays recognisable.
     named = {k for k, j in enumerate(s["joints"]) if nodes[j].get("name") in CATS.values()}
-    # And every joint above a kept one (e.g. a mouth corner that moves only its child lip bones): a joint keeps its
-    # bind pose only while it's in the skin, and its children are placed under it.
-    parent_of = {c: i for i, n in enumerate(nodes) for c in n.get("children", [])}
-    slot = {j: k for k, j in enumerate(s["joints"])}
-    keep = set(used | named)
-    for k in list(keep):
-        node = parent_of.get(s["joints"][k])
-        while node is not None:
-            if node in slot:
-                keep.add(slot[node])
-            node = parent_of.get(node)
-    keep = sorted(keep)
+    # (Joints above kept ones are NOT kept for their own sake: a game rig's root helpers carry placeholder bind
+    # matrices, and Buzzar takes a joint's bind pose from them, which threw the whole avatar out of place.)
+    keep = sorted(used | named)
     remap = {old: new for new, old in enumerate(keep)}
     done = set()
     for p in prims:
