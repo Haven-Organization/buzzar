@@ -20,3 +20,10 @@
     display: none;
   }
 }
+
+/* Settings written for side-by-side rows ("grow basis-0") would collapse to no height in this column. */
+.UserProfileOverview__section > *,
+.ControlsSettings > *,
+.UserProfileOverview__content > .flex.flex-column > * {
+  flex: none;
+}
