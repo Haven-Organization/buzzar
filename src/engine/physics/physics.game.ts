@@ -103,6 +103,31 @@ export function physicsSubsteps(dt: number): { steps: number; timestep: number }
   return { steps, timestep: Math.min(dt / steps, MAX_PHYSICS_STEP) };
 }
 
+const lastKinematicPosition = new WeakMap<RAPIER.RigidBody, [number, number, number]>();
+/** A kinematic body moving faster than this (m/s) between frames was teleported (spawn, respawn), not moved. */
+const TELEPORT_SPEED = 50;
+
+/**
+ * Buzzar: a kinematic body's velocity over the whole frame. Rapier works it out per physics step from the move
+ * requested for that step, so when a slow frame is split into substeps (physicsSubsteps) the body moves in the
+ * first and reads as standing still after the last. The character controller carries its velocity from frame to
+ * frame through this, so that zero cut jumps short (an "invisible ceiling") and froze walk animations on slow
+ * frames. Leaves `out` (Rapier's value) alone on the first frame and after a teleport.
+ */
+export function kinematicFrameVelocity(body: RAPIER.RigidBody, dt: number, out: Float32Array | number[]) {
+  const t = body.translation();
+  const last = lastKinematicPosition.get(body);
+  lastKinematicPosition.set(body, [t.x, t.y, t.z]);
+  if (!last || !(dt > 0)) return;
+  const vx = (t.x - last[0]) / dt;
+  const vy = (t.y - last[1]) / dt;
+  const vz = (t.z - last[2]) / dt;
+  if (Math.hypot(vx, vy, vz) > TELEPORT_SPEED) return;
+  out[0] = vx;
+  out[1] = vy;
+  out[2] = vz;
+}
+
 export function PhysicsSystem(ctx: GameContext) {
   const { world, dt } = ctx;
   const physics = getModule(ctx, PhysicsModule);
@@ -160,6 +185,7 @@ export function PhysicsSystem(ctx: GameContext) {
       velocity[0] = linvel.x;
       velocity[1] = linvel.y;
       velocity[2] = linvel.z;
+      if (bodyType === RAPIER.RigidBodyType.KinematicPositionBased) kinematicFrameVelocity(body, dt, velocity);
     }
 
     const isPlayer = hasComponent(ctx.world, Player, eid);

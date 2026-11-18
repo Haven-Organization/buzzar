@@ -211,7 +211,11 @@ export function updateKinematicControls(
   const crouch = actionStates.get(KinematicCharacterControllerActions.Crouch) as ButtonActionState;
   const sprint = actionStates.get(KinematicCharacterControllerActions.Sprint) as ButtonActionState;
 
-  _linearVelocity.copy(body.linvel() as Vector3);
+  // Buzzar: last frame's actual velocity (see kinematicFrameVelocity), not Rapier's linvel, which reads as zero after
+  // a frame split into physics substeps and so cut jumps short on slow frames.
+  const frameVelocity = rig.physicsBody?.velocity;
+  if (frameVelocity) _linearVelocity.set(frameVelocity[0], frameVelocity[1], frameVelocity[2]);
+  else _linearVelocity.copy(body.linvel() as Vector3);
 
   const isGrounded = characterController.computedGrounded();
   const isSprinting = isGrounded && sprint.held && !isSliding && localPosture.value === Posture.Standing;
