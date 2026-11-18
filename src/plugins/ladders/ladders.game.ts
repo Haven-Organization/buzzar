@@ -29,7 +29,7 @@ const TOP_BOX_PAD = 0.3;
 const TOP_REACH_HEIGHT = 1.0;
 const TOP_REACH_DISTANCE = 2.5;
 /** Where it puts you: this far from the ladder's face (clear of a ladder collider), feet this far below the top. */
-const HANG_GAP = 0.42;
+const HANG_GAP = 0.38;
 const HANG_BELOW_TOP = 1.0;
 
 const _min = vec3.create();

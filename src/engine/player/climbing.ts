@@ -16,7 +16,7 @@ export const CLIMB_SPEED = 2;
 /** Metres per second sideways while on a ladder. */
 export const CLIMB_SIDE_SPEED = 1;
 /** How far outside the ladder's box (horizontally) you can still grab it, in metres. */
-export const CLIMB_REACH = 0.4;
+export const CLIMB_REACH = 0.5;
 /** The character's height for overlap tests, in metres (feet to head). */
 const BODY_HEIGHT = 1.7;
 /** Feet within this height of a ladder's bottom (metres) are standing at its foot, not hanging on it. */

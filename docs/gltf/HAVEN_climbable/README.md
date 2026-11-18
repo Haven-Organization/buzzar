@@ -16,7 +16,7 @@ Written against the glTF 2.0 spec.
 
 This extension marks a node as something people can climb, like a ladder.
 
-Within reach of the climbable box (it counts up to 0.4 m out to the sides), a player who walks forward while facing it climbs up at 2 m/s. Walking backward climbs down. Gravity is off while they're on it, so letting go of the keys holds them in place, and sideways input moves them along it. Once their feet pass the top of the box they're off the ladder and can walk onto whatever it leads to. Jumping lets go, pushing them away from the ladder. Climbing works when standing, not when crouched or prone.
+Within reach of the climbable box (it counts up to 0.5 m out to the sides), a player who walks forward while facing it climbs up at 2 m/s. Walking backward climbs down. Gravity is off while they're on it, so letting go of the keys holds them in place, and sideways input moves them along it. Once their feet pass the top of the box they're off the ladder and can walk onto whatever it leads to. Jumping lets go, pushing them away from the ladder. Climbing works when standing, not when crouched or prone.
 
 The box is only for climbing: it doesn't block movement, so give the ladder its own collider (or let Buzzar build one from its mesh, as it does for every mesh in a world without `OMI_collider`).
 
