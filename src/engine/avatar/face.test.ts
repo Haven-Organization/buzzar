@@ -68,7 +68,11 @@ describe("face sources", () => {
 
   it("finds blink shapes by name, preferring a both-eyes shape over per-eye and ignoring look-alikes", () => {
     const gltf = {
-      meshes: [{ extras: { targetNames: ["Fcl_EYE_Joy", "Fcl_EYE_Close_R", "Fcl_EYE_Close", "Fcl_EYE_Close_L", "blink_half"] } }],
+      meshes: [
+        {
+          extras: { targetNames: ["Fcl_EYE_Joy", "Fcl_EYE_Close_R", "Fcl_EYE_Close", "Fcl_EYE_Close_L", "blink_half"] },
+        },
+      ],
     };
     expect(getFaceSpec(gltf, mapping(), noBones, noBones).blink).toEqual([{ mesh: 0, index: 2, weight: 1 }]);
     const arkit = { meshes: [{ extras: { targetNames: ["jawOpen", "eyeBlinkLeft", "eyeBlinkRight"] } }] };
@@ -93,7 +97,12 @@ describe("face sources", () => {
 
   it("finds eyes from the humanoid mapping, else by name", () => {
     expect(detectEyes({}, mapping({ leftEye: 4, rightEye: 5 }))).toEqual([4, 5]);
-    const nodes = [{ name: "Bon_eyebrow01_L" }, { name: "BON_eyelid_up_L" }, { name: "Bon_eyeball_R_0290" }, { name: "Bon_eyeball_L_0295" }];
+    const nodes = [
+      { name: "Bon_eyebrow01_L" },
+      { name: "BON_eyelid_up_L" },
+      { name: "Bon_eyeball_R_0290" },
+      { name: "Bon_eyeball_L_0295" },
+    ];
     expect(detectEyes({ nodes }, mapping())).toEqual([2, 3]);
   });
 });
@@ -129,7 +138,16 @@ describe("gaze", () => {
 
   it("ignores people behind and itself", () => {
     const { eye, face } = rig();
-    for (let i = 0; i < 30; i++) updateFaceRig(face, 1 / 60, [[0, 1.55, -2], [0.03, 1.55, 0.08]], () => 0.5);
+    for (let i = 0; i < 30; i++)
+      updateFaceRig(
+        face,
+        1 / 60,
+        [
+          [0, 1.55, -2],
+          [0.03, 1.55, 0.08],
+        ],
+        () => 0.5
+      );
     // Only the (zero, with random 0.5) wander remains: straight ahead.
     expect(gazeOf(eye).angleTo(new Vector3(0, 0, 1))).toBeLessThan(0.01);
   });
@@ -158,14 +176,28 @@ describe("blink binds", () => {
 
 describe("lip sync", () => {
   it("reads VRM 0.x vowel groups in aa/ih/ou/ee/oh order", () => {
-    const groups = ["a", "i", "u", "e", "o"].map((p, i) => ({ presetName: p, binds: [{ mesh: 0, index: 10 + i, weight: 100 }] }));
-    const spec = getFaceSpec({ extensions: { VRM: { blendShapeMaster: { blendShapeGroups: groups } } } }, mapping(), noBones, noBones);
+    const groups = ["a", "i", "u", "e", "o"].map((p, i) => ({
+      presetName: p,
+      binds: [{ mesh: 0, index: 10 + i, weight: 100 }],
+    }));
+    const spec = getFaceSpec(
+      { extensions: { VRM: { blendShapeMaster: { blendShapeGroups: groups } } } },
+      mapping(),
+      noBones,
+      noBones
+    );
     expect(spec.mouth!.map((s) => s[0].index)).toEqual([10, 11, 12, 13, 14]);
   });
 
   it("finds mouth shapes by name (VRoid, VRChat, ARKit)", () => {
     const spec = getFaceSpec(
-      { meshes: [{ extras: { targetNames: ["Fcl_MTH_A", "vrc.v_ih", "mouthFunnel", "Fcl_MTH_E", "vrc.v_oh", "Fcl_EYE_Close"] } }] },
+      {
+        meshes: [
+          {
+            extras: { targetNames: ["Fcl_MTH_A", "vrc.v_ih", "mouthFunnel", "Fcl_MTH_E", "vrc.v_oh", "Fcl_EYE_Close"] },
+          },
+        ],
+      },
       mapping(),
       noBones,
       noBones
@@ -237,7 +269,12 @@ describe("lip sync", () => {
 describe("face parts from the file (HAVEN_avatar_motion face)", () => {
   const gltf = {
     nodes: [{ name: "Head" }, { name: "Jaw" }, { name: "Lip_Upper" }, { name: "Lip_Lower" }],
-    meshes: [{ extras: { targetNames: ["Blink", "A", "I", "U", "E", "O"] }, primitives: [{ targets: [{}, {}, {}, {}, {}, {}] }] }],
+    meshes: [
+      {
+        extras: { targetNames: ["Blink", "A", "I", "U", "E", "O"] },
+        primitives: [{ targets: [{}, {}, {}, {}, {}, {}] }],
+      },
+    ],
   };
 
   it("chooses what Buzzar would detect, for baking", () => {
@@ -266,7 +303,15 @@ describe("face parts from the file (HAVEN_avatar_motion face)", () => {
       ...gltf,
       extensions: {
         HAVEN_avatar_motion: {
-          face: { jaw: 99, eyes: [0, 42, "x"], lips: [{ node: 2, kind: "upper" }, { node: 3, kind: "nose" }], mouth: [[{ mesh: 7, index: 0 }]] },
+          face: {
+            jaw: 99,
+            eyes: [0, 42, "x"],
+            lips: [
+              { node: 2, kind: "upper" },
+              { node: 3, kind: "nose" },
+            ],
+            mouth: [[{ mesh: 7, index: 0 }]],
+          },
         },
       },
     });
@@ -274,5 +319,34 @@ describe("face parts from the file (HAVEN_avatar_motion face)", () => {
     expect(face?.eyes).toEqual([0]);
     expect(face?.lips).toEqual([{ node: 2, kind: "upper" }]);
     expect(face?.mouth).toEqual([[], [], [], [], []]);
+  });
+});
+
+describe("eyelid moves from the file", () => {
+  it("uses exact eyelid moves as given, for rigs whose lid bones Buzzar can't name", () => {
+    const spec = getFaceSpec(
+      {
+        nodes: [{ name: "Head" }, { name: "Eye_up_01_L" }, { name: "Eye_bottom_01_L" }],
+        extensions: {
+          HAVEN_avatar_motion: {
+            face: {
+              eyelids: {
+                upper: [],
+                lower: [],
+                moves: [
+                  { node: 1, delta: [0, -0.03, 0] },
+                  { node: 9, delta: [0, 1, 0] },
+                ],
+              },
+            },
+          },
+        },
+      },
+      mapping({ head: 0 }),
+      noBones,
+      noBones
+    );
+    expect(spec.blink).toEqual([]);
+    expect(spec.lids).toEqual({ moves: [{ node: 1, delta: [0, -0.03, 0] }] });
   });
 });

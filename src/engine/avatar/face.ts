@@ -405,7 +405,11 @@ export function detectEyes(gltf: GLTFLike, mapping: HumanoidMapping): number[] {
  */
 export interface HavenFace {
   blink?: MorphBindSpec[];
-  eyelids?: { upper: number[]; lower: number[] };
+  /**
+   * For rigs without blink shapes: which bones are the upper and lower lids (Buzzar slides each upper one down to the
+   * nearest lower one), or `moves`: exactly how far each bone moves, in its parent's space, when the eyes are shut.
+   */
+  eyelids?: { upper: number[]; lower: number[]; moves?: LidSpec["moves"] };
   eyes?: number[];
   look?: LookRange;
   /** Lip sync: give one of `mouth` (blend shapes per viseme: aa, ih, ou, ee, oh), `jaw` or `lips`; the others none. */
@@ -442,6 +446,17 @@ export function parseHavenFace(gltf: GLTFLike): HavenFace | undefined {
   if (blink) out.blink = blink;
   if (isRecord(face.eyelids)) {
     out.eyelids = { upper: nodeList(face.eyelids.upper) ?? [], lower: nodeList(face.eyelids.lower) ?? [] };
+    if (Array.isArray(face.eyelids.moves)) {
+      out.eyelids.moves = face.eyelids.moves.filter(isRecord).flatMap((m) => {
+        const d = m.delta;
+        return isNode(m.node) &&
+          Array.isArray(d) &&
+          d.length === 3 &&
+          d.every((x) => typeof x === "number" && Number.isFinite(x))
+          ? [{ node: m.node, delta: [d[0], d[1], d[2]] as [number, number, number] }]
+          : [];
+      });
+    }
   }
   const eyes = nodeList(face.eyes);
   if (eyes) out.eyes = eyes;
@@ -474,7 +489,7 @@ const givesBlink = (face: HavenFace | undefined) => !!face && ("blink" in face |
 export function bakeFace(gltf: GLTFLike, mapping: HumanoidMapping): HavenFace {
   const own = parseHavenFace(gltf);
   const blink = givesBlink(own) ? own?.blink ?? [] : vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? namedBlink(gltf);
-  const lids = givesBlink(own) ? own?.eyelids : blink.length > 0 ? undefined : findLidBones(gltf);
+  const lids: HavenFace["eyelids"] = givesBlink(own) ? own?.eyelids : blink.length > 0 ? undefined : findLidBones(gltf);
   const mouth = givesMouth(own) ? own?.mouth : vrm1Mouth(gltf) ?? vrm0Mouth(gltf) ?? namedMouth(gltf);
   const jaw = givesMouth(own) ? own?.jaw : mouth ? undefined : detectJaw(gltf, mapping);
   const lips = givesMouth(own) ? own?.lips : mouth || jaw !== undefined ? undefined : findLipBones(gltf);
@@ -483,7 +498,7 @@ export function bakeFace(gltf: GLTFLike, mapping: HumanoidMapping): HavenFace {
     eyes: own?.eyes ?? detectEyes(gltf, mapping),
     look: own?.look ?? lookRange(gltf),
   };
-  if (lids && (lids.upper.length > 0 || lids.lower.length > 0)) out.eyelids = lids;
+  if (lids && (lids.upper.length > 0 || lids.lower.length > 0 || lids.moves?.length)) out.eyelids = lids;
   if (mouth) out.mouth = mouth;
   if (jaw !== undefined) out.jaw = jaw;
   if (lips && lips.length > 0) out.lips = lips;
@@ -503,7 +518,13 @@ export function getFaceSpec(
   let lids: LidSpec | undefined;
   if (givesBlink(own)) {
     blink = own?.blink ?? [];
-    lids = own?.eyelids ? detectLids(gltf, restWorld, toParent, own.eyelids) : undefined;
+    lids = own?.eyelids?.moves
+      ? own.eyelids.moves.length > 0
+        ? { moves: own.eyelids.moves }
+        : undefined
+      : own?.eyelids
+      ? detectLids(gltf, restWorld, toParent, own.eyelids)
+      : undefined;
   } else {
     const vrm = vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? [];
     blink = vrm.length > 0 ? vrm : namedBlink(gltf);

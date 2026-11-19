@@ -4,7 +4,8 @@
  * - `--avatar`: writes `HAVEN_avatar_motion` from what Buzzar would do with the avatar today: its springs (its own,
  *   its VRM ones, or the ones Buzzar finds by bone name: hair, ears, tail, skirt…), its idle ear motion settings, and
  *   its face parts (blink and mouth shapes; eye, eyelid, jaw and lip bones).
- *   Edit the result to tune it; `--no-ear-motion` turns idle ear motion off.
+ *   Edit the result to tune it; `--no-ear-motion` turns idle ear motion off. `--face-json f` first sets parts of
+ *   `face` from a JSON file (e.g. hand-tuned `eyelids.moves`), which the bake then keeps.
  * - `--name`, `--description` (or `--description-file`, for several lines), `--author`, `--source`, `--version`:
  *   write `HAVEN_metadata` (only the fields given; existing ones are kept).
  *
@@ -38,7 +39,7 @@ for (let i = 0; i < args.length; i++) {
 const [src, dst] = positional;
 if (!src || !dst) {
   console.error(
-    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …]"
+    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--face-json f] [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …]"
   );
   process.exit(2);
 }
@@ -53,6 +54,12 @@ const gltf = JSON.parse(buf.subarray(20, 20 + jsonLength).toString("utf8")) as G
 const rest = buf.subarray(20 + jsonLength);
 const used = new Set(gltf.extensionsUsed ?? []);
 gltf.extensions ??= {};
+
+if (flags.has("--face-json")) {
+  const given = JSON.parse(readFileSync(String(flags.get("--face-json")), "utf8")) as Record<string, unknown>;
+  const motion = (gltf.extensions.HAVEN_avatar_motion ?? {}) as Record<string, unknown>;
+  gltf.extensions.HAVEN_avatar_motion = { ...motion, face: { ...((motion.face as object) ?? {}), ...given } };
+}
 
 if (flags.has("--avatar")) {
   const mapping = getHumanoidMapping(gltf);
