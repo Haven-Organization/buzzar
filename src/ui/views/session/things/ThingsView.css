@@ -1,0 +1,30 @@
+/* Buzzar: the Shortcuts shelf and My Things, which Things are dragged between. */
+.ThingShelf {
+  min-height: 72px;
+  padding: var(--sp-xs);
+  margin: calc(-1 * var(--sp-xs));
+  border: 2px dashed transparent;
+  border-radius: var(--br-md);
+  transition: border-color 120ms, background-color 120ms;
+}
+.ThingShelf--over {
+  border-color: var(--bg-primary);
+  background-color: var(--bg-surface-low);
+}
+.ThingDrag {
+  display: flex;
+  flex-direction: column;
+  cursor: grab;
+  border-radius: var(--br-md);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.ThingDrag > * {
+  flex: 1;
+}
+.ThingDrag--dragging {
+  opacity: 0.4;
+}
+.ThingDrag--over {
+  outline-color: var(--bg-primary);
+}

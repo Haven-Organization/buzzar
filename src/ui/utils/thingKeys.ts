@@ -39,6 +39,34 @@ export function mapThing(keys: ThingKeys, id: string, slot: number): ThingKeys {
   return next;
 }
 
+/** The Things on keys, in key order (left to right along the keyboard). */
+export function mappedOrder(keys: ThingKeys): string[] {
+  return keys.filter((id): id is string => !!id);
+}
+
+/**
+ * Moves `id` to position `index` among the Things on keys (the shelf's order), putting it on a key if it wasn't on
+ * one. The keys in use stay the same (plus the first free key for a newcomer), and the Things take them in their new
+ * order. Returns undefined if every key is taken and `id` isn't on one.
+ */
+export function moveMapped(keys: ThingKeys, id: string, index: number): ThingKeys | undefined {
+  const order = mappedOrder(keys);
+  const slots = keys.flatMap((k, slot) => (k ? [slot] : []));
+  const from = order.indexOf(id);
+  if (from === -1) {
+    const free = keys.indexOf(null);
+    if (free === -1) return undefined;
+    slots.push(free);
+    slots.sort((a, b) => a - b);
+  } else {
+    order.splice(from, 1);
+  }
+  order.splice(Math.max(0, Math.min(index, order.length)), 0, id);
+  const next: ThingKeys = Array(keys.length).fill(null);
+  order.forEach((thing, i) => (next[slots[i]] = thing));
+  return next;
+}
+
 /** Takes `id` off its key. */
 export function unmapThing(keys: ThingKeys, id: string): ThingKeys {
   return keys.map((k) => (k === id ? null : k));

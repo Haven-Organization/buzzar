@@ -1,9 +1,11 @@
 /**
- * Buzzar: the Things screen: objects you can spawn into worlds and use with your avatar. "On Your Keys" is a shelf of
- * the Things on number keys 1–0 (you choose which; utils/thingKeys), and "My Things" has the rest: the other stock
+ * Buzzar: the Things screen: objects you can spawn into worlds and use with your avatar. "Shortcuts" is a shelf of
+ * the Things on number keys 1–0 (you choose which, and their order, by dragging or from their menus; utils/thingKeys), and "My Things" has the rest: the other stock
  * Things, then Things you've bookmarked (e.g. from a .glb posted in chat; kept in account data, see thingsMatrix.ts).
  */
 import { ReactNode, useCallback, useEffect, useState } from "react";
+import { ConnectDropTarget, useDrag, useDrop } from "react-dnd";
+import classNames from "classnames";
 import { useAtomValue } from "jotai";
 
 import { Content } from "../../../atoms/content/Content";
@@ -38,13 +40,13 @@ import {
   SpawnThingMessage,
   ThingKeys,
   thingKeyName,
-  THING_KEY_COUNT,
   ThirdRoomMessageType,
 } from "../../../../plugins/thirdroom/thirdroom.common";
 import { thingKeysAtom } from "../../../state/thingKeys";
 import { useSetThingKeys } from "../../../hooks/useThingKeys";
-import { mapThing, unmapThing } from "../../../utils/thingKeys";
+import { mapThing, moveMapped, unmapThing } from "../../../utils/thingKeys";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
+import "./ThingsView.css";
 
 export function ThingsView() {
   const { session, platform, client } = useHydrogen(true);
@@ -130,50 +132,29 @@ export function ThingsView() {
             )}
             <div className="flex flex-column gap-sm">
               <Text variant="b2" weight="semi-bold">
-                On Your Keys
+                Shortcuts
               </Text>
               <Text variant="b3" color="surface-low">
-                Press a Thing’s number key in a world to spawn it.
-                {keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""} Use a Thing’s menu to put it
-                on a key or take it off.
+                Press a Thing’s number key in a world to spawn it. Drag Things here, along the row or back down to My
+                Things, or use their menus.{keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""}
               </Text>
-              {keys && mapped.length === 0 && (
-                <Text variant="b3" color="surface-low">
-                  Nothing on your keys yet.
-                </Text>
-              )}
-              {mapped.length > 0 && (
-                <WorldTileGrid tall>
-                  {mapped.map(({ thing, slot }) => (
-                    <StockThingTile
-                      key={thing.id}
-                      thing={thing}
-                      slot={slot}
-                      keys={keys!}
-                      action={spawnAction(thing.id)}
-                      onChangeKeys={changeKeys}
-                    />
-                  ))}
-                </WorldTileGrid>
+              {keys && (
+                <ShortcutShelf keys={keys} mapped={mapped} spawnAction={spawnAction} onChangeKeys={changeKeys} />
               )}
             </div>
             <Text variant="b2" weight="semi-bold">
               My Things
             </Text>
-            <WorldTileGrid tall>
+            <MyThingsDropArea keys={keys} onChangeKeys={changeKeys}>
               {unmapped.map((thing) => (
-                <StockThingTile
-                  key={thing.id}
-                  thing={thing}
-                  keys={keys}
-                  action={spawnAction(thing.id)}
-                  onChangeKeys={changeKeys}
-                />
+                <DraggableThing key={thing.id} id={thing.id} onShelf={false}>
+                  <StockThingTile thing={thing} keys={keys} action={spawnAction(thing.id)} onChangeKeys={changeKeys} />
+                </DraggableThing>
               ))}
               {collection?.things.map((thing) => (
                 <SavedThingTile key={thing.url} thing={thing} onRemove={() => unbookmark(thing.url)} />
               ))}
-            </WorldTileGrid>
+            </MyThingsDropArea>
             {!collection
               ? !error && <Dots size="md" />
               : collection.things.length === 0 && (
@@ -189,27 +170,204 @@ export function ThingsView() {
   );
 }
 
-/** A stock Thing, with its key (if it's on one) and a menu to put it on a key, move it, or take it off. */
+const THING_DRAG = "buzzar-thing";
+interface ThingDragItem {
+  id: string;
+  onShelf: boolean;
+}
+
+/** Wraps a Thing's tile so it can be dragged onto, along or off the Shortcuts shelf. */
+function DraggableThing({
+  id,
+  onShelf,
+  dropRef,
+  over,
+  children,
+}: {
+  id: string;
+  onShelf: boolean;
+  dropRef?: ConnectDropTarget;
+  over?: boolean;
+  children: ReactNode;
+}) {
+  const [{ dragging }, drag] = useDrag(
+    () => ({
+      type: THING_DRAG,
+      item: { id, onShelf } as ThingDragItem,
+      collect: (m) => ({ dragging: m.isDragging() }),
+    }),
+    [id, onShelf]
+  );
+  return (
+    <div
+      ref={(el) => {
+        drag(el);
+        dropRef?.(el);
+      }}
+      className={classNames("ThingDrag", { "ThingDrag--dragging": dragging, "ThingDrag--over": over })}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** One Thing on the shelf: drop another Thing on it to put that one here (this one and the rest move along). */
+function ShelfThing({
+  entry,
+  index,
+  keys,
+  count,
+  action,
+  onChangeKeys,
+}: {
+  entry: { thing: StockThing; slot: number };
+  index: number;
+  keys: ThingKeys;
+  count: number;
+  action?: ReactNode;
+  onChangeKeys: (keys: ThingKeys) => void;
+}) {
+  const [{ over }, drop] = useDrop(
+    () => ({
+      accept: THING_DRAG,
+      drop: (item: ThingDragItem) => {
+        const next = moveMapped(keys, item.id, index);
+        if (next) onChangeKeys(next);
+      },
+      canDrop: (item: ThingDragItem) => item.id !== entry.thing.id && (item.onShelf || keys.includes(null)),
+      collect: (m) => ({ over: m.isOver() && m.canDrop() }),
+    }),
+    [keys, index, entry.thing.id, onChangeKeys]
+  );
+  const move = (to: number) => {
+    const next = moveMapped(keys, entry.thing.id, to);
+    if (next) onChangeKeys(next);
+  };
+  return (
+    <DraggableThing id={entry.thing.id} onShelf dropRef={drop} over={over}>
+      <StockThingTile
+        thing={entry.thing}
+        slot={entry.slot}
+        action={action}
+        menu={
+          <>
+            <DropdownMenuItem disabled={index === 0} onSelect={() => move(index - 1)}>
+              Move Left
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={index === count - 1} onSelect={() => move(index + 1)}>
+              Move Right
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapThing(keys, entry.thing.id))}>
+              Remove from Shortcuts
+            </DropdownMenuItem>
+          </>
+        }
+      />
+    </DraggableThing>
+  );
+}
+
+/** The Shortcuts shelf: Things on number keys, in key order. Dropping on its empty space adds to the end. */
+function ShortcutShelf({
+  keys,
+  mapped,
+  spawnAction,
+  onChangeKeys,
+}: {
+  keys: ThingKeys;
+  mapped: { thing: StockThing; slot: number }[];
+  spawnAction: (id: string) => ReactNode;
+  onChangeKeys: (keys: ThingKeys) => void;
+}) {
+  const [{ over }, drop] = useDrop(
+    () => ({
+      accept: THING_DRAG,
+      drop: (item: ThingDragItem, monitor) => {
+        if (monitor.didDrop()) return; // dropped on a Thing on the shelf
+        const next = moveMapped(keys, item.id, mapped.length);
+        if (next) onChangeKeys(next);
+      },
+      canDrop: (item: ThingDragItem) => item.onShelf || keys.includes(null),
+      collect: (m) => ({ over: m.isOver({ shallow: true }) && m.canDrop() }),
+    }),
+    [keys, mapped.length, onChangeKeys]
+  );
+  return (
+    <div ref={drop} className={classNames("ThingShelf", { "ThingShelf--over": over })}>
+      {mapped.length === 0 ? (
+        <Text variant="b3" color="surface-low">
+          No shortcuts yet: drag a Thing here, or choose Add to Shortcuts from its menu.
+        </Text>
+      ) : (
+        <WorldTileGrid tall>
+          {mapped.map((entry, index) => (
+            <ShelfThing
+              key={entry.thing.id}
+              entry={entry}
+              index={index}
+              keys={keys}
+              count={mapped.length}
+              action={spawnAction(entry.thing.id)}
+              onChangeKeys={onChangeKeys}
+            />
+          ))}
+        </WorldTileGrid>
+      )}
+    </div>
+  );
+}
+
+/** My Things: dropping a Thing from the shelf here removes it from Shortcuts. */
+function MyThingsDropArea({
+  keys,
+  onChangeKeys,
+  children,
+}: {
+  keys?: ThingKeys;
+  onChangeKeys: (keys: ThingKeys) => void;
+  children: ReactNode;
+}) {
+  const [{ over }, drop] = useDrop(
+    () => ({
+      accept: THING_DRAG,
+      canDrop: (item: ThingDragItem) => item.onShelf && !!keys,
+      drop: (item: ThingDragItem) => {
+        if (keys) onChangeKeys(unmapThing(keys, item.id));
+      },
+      collect: (m) => ({ over: m.isOver() && m.canDrop() }),
+    }),
+    [keys, onChangeKeys]
+  );
+  return (
+    <div ref={drop} className={classNames("ThingShelf", { "ThingShelf--over": over })}>
+      <WorldTileGrid tall>{children}</WorldTileGrid>
+    </div>
+  );
+}
+
+/** A stock Thing's tile: its key badge when it's a shortcut, and Add to Shortcuts (or the shelf's own menu). */
 function StockThingTile({
   thing,
   slot,
   keys,
   action,
+  menu,
   onChangeKeys,
 }: {
   thing: StockThing;
   slot?: number;
   keys?: ThingKeys;
   action?: ReactNode;
-  onChangeKeys: (keys: ThingKeys) => void;
+  menu?: ReactNode;
+  onChangeKeys?: (keys: ThingKeys) => void;
 }) {
-  const onKey = slot !== undefined;
+  const free = keys ? keys.indexOf(null) : -1;
   return (
     <WorldTile
       shape="tall"
       imageSrc={thing.preview}
       title={thing.name}
-      badge={onKey ? `Key ${thingKeyName(slot)}` : undefined}
+      badge={slot !== undefined ? `Key ${thingKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
           {thing.description}
@@ -217,26 +375,12 @@ function StockThingTile({
       }
       action={action}
       menu={
-        keys && (
-          <>
-            {Array.from({ length: THING_KEY_COUNT }, (_, i) => {
-              if (i === slot) return null;
-              const occupant = keys[i] ? STOCK_THINGS.find((t) => t.id === keys[i])?.name : undefined;
-              return (
-                <DropdownMenuItem key={i} onSelect={() => onChangeKeys(mapThing(keys, thing.id, i))}>
-                  {`${onKey ? "Move to" : "Put on"} Key ${thingKeyName(i)}${
-                    occupant ? ` (${onKey ? "swap with" : "replaces"} ${occupant})` : ""
-                  }`}
-                </DropdownMenuItem>
-              );
-            })}
-            {onKey && (
-              <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapThing(keys, thing.id))}>
-                Take Off Key {thingKeyName(slot)}
-              </DropdownMenuItem>
-            )}
-          </>
-        )
+        menu ??
+        (keys && onChangeKeys && (
+          <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
+            {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
+          </DropdownMenuItem>
+        ))
       }
     />
   );
