@@ -390,7 +390,7 @@ function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinemat
   );
   node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
   // Held, it only turns to your heading; left tilted, it settles back level (engine/physics/upright.ts).
-  markUpright(node.eid);
+  markUpright(node);
 
   addInteractableComponent(ctx, physics, node, InteractableType.Grabbable);
 

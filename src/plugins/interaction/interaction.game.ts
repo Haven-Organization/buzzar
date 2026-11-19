@@ -313,9 +313,10 @@ const _heldQuat = quat.create();
 function holdRotation(
   tick: number,
   grabberEid: number,
-  heldEid: number,
+  heldNode: RemoteNode,
   body: { rotation(): { x: number; y: number; z: number; w: number } }
 ) {
+  const heldEid = heldNode.eid;
   let entry = heldRelativeRotation.get(grabberEid);
   // A new grab (another object, or not held on the previous frame) captures the rotation afresh.
   if (!entry || entry.eid !== heldEid || tick - entry.tick > 1) {
@@ -329,7 +330,7 @@ function holdRotation(
   entry.tick = tick;
   quat.multiply(_heldQuat, _worldQuat, entry.rel);
   // Buzzar: objects that stand upright (the trampoline) only take the hand's heading, never its tilt.
-  return isUpright(heldEid) ? levelRotation(_heldQuat, _heldQuat) : _heldQuat;
+  return isUpright(heldNode) ? levelRotation(_heldQuat, _heldQuat) : _heldQuat;
 }
 
 /** Buzzar: makes what `grabberEid` holds face the way it does when spawned: lined up with the hand/view. */
@@ -348,13 +349,16 @@ const _levelQuat = quat.create();
  * bodies this client simulates (dynamic, i.e. its own); other clients' copies follow the network.
  */
 function settleUprightObjects(ctx: GameContext) {
-  for (const eid of uprightEntities()) {
-    const node = tryGetRemoteResource<RemoteNode>(ctx, eid);
-    const body = node?.physicsBody?.body;
-    if (!node || !body) {
-      if (!node) forgetUpright(eid);
+  for (const [eid, marked] of uprightEntities()) {
+    // Gone (e.g. its world was left): forget it. Never tryGetRemoteResource here: it throws, and an exception in a
+    // system stops the game loop for good.
+    const node = getRemoteResource<RemoteNode>(ctx, eid);
+    if (!node || node !== marked) {
+      forgetUpright(eid);
       continue;
     }
+    const body = node.physicsBody?.body;
+    if (!body) continue;
     if (!body.isDynamic()) continue;
     const r = body.rotation();
     quat.set(_uprightQuat, r.x, r.y, r.z, r.w);
@@ -852,7 +856,7 @@ function updateGrabThrow(
     if (body) {
       body.setLinvel(_impulse.fromArray(target), true);
       body.setAngvel(zero, true);
-      body.setRotation(_r.fromArray(holdRotation(ctx.tick, rig.eid, heldNode.eid, body)), true);
+      body.setRotation(_r.fromArray(holdRotation(ctx.tick, rig.eid, heldNode, body)), true);
     }
   }
 }
@@ -970,7 +974,7 @@ function updateGrabThrowXR(
     if (body) {
       body.setLinvel(_impulse.fromArray(target), true);
       body.setAngvel(zero, true);
-      body.setRotation(_r.fromArray(holdRotation(ctx.tick, grabbingNode.eid, focusedNode.eid, body)), true);
+      body.setRotation(_r.fromArray(holdRotation(ctx.tick, grabbingNode.eid, focusedNode, body)), true);
     }
   } else {
     grabbingNode.visible = true;

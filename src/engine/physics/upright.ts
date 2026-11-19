@@ -7,23 +7,25 @@
  */
 import { quat } from "gl-matrix";
 
-const uprightEids = new Set<number>();
+/** Entity id → the object marked upright (kept to tell it apart from a later entity reusing the id). */
+const upright = new Map<number, object>();
 
-export function markUpright(eid: number) {
-  uprightEids.add(eid);
+export function markUpright(node: { eid: number }) {
+  upright.set(node.eid, node);
 }
 
-export function isUpright(eid: number) {
-  return uprightEids.has(eid);
+/** Whether `node` (not just any entity that has its id now) was marked upright. */
+export function isUpright(node: { eid: number } | undefined) {
+  return !!node && upright.get(node.eid) === node;
 }
 
-/** Every upright entity (callers drop ones that no longer exist with forgetUpright). */
-export function uprightEntities(): ReadonlySet<number> {
-  return uprightEids;
+/** Every upright object (callers drop ones that no longer exist with forgetUpright). */
+export function uprightEntities(): ReadonlyMap<number, object> {
+  return upright;
 }
 
 export function forgetUpright(eid: number) {
-  uprightEids.delete(eid);
+  upright.delete(eid);
 }
 
 /** `out` = `q` with its tilt removed: the same heading (turn about +Y), standing level. */
