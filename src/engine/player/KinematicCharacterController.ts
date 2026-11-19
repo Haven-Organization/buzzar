@@ -20,6 +20,7 @@ import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.c
 import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder, ladderGrab } from "./climbing";
 import { bounceSpeed, findTrampoline } from "./trampolines";
 import { OurPlayer } from "./Player";
+import { AutoRunMessage, AutoRunMessageData, isRunHeld } from "./autoRun.common";
 
 function kinematicCharacterControllerAction(key: string) {
   return "KinematicCharacterController/" + key;
@@ -29,6 +30,8 @@ export const KinematicCharacterControllerActions = {
   Move: kinematicCharacterControllerAction("Move"),
   Jump: kinematicCharacterControllerAction("Jump"),
   Sprint: kinematicCharacterControllerAction("Sprint"),
+  /** Buzzar: Shift on its own (runs, or walks with Auto Run on). Sprint is the controller and XR buttons. */
+  RunKey: kinematicCharacterControllerAction("RunKey"),
   Crouch: kinematicCharacterControllerAction("Crouch"),
   Prone: kinematicCharacterControllerAction("Prone"),
 };
@@ -107,10 +110,6 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
       path: KinematicCharacterControllerActions.Sprint,
       type: ActionType.Button,
       bindings: [
-        {
-          type: BindingType.Button,
-          path: "Keyboard/ShiftLeft",
-        },
         { type: BindingType.Button, path: padButton(PadButton.Sprint) },
         {
           type: BindingType.Button,
@@ -118,8 +117,22 @@ export const KinematicCharacterControllerActionMap: ActionMap = {
         },
       ],
     },
+    {
+      id: "runKey",
+      path: KinematicCharacterControllerActions.RunKey,
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Keyboard/ShiftLeft" },
+        { type: BindingType.Button, path: "Keyboard/ShiftRight" },
+      ],
+    },
   ],
 };
+
+let autoRun = false;
+
+const MOVE_KEYS = ["Keyboard/KeyW", "Keyboard/KeyA", "Keyboard/KeyS", "Keyboard/KeyD"];
+
 
 type KinematicCharacterControllerModuleState = {};
 
@@ -132,7 +145,18 @@ export const KinematicCharacterControllerModule = defineModule<GameContext, Kine
     const input = getModule(ctx, InputModule);
     enableActionMap(input, KinematicCharacterControllerActionMap);
     // Buzzar debug: `thirdroom.playerDebug()` in the console logs the local player's movement state.
-    return registerMessageHandler(ctx, PlayerDebugMessage, () => logPlayerDebug(ctx));
+    const disposeDebug = registerMessageHandler(ctx, PlayerDebugMessage, () => logPlayerDebug(ctx));
+    const disposeAutoRun = registerMessageHandler(
+      ctx,
+      AutoRunMessage,
+      (_ctx: GameContext, message: AutoRunMessageData) => {
+        autoRun = message.enabled;
+      }
+    );
+    return () => {
+      disposeDebug();
+      disposeAutoRun();
+    };
   },
 });
 
@@ -218,7 +242,17 @@ export function updateKinematicControls(
   const moveVec = actionStates.get(KinematicCharacterControllerActions.Move) as Float32Array;
   const jump = actionStates.get(KinematicCharacterControllerActions.Jump) as ButtonActionState;
   const crouch = actionStates.get(KinematicCharacterControllerActions.Crouch) as ButtonActionState;
-  const sprint = actionStates.get(KinematicCharacterControllerActions.Sprint) as ButtonActionState;
+  const padSprint = actionStates.get(KinematicCharacterControllerActions.Sprint) as ButtonActionState;
+  const runKey = actionStates.get(KinematicCharacterControllerActions.RunKey) as ButtonActionState;
+  const { raw } = getModule(ctx, InputModule);
+  const sprint = {
+    held: isRunHeld(
+      autoRun,
+      runKey.held,
+      MOVE_KEYS.some((key) => !!raw[key]),
+      padSprint.held
+    ),
+  };
 
   // Buzzar: last frame's actual velocity (see kinematicFrameVelocity), not Rapier's linvel, which reads as zero after
   // a frame split into physics substeps and so cut jumps short on slow frames.

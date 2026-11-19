@@ -36,7 +36,7 @@ export function KeyboardControlsList() {
           <Kbd size="xs">Tab</Kbd>
         </>
       )}
-      {renderItem("Run", <Kbd size="xs">Shift</Kbd>)}
+      {renderItem("Run (walk with Auto Run on)", <Kbd size="xs">Shift</Kbd>)}
       {renderItem("Jump", <Kbd size="xs">Space</Kbd>)}
       {renderItem(
         "Crouch (hold to go prone)",
@@ -46,9 +46,9 @@ export function KeyboardControlsList() {
       )}
       {renderItem("Prone", <Kbd size="xs">Z</Kbd>)}
       {renderItem(
-        "Spawn Objects",
+        "Spawn Your Shortcut Things",
         <>
-          <Kbd size="xs">1</Kbd> - <Kbd size="xs">6</Kbd>
+          <Kbd size="xs">1</Kbd> - <Kbd size="xs">0</Kbd>
         </>
       )}
       {renderItem(

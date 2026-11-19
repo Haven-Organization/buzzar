@@ -4,8 +4,11 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
+import { useAtom } from "jotai";
 
 import { Label } from "../../../atoms/text/Label";
+import { Switch } from "../../../atoms/button/Switch";
+import { autoRunAtom } from "../../../state/autoRun";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { SelectInput } from "../../components/property-panel/SelectInput";
@@ -82,6 +85,7 @@ const choiceKey = (choice: GamepadChoice) => (choice.kind === "pad" ? `pad:${cho
 export function ControlsSettings() {
   const pads = useConnectedGamepads();
   const [choice, setChoice] = useGamepadChoice();
+  const [autoRun, setAutoRun] = useAtom(autoRunAtom);
 
   const options = useMemo(() => {
     const list: { value: string; label: string; choice: GamepadChoice }[] = [
@@ -169,6 +173,12 @@ export function ControlsSettings() {
       </SettingTile>
 
       <Category header={<CategoryHeader title="Keyboard and Mouse" options={<Label>Key</Label>} />}>
+        <SettingTile className="ControlsSettings__autoRun" label={<Label>Auto Run</Label>}>
+          <Switch checked={autoRun} onCheckedChange={setAutoRun} />
+          <Text variant="b3" color="surface-low">
+            Moving with the keys runs, and holding Shift walks instead.
+          </Text>
+        </SettingTile>
         <KeyboardControlsList />
       </Category>
       <Category header={<CategoryHeader title="Controller" options={<Label>Button</Label>} />}>

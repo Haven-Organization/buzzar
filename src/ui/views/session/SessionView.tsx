@@ -28,6 +28,7 @@ import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 import { useThingKeysSync } from "../../hooks/useThingKeys";
+import { useAutoRunSync } from "../../hooks/useAutoRun";
 
 function RegisterKBarActions() {
   useUserProfileAction();
@@ -103,6 +104,7 @@ export default function SessionView() {
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
               <ThingKeysSync />
+              <AutoRunSync />
               <EnterHomeOnStartup worldId={worldId} worldAlias={worldAlias} />
               <Outlet />
               {overlayVisible && <Overlay />}
@@ -126,5 +128,10 @@ export default function SessionView() {
 /** Buzzar: keeps the game's number-key Things in step with your account (needs the main thread context). */
 function ThingKeysSync() {
   useThingKeysSync();
+  return null;
+}
+
+function AutoRunSync() {
+  useAutoRunSync();
   return null;
 }
