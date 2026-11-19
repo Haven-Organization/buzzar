@@ -20,6 +20,7 @@ import {
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
 import { markUpright } from "../../engine/physics/upright";
+import { rememberThingFile, thingPhysics, ThingPhysics } from "./thingFile";
 import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
 import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
 import {
@@ -297,6 +298,12 @@ export function preloadSpawnables(ctx: GameContext) {
     cratePreloaded = false;
     console.warn("Couldn't preload the crate model:", error);
   });
+  // Buzzar: Things made from files: preloaded the same way, and read for how they behave (HAVEN_thing).
+  for (const { uri } of Object.values(THING_FILES)) {
+    loadGLTF(ctx, uri)
+      .then((resource) => rememberThingFile(uri, resource.root as never))
+      .catch((error) => console.warn(`Couldn't preload ${uri}:`, error));
+  }
 }
 
 function createCrate(
@@ -352,29 +359,39 @@ function createCrate(
 }
 
 const TRAMPOLINE_GLTF_URI = "/gltf/things/trampoline.glb";
-/** The trampoline's footprint and height (metres): a solid drum you can't walk through or under. */
-const TRAMPOLINE_RADIUS = 1.5;
-const TRAMPOLINE_HEIGHT = 0.53;
-/** About 150 kg: walking into it barely nudges it. */
-const TRAMPOLINE_DENSITY = 40;
 
 /**
- * Buzzar: the stock Trampoline Thing (scripts/buzzar/make-trampoline-thing.py). Its model marks the mat with
- * HAVEN_trampoline, which does the bouncing (engine/player/trampolines.ts). It's a heavy body that can only turn
- * about the vertical, so it always stands flat on the ground and nothing tips it over; grab it to move it.
+ * Buzzar: the stock Trampoline Thing (scripts/buzzar/make-trampoline-thing.py). Its file says how it behaves: the mat
+ * is marked with HAVEN_trampoline, which does the bouncing (engine/player/trampolines.ts), and HAVEN_thing makes it a
+ * heavy drum (about 150 kg) that only turns about the vertical, so it always stands flat and nothing tips it over.
+ * These are the same values, for before the file has loaded.
  */
-function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinematic = false) {
-  const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI);
+const TRAMPOLINE_PHYSICS: ThingPhysics = {
+  collider: { type: "cylinder", radius: 1.5, height: 0.53, offset: [0, 0.265, 0] },
+  density: 40,
+  rotation: "yaw",
+  upright: true,
+  spawn: { distance: 2.4, upright: true },
+};
 
+/** The physics of a Thing made from a file: collider, body, rotation lock and upright settling (HAVEN_thing). */
+function addThingPhysics(
+  ctx: GameContext,
+  physics: PhysicsModuleState,
+  node: RemoteNode,
+  settings: ThingPhysics,
+  kinematic: boolean
+) {
+  const c = settings.collider;
   addPhysicsCollider(
     ctx.world,
     node,
     new RemoteCollider(ctx.resourceManager, {
-      type: ColliderType.Cylinder,
-      radius: TRAMPOLINE_RADIUS,
-      height: TRAMPOLINE_HEIGHT,
-      offset: [0, TRAMPOLINE_HEIGHT / 2, 0],
-      density: TRAMPOLINE_DENSITY,
+      type: c.type === "box" ? ColliderType.Box : c.type === "sphere" ? ColliderType.Sphere : ColliderType.Cylinder,
+      ...(c.type === "box" ? { size: c.size } : { radius: c.radius }),
+      ...(c.type === "cylinder" ? { height: c.height } : {}),
+      offset: c.offset,
+      ...(settings.density ? { density: settings.density } : {}),
       activeEvents: RAPIER.ActiveEvents.COLLISION_EVENTS,
       collisionGroups: dynamicObjectCollisionGroups,
     })
@@ -388,22 +405,32 @@ function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinemat
       type: kinematic ? PhysicsBodyType.Kinematic : PhysicsBodyType.Rigid,
     })
   );
-  node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
+  if (settings.rotation === "yaw") node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
   // Held, it only turns to your heading; left tilted, it settles back level (engine/physics/upright.ts).
-  markUpright(node);
+  if (settings.upright) markUpright(node);
 
   addInteractableComponent(ctx, physics, node, InteractableType.Grabbable);
+}
 
+function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinematic = false) {
+  const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI);
+  addThingPhysics(ctx, physics, node, thingPhysics(TRAMPOLINE_GLTF_URI, TRAMPOLINE_PHYSICS), kinematic);
   return node;
 }
 
+/** Buzzar: Things made from files, by prefab id (for their spawn placement). */
+const THING_FILES: Record<string, { uri: string; physics: ThingPhysics }> = {
+  trampoline: { uri: TRAMPOLINE_GLTF_URI, physics: TRAMPOLINE_PHYSICS },
+};
+
 /**
  * Buzzar: how far in front of you a Thing appears (metres; default 1), and whether it's stood upright (turned only
- * to face the way you look) rather than tilted like your hand or view.
+ * to face the way you look) rather than tilted like your hand or view. From the Thing's file (HAVEN_thing spawn).
  */
-const SPAWN_PLACEMENT: Record<string, { distance: number; upright: boolean }> = {
-  trampoline: { distance: TRAMPOLINE_RADIUS + 0.9, upright: true },
-};
+function spawnPlacement(prefabId: string) {
+  const thing = THING_FILES[prefabId];
+  return thing ? thingPhysics(thing.uri, thing.physics).spawn : undefined;
+}
 
 const _direction = vec3.create();
 const _spawnWorldQuat = quat.create();
@@ -449,7 +476,7 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   vec3.transformQuat(direction, direction, _spawnWorldQuat);
 
   // place object at direction
-  const placement = SPAWN_PLACEMENT[prefabId];
+  const placement = spawnPlacement(prefabId);
   if (placement?.upright) {
     // Level, facing the way you look (so it lands flat and comes out the same way round each time).
     direction[1] = 0;

@@ -48,6 +48,13 @@ SCALE = 0.01
 FEET_Z = -49.9503173828125
 MAT_TOP = -FEET_Z * SCALE  # 0.4995 m above the ground
 MAT_RADIUS = 1.28  # metres (the mat mesh is 2.56 m across)
+THING = {
+    "collider": {"type": "cylinder", "radius": 1.5, "height": 0.53, "offset": [0, 0.265, 0]},
+    "density": 40,
+    "rotation": "yaw",
+    "upright": True,
+    "spawn": {"distance": 2.4, "upright": True},
+}
 
 # --- the logo: a flat rectangle on the mat, textured with the full Buzzar banner (bee + "buzzar") ---
 # Seen from above with -Z ahead (the way the spawner faces it), it reads left to right: image right is +X, image down
@@ -125,7 +132,11 @@ bed = len(nodes) - 1
 nodes.append({"name": "Trampoline", "children": [model, logo, bed]})
 gltf["scene"] = scene
 gltf["scenes"][scene]["nodes"] = [len(nodes) - 1]
-gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline", "HAVEN_metadata"]))
+gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline", "HAVEN_metadata", "HAVEN_thing"]))
+# How it behaves as an object (docs/gltf/HAVEN_thing): a heavy drum, about 150 kg, that only turns about the vertical,
+# settles level, and appears clear of you, level and facing the way you look.
+gltf["extensions"] = gltf.get("extensions", {})
+gltf["extensions"]["HAVEN_thing"] = THING
 # What it is and where it's from (docs/gltf/HAVEN_metadata). Bump the version with each change to this file.
 gltf.setdefault("extensions", {})["HAVEN_metadata"] = {
     "name": "Trampoline",
@@ -137,7 +148,7 @@ gltf.setdefault("extensions", {})["HAVEN_metadata"] = {
     ),
     "author": "1-3D.com",
     "sourceUrl": "https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9",
-    "version": "0.1.2",
+    "version": "0.1.3",
 }
 gltf["asset"]["generator"] = "Buzzar make-trampoline-thing.py (from Sketchfab-12.78.0)"
 gltf["asset"]["copyright"] = (
