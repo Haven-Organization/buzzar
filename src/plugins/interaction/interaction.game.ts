@@ -58,6 +58,7 @@ import { getCamera } from "../../engine/player/getCamera";
 import { ThirdRoomMessageType } from "../thirdroom/thirdroom.common";
 import { ThirdRoomModule, ThirdRoomModuleState } from "../thirdroom/thirdroom.game";
 import { clamp } from "../../engine/common/math";
+import { forgetUpright, isUpright, levelRotation, tiltOf, uprightEntities } from "../../engine/physics/upright";
 import { padButton, PadButton } from "../../engine/input/gamepad.common";
 
 // TODO: importing from spawnables.game in this file induces a runtime error
@@ -199,6 +200,16 @@ const InteractionActionMap: ActionMap = {
       ],
     },
     {
+      // Buzzar: turns what you're holding back to how it faces when it's spawned (straight ahead, upright).
+      id: "recenter",
+      path: "RecenterHeld",
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Keyboard/KeyR" },
+        { type: BindingType.Button, path: padButton(PadButton.B) },
+      ],
+    },
+    {
       id: "delete",
       path: "Delete",
       type: ActionType.Button,
@@ -316,7 +327,44 @@ function holdRotation(
     heldRelativeRotation.set(grabberEid, entry);
   }
   entry.tick = tick;
-  return quat.multiply(_heldQuat, _worldQuat, entry.rel);
+  quat.multiply(_heldQuat, _worldQuat, entry.rel);
+  // Buzzar: objects that stand upright (the trampoline) only take the hand's heading, never its tilt.
+  return isUpright(heldEid) ? levelRotation(_heldQuat, _heldQuat) : _heldQuat;
+}
+
+/** Buzzar: makes what `grabberEid` holds face the way it does when spawned: lined up with the hand/view. */
+function recenterHold(grabberEid: number) {
+  const entry = heldRelativeRotation.get(grabberEid);
+  if (entry) quat.identity(entry.rel);
+}
+
+/** Radians per second an upright object that's been left tilted turns back to level. */
+const RIGHTING_SPEED = 4;
+const _uprightQuat = quat.create();
+const _levelQuat = quat.create();
+
+/**
+ * Buzzar: upright objects (engine/physics/upright.ts) left tilted settle back level, keeping their heading. Only
+ * bodies this client simulates (dynamic, i.e. its own); other clients' copies follow the network.
+ */
+function settleUprightObjects(ctx: GameContext) {
+  for (const eid of uprightEntities()) {
+    const node = tryGetRemoteResource<RemoteNode>(ctx, eid);
+    const body = node?.physicsBody?.body;
+    if (!node || !body) {
+      if (!node) forgetUpright(eid);
+      continue;
+    }
+    if (!body.isDynamic()) continue;
+    const r = body.rotation();
+    quat.set(_uprightQuat, r.x, r.y, r.z, r.w);
+    const tilt = tiltOf(_uprightQuat);
+    if (tilt < 0.002) continue;
+    levelRotation(_levelQuat, _uprightQuat);
+    const step = Math.min(1, (RIGHTING_SPEED * Math.max(ctx.dt, 0.001)) / tilt);
+    quat.slerp(_uprightQuat, _uprightQuat, _levelQuat, step);
+    body.setRotation(_r.set(_uprightQuat[0], _uprightQuat[1], _uprightQuat[2], _uprightQuat[3]), true);
+  }
 }
 
 /** Most speed a dropped (not thrown) object keeps from being carried (m/s), so letting go doesn't fling it (#323). */
@@ -377,6 +425,8 @@ export function InteractionSystem(ctx: GameContext) {
   const interaction = getModule(ctx, InteractionModule);
   const camRigModule = getModule(ctx, PlayerModule);
   const renderer = getModule(ctx, RendererModule);
+
+  settleUprightObjects(ctx);
 
   // TODO: refactor & make orbit handle multiple controllers
   if (camRigModule.orbiting) {
@@ -771,6 +821,9 @@ function updateGrabThrow(
   const heldNode = getRemoteResource<RemoteNode>(ctx, heldEntity);
 
   if (heldNode) {
+    const recenter = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;
+    if (recenter?.pressed) recenterHold(rig.eid);
+
     // move held point upon scrolling
     const [, scrollY] = input.actionStates.get("Scroll") as vec2;
     if (scrollY !== 0) {

@@ -58,6 +58,7 @@ export function KeyboardControlsList() {
         </>
       )}
       {renderItem("Throw Held Object", <Kbd size="xs">Right Click</Kbd>)}
+      {renderItem("Straighten Held Object", <Kbd size="xs">R</Kbd>)}
       {renderItem("Delete Object", <Kbd size="xs">X</Kbd>)}
       {renderItem("Fly Mode", <Kbd size="xs">B</Kbd>)}
       {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
@@ -93,6 +94,7 @@ export function ControllerControlsList() {
         </>
       )}
       {renderItem("Throw Held Object", <Kbd size="xs">X</Kbd>)}
+      {renderItem("Straighten Held Object", <Kbd size="xs">B</Kbd>)}
       {renderItem("Mute", <Kbd size="xs">Y</Kbd>)}
       {renderItem("Names", <Kbd size="xs">D-pad Up</Kbd>)}
       {renderItem("Hide / show the HUD", <Kbd size="xs">D-pad Down</Kbd>)}

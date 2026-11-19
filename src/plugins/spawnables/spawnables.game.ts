@@ -19,6 +19,7 @@ import {
   PhysicsModuleState,
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
+import { markUpright } from "../../engine/physics/upright";
 import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
 import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
 import {
@@ -388,6 +389,8 @@ function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinemat
     })
   );
   node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
+  // Held, it only turns to your heading; left tilted, it settles back level (engine/physics/upright.ts).
+  markUpright(node.eid);
 
   addInteractableComponent(ctx, physics, node, InteractableType.Grabbable);
 
