@@ -20,6 +20,8 @@ if [ -d "$WEB" ]; then
   BACKUP="$WEB.bak-$(date +%Y%m%d-%H%M%S)"
   cp -a "$WEB" "$BACKUP"
   echo "previous build backed up to $BACKUP"
+  # Keep the newest KEEP_BACKUPS backups (each is a whole build, ~200 MB); they used to pile up by the hundred.
+  ls -d "$WEB".bak-* 2>/dev/null | sort | head -n "-${KEEP_BACKUPS:-5}" | while read -r old; do rm -rf -- "$old"; done
 fi
 
 mkdir -p "$WEB"
