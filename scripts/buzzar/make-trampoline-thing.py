@@ -48,6 +48,9 @@ SCALE = 0.01
 FEET_Z = -49.9503173828125
 MAT_TOP = -FEET_Z * SCALE  # 0.4995 m above the ground
 MAT_RADIUS = 1.28  # metres (the mat mesh is 2.56 m across)
+# The bouncy area reaches out over most of the purple pad (radius 1.21-1.5 m), leaving an 8 cm rim to stand on, so
+# things tossed at the trampoline don't have to hit the black mat itself to bounce.
+BOUNCY_RADIUS = 1.42
 THING = {
     "collider": {"type": "cylinder", "radius": 1.5, "height": 0.53, "offset": [0, 0.265, 0]},
     "density": 40,
@@ -125,7 +128,7 @@ nodes.append(
     {
         "name": "Trampoline Bed",
         "translation": [0, MAT_TOP, 0],
-        "extensions": {"HAVEN_trampoline": {"size": [2 * MAT_RADIUS, 2 * MAT_RADIUS], "shape": "round"}},
+        "extensions": {"HAVEN_trampoline": {"size": [2 * BOUNCY_RADIUS, 2 * BOUNCY_RADIUS], "shape": "round"}},
     }
 )
 bed = len(nodes) - 1
@@ -148,7 +151,7 @@ gltf.setdefault("extensions", {})["HAVEN_metadata"] = {
     ),
     "author": "1-3D.com",
     "sourceUrl": "https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9",
-    "version": "0.1.3",
+    "version": "0.1.4",
 }
 gltf["asset"]["generator"] = "Buzzar make-trampoline-thing.py (from Sketchfab-12.78.0)"
 gltf["asset"]["copyright"] = (

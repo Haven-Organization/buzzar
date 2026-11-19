@@ -19,11 +19,11 @@ This extension marks part of a scene as a trampoline: a player who lands on it, 
 - **Bounce height.** Each bounce rises to `bounciness` × the height the player fell from, but never less than `minBounceHeight`. Simply walking or hopping on gets you bouncing straight away. Dropping on from high up sends you back up proportionally high, never higher than `maxBounceHeight`.
 - **Higher.** Holding jump as you land adds `jumpBoost` metres to that bounce, so a player can work their way up.
 - **Stopping.** Crouch (or go prone) to stop bouncing and stand on it normally.
-- **Objects.** Things thrown or dropped on it (crates, balls, anything with a dynamic physics body) bounce too, back up to `bounciness` × the height they fell, so they bounce lower each time and settle. They get no minimum bounce or jump boost.
+- **Objects.** Things thrown or dropped on it (crates, balls, anything with a dynamic physics body) bounce too, back up to `bounciness` × the height they fell, so they bounce lower each time and settle. They get no minimum bounce or jump boost. They bounce off at an angle the way they came in: their speed across the area carries on (90% of it) and their speed into it comes back out along the area's +Y, so a ball tossed in at an angle bounces on and away from the trampoline.
 
 The bouncy area is a flat area in the node's XZ plane, centred on the node and facing the node's +Y. It is a rectangle, or the ellipse inside that rectangle for `"round"`. It counts for feet a little above or below it, so it can sit under a pad or frame. It doesn't block movement: give the trampoline its own collider for players to land on. In a world without `OMI_collider`, Buzzar builds one from every mesh, the mat included.
 
-Buzzar's stock Trampoline Thing uses this extension on a "Trampoline Bed" node.
+Buzzar's stock Trampoline Thing uses this extension on a "Trampoline Bed" node. Its bouncy area covers the mat and most of the padded edge, leaving an 8 cm rim to stand on.
 
 ## glTF Schema Updates
 
@@ -43,7 +43,7 @@ The `HAVEN_trampoline` extension can be added to any `node`:
     "name": "Trampoline Bed",
     "translation": [0, 0.5, 0],
     "extensions": {
-      "HAVEN_trampoline": { "size": [2.56, 2.56], "shape": "round" }
+      "HAVEN_trampoline": { "size": [2.84, 2.84], "shape": "round" }
     }
   }
 ]

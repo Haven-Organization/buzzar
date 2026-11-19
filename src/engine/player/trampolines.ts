@@ -8,7 +8,7 @@
  * A trampoline is an area in its node's XZ plane, centred on the node and facing +Y: a rectangle, or the ellipse
  * inside it for round ones.
  */
-import { mat4, vec3 } from "gl-matrix";
+import { mat3, mat4, vec3 } from "gl-matrix";
 
 import { GameContext } from "../GameTypes";
 import { RemoteNode } from "../resource/RemoteResources";
@@ -149,4 +149,43 @@ export function objectBounceSpeed(settings: TrampolineSettings, impactSpeed: num
   if (fallHeight < OBJECT_MIN_DROP) return 0;
   const height = Math.min(settings.bounciness * fallHeight, settings.maxBounceHeight);
   return Math.sqrt(2 * gravity * height);
+}
+
+/** How much of an object's speed across the mat it keeps through a bounce (the mat grips it a little). */
+const OBJECT_ALONG_KEEP = 0.9;
+
+/**
+ * The velocity an object (a crate, a ball) leaves the trampoline with, given its velocity `before` it hit the mat and
+ * the mat's `normal` (unit, facing out of the bouncy side): like a ball off a real trampoline, its speed across the
+ * mat carries on (OBJECT_ALONG_KEEP of it) and its speed into the mat comes back out (objectBounceSpeed). So one
+ * tossed in at an angle bounces on and away at much the same angle. Undefined if it isn't moving into the mat fast
+ * enough to bounce.
+ */
+export function objectBounceVelocity(
+  settings: TrampolineSettings,
+  before: ArrayLike<number>,
+  normal: ArrayLike<number>,
+  gravity: number
+): [number, number, number] | undefined {
+  const into = -(before[0] * normal[0] + before[1] * normal[1] + before[2] * normal[2]);
+  if (!(into > 0)) return undefined;
+  const out = objectBounceSpeed(settings, into, gravity);
+  if (!(out > 0)) return undefined;
+  const v: [number, number, number] = [0, 0, 0];
+  for (let k = 0; k < 3; k++) {
+    const along = before[k] + into * normal[k]; // before, less its part into the mat
+    v[k] = along * OBJECT_ALONG_KEEP + out * normal[k];
+  }
+  return v;
+}
+
+const _normalMatrix = mat3.create();
+
+/** The trampoline's bouncy side's direction in world space (its node's +Y), as a unit vector, into `out`. */
+export function trampolineNormal(trampoline: Trampoline, out: vec3): vec3 {
+  // The normal matrix keeps it a true normal under non-uniform scale.
+  if (!mat3.normalFromMat4(_normalMatrix, trampoline.node.worldMatrix)) return vec3.set(out, 0, 1, 0);
+  vec3.transformMat3(out, vec3.set(out, 0, 1, 0), _normalMatrix);
+  const len = vec3.length(out);
+  return len > 1e-6 ? vec3.scale(out, out, 1 / len) : vec3.set(out, 0, 1, 0);
 }
