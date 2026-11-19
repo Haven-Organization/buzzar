@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Room } from "@thirdroom/hydrogen-view-sdk";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 
 import { MainContext } from "../../../../engine/MainThread";
 import { registerMessageHandler } from "../../../../engine/module/module.common";
@@ -18,6 +18,15 @@ import { useHydrogen } from "../../../hooks/useHydrogen";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { OverlayWindow } from "../../../state/overlayWindow";
+import { developerModeAtom } from "../../../state/developerMode";
+
+const LOAD_ERROR_DETAILS = "\n\nDetails: ";
+
+/** Buzzar: a world load error's plain summary and its technical details (engine: withLoadErrorDetails). */
+export function splitLoadError(message: string): [string, string | undefined] {
+  const at = message.indexOf(LOAD_ERROR_DETAILS);
+  return at === -1 ? [message, undefined] : [message.slice(0, at), message.slice(at + LOAD_ERROR_DETAILS.length)];
+}
 
 interface WorldLoadProgress {
   loaded: number;
@@ -53,6 +62,9 @@ export function WorldLoading({ world, loading, error }: { world: Room; loading: 
   const canSetScene = canSendStateEvent("org.matrix.msc3815.world", getPowerLevel(session.userId));
   const openOverlayWindow = useOpenOverlayWindow();
   const missingScene = !!error && /scene does not exist/i.test(error.message);
+  // Buzzar: a plain message, with the technical part (after "Details:") only in Developer Mode.
+  const developerMode = useAtomValue(developerModeAtom);
+  const [errorSummary, errorDetails] = error ? splitLoadError(error.message) : [];
 
   useEffect(() => {
     resetLoadProgress();
@@ -84,7 +96,9 @@ export function WorldLoading({ world, loading, error }: { world: Room; loading: 
                 ? canSetScene
                   ? "This world has no 3D scene yet. Choose one in its settings."
                   : "This world has no 3D scene yet. Ask its owner to set one."
-                : error.message
+                : developerMode && errorDetails
+                ? `${errorSummary} (${errorDetails})`
+                : errorSummary
             }
             options={
               <div className="flex gap-xxs">

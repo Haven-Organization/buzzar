@@ -96,6 +96,7 @@ export function useWorldLoader(): WorldLoader {
         environmentScriptUrl = session.mediaRepository.mxcUrl(environmentScriptUrl)!;
       }
 
+      let networkPromise: ReturnType<typeof createMatrixNetworkInterface> | undefined;
       try {
         setActiveMatrixRoom(mainThread, session, world.id, publishedScriptUrl);
 
@@ -106,8 +107,12 @@ export function useWorldLoader(): WorldLoader {
           homeserver: auth?.homeserver,
         });
 
+        // Buzzar: if the world fails to load, still hang up the call this started (it would otherwise stay joined,
+        // with your microphone attached, and the next world couldn't attach it: "Local media stream source already
+        // connected").
+        networkPromise = createMatrixNetworkInterface(mainThread, client, platform, world);
         const [matrixNetworkInterface] = await Promise.all([
-          createMatrixNetworkInterface(mainThread, client, platform, world),
+          networkPromise,
           loadWorld(mainThread, environmentUrl, {
             environmentScriptUrl,
             maxObjectCap,
@@ -115,6 +120,7 @@ export function useWorldLoader(): WorldLoader {
         ]);
 
         registerMatrixNetworkInterface(matrixNetworkInterface);
+        networkPromise = undefined;
 
         await enterWorld(mainThread, session.userId);
 
@@ -147,6 +153,7 @@ export function useWorldLoader(): WorldLoader {
 
         setWorld({ type: "ENTER" });
       } catch (err: any) {
+        networkPromise?.then((network) => network.dispose()).catch(() => undefined);
         throw new Error(err?.message ?? "Unknown error loading world.");
       }
     },

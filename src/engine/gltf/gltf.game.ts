@@ -292,6 +292,35 @@ export function loadDefaultGLTFScene(
 const GLB_HEADER_BYTE_LENGTH = 12;
 const GLB_MAGIC = 0x46546c67; // "glTF" in ASCII
 
+/** Buzzar: separates a friendly load error from its technical details (shown in Developer Mode). */
+export const LOAD_ERROR_DETAILS = "\n\nDetails: ";
+
+export function withLoadErrorDetails(message: string, details: string) {
+  return `${message}${LOAD_ERROR_DETAILS}${details}`;
+}
+
+/**
+ * Buzzar: if a failed media download looks like the homeserver refusing another server's file for being too big,
+ * a plain explanation naming the homeserver.
+ */
+export function remoteMediaTooBig(url: string, status: number, errcode?: string): string | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url, "http://localhost");
+  } catch {
+    return undefined;
+  }
+  const match = parsed.pathname.match(/\/media\/(?:v3\/)?download\/([^/]+)\//);
+  if (!match) return undefined;
+  const origin = decodeURIComponent(match[1]);
+  const own = parsed.hostname;
+  const remote = origin !== own && !own.endsWith(`.${origin}`) && !origin.endsWith(`.${own}`);
+  if (status === 413 || errcode === "M_TOO_LARGE" || (remote && status === 502)) {
+    return `This world is too big for your homeserver (${own}) to download.`;
+  }
+  return undefined;
+}
+
 async function loadGLTFResource(
   ctx: GameContext,
   resourceManager: RemoteResourceManager,
@@ -304,13 +333,20 @@ async function loadGLTFResource(
   // media via fallback") used to be parsed as glTF and reported as "Missing asset section".
   if (!res.ok) {
     let detail = res.statusText;
+    let errcode: string | undefined;
     try {
       const body = await res.clone().json();
       if (body?.error) detail = body.error;
+      errcode = body?.errcode;
     } catch {
       // not a JSON error body
     }
-    throw new Error(`Couldn't download the 3D file (HTTP ${res.status}${detail ? `: ${detail}` : ""}).`);
+    const technical = `Couldn't download the 3D file (HTTP ${res.status}${detail ? `: ${detail}` : ""}).`;
+    // Buzzar: a homeserver refuses to fetch another server's file over its own upload limit (Synapse:
+    // max_upload_size), failing with 413/M_TOO_LARGE or, through a media fallback, a 502. Say so plainly.
+    const tooBig = remoteMediaTooBig(url, res.status, errcode);
+    if (tooBig) throw new Error(withLoadErrorDetails(tooBig, technical));
+    throw new Error(technical);
   }
 
   const buffer = await res.arrayBuffer();

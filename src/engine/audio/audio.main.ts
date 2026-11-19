@@ -814,8 +814,11 @@ export function setLocalMediaStream(ctx: MainContext, mediaStream: MediaStream |
   const audioModule = getModule(ctx, AudioModule);
 
   if (mediaStream) {
+    // Buzzar: replace a source that's still connected (e.g. left behind by a world that failed to load) instead of
+    // throwing, which stopped every world after it from loading.
     if (audioModule.localMediaStreamSource) {
-      throw new Error("Local media stream source already connected.");
+      audioModule.localMediaStreamSource.disconnect(audioModule.analyser);
+      audioModule.localMediaStreamSource = undefined;
     }
 
     audioModule.localMediaStreamSource = audioModule.context.createMediaStreamSource(mediaStream);
