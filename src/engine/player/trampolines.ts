@@ -20,7 +20,7 @@ export interface GLTFTrampolineExtension {
   size?: [number, number];
   /** "rectangle" (default) or "round" (the ellipse inside the rectangle). */
   shape?: "rectangle" | "round";
-  /** Lowest bounce, in metres, however gently you land (default 1.5). */
+  /** Lowest bounce, in metres, however gently you land (default 2.5). */
   minBounceHeight?: number;
   /** How high you bounce back as a fraction of the height you fell (default 0.85; 1 keeps every bounce). */
   bounciness?: number;
@@ -38,7 +38,7 @@ export interface TrampolineSettings {
 }
 
 export const DEFAULT_TRAMPOLINE: TrampolineSettings = {
-  minBounceHeight: 1.5,
+  minBounceHeight: 2.5,
   bounciness: 0.85,
   maxBounceHeight: 30,
   jumpBoost: 1.5,

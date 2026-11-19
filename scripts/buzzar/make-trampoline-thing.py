@@ -1,16 +1,18 @@
 # Builds Buzzar's stock Trampoline Thing (public/gltf/things/trampoline.glb) from the Sketchfab model:
 #   "Trampoline" by 1-3D.com, CC BY-SA 4.0, https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9
-# Changes: Z-up centimetres -> Y-up metres standing on y=0, the Buzzar bee logo (res/brand/icon-512.png) on the
-# middle of the mat, and a HAVEN_trampoline node marking the mat as bouncy (docs/gltf/HAVEN_trampoline).
-# Usage: python3 scripts/buzzar/make-trampoline-thing.py <trampoline.glb> [out.glb]
+# Changes: Z-up centimetres -> Y-up metres standing on y=0, the full Buzzar logo (bee + "buzzar",
+# res/brand/banner-purple.png) on the middle of the mat, and a HAVEN_trampoline node marking the mat as bouncy (docs/gltf/HAVEN_trampoline).
+# Needs Pillow. Usage: python3 scripts/buzzar/make-trampoline-thing.py <trampoline.glb> [out.glb]
+import io
 import json
-import math
 import struct
 import sys
 
+from PIL import Image  # Pillow
+
 src = sys.argv[1]
 out = sys.argv[2] if len(sys.argv) > 2 else "public/gltf/things/trampoline.glb"
-LOGO = "res/brand/icon-512.png"
+LOGO = "res/brand/banner-purple.png"
 
 b = open(src, "rb").read()
 jlen = struct.unpack("<I", b[12:16])[0]
@@ -47,31 +49,28 @@ FEET_Z = -49.9503173828125
 MAT_TOP = -FEET_Z * SCALE  # 0.4995 m above the ground
 MAT_RADIUS = 1.28  # metres (the mat mesh is 2.56 m across)
 
-# --- the logo: a disc on the mat, textured with the round bee icon ---
-SEGMENTS = 64
-LOGO_DIAMETER = 1.0
-r = LOGO_DIAMETER / 2
-pos, nor, uv = [(0.0, 0.0, 0.0)], [(0.0, 1.0, 0.0)], [(0.5, 0.5)]
-for i in range(SEGMENTS):
-    a = 2 * math.pi * i / SEGMENTS
-    x, z = math.cos(a) * r, math.sin(a) * r
-    pos.append((x, 0.0, z))
-    nor.append((0.0, 1.0, 0.0))
-    # Seen from above with -Z ahead: image right is +X, image down is +Z (toward you).
-    uv.append((0.5 + x / LOGO_DIAMETER, 0.5 + z / LOGO_DIAMETER))
-idx = []
-for i in range(SEGMENTS):
-    j = (i + 1) % SEGMENTS
-    idx += [0, j + 1, i + 1]  # counter-clockwise seen from above (+Y)
+# --- the logo: a flat rectangle on the mat, textured with the full Buzzar banner (bee + "buzzar") ---
+# Seen from above with -Z ahead (the way the spawner faces it), it reads left to right: image right is +X, image down
+# is +Z (toward you). Its rounded corners are transparent (alpha mask).
+LOGO_WIDTH = 1.8
+LOGO_DEPTH = LOGO_WIDTH * 420 / 1280  # the banner's aspect ratio
+hw, hd = LOGO_WIDTH / 2, LOGO_DEPTH / 2
+pos = [(-hw, 0.0, -hd), (hw, 0.0, -hd), (hw, 0.0, hd), (-hw, 0.0, hd)]
+nor = [(0.0, 1.0, 0.0)] * 4
+uv = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+idx = [0, 3, 2, 0, 2, 1]  # counter-clockwise seen from above (+Y)
 pv = add_view(b"".join(struct.pack("<3f", *p) for p in pos), 34962)
 nv = add_view(b"".join(struct.pack("<3f", *n) for n in nor), 34962)
 uvv = add_view(b"".join(struct.pack("<2f", *t) for t in uv), 34962)
 iv = add_view(b"".join(struct.pack("<H", i) for i in idx), 34963)
-pa = add_accessor(pv, 5126, len(pos), "VEC3", min=[-r, 0, -r], max=[r, 0, r])
+pa = add_accessor(pv, 5126, len(pos), "VEC3", min=[-hw, 0, -hd], max=[hw, 0, hd])
 na = add_accessor(nv, 5126, len(nor), "VEC3")
 ua = add_accessor(uvv, 5126, len(uv), "VEC2")
 ia = add_accessor(iv, 5123, len(idx), "SCALAR")
-img_view = add_view(open(LOGO, "rb").read())
+# The banner is a 16-bit PNG; an 8-bit 1024 px copy is plenty and far smaller.
+logo_png = io.BytesIO()
+Image.open(LOGO).convert("RGBA").resize((1024, 336), Image.LANCZOS).save(logo_png, "PNG", optimize=True)
+img_view = add_view(logo_png.getvalue())
 gltf.setdefault("images", []).append({"name": "buzzar-logo", "mimeType": "image/png", "bufferView": img_view})
 gltf.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
 gltf.setdefault("textures", []).append({"source": len(gltf["images"]) - 1, "sampler": len(gltf["samplers"]) - 1})
@@ -83,6 +82,8 @@ gltf["materials"].append(
             "metallicFactor": 0.0,
             "roughnessFactor": 0.9,
         },
+        "alphaMode": "MASK",
+        "alphaCutoff": 0.5,
     }
 )
 gltf["meshes"].append(

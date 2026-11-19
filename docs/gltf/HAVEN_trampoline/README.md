@@ -52,7 +52,7 @@ The `HAVEN_trampoline` extension can be added to any `node`:
 | ----------------- | ----------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | `size`            | `number[2]` | Width (X) and depth (Z) in metres of the bouncy area, centred on the node, in the node's local space. | No, default: the node's mesh bounds |
 | `shape`           | `string`    | `"rectangle"` or `"round"` (the ellipse inside the rectangle).                                        | No, default: `"rectangle"`          |
-| `minBounceHeight` | `number`    | The lowest bounce in metres, however gently you land.                                                 | No, default: `1.5`                  |
+| `minBounceHeight` | `number`    | The lowest bounce in metres, however gently you land.                                                 | No, default: `2.5`                  |
 | `bounciness`      | `number`    | Bounce height as a fraction of the height fallen (0–1.2; 1 keeps every bounce as high as the last).   | No, default: `0.85`                 |
 | `maxBounceHeight` | `number`    | The highest bounce in metres.                                                                         | No, default: `30`                   |
 | `jumpBoost`       | `number`    | Extra metres added to a bounce you land holding jump.                                                 | No, default: `1.5`                  |

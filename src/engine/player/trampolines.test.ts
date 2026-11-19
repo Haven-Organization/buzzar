@@ -7,9 +7,9 @@ const heightOf = (speed: number) => (speed * speed) / (2 * g);
 const fallSpeed = (height: number) => Math.sqrt(2 * g * height);
 
 describe("trampoline bounces", () => {
-  it("bounces gentle landings (walking on) to the minimum height", () => {
-    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, 0, g, false))).toBeCloseTo(1.5);
-    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, fallSpeed(0.5), g, false))).toBeCloseTo(1.5);
+  it("bounces gentle landings (walking on) to the minimum height, 2.5 m", () => {
+    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, 0, g, false))).toBeCloseTo(2.5);
+    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, fallSpeed(1), g, false))).toBeCloseTo(2.5);
   });
 
   it("sends drops from higher up proportionally higher, up to the cap", () => {
@@ -18,7 +18,7 @@ describe("trampoline bounces", () => {
   });
 
   it("adds the jump boost when landing holding jump", () => {
-    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, fallSpeed(4), g, true))).toBeCloseTo(0.85 * 4 + 1.5);
+    expect(heightOf(bounceSpeed(DEFAULT_TRAMPOLINE, fallSpeed(6), g, true))).toBeCloseTo(0.85 * 6 + 1.5);
   });
 
   it("reads settings from glTF, clamping nonsense", () => {
