@@ -123,9 +123,12 @@ def label_texture(text, background) -> int:
     return len(gltf["textures"]) - 1
 
 
-# Layout: the mirror frame is 3.3 m wide around x=0, its front at z=-6.0; the panel sits just right of it (as you face
-# the mirror from the spawn), at chest height.
-PANEL = {"size": [0.42, 0.98, 0.08], "at": [1.98, 1.4, -6.06]}
+# Layout: the mirror frame is 3.3 m wide around x=0 and 0.12 m deep, centred at z=-6.06. The panel is a wing on its
+# right-hand side (as you face the mirror from the spawn), at chest height: flush against the frame's edge and just as
+# deep, so it reads as part of the frame rather than floating beside it.
+FRAME_EDGE_X, FRAME_DEPTH = 1.65, 0.12
+PANEL_WIDTH = 0.42
+PANEL = {"size": [PANEL_WIDTH, 0.98, FRAME_DEPTH], "at": [FRAME_EDGE_X + PANEL_WIDTH / 2, 1.4, -6.06]}
 BUTTON = [0.32, 0.24, 0.05]
 BUTTON_Z = PANEL["at"][2] + PANEL["size"][2] / 2 + BUTTON[2] / 2
 STATES = [("high", "HIGH", 1.72, (112, 0, 255)), ("low", "LOW", 1.4, (84, 52, 150)), ("off", "OFF", 1.08, (52, 52, 60))]
