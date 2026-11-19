@@ -49,7 +49,10 @@ describe("resolveDestination", () => {
   });
 
   it("returns nothing when the summary isn't available, and flags web links", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false }))
+    );
     expect(await resolveDestination(sessionWith({}), async () => auth, "matrix:r/gone:hs")).toBeUndefined();
     expect(await resolveDestination(sessionWith({}), async () => auth, "https://example.org/page")).toEqual({
       name: "example.org",

@@ -15,6 +15,7 @@ import { Button } from "../../../atoms/button/Button";
 import { useDebounce } from "../../../hooks/useDebounce";
 import "./UserProfileOverview.css";
 import { MicrophoneSettings } from "./MicrophoneSettings";
+import { HomeWorldSettings } from "./HomeWorldSettings";
 import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
 import { WorldScriptSettings } from "./WorldScriptSettings";
 import { ProfileExtrasSettings } from "./ProfileExtrasSettings";
@@ -150,6 +151,7 @@ export function UserProfileOverview() {
                   {category === "controls" && <ControlsSettings />}
                   {category === "worlds" && (
                     <div className="UserProfileOverview__section">
+                      <HomeWorldSettings />
                       <BuzzarSpaceSetting />
                       <WorldScriptSettings />
                     </div>

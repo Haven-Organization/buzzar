@@ -41,8 +41,9 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
   );
   const onWorld = useCallback(
     (event: StateEvent | undefined) => {
-      latest.current.legacyCap = (event?.content as { max_member_object_cap?: unknown } | undefined)
-        ?.max_member_object_cap;
+      latest.current.legacyCap = (
+        event?.content as { max_member_object_cap?: unknown } | undefined
+      )?.max_member_object_cap;
       send();
     },
     [send]

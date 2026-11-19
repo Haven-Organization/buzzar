@@ -199,9 +199,20 @@ export async function setSpaceChild(
  * Makes the user's Buzzar space list exactly the worlds they're in (plus anything they added by hand).
  * `worldIds` are the joined world rooms; returns what changed.
  */
-export async function syncBuzzarSpace(auth: MatrixAuth, userId: string, worldIds: Iterable<string>) {
-  if ((await getSpaceAccountData(auth, userId))?.disabled) return undefined;
+/**
+ * `create`: whether a space may be made if the user doesn't have one yet. Buzzar makes it when they first enter a
+ * world (hooks/useBuzzarSpace); until then an existing space is still kept in step.
+ */
+export async function syncBuzzarSpace(
+  auth: MatrixAuth,
+  userId: string,
+  worldIds: Iterable<string>,
+  { create = true }: { create?: boolean } = {}
+) {
+  const data = await getSpaceAccountData(auth, userId);
+  if (data?.disabled) return undefined;
   const joined = await getJoinedRoomIds(auth);
+  if (!create && !(data?.room_id && joined.has(data.room_id))) return undefined;
   const spaceId = await ensureBuzzarSpace(auth, userId, joined);
   const children = await getSpaceChildren(auth, spaceId);
   const plan = planSpaceChildren(

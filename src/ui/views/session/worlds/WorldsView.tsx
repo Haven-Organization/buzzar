@@ -27,6 +27,8 @@ import { Window } from "../../components/window/Window";
 import { TileFallback, WorldTile, WorldTileGrid } from "../../components/world-tile/WorldTile";
 import { WorldTileMembers } from "../sidebar/WorldTileMembers";
 import { EnterWorldButton } from "../overlay/WorldPreview";
+import { SetHomeWorldDialog } from "../dialogs/SetHomeWorldDialog";
+import { homeWorldAtom } from "../../../state/homeWorld";
 import { InviteDialog } from "../dialogs/InviteDialog";
 import { JoinWithAliasDialog } from "../dialogs/JoinWithAliasDialog";
 import { ExploreServersDialog } from "./ExploreServersDialog";
@@ -247,6 +249,9 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
   const setActiveChat = useSetAtom(activeChatsAtom);
   const setSidebarTab = useSetAtom(sidebarTabAtom);
   const invite = useDialog(false);
+  const setHome = useDialog(false);
+  const home = useAtomValue(homeWorldAtom);
+  const isHome = home.status === "ready" && home.roomId === room.id;
   const name = room.name || "Unnamed world";
   const address = room.canonicalAlias ?? room.id;
 
@@ -254,6 +259,9 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
     <>
       <Dialog open={invite.open} onOpenChange={invite.setOpen}>
         <InviteDialog roomId={room.id} requestClose={invite.closeDialog} />
+      </Dialog>
+      <Dialog open={setHome.open} onOpenChange={setHome.setOpen}>
+        <SetHomeWorldDialog room={room} requestClose={setHome.closeDialog} />
       </Dialog>
       <WorldTile
         isActive={isHere}
@@ -272,7 +280,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
           </>
         }
         memberCount={room.joinedMemberCount}
-        badge={isHere ? "You're here" : undefined}
+        badge={isHere ? "You're here" : isHome ? "Home" : undefined}
         overlay={
           groupCall ? (
             <WorldTileMembers session={session} platform={platform} groupCall={groupCall} room={room} />
@@ -298,6 +306,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
               Chat
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={invite.openDialog}>Invite</DropdownMenuItem>
+            {!isHome && <DropdownMenuItem onSelect={setHome.openDialog}>Set as Home World</DropdownMenuItem>}
             <DropdownMenuItem onSelect={() => copyToClipboard(worldLink(address))}>Copy Link</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => copyToClipboard(address)}>
               {room.canonicalAlias ? "Copy Alias" : "Copy Room ID"}

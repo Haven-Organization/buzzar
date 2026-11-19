@@ -1,11 +1,13 @@
-import { RoomBeingCreated, RoomType, RoomVisibility, Session } from "@thirdroom/hydrogen-view-sdk";
-import { useEffect, useState } from "react";
+import { Platform, RoomBeingCreated, RoomType, RoomVisibility, Session } from "@thirdroom/hydrogen-view-sdk";
+import { useEffect } from "react";
+import { useSetAtom } from "jotai";
 
 import defaultWorlds from "../../../res/defaultWorlds.json";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { getJoinedRoomIds, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";
 import { uploadBundledFile } from "../utils/bundledMedia";
 import { useHydrogen } from "./useHydrogen";
+import { homeWorldAtom } from "../state/homeWorld";
 
 /**
  * Buzzar: the default Home World ships with the app (public/worlds/home) and is uploaded to the user's own
@@ -80,7 +82,11 @@ async function createHomeWorld(session: Session, media: HomeWorldMedia) {
 interface HomeWorldAccountData {
   version?: number;
   room_id: string;
+  /** Buzzar: a world the user chose as their home (not one Buzzar made): never given Buzzar's home scene. */
+  custom?: boolean;
 }
+
+export const HOME_ACCOUNT_DATA_TYPE = "org.matrix.msc3815.world.home";
 
 async function updateHomeWorld(session: Session, accountData: HomeWorldAccountData, media: HomeWorldMedia) {
   const room = session.rooms.get(accountData.room_id);
@@ -141,15 +147,65 @@ async function findOrphanHomeWorld(session: Session): Promise<HomeWorldAccountDa
   return best && { version: best.version, room_id: best.id };
 }
 
-export function useHomeWorld() {
+/**
+ * Buzzar: creates the user's Home World from the bundled scene and points their account at it (the welcome screen's
+ * "Create and Enter Home World", or Settings). Returns its room ID.
+ */
+export async function createAndSetHomeWorld(session: Session, platform: Platform, sessionId: string): Promise<string> {
+  const auth = await getSessionAuth(platform, sessionId);
+  if (!auth) throw new Error("No session credentials to upload the Home World");
+  const roomBeingCreated = await createHomeWorld(session, await uploadHomeWorldMedia(auth));
+  // Save the pointer as soon as the server has created the room. Waiting for the room to show up in sync first used
+  // to fail on slower homeservers, so every reload created another Home World.
+  const roomId = await waitForCreatedRoomId(roomBeingCreated);
+  await session.setAccountData(HOME_ACCOUNT_DATA_TYPE, { version: defaultWorlds.home.version, room_id: roomId });
+  return roomId;
+}
+
+/**
+ * Buzzar: makes `roomId` the user's Home World. A Home World Buzzar made (its world state has `home: true` and the
+ * user created it) keeps getting scene upgrades; any other world is marked `custom` and left as it is.
+ */
+export async function setHomeWorld(session: Session, roomId: string) {
+  const room = session.rooms.get(roomId);
+  const [world, create] = room
+    ? await Promise.all([room.getStateEvent("org.matrix.msc3815.world", ""), room.getStateEvent("m.room.create", "")])
+    : [undefined, undefined];
+  const ours = world?.event.content?.home === true && create?.event.sender === session.userId;
+  const version = ours && typeof world?.event.content?.version === "number" ? world.event.content.version : undefined;
+  await session.setAccountData(HOME_ACCOUNT_DATA_TYPE, {
+    version: version ?? defaultWorlds.home.version,
+    room_id: roomId,
+    ...(ours ? {} : { custom: true }),
+  });
+}
+
+/** Resolves with the room once it's arrived through sync (it can lag a moment behind its creation). */
+export function waitForRoom(session: Session, roomId: string, timeoutMs = 30_000) {
+  return new Promise<NonNullable<ReturnType<Session["rooms"]["get"]>>>((resolve, reject) => {
+    const started = Date.now();
+    const check = () => {
+      const room = session.rooms.get(roomId);
+      if (room) return resolve(room);
+      if (Date.now() - started > timeoutMs) return reject(new Error("The Home World didn't arrive in time"));
+      window.setTimeout(check, 250);
+    };
+    check();
+  });
+}
+
+/**
+ * Buzzar: at startup, works out whether the user has a Home World (homeWorldAtom). It no longer creates one by
+ * itself: with none, the welcome screen offers to (views/session/HomeWelcome). An existing Buzzar-made Home World
+ * is upgraded to the bundled scene's latest version in the background; one the user chose themselves is left alone.
+ */
+export function useHomeWorldCheck() {
   const { session, platform, client } = useHydrogen(true);
-  const [homeWorldId, setHomeWorldId] = useState<string>();
+  const setHome = useSetAtom(homeWorldAtom);
 
   useEffect(() => {
     async function run() {
-      let homeAccountData = (await session.getAccountData("org.matrix.msc3815.world.home")) as
-        | HomeWorldAccountData
-        | undefined;
+      let homeAccountData = (await session.getAccountData(HOME_ACCOUNT_DATA_TYPE)) as HomeWorldAccountData | undefined;
       const auth = () =>
         getSessionAuth(platform, client.sessionId).then((a) => {
           if (!a) throw new Error("No session credentials to upload the Home World");
@@ -160,51 +216,39 @@ export function useHomeWorld() {
       const isJoined = async (roomId: string) =>
         !!session.rooms.get(roomId) || (await getJoinedRoomIds(await auth())).has(roomId);
 
-      if (!homeAccountData?.room_id || !homeAccountData.version || homeAccountData.version < 4) {
+      if (!homeAccountData?.room_id || (!homeAccountData.custom && (homeAccountData.version ?? 0) < 4)) {
         const orphan = await findOrphanHomeWorld(session);
         if (orphan) {
           homeAccountData = orphan;
-          await session.setAccountData("org.matrix.msc3815.world.home", homeAccountData);
+          await session.setAccountData(HOME_ACCOUNT_DATA_TYPE, homeAccountData);
         }
       }
 
       if (
-        homeAccountData &&
-        homeAccountData.version &&
-        homeAccountData.version >= 4 &&
+        homeAccountData?.room_id &&
+        (homeAccountData.custom || (homeAccountData.version ?? 0) >= 4) &&
         (await isJoined(homeAccountData.room_id))
       ) {
-        // Enter the existing Home World right away; upgrade its scene in the background.
-        setHomeWorldId(homeAccountData.room_id);
-
-        if (homeAccountData.version < defaultWorlds.home.version) {
+        setHome({ status: "ready", roomId: homeAccountData.room_id });
+        if (!homeAccountData.custom && (homeAccountData.version ?? 0) < defaultWorlds.home.version) {
           await updateHomeWorld(session, homeAccountData, await uploadHomeWorldMedia(await auth()));
-
-          await session.setAccountData("org.matrix.msc3815.world.home", {
+          await session.setAccountData(HOME_ACCOUNT_DATA_TYPE, {
             version: defaultWorlds.home.version,
             room_id: homeAccountData.room_id,
           });
         }
       } else {
-        if (homeAccountData && homeAccountData.version && homeAccountData.version <= 3) {
-          await session.rooms.get(homeAccountData.room_id)?.leave();
-        }
-
-        const roomBeingCreated = await createHomeWorld(session, await uploadHomeWorldMedia(await auth()));
-        // Save the pointer as soon as the server has created the room. Waiting for the room to show up in sync
-        // first used to fail on slower homeservers, so every reload created another Home World.
-        const roomId = await waitForCreatedRoomId(roomBeingCreated);
-        await session.setAccountData("org.matrix.msc3815.world.home", {
-          version: defaultWorlds.home.version,
-          room_id: roomId,
-        });
-        setHomeWorldId(roomId);
+        setHome({ status: "none" });
       }
     }
 
-    // One run at a time per session (React may run effects twice), so two Home Worlds can't be created at once.
-    homeWorldRuns.set(session, (homeWorldRuns.get(session) ?? Promise.resolve()).then(run).catch(console.error));
-  }, [session, platform, client]);
-
-  return homeWorldId;
+    // One run at a time per session (React may run effects twice).
+    homeWorldRuns.set(
+      session,
+      (homeWorldRuns.get(session) ?? Promise.resolve()).then(run).catch((e) => {
+        console.error(e);
+        setHome({ status: "none" });
+      })
+    );
+  }, [session, platform, client, setHome]);
 }

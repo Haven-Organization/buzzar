@@ -10,7 +10,10 @@ import { useInitMainThreadContext, MainThreadContextProvider } from "../../hooks
 import { Overlay } from "./overlay/Overlay";
 import { StatusBar } from "./statusbar/StatusBar";
 import { LoadingScreen } from "../components/loading-screen/LoadingScreen";
-import { useHomeWorld } from "../../hooks/useHomeWorld";
+import { useHomeWorldCheck, waitForRoom } from "../../hooks/useHomeWorld";
+import { useWorldNavigator } from "../../hooks/useWorldNavigator";
+import { enterHomeOnStartupAtom, homeWorldAtom } from "../../state/homeWorld";
+import { HomeWelcome } from "./HomeWelcome";
 import { useBuzzarSpace } from "../../hooks/useBuzzarSpace";
 import { useReadSync } from "../../hooks/useReadSync";
 import { useHydrogen } from "../../hooks/useHydrogen";
@@ -37,7 +40,9 @@ export default function SessionView() {
   const mainThread = useInitMainThreadContext(canvasRef);
   const overlayVisible = useAtomValue(overlayVisibilityAtom);
   const [worldId, worldAlias] = useUnknownWorldPath();
-  const homeWorldId = useHomeWorld();
+  useHomeWorldCheck();
+  const home = useAtomValue(homeWorldAtom);
+  const homeWorldId = home.status === "ready" ? home.roomId : undefined;
   useBuzzarSpace();
   const { session } = useHydrogen(true);
   useReadSync(session);
@@ -46,11 +51,35 @@ export default function SessionView() {
   const editorEnabled = useAtomValue(editorEnabledAtom);
   const hudHidden = useAtomValue(hudHiddenAtom);
 
+  // Buzzar: on startup (no world in the address), go into your Home World (Settings → Worlds), or just show it.
+  const enterHomeOnStartup = useAtomValue(enterHomeOnStartupAtom);
+  const setOverlayVisible = useSetAtom(overlayVisibilityAtom);
+  const { navigateEnterWorld } = useWorldNavigator(session);
+  const startupHandled = useRef(false);
   useEffect(() => {
-    if (!worldId && !worldAlias && homeWorldId) {
+    if (startupHandled.current || !homeWorldId) return;
+    startupHandled.current = true;
+    if (worldId || worldAlias) return;
+    if (!enterHomeOnStartup) {
       selectWorld(homeWorldId);
+      return;
     }
-  }, [worldId, worldAlias, homeWorldId, selectWorld]);
+    waitForRoom(session, homeWorldId)
+      .then((room) => {
+        setOverlayVisible(false);
+        navigateEnterWorld(room);
+      })
+      .catch(() => selectWorld(homeWorldId));
+  }, [
+    worldId,
+    worldAlias,
+    homeWorldId,
+    selectWorld,
+    enterHomeOnStartup,
+    session,
+    navigateEnterWorld,
+    setOverlayVisible,
+  ]);
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -72,6 +101,8 @@ export default function SessionView() {
               {overlayVisible && <Overlay />}
               {!editorEnabled && !(hudHidden && !overlayVisible) && <StatusBar />}
               <FirefoxPerfAlert />
+              {/* Buzzar: no Home World yet: offer to create it (unless arriving at a particular world). */}
+              {!worldId && !worldAlias && <HomeWelcome />}
               {/* Buzzar: world scripts ask here before reading the chat or posting as you. */}
               <ScriptConsent />
               {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}

@@ -20,7 +20,11 @@ export interface PortalDestination {
 const cache = new Map<string, Promise<PortalDestination | undefined>>();
 
 /** The Matrix room summary (MSC3266, Matrix 1.15 `GET /v1/room_summary`): works for rooms you haven't joined. */
-async function fetchRoomSummary(auth: MatrixAuth, target: string, via: string[]): Promise<PortalDestination | undefined> {
+async function fetchRoomSummary(
+  auth: MatrixAuth,
+  target: string,
+  via: string[]
+): Promise<PortalDestination | undefined> {
   const params = new URLSearchParams();
   for (const server of via) params.append("via", server);
   const query = params.toString();

@@ -1,18 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useAtomValue } from "jotai";
 
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { syncBuzzarSpace, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";
 import { useHydrogen } from "./useHydrogen";
+import { worldAtom } from "../state/world";
 
 /** Re-sync at most this often while rooms change (joining a world adds a room; leaving removes one). */
 const SYNC_DELAY_MS = 5_000;
 
 /**
  * Buzzar: keeps the user's personal "Buzzar" space listing the worlds they're in (see utils/buzzarSpace.ts).
- * Runs once after sign-in, then whenever the room list changes. Does nothing if the user turned it off.
+ * Runs once after sign-in, then whenever the room list changes. Does nothing if the user turned it off. A user who
+ * has no space yet gets one when they first enter a world, with all their worlds added.
  */
 export function useBuzzarSpace() {
   const { session, platform, client } = useHydrogen(true);
+  const { entered } = useAtomValue(worldAtom);
+  // Once a world has been entered this session, the space may be created.
+  const hasEntered = useRef(false);
+  if (entered) hasEntered.current = true;
 
   useEffect(() => {
     let disposed = false;
@@ -32,7 +39,7 @@ export function useBuzzarSpace() {
         const worldIds = Array.from(session.rooms.values())
           .filter((room) => room.type === WORLD_ROOM_TYPE)
           .map((room) => room.id);
-        const result = await syncBuzzarSpace(auth, session.userId, worldIds);
+        const result = await syncBuzzarSpace(auth, session.userId, worldIds, { create: hasEntered.current });
         if (result && (result.add.length || result.remove.length)) {
           console.info(`Buzzar space: added ${result.add.length}, removed ${result.remove.length} worlds`);
         }
@@ -63,5 +70,5 @@ export function useBuzzarSpace() {
       window.clearTimeout(timer);
       unsubscribe();
     };
-  }, [session, platform, client]);
+  }, [session, platform, client, entered]);
 }
