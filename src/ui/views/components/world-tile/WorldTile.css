@@ -156,3 +156,23 @@
   min-height: 0;
   height: auto;
 }
+
+/* Buzzar: a tile's name opens its details page. */
+.WorldTile__titleLink {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+.WorldTile__titleLink .WorldTile__title {
+  display: block;
+}
+.WorldTile__titleLink:hover .WorldTile__title,
+.WorldTile__titleLink:focus-visible .WorldTile__title {
+  text-decoration: underline;
+  color: var(--tc-primary, inherit);
+}

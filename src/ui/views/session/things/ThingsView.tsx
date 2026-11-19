@@ -8,6 +8,7 @@ import { ConnectDropTarget, useDrag, useDrop } from "react-dnd";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
 
+import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -46,6 +47,8 @@ import { thingKeysAtom } from "../../../state/thingKeys";
 import { useSetThingKeys } from "../../../hooks/useThingKeys";
 import { mapThing, moveMapped, unmapThing } from "../../../utils/thingKeys";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
+import UploadIC from "../../../../../res/ic/upload.svg";
+import { UploadThing } from "./UploadThing";
 import "./ThingsView.css";
 
 export function ThingsView() {
@@ -70,6 +73,7 @@ export function ThingsView() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [getAuth, session]);
 
+  const [uploadOpen, setUploadOpen] = useState(false);
   const keys = useAtomValue(thingKeysAtom);
   const setThingKeys = useSetThingKeys();
   const changeKeys = (next: ThingKeys) => {
@@ -110,10 +114,17 @@ export function ThingsView() {
 
   return (
     <Window className="TileScreen">
+      <UploadThing open={uploadOpen} onOpenChange={setUploadOpen} onSaved={setCollection} />
       <Content
         top={
           <Header
             left={<HeaderTitle icon={<Icon color="surface" className="shrink-0" src={BoxIC} />}>Things</HeaderTitle>}
+            right={
+              <Button size="sm" onClick={() => setUploadOpen(true)}>
+                <Icon src={UploadIC} size="sm" color="on-primary" />
+                Upload Thing
+              </Button>
+            }
           />
         }
       >
@@ -169,6 +180,14 @@ export function ThingsView() {
     </Window>
   );
 }
+
+/** Buzzar: the model file behind each stock Thing, for its details page (the balls are made in code: no file). */
+const STOCK_THING_FILES: Record<string, string> = {
+  "small-crate": "/gltf/sci_fi_crate.glb",
+  "medium-crate": "/gltf/sci_fi_crate.glb",
+  "large-crate": "/gltf/sci_fi_crate.glb",
+  trampoline: "/gltf/things/trampoline.glb",
+};
 
 const THING_DRAG = "buzzar-thing";
 interface ThingDragItem {
@@ -362,11 +381,22 @@ function StockThingTile({
   onChangeKeys?: (keys: ThingKeys) => void;
 }) {
   const free = keys ? keys.indexOf(null) : -1;
+  const openDetails = useOpenDetails();
   return (
     <WorldTile
       shape="tall"
       imageSrc={thing.preview}
       title={thing.name}
+      onTitleClick={() =>
+        openDetails({
+          kind: "thing",
+          name: thing.name,
+          url: STOCK_THING_FILES[thing.id],
+          previewUrl: thing.preview,
+          description: thing.description,
+          stockId: thing.id,
+        })
+      }
       badge={slot !== undefined ? `Key ${thingKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
@@ -417,6 +447,7 @@ function SavedThingTile({ thing, onRemove }: { thing: SavedThing; onRemove: () =
   }, [thing.url, thing.preview_url, session]);
 
   const name = thing.name || "Thing";
+  const openDetails = useOpenDetails();
   return (
     <WorldTile
       shape="tall"
@@ -434,6 +465,9 @@ function SavedThingTile({ thing, onRemove }: { thing: SavedThing; onRemove: () =
         )
       }
       title={name}
+      onTitleClick={() =>
+        openDetails({ kind: "thing", name, url: thing.url, previewUrl: thing.preview_url ?? rendered })
+      }
       subtitle={
         <Text variant="b3" color="surface-low">
           {thing.added_ts ? `Saved ${new Date(thing.added_ts).toLocaleDateString()}` : "Saved Thing"} · spawning your

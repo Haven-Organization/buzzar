@@ -21,7 +21,10 @@ import defaultWorlds from "../../../../../res/defaultWorlds.json";
 import { Thumbnail } from "../../../atoms/thumbnail/Thumbnail";
 import { ThumbnailImg } from "../../../atoms/thumbnail/ThumbnailImg";
 import { getHttpUrl } from "../../../utils/avatar";
-import { getSessionAuth } from "../../../utils/avatarMatrix";
+import { getSessionAuth, uploadMedia } from "../../../utils/avatarMatrix";
+import { fetchGlbJson } from "../../../utils/chatEmbeds";
+import { readAssetMetadata } from "../../../../engine/gltf/assetMetadata";
+import { FileDetailsFields, useFileDetails } from "../../components/file-details/FileDetails";
 import { isBundledPath, uploadBundledFile } from "../../../utils/bundledMedia";
 import { UploadScene } from "./UploadScene";
 import { MAX_OBJECT_CAP } from "../../../../engine/config.common";
@@ -72,6 +75,13 @@ export type CreateWorldContent = {
   max_member_object_cap?: number;
   script_url?: string;
 } & Record<string, any>;
+/** Buzzar: a scene to create the world with; `file` when it was just picked from disk. */
+interface SceneChoice {
+  url: string;
+  previewUrl: string;
+  file?: Blob;
+}
+
 export interface CreateWorldOptions {
   avatar?: IBlobHandle;
   name: string;
@@ -170,8 +180,27 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
         }
       : initialScene;
 
-  const [uploadScene, setUploadScene] = useState<{ url: string; previewUrl: string } | undefined>(controlledScene);
-  const [selectedScene, setSelectedScene] = useState<{ url: string; previewUrl: string } | undefined>(controlledScene);
+  const [uploadScene, setUploadScene] = useState<SceneChoice | undefined>(controlledScene);
+  const [selectedScene, setSelectedScene] = useState<SceneChoice | undefined>(controlledScene);
+  // Buzzar: the world file's own Topic (description) and Version, saved back into it on create if changed.
+  const details = useFileDetails();
+  const { loadFrom } = details;
+  useEffect(() => {
+    if (!selectedScene) return;
+    let cancelled = false;
+    (async () => {
+      if (selectedScene.file) return loadFrom(selectedScene.file);
+      const url = isBundledPath(selectedScene.url)
+        ? selectedScene.url
+        : session.mediaRepository.mxcUrl(selectedScene.url);
+      if (!url) return;
+      const json = await fetchGlbJson(url);
+      if (!cancelled) await loadFrom(readAssetMetadata(json));
+    })().catch((e) => console.warn("Couldn't read the world file's details", e));
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedScene, loadFrom, session]);
   const [scriptInfo, setScriptInfo] = useState<AutoUploadInfo>({});
   const [creatingRoom, setCreatingRoom] = useState(false);
 
@@ -191,11 +220,31 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
     return { ...content, scene_url: scene.url, scene_preview_url: preview.url };
   };
 
+  /** Buzzar: with "Save Topic and Version" on and changes typed, upload a copy of the scene with them written in. */
+  const saveDetailsIntoScene = async (content: CreateWorldContent): Promise<CreateWorldContent> => {
+    if (!details.willSave || !selectedScene) return content;
+    let file = selectedScene.file;
+    if (!file) {
+      const url = isBundledPath(content.scene_url)
+        ? content.scene_url
+        : session.mediaRepository.mxcUrl(content.scene_url);
+      if (!url) return content;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Couldn't download the world file to save its details (${res.status})`);
+      file = await res.blob();
+    }
+    const baked = await details.prepare(file);
+    if (!baked) return content;
+    const auth = await getSessionAuth(platform, client.sessionId);
+    if (!auth) throw new Error("Not signed in");
+    return { ...content, scene_url: await uploadMedia(auth, baked, "world.glb") };
+  };
+
   const handleCreateWorld = async (options: CreateWorldOptions) => {
     setCreatingRoom(true);
     setCreateError(undefined);
     try {
-      options = { ...options, content: await uploadBundledScene(options.content) };
+      options = { ...options, content: await uploadBundledScene(await saveDetailsIntoScene(options.content)) };
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : String(e));
       setCreatingRoom(false);
@@ -212,9 +261,8 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
   const handleSubmit = (evt: FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     if (!selectedScene) return;
-    const { nameInput, topicInput, isPrivateInput, aliasInput, maxObjectCapInput } = evt.target as typeof evt.target & {
+    const { nameInput, isPrivateInput, aliasInput, maxObjectCapInput } = evt.target as typeof evt.target & {
       nameInput: HTMLInputElement;
-      topicInput: HTMLInputElement;
       isPrivateInput: HTMLInputElement;
       aliasInput: HTMLInputElement;
       maxObjectCapInput: HTMLInputElement;
@@ -238,7 +286,7 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
     handleCreateWorld({
       visibility: isPrivateInput.checked ? RoomVisibility.Private : RoomVisibility.Public,
       name: nameInput.value,
-      topic: topicInput.value || undefined,
+      topic: details.description.trim() || undefined,
       avatar: avatarData.blob,
       alias,
       content,
@@ -249,13 +297,13 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
     onSceneChange?.(selectedScene?.url, selectedScene?.previewUrl);
   }, [selectedScene, onSceneChange]);
 
-  const renderSceneSelector = (sceneUrl: string, previewUrl: string, roomAvatarUrl?: string) => (
+  const renderSceneSelector = (sceneUrl: string, previewUrl: string, roomAvatarUrl?: string, file?: Blob) => (
     <button
       key={sceneUrl}
       className="flex"
       style={{ cursor: "pointer" }}
       onClick={() => {
-        setSelectedScene({ url: sceneUrl, previewUrl });
+        setSelectedScene({ url: sceneUrl, previewUrl, file });
       }}
       type="button"
     >
@@ -283,11 +331,12 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
               <SettingTile label={<Label>Scenes *</Label>}>
                 <Scroll orientation="horizontal" type="hover">
                   <div className="flex items-center gap-md">
-                    {uploadScene && renderSceneSelector(uploadScene.url, uploadScene.previewUrl)}
+                    {uploadScene &&
+                      renderSceneSelector(uploadScene.url, uploadScene.previewUrl, undefined, uploadScene.file)}
                     <UploadScene
-                      onSave={(sceneUrl, previewUrl) => {
-                        setUploadScene({ url: sceneUrl, previewUrl });
-                        setSelectedScene({ url: sceneUrl, previewUrl });
+                      onSave={(sceneUrl, previewUrl, file) => {
+                        setUploadScene({ url: sceneUrl, previewUrl, file });
+                        setSelectedScene({ url: sceneUrl, previewUrl, file });
                       }}
                       renderTrigger={(openModal) => (
                         <AvatarPicker onAvatarPick={openModal} onAvatarDrop={() => false} />
@@ -304,14 +353,10 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
                 </Scroll>
               </SettingTile>
             )}
-            <div className="flex gap-lg">
-              <SettingTile className="grow basis-0" label={<Label>World Name *</Label>}>
-                <Input name="nameInput" required />
-              </SettingTile>
-              <SettingTile className="grow basis-0" label={<Label>Topic</Label>}>
-                <Input name="topicInput" />
-              </SettingTile>
-            </div>
+            <SettingTile label={<Label>World Name *</Label>}>
+              <Input name="nameInput" required />
+            </SettingTile>
+            <FileDetailsFields details={details} descriptionLabel="Topic" fileLabel="world file" />
             <div className="flex gap-lg">
               <AliasAvailabilityProvider session={session}>
                 {(isAliasAvail, handleAliasChange) => (

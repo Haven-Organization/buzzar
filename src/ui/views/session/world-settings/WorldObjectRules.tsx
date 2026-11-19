@@ -76,8 +76,8 @@ export function WorldObjectRules({ room }: { room: Room }) {
         ))}
       </div>
       <Text variant="b3" color="surface-low">
-        Changes apply right away: objects that aren't allowed disappear for everyone, and every visitor's client
-        refuses new ones (moderators are told who tried).
+        Changes apply right away: objects that aren't allowed disappear for everyone, and every visitor's client refuses
+        new ones (moderators are told who tried).
         {!canEdit && " You don't have permission to change this."}
       </Text>
       {error && (

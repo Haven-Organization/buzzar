@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { GroupCall, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
+import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -235,6 +236,7 @@ function useReturnToWorld() {
 function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
   const { session, platform } = useHydrogen(true);
   const { preview, topic, hasScript } = useJoinedWorldPreview(room);
+  const openDetails = useOpenDetails();
   const previewSrc = useThumbnail(preview);
   const avatarSrc = useThumbnail(room.avatarUrl ?? undefined);
   const [withoutScriptRequest, setWithoutScriptRequest] = useState(0);
@@ -258,6 +260,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
         imageSrc={previewSrc ?? avatarSrc}
         fallback={<TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(room.id)})`} />}
         title={name}
+        onTitleClick={() => openDetails({ kind: "world", roomId: room.id })}
         subtitle={
           <>
             {room.canonicalAlias && (
@@ -594,6 +597,7 @@ function ExploreWorldTile({ world, via }: { world: DirectoryWorld; via: string[]
   const name = world.name || world.canonical_alias || world.room_id;
   const address = world.canonical_alias ?? world.room_id;
   const isHere = entered && worldId === world.room_id;
+  const openDetails = useOpenDetails();
 
   useEffect(() => {
     let cancelled = false;
@@ -645,6 +649,7 @@ function ExploreWorldTile({ world, via }: { world: DirectoryWorld; via: string[]
       imageSrc={previewSrc ?? avatarSrc}
       fallback={<TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(world.room_id)})`} />}
       title={name}
+      onTitleClick={() => openDetails({ kind: "world", roomId: world.room_id, alias: world.canonical_alias, via })}
       subtitle={
         <>
           {world.canonical_alias && (

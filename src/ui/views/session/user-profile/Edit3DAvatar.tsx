@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 
 import { Modal } from "../../../atoms/modal/Modal";
@@ -31,6 +31,7 @@ import {
   uploadMedia,
 } from "../../../utils/avatarMatrix";
 import { renderAvatarPreview } from "../../../utils/avatarPreview";
+import { FileDetailsFields, useFileDetails } from "../../components/file-details/FileDetails";
 
 interface Edit3DAvatarProps {
   renderTrigger?: (openModal: () => void) => ReactNode;
@@ -55,19 +56,32 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const inWorld = world.entered && !!world.worldId;
+  // Buzzar: the avatar file's own Description and Version, saved back into it if changed.
+  const details = useFileDetails();
+  const { loadFrom } = details;
+  const pickedFile = avatarInfo.blob?.nativeBlob as Blob | undefined;
+  useEffect(() => {
+    if (pickedFile) loadFrom(pickedFile);
+  }, [pickedFile, loadFrom]);
 
   /** Merge newly uploaded files with the current default avatar. */
   const buildContent = async (): Promise<AvatarContent | undefined> => {
     const auth = await getSessionAuth(platform, client.sessionId);
     const current = auth ? await fetchProfileAvatar(auth, session.userId) : undefined;
-    const url = avatarInfo.mxc ?? current?.url;
+    let url = avatarInfo.mxc ?? current?.url;
     if (!url) return undefined;
-    const name = avatarInfo.blob?.nativeBlob?.name as string | undefined;
+    const fileName = avatarInfo.blob?.nativeBlob?.name as string | undefined;
+    // Buzzar: "Save Description and Version" on and changed: upload a copy with them written into the file.
+    if (avatarInfo.mxc && pickedFile && auth) {
+      const baked = await details.prepare(pickedFile);
+      if (baked) url = await uploadMedia(auth, baked, fileName ?? "avatar.glb");
+    }
+    const name = details.fileMeta.name ?? fileName?.replace(/\.(glb|vrm)$/i, "");
     return {
       url,
       preview_url: previewInfo.mxc ?? (avatarInfo.mxc ? undefined : current?.preview_url),
       // Advisory only: the engine detects VRM 0.x/1.0 from the file itself.
-      format: avatarInfo.mxc ? (name?.toLowerCase().endsWith(".vrm") ? undefined : "glb") : current?.format,
+      format: avatarInfo.mxc ? (fileName?.toLowerCase().endsWith(".vrm") ? undefined : "glb") : current?.format,
       name: name ?? current?.name,
     };
   };
@@ -129,8 +143,8 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
                   <Scroll>
                     <div className="Edit3DAvatar__content">
                       <Text variant="b3" color="surface-low">
-                        Upload a .vrm or .glb avatar and, optionally, a picture of it (without one, a preview is made for you). Uploads are added to your
-                        Bookmarked avatars, so you can wear them again later.
+                        Upload a .vrm or .glb avatar and, optionally, a picture of it (without one, a preview is made
+                        for you). Uploads are added to your Bookmarked avatars, so you can wear them again later.
                       </Text>
                       <SettingTile className="grow basis-0" label={<Label>Avatar</Label>}>
                         <AutoFileUpload
@@ -144,6 +158,9 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
                           )}
                         />
                       </SettingTile>
+                      {avatarInfo.blob && (
+                        <FileDetailsFields details={details} descriptionLabel="Description" fileLabel="avatar file" />
+                      )}
                       <SettingTile className="grow basis-0" label={<Label>Avatar Preview</Label>}>
                         <AutoFileUpload
                           mimeType="image/*"

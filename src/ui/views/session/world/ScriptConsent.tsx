@@ -76,7 +76,9 @@ export function ScriptConsent() {
   useEffect(
     () =>
       registerMessageHandler(mainThread, ThirdRoomMessageType.ScriptFailed, (_ctx, message: ScriptFailedMessage) => {
-        setWorldNotice(makeWorldNotice(`This world's script stopped working (${message.error}). The world runs without it.`));
+        setWorldNotice(
+          makeWorldNotice(`This world's script stopped working (${message.error}). The world runs without it.`)
+        );
       }),
     [mainThread, setWorldNotice]
   );
@@ -112,12 +114,12 @@ export function ScriptConsent() {
         content={
           <div className="flex flex-column gap-sm">
             <Text variant="b2">
-              <b>{worldName}</b>'s script wants to <b>read this world's chat</b> while you're here, for example to
-              show messages on an in-world screen.
+              <b>{worldName}</b>'s script wants to <b>read this world's chat</b> while you're here, for example to show
+              messages on an in-world screen.
             </Text>
             <Text variant="b3" color="surface-low">
-              It only sees new messages, not earlier ones, and it can't post anything as you without asking you
-              each time.
+              It only sees new messages, not earlier ones, and it can't post anything as you without asking you each
+              time.
             </Text>
             <label className="flex items-center gap-xs">
               <Checkbox checked={remember} onCheckedChange={setRemember} />
@@ -145,8 +147,8 @@ export function ScriptConsent() {
       content={
         <div className="flex flex-column gap-sm">
           <Text variant="b2">
-            <b>{worldName}</b>'s script wants to post this {request.msgtype === "m.emote" ? "action" : "message"} in
-            the world chat as you:
+            <b>{worldName}</b>'s script wants to post this {request.msgtype === "m.emote" ? "action" : "message"} in the
+            world chat as you:
           </Text>
           <div
             style={{

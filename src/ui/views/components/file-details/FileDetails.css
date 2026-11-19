@@ -1,0 +1,5 @@
+.FileDetails__description textarea {
+  min-height: 84px;
+  resize: vertical;
+  padding: var(--sp-xs) 0;
+}

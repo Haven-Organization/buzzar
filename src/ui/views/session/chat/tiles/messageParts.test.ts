@@ -19,7 +19,12 @@ describe("mediaCaption", () => {
     expect(mediaCaption(content)).toBe(content);
   });
   it("shows a formatted body", () => {
-    const content = { msgtype: "m.image", body: "x.png", format: "org.matrix.custom.html", formatted_body: "<b>hi</b>" };
+    const content = {
+      msgtype: "m.image",
+      body: "x.png",
+      format: "org.matrix.custom.html",
+      formatted_body: "<b>hi</b>",
+    };
     expect(mediaCaption(content)).toBe(content);
   });
 });

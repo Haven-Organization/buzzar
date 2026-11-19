@@ -110,14 +110,14 @@ const VIEWS: Record<PreviewView, { width: number; height: number; direction: Vec
   world: { width: 640, height: 360, direction: new Vector3(0.7, 0.75, 1).normalize(), margin: 1.05 },
 };
 
-/** Renders a PNG preview of an avatar file (.glb / .vrm), or with `view`, of a Thing or a world. */
-export async function renderAvatarPreview(file: ArrayBuffer, view: PreviewView = "avatar"): Promise<Blob> {
-  const frame = VIEWS[view];
+/**
+ * Buzzar: loads a model posed for viewing: avatars in their bind pose with arms lowered, as in the preview pictures.
+ * Shared by the preview pictures and the 3D viewer on details pages (views/components/model-viewer).
+ */
+export async function loadPreviewModel(file: ArrayBuffer) {
   const loader = new GLTFLoader();
   const gltf = await loader.parseAsync(file, "");
-  const scene = new Scene();
   const root = gltf.scene;
-  scene.add(root);
   root.updateMatrixWorld(true);
   // The nodes may hold an animation frame rather than the rest pose: give every bone its bind pose (usually a T-pose)
   // relative to its parent bone. Root bones keep their node transform, which keeps the model upright in the scene
@@ -141,9 +141,39 @@ export async function renderAvatarPreview(file: ArrayBuffer, view: PreviewView =
   root.updateMatrixWorld(true);
 
   const box = skinnedBounds(root);
-  if (box.isEmpty()) throw new Error("Avatar has no visible geometry");
-  const center = box.getCenter(new Vector3());
-  const size = box.getSize(new Vector3());
+  if (box.isEmpty()) throw new Error("The model has no visible geometry");
+  return {
+    gltf,
+    root,
+    mapping,
+    center: box.getCenter(new Vector3()),
+    size: box.getSize(new Vector3()),
+    json: gltf.parser.json as GLTFRoot,
+  };
+}
+
+/** Frees a model's GPU resources (geometry, materials, textures). */
+export function disposeObject(root: Object3D) {
+  root.traverse((object) => {
+    const mesh = object as { geometry?: { dispose(): void }; material?: unknown };
+    mesh.geometry?.dispose();
+    const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    for (const material of materials as { dispose(): void; [key: string]: unknown }[]) {
+      for (const value of Object.values(material)) {
+        if (value && typeof value === "object" && "isTexture" in value)
+          (value as unknown as { dispose(): void }).dispose();
+      }
+      material.dispose();
+    }
+  });
+}
+
+/** Renders a PNG preview of an avatar file (.glb / .vrm), or with `view`, of a Thing or a world. */
+export async function renderAvatarPreview(file: ArrayBuffer, view: PreviewView = "avatar"): Promise<Blob> {
+  const frame = VIEWS[view];
+  const { root, mapping, center, size } = await loadPreviewModel(file);
+  const scene = new Scene();
+  scene.add(root);
   const facing = frame.direction.clone();
   if (mapping?.facesNegativeZ) facing.z = -facing.z;
 
@@ -190,18 +220,7 @@ export async function renderAvatarPreview(file: ArrayBuffer, view: PreviewView =
   } finally {
     renderer.dispose();
     renderer.forceContextLoss();
-    scene.traverse((object) => {
-      const mesh = object as { geometry?: { dispose(): void }; material?: unknown };
-      mesh.geometry?.dispose();
-      const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
-      for (const material of materials as { dispose(): void; [key: string]: unknown }[]) {
-        for (const value of Object.values(material)) {
-          if (value && typeof value === "object" && "isTexture" in value)
-            (value as unknown as { dispose(): void }).dispose();
-        }
-        material.dispose();
-      }
-    });
+    disposeObject(scene);
   }
 }
 

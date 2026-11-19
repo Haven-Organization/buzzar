@@ -19,7 +19,8 @@ import { Icon } from "../../../atoms/icon/Icon";
 import UploadIC from "../../../../../res/ic/upload.svg";
 
 interface UploadSceneProps {
-  onSave: (mxc: string, previewMxc: string) => void;
+  /** Buzzar: `file` is the scene as picked, so its details can be read (and saved into it) on the form. */
+  onSave: (mxc: string, previewMxc: string, file?: Blob) => void;
   renderTrigger: (openModal: () => void) => ReactNode;
 }
 export function UploadScene({ onSave, renderTrigger }: UploadSceneProps) {
@@ -32,7 +33,7 @@ export function UploadScene({ onSave, renderTrigger }: UploadSceneProps) {
 
   const saveChanges = () => {
     if (sceneInfo.mxc && previewInfo.mxc) {
-      onSave(sceneInfo.mxc, previewInfo.mxc);
+      onSave(sceneInfo.mxc, previewInfo.mxc, sceneInfo.blob?.nativeBlob as Blob | undefined);
       closeModal();
     }
   };

@@ -32,6 +32,7 @@ import { useRoomCall } from "../../../hooks/useRoomCall";
 import { WorldsView } from "../worlds/WorldsView";
 import { AvatarsView } from "../avatars/AvatarsView";
 import { ThingsView } from "../things/ThingsView";
+import { DetailsView } from "../details/DetailsView";
 import { PeopleView } from "../people/PeopleView";
 import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
@@ -111,6 +112,7 @@ export function Overlay() {
           {overlayWindow.type === OverlayWindow.Avatars && <AvatarsView />}
           {overlayWindow.type === OverlayWindow.Things && <ThingsView />}
           {overlayWindow.type === OverlayWindow.People && <PeopleView />}
+          {overlayWindow.type === OverlayWindow.Details && <DetailsView />}
         </div>
       ) : (
         <div className="Overlay__content grow">

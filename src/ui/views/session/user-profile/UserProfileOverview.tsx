@@ -71,7 +71,6 @@ export function UserProfileOverview() {
     return [{ value: RenderQualitySetting.Auto, label: `Auto (${currentQuality?.label})` }, ...RenderQualityOptions];
   }, [mainThread.quality]);
 
-
   let httpAvatarUrl = avatarUrl
     ? getAvatarHttpUrl(avatarUrl, 150, platform, session.mediaRepository) ?? undefined
     : undefined;

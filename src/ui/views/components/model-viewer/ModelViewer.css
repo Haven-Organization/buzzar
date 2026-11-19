@@ -1,0 +1,30 @@
+.ModelViewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  border-radius: var(--br-md);
+  background: radial-gradient(circle at 50% 40%, var(--bg-surface-low), var(--bg-surface));
+  overflow: hidden;
+  touch-action: none;
+}
+.ModelViewer canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.ModelViewer canvas:active {
+  cursor: grabbing;
+}
+.ModelViewer__status {
+  position: absolute;
+  inset: 0;
+}
+.ModelViewer__hint {
+  position: absolute;
+  left: var(--sp-sm);
+  bottom: var(--sp-xs);
+  pointer-events: none;
+}

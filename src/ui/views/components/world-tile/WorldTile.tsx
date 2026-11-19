@@ -19,6 +19,8 @@ interface WorldTileProps {
   /** "wide" for worlds (16:9), "tall" for avatars (3:4). */
   shape?: "wide" | "tall";
   title: string;
+  /** Buzzar: makes the title a link (to the details page). */
+  onTitleClick?: () => void;
   /** Lines under the title (alias, topic, creator…). */
   subtitle?: ReactNode;
   memberCount?: number;
@@ -41,6 +43,7 @@ export function WorldTile({
   fallback,
   shape = "wide",
   title,
+  onTitleClick,
   subtitle,
   memberCount,
   memberLabel,
@@ -66,7 +69,7 @@ export function WorldTile({
       </div>
       <div className="WorldTile__details flex flex-column gap-xxs">
         <div className="flex items-start gap-xs">
-          <TileTitle title={title} />
+          <TileTitle title={title} onClick={onTitleClick} />
           {menu && (
             <DropdownMenu content={menu} side="bottom" align="end">
               <IconButton className="shrink-0" size="sm" label="More options" iconSrc={MoreHorizontalIC} />
@@ -97,7 +100,7 @@ export function WorldTileGrid({ children, tall }: { children: ReactNode; tall?: 
 }
 
 /** Buzzar: a tile's title, shown in full in a tooltip on hover when it's too long to fit. */
-function TileTitle({ title }: { title: string }) {
+function TileTitle({ title, onClick }: { title: string; onClick?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const truncated = () => {
@@ -107,9 +110,17 @@ function TileTitle({ title }: { title: string }) {
   return (
     <div ref={box} className="WorldTile__titleBox grow">
       <Tooltip content={title} side="top" open={open} onOpenChange={(o) => setOpen(o && truncated())}>
-        <Text className="WorldTile__title" weight="semi-bold">
-          {title}
-        </Text>
+        {onClick ? (
+          <button type="button" className="WorldTile__titleLink" onClick={onClick}>
+            <Text className="WorldTile__title" weight="semi-bold">
+              {title}
+            </Text>
+          </button>
+        ) : (
+          <Text className="WorldTile__title" weight="semi-bold">
+            {title}
+          </Text>
+        )}
       </Tooltip>
     </div>
   );

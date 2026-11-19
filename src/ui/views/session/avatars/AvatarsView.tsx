@@ -9,6 +9,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue } from "jotai";
 
+import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -458,11 +459,16 @@ function StockTile({
   getContent: (auth: MatrixAuth) => Promise<AvatarContent | undefined>;
   builtin: boolean;
 }) {
+  const openDetails = useOpenDetails();
+  const file = BUILTIN_AVATARS.find((a) => a.id === avatar.id)?.path;
   return (
     <WorldTile
       shape="tall"
       imageSrc={avatar.preview}
       title={avatar.name}
+      onTitleClick={() =>
+        openDetails({ kind: "avatar", name: avatar.name, url: file, previewUrl: avatar.preview, credit: avatar.credit })
+      }
       subtitle={
         <Text variant="b3" color="surface-low">
           {builtin ? avatar.credit : "Buzzar's built-in avatar"}
@@ -515,10 +521,14 @@ function AvatarTile({
   const name = avatar.name || "Avatar";
   const wearing = ctx.isWearing(avatar.url);
   const content = async () => stripSaved(avatar);
+  const openDetails = useOpenDetails();
   return (
     <WorldTile
       shape="tall"
       imageSrc={preview ?? imageSrc ?? rendered.url}
+      onTitleClick={() =>
+        openDetails({ kind: "avatar", name, url: avatar.url, previewUrl: avatar.preview_url ?? imageSrc })
+      }
       fallback={
         rendered.loading ? (
           <div className="WorldTile__fallback flex flex-column items-center justify-center gap-xs">

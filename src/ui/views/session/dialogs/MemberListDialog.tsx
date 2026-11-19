@@ -240,7 +240,7 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
   return (
     <>
       {(!embedded || canDoAction("invite", myPL)) && (
-      <Header
+        <Header
           left={embedded ? <span /> : <HeaderTitle size="lg">Members</HeaderTitle>}
           right={
             <div className="flex gap-sm">
