@@ -30,8 +30,10 @@ import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
 import { worldAtom } from "../../../state/world";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
-import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
+import { DetailsItem, OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import "./ChatEmbeds.css";
+import { useOpenDetails } from "../../../hooks/useOpenDetails";
+import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 
 /** Previews are rendered automatically for files up to this size; bigger ones on request. */
 const AUTO_PREVIEW_BYTES = 30 * 1024 * 1024;
@@ -90,6 +92,16 @@ export function useChatEmbedPortals(containerRef: RefObject<HTMLElement>): React
   );
 }
 
+/** Opens a details page from chat, bringing up the overlay if you're in a world with it closed. */
+function useOpenDetailsFromChat() {
+  const openDetails = useOpenDetails();
+  const setOverlayVisible = useSetAtom(overlayVisibilityAtom);
+  return (item: DetailsItem) => {
+    setOverlayVisible(true);
+    openDetails(item);
+  };
+}
+
 function useAuth() {
   const { platform, client } = useHydrogen(true);
   return useCallback(async () => {
@@ -103,6 +115,7 @@ const KIND_LABEL: Record<ModelKind, string> = { avatar: "Avatar", world: "World"
 
 /** A .glb/.vrm posted in chat: what it is, a preview, and what you can do with it. */
 function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?: number }) {
+  const openDetails = useOpenDetailsFromChat();
   const { session, profileRoom } = useHydrogen(true);
   const getAuth = useAuth();
   const { worldId, entered } = useAtomValue(worldAtom);
@@ -271,6 +284,13 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
           )
         }
         title={title}
+        onTitleClick={
+          kind === "avatar"
+            ? () => openDetails({ kind: "avatar", name: title, url: mxc, format })
+            : kind === "thing"
+            ? () => openDetails({ kind: "thing", name: title, url: mxc, description: meta.description })
+            : undefined
+        }
         subtitle={
           <>
             <Text variant="b3" color={status ? "surface" : "surface-low"}>
@@ -333,6 +353,7 @@ interface WorldSummary {
 
 /** A linked room: if it's a world, a tile with what it is and a Join button. */
 function ChatWorldEmbed({ target, via }: { target: string; via: string[] }) {
+  const openDetails = useOpenDetailsFromChat();
   const { session } = useHydrogen(true);
   const getAuth = useAuth();
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
@@ -423,6 +444,17 @@ function ChatWorldEmbed({ target, via }: { target: string; via: string[] }) {
           <TileFallback name={world.name ?? target} color={`var(--usercolor${getIdentifierColorNumber(target)})`} />
         }
         title={world.name ?? target}
+        onTitleClick={
+          world.roomId
+            ? () =>
+                openDetails({
+                  kind: "world",
+                  roomId: world.roomId!,
+                  ...(target.startsWith("#") ? { alias: target } : {}),
+                  via,
+                })
+            : undefined
+        }
         subtitle={
           <Text variant="b3" color={error ? "danger" : "surface-low"}>
             {error ??
