@@ -31,6 +31,7 @@ import {
   GLTFCharacterController,
   GLTFAnimationChannel,
   GLTFAnimationSampler,
+  GLTFSampler,
   GLTFComponentDefinitions,
   GLTFNodeComponents,
   GLTFPhysicsBody,
@@ -1524,19 +1525,21 @@ interface SamplerOptions {
   mapping?: SamplerMapping;
 }
 
+function createSampler(resource: GLTFResource, sampler: GLTFSampler | undefined, options?: SamplerOptions) {
+  return new RemoteSampler(resource.manager, {
+    name: sampler?.name,
+    magFilter: sampler?.magFilter,
+    minFilter: sampler?.minFilter,
+    wrapS: sampler?.wrapS,
+    wrapT: sampler?.wrapT,
+    mapping: options?.mapping,
+  });
+}
+
 const loadGLTFSampler = createCachedSubresourceLoader(
   "sampler",
   (root) => root.samplers,
-  (resource, { name, magFilter, minFilter, wrapS, wrapT }, index, options?: SamplerOptions) => {
-    return new RemoteSampler(resource.manager, {
-      name,
-      magFilter,
-      minFilter,
-      wrapS,
-      wrapT,
-      mapping: options?.mapping,
-    });
-  }
+  (resource, sampler, index, options?: SamplerOptions) => createSampler(resource, sampler, options)
 );
 
 interface TextureOptions {
@@ -1568,8 +1571,16 @@ const loadGLTFTexture = createCachedSubresourceLoader(
           ? loadGLTFImage(resource, texture.source, { flipY: options?.flipY })
           : undefined,
       sampler:
-        texture.sampler !== undefined
-          ? loadGLTFSampler(resource, texture.sampler, { mapping: options?.mapping })
+        // Buzzar: a texture with a mapping (a world's sky) needs a sampler to carry it. Skies exported without one were
+        // drawn as a flat picture filling the screen, so the sky turned with you and a mirror showed its own copy.
+        options?.mapping !== undefined
+          ? createSampler(
+              resource,
+              texture.sampler !== undefined ? resource.root.samplers?.[texture.sampler] : undefined,
+              { mapping: options.mapping }
+            )
+          : texture.sampler !== undefined
+          ? loadGLTFSampler(resource, texture.sampler)
           : undefined,
     };
 
