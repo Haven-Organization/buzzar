@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 import { useFocusVisible } from "@react-aria/interactions";
 import { serviceWorkerFile } from "virtual:vite-plugin-service-worker";
@@ -13,6 +13,7 @@ import { HydrogenRootView } from "./views/HydrogenRootView";
 import { SplashScreen } from "./views/components/splash-screen/SplashScreen";
 import { PageNotFound } from "./views/components/page-not-found/PageNotFound";
 import { LoadingScreen } from "./views/components/loading-screen/LoadingScreen";
+import { lazyWithReload } from "./utils/lazyWithReload";
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -32,13 +33,13 @@ function FocusOutlineManager() {
   return <></>;
 }
 
-const PreviewBlog = lazy(() => import("./site/PreviewBlog"));
-const LoginView = lazy(() => import("./views/login/LoginView"));
-const GLTFViewer = lazy(() => import("./views/gltf-viewer/GLTFViewer"));
-const AssetPipeline = lazy(() => import("./views/asset-pipeline/AssetPipeline"));
-const SessionView = lazy(() => import("./views/session/SessionView"));
-const WorldRootView = lazy(() => import("./views/session/world/WorldRootView"));
-const MainMenuRootView = lazy(() => import("./views/session/world/MainMenuRootView"));
+const PreviewBlog = lazyWithReload(() => import("./site/PreviewBlog"));
+const LoginView = lazyWithReload(() => import("./views/login/LoginView"));
+const GLTFViewer = lazyWithReload(() => import("./views/gltf-viewer/GLTFViewer"));
+const AssetPipeline = lazyWithReload(() => import("./views/asset-pipeline/AssetPipeline"));
+const SessionView = lazyWithReload(() => import("./views/session/SessionView"));
+const WorldRootView = lazyWithReload(() => import("./views/session/world/WorldRootView"));
+const MainMenuRootView = lazyWithReload(() => import("./views/session/world/MainMenuRootView"));
 
 export function App() {
   return (

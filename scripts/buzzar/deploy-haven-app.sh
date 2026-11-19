@@ -15,5 +15,10 @@ if [ "${1:-}" != "--no-build" ]; then
 fi
 
 # Local world previews (public/gltf/test/_tmp-*) are dev-only and large; source maps aren't needed in public.
-rsync -rlt --delete --chmod=D755,F644 --exclude 'gltf/test/_tmp-*' --exclude '*.map' dist/ "$DEST"
+# Earlier builds' hashed chunks in assets/ stay (P = protect from --delete) for a week: someone with the app open on the
+# previous build loads views they haven't loaded yet from them, and a missing one was a blank white screen.
+rsync -rlt --delete --filter 'P /assets/**' --chmod=D755,F644 --exclude 'gltf/test/_tmp-*' --exclude '*.map' dist/ "$DEST"
+HOST=${DEST%%:*}
+DIR=${DEST#*:}
+ssh "$HOST" "find '${DIR%/}/assets' -type f -mtime +7 -delete"
 echo "deployed to $DEST"

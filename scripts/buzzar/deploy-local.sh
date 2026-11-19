@@ -24,5 +24,8 @@ fi
 
 mkdir -p "$WEB"
 # Local world previews (public/gltf/test/_tmp-*) are dev-only and large.
-rsync -a --delete --exclude 'gltf/test/_tmp-*' dist/ "$WEB/"
+# Earlier builds' hashed chunks in assets/ stay (P = protect from --delete) for a week: an app still open on the
+# previous build loads views it hasn't loaded yet from them, and a missing one was a blank white screen.
+rsync -a --delete --filter 'P /assets/**' --exclude 'gltf/test/_tmp-*' dist/ "$WEB/"
+find "$WEB/assets" -type f -mtime +7 -delete
 echo "deployed $(du -sh "$WEB" | cut -f1) to $WEB"
