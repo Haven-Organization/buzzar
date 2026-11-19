@@ -1,6 +1,6 @@
 {
   "home": {
-    "version": 10,
+    "version": 11,
     "sceneUrl": "/worlds/home/home.glb",
     "scenePreviewUrl": "/worlds/home/home-preview.jpg",
     "defaultAvatar": {

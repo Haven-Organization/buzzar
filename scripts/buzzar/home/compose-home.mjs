@@ -126,10 +126,10 @@ for (const [i, [x, z]] of rocks.entries()) {
   await place("rock_smallA", x, z, { width: 0.32, yaw: rand() * 6.28, y: 0.02, nodeName: `Grab rock ${i + 1}`, extras: { HAVEN_grabbable: {} } });
 }
 
-// --- Mirror behind the fire, facing the spawn (+Z) ---
+// --- Mirror behind the fire, facing the spawn (+Z); on from the start, so you arrive looking at yourself ---
 const frame = material("Mirror frame", [0.05, 0.05, 0.06, 1], 0.35, 0.3);
 box("Mirror frame", [3.3, 2.3, 0.12], [0, 1.4, -6.06], frame);
-marker("Mirror", [0, 1.4, -5.99], [0, 0, 0, 1], { HAVEN_mirror: { size: [3, 2], defaultState: "off", clickToToggle: true } });
+marker("Mirror", [0, 1.4, -5.99], [0, 0, 0, 1], { HAVEN_mirror: { size: [3, 2], defaultState: "high", clickToToggle: true } });
 
 // --- Avatar pedestals on the east side, facing the plaza (-X) ---
 const podium = material("Podium", [0.2, 0.22, 0.28, 1], 0.5, 0.1);
