@@ -1,10 +1,11 @@
-import { ReactNode } from "react";
+import { ReactNode, useRef, useState } from "react";
 import classNames from "classnames";
 
 import { Text } from "../../../atoms/text/Text";
 import { Icon } from "../../../atoms/icon/Icon";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
+import { Tooltip } from "../../../atoms/tooltip/Tooltip";
 import MoreHorizontalIC from "../../../../../res/ic/more-horizontal.svg";
 import PeoplesIC from "../../../../../res/ic/peoples.svg";
 import "./WorldTile.css";
@@ -50,7 +51,14 @@ export function WorldTile({
   isActive,
 }: WorldTileProps) {
   return (
-    <div className={classNames("WorldTile flex flex-column", `WorldTile--${shape}`, { "WorldTile--active": isActive }, className)}>
+    <div
+      className={classNames(
+        "WorldTile flex flex-column",
+        `WorldTile--${shape}`,
+        { "WorldTile--active": isActive },
+        className
+      )}
+    >
       <div className="WorldTile__image">
         {imageSrc ? <img src={imageSrc} alt="" loading="lazy" draggable={false} /> : fallback}
         {badge && <div className="WorldTile__badge">{badge}</div>}
@@ -58,9 +66,7 @@ export function WorldTile({
       </div>
       <div className="WorldTile__details flex flex-column gap-xxs">
         <div className="flex items-start gap-xs">
-          <Text className="WorldTile__title grow" weight="semi-bold">
-            {title}
-          </Text>
+          <TileTitle title={title} />
           {menu && (
             <DropdownMenu content={menu} side="bottom" align="end">
               <IconButton className="shrink-0" size="sm" label="More options" iconSrc={MoreHorizontalIC} />
@@ -88,6 +94,25 @@ export function WorldTile({
 /** Grid of tiles that fills the window width. */
 export function WorldTileGrid({ children, tall }: { children: ReactNode; tall?: boolean }) {
   return <div className={classNames("WorldTileGrid", { "WorldTileGrid--tall": tall })}>{children}</div>;
+}
+
+/** Buzzar: a tile's title, shown in full in a tooltip on hover when it's too long to fit. */
+function TileTitle({ title }: { title: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const truncated = () => {
+    const text = box.current?.querySelector<HTMLElement>(".WorldTile__title");
+    return !!text && text.scrollWidth > text.clientWidth + 1;
+  };
+  return (
+    <div ref={box} className="WorldTile__titleBox grow">
+      <Tooltip content={title} side="top" open={open} onOpenChange={(o) => setOpen(o && truncated())}>
+        <Text className="WorldTile__title" weight="semi-bold">
+          {title}
+        </Text>
+      </Tooltip>
+    </div>
+  );
 }
 
 /** Initial-on-colour stand-in for a missing picture. */

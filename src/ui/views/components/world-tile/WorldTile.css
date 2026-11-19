@@ -87,6 +87,13 @@
   flex-grow: 1;
 }
 
+.WorldTile__titleBox {
+  min-width: 0;
+}
+.WorldTile__titleBox > .Tooltip__trigger {
+  display: block;
+  min-width: 0;
+}
 .WorldTile__title {
   min-width: 0;
   overflow: hidden;
