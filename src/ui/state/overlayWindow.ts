@@ -1,5 +1,7 @@
 import { atom } from "jotai";
 
+import type { AvatarFormat } from "../utils/avatarMatrix";
+
 export enum OverlayWindow {
   None = "none",
   CreateWorld = "create_world",
@@ -20,7 +22,16 @@ export enum OverlayWindow {
 /** Buzzar: what a details page shows. URLs are mxc:// or app paths (stock files). */
 export type DetailsItem =
   | { kind: "world"; roomId: string; alias?: string; via?: string[] }
-  | { kind: "avatar"; name: string; url?: string; previewUrl?: string; credit?: string }
+  | {
+      kind: "avatar";
+      name: string;
+      url?: string;
+      previewUrl?: string;
+      credit?: string;
+      /** A stock avatar ("default" is the built-in rig): worn from Buzzar's own copy, not `url`. */
+      builtinId?: string;
+      format?: AvatarFormat;
+    }
   | { kind: "thing"; name: string; url?: string; previewUrl?: string; description?: string; stockId?: string };
 
 export type WorldsTab = "yours" | "explore";

@@ -5,11 +5,12 @@
  * "Wear" changes your default avatar and the one in the world you're in, like VRChat; the "…" menu has "Wear Only
  * in This World" for a per-world choice.
  */
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue } from "jotai";
 
 import { useOpenDetails } from "../../../hooks/useOpenDetails";
+import { stripSaved, useAvatarWardrobe } from "../../../hooks/useAvatarWardrobe";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -38,20 +39,12 @@ import {
   BUILTIN_AVATARS,
   builtinIdForUrl,
   fetchAvatarCollection,
-  fetchProfileAvatar,
-  fetchWorldAvatar,
   getBuiltinAvatarContent,
   getSessionAuth,
   MatrixAuth,
-  removeFromAvatarCollection,
   resolveAvatar,
-  saveToAvatarCollection,
-  setProfileAvatar,
-  setWorldAvatar,
-  uploadMedia,
 } from "../../../utils/avatarMatrix";
 import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
-import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
 import { worldAtom } from "../../../state/world";
 import { AvatarsTab, OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import AvatarIC from "../../../../../res/ic/avatar.svg";
@@ -72,13 +65,8 @@ const STOCK: StockAvatar[] = [
   ...BUILTIN_AVATARS.map((a) => ({ id: a.id, name: a.name, preview: a.preview, credit: a.credit })),
 ];
 
-interface Wearing {
-  profile?: AvatarContent;
-  world?: AvatarContent;
-}
-
 export function AvatarsView() {
-  const { session, platform, client, profileRoom } = useHydrogen(true);
+  const { session } = useHydrogen(true);
   const [overlayWindow, setOverlayWindow] = useAtom(overlayWindowAtom);
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;
@@ -88,138 +76,27 @@ export function AvatarsView() {
   const tab: AvatarsTab = requested === "world" && !inWorld ? "yours" : requested ?? "yours";
   const setTab = (value: AvatarsTab) => setOverlayWindow({ type: OverlayWindow.Avatars, tab: value });
 
-  const [collection, setCollection] = useState<AvatarCollection>();
-  const [wearing, setWearing] = useState<Wearing>();
-  const [busy, setBusy] = useState<string>();
-  const [error, setError] = useState<string>();
   const [uploadOpen, setUploadOpen] = useState(false);
-
-  const getAuth = useCallback(async () => {
-    const auth = await getSessionAuth(platform, client.sessionId);
-    if (!auth) throw new Error("Not signed in");
-    return auth;
-  }, [platform, client]);
-
-  const reload = useCallback(async () => {
-    try {
-      const auth = await getAuth();
-      const [loaded, profile, worldAvatar] = await Promise.all([
-        fetchAvatarCollection(auth, session.userId).catch(() => undefined),
-        fetchProfileAvatar(auth, session.userId).catch(() => undefined),
-        inWorld ? fetchWorldAvatar(auth, worldId!, session.userId).catch(() => undefined) : undefined,
-      ]);
-      if (loaded) setCollection(loaded);
-      setWearing({ profile, world: worldAvatar });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, [getAuth, session, inWorld, worldId]);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  const {
+    collection,
+    wearing,
+    busy,
+    error,
+    wearingWorldOnly,
+    reload,
+    wear,
+    clearWorldChoice,
+    bookmark,
+    unbookmark,
+    savePreview,
+    isBookmarked,
+    isWearing,
+  } = useAvatarWardrobe();
 
   // Reload after the upload dialog closes (it may have added to your avatars).
   useEffect(() => {
     if (!uploadOpen) reload();
   }, [uploadOpen, reload]);
-
-  /** What you look like here: this world's own choice, else your default. */
-  const current = wearing?.world ?? wearing?.profile;
-
-  /**
-   * Wear an avatar. "everywhere": your default (profile) and this world; "world": just this world.
-   * `content` undefined = the built-in default rig.
-   */
-  const wear = async (
-    key: string,
-    scope: "everywhere" | "world",
-    getContent: (auth: MatrixAuth) => Promise<AvatarContent | undefined>
-  ) => {
-    setBusy(key);
-    setError(undefined);
-    try {
-      const auth = await getAuth();
-      const content = await getContent(auth);
-      if (scope === "everywhere") {
-        await setProfileAvatar(auth, session.userId, content);
-        // Keep Third Room's legacy (private) profile state in sync for compatibility, when that room exists.
-        if (profileRoom && content) {
-          await session.hsApi.sendState(profileRoom.id, "org.matrix.msc3815.world.profile", "", {
-            avatar_url: content.url,
-            avatar_preview_url: content.preview_url,
-          });
-        }
-      }
-      if (inWorld) {
-        await setWorldAvatar(auth, worldId!, session.userId, scope === "world" ? content : undefined);
-        refreshWorldAvatar(session.userId);
-      }
-      setWearing((w) => ({
-        profile: scope === "everywhere" ? content : w?.profile,
-        world: scope === "world" ? content : undefined,
-      }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(undefined);
-    }
-  };
-
-  const clearWorldChoice = async () => {
-    setBusy("clear-world");
-    setError(undefined);
-    try {
-      const auth = await getAuth();
-      await setWorldAvatar(auth, worldId!, session.userId, undefined);
-      refreshWorldAvatar(session.userId);
-      setWearing((w) => ({ ...w, world: undefined }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(undefined);
-    }
-  };
-
-  const bookmark = async (avatar: AvatarContent) => {
-    setError(undefined);
-    try {
-      const auth = await getAuth();
-      setCollection(await saveToAvatarCollection(auth, session.userId, avatar));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const unbookmark = async (url: string) => {
-    setError(undefined);
-    try {
-      const auth = await getAuth();
-      setCollection(await removeFromAvatarCollection(auth, session.userId, url));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  /** A rendered preview of one of your own avatars: upload it and remember it (and on your profile if worn). */
-  const savePreview = useCallback(
-    async (avatar: AvatarContent, image: Blob) => {
-      const auth = await getAuth();
-      const previewUrl = await uploadMedia(auth, image, "avatar-preview.png");
-      const content: AvatarContent = { ...stripSaved(avatar), preview_url: previewUrl };
-      setCollection(await saveToAvatarCollection(auth, session.userId, content));
-      const profile = await fetchProfileAvatar(auth, session.userId).catch(() => undefined);
-      if (profile?.url === avatar.url && !profile.preview_url) {
-        await setProfileAvatar(auth, session.userId, { ...profile, preview_url: previewUrl });
-        setWearing((w) => (w ? { ...w, profile: { ...profile, preview_url: previewUrl } } : w));
-      }
-    },
-    [getAuth, session]
-  );
-
-  const isBookmarked = (url: string) => !!collection?.avatars.some((a) => a.url === url);
-  const isWearing = (url: string | undefined) => (url ? current?.url === url : !!wearing && !current);
-  const wearingWorldOnly = inWorld && wearing?.world && wearing.world.url !== wearing.profile?.url;
 
   const ctx: TileContext = {
     busy,
@@ -328,15 +205,6 @@ function WearButton({
       {ctx.busy === id ? <Dots size="sm" color="on-primary" /> : "Wear"}
     </Button>
   );
-}
-
-/** Only the avatar fields (bookmarks also carry added_ts). */
-function stripSaved(avatar: AvatarContent): AvatarContent {
-  const out: AvatarContent = { url: avatar.url };
-  if (avatar.preview_url) out.preview_url = avatar.preview_url;
-  if (avatar.format) out.format = avatar.format;
-  if (avatar.name) out.name = avatar.name;
-  return out;
 }
 
 /**
@@ -467,7 +335,14 @@ function StockTile({
       imageSrc={avatar.preview}
       title={avatar.name}
       onTitleClick={() =>
-        openDetails({ kind: "avatar", name: avatar.name, url: file, previewUrl: avatar.preview, credit: avatar.credit })
+        openDetails({
+          kind: "avatar",
+          name: avatar.name,
+          url: file,
+          previewUrl: avatar.preview,
+          credit: avatar.credit,
+          builtinId: avatar.id,
+        })
       }
       subtitle={
         <Text variant="b3" color="surface-low">
@@ -527,7 +402,13 @@ function AvatarTile({
       shape="tall"
       imageSrc={preview ?? imageSrc ?? rendered.url}
       onTitleClick={() =>
-        openDetails({ kind: "avatar", name, url: avatar.url, previewUrl: avatar.preview_url ?? imageSrc })
+        openDetails({
+          kind: "avatar",
+          name,
+          url: avatar.url,
+          previewUrl: avatar.preview_url ?? imageSrc,
+          format: avatar.format,
+        })
       }
       fallback={
         rendered.loading ? (

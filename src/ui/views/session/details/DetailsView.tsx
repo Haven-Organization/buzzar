@@ -28,7 +28,15 @@ import { useHydrogen } from "../../../hooks/useHydrogen";
 import { useRoom } from "../../../hooks/useRoom";
 import { useDialog } from "../../../hooks/useDialog";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
-import { getSessionAuth } from "../../../utils/avatarMatrix";
+import {
+  AvatarContent,
+  BUILTIN_AVATARS,
+  getBuiltinAvatarContent,
+  getSessionAuth,
+  MatrixAuth,
+} from "../../../utils/avatarMatrix";
+import { useAvatarWardrobe } from "../../../hooks/useAvatarWardrobe";
+import { Dots } from "../../../atoms/loading/Dots";
 import { fetchGlbJson } from "../../../utils/chatEmbeds";
 import { copyToClipboard } from "../../../utils/common";
 import { DirectoryWorld, fetchSuggestedWorld, joinRoomVia, worldLink } from "../../../utils/worldDirectory";
@@ -223,6 +231,7 @@ function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | 
               </Text>
             )}
           </div>
+          {item.kind === "avatar" && <AvatarActions item={item} name={name} />}
           {item.url?.startsWith("mxc:") && (
             <div>
               <Button size="sm" fill="outline" onClick={() => copyToClipboard(item.url!)}>
@@ -233,6 +242,71 @@ function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | 
         </div>
       </div>
     </Scroll>
+  );
+}
+
+/** Wear and Bookmark for an avatar's details page (the same actions as its tile on the Avatars screen). */
+function AvatarActions({ item, name }: { item: Extract<DetailsItem, { kind: "avatar" }>; name: string }) {
+  const { session } = useHydrogen(true);
+  const wardrobe = useAvatarWardrobe();
+  const { collection, busy, error, inWorld, wear, bookmark, unbookmark, isBookmarked, isWearing } = wardrobe;
+
+  const builtin = item.builtinId ? BUILTIN_AVATARS.find((a) => a.id === item.builtinId) : undefined;
+  const isDefaultRig = item.builtinId === "default";
+  const ownUrl = !item.builtinId && item.url?.startsWith("mxc:") ? item.url : undefined;
+  if (!isDefaultRig && !builtin && !ownUrl) return null;
+
+  const content: AvatarContent | undefined = ownUrl
+    ? {
+        url: ownUrl,
+        name,
+        ...(item.format ? { format: item.format } : {}),
+        ...(item.previewUrl?.startsWith("mxc:") ? { preview_url: item.previewUrl } : {}),
+      }
+    : undefined;
+  const getContent = async (auth: MatrixAuth) =>
+    builtin ? getBuiltinAvatarContent(auth, session.userId, builtin) : content;
+  const wearing = isDefaultRig
+    ? isWearing(undefined)
+    : builtin
+    ? !!collection?.builtin[builtin.id] && isWearing(collection.builtin[builtin.id])
+    : isWearing(ownUrl);
+  const key = `details:${item.builtinId ?? ownUrl}`;
+
+  return (
+    <div className="flex flex-column gap-xs">
+      <div className="flex flex-wrap gap-xs">
+        {wearing ? (
+          <Button size="sm" fill="outline" disabled>
+            Wearing
+          </Button>
+        ) : (
+          <Button size="sm" disabled={!!busy} onClick={() => wear(key, "everywhere", getContent)}>
+            {busy === key ? <Dots size="sm" color="on-primary" /> : "Wear"}
+          </Button>
+        )}
+        {inWorld && !wearing && (
+          <Button size="sm" fill="outline" disabled={!!busy} onClick={() => wear(`${key}:world`, "world", getContent)}>
+            {busy === `${key}:world` ? <Dots size="sm" /> : "Wear Only in This World"}
+          </Button>
+        )}
+        {content &&
+          (isBookmarked(content.url) ? (
+            <Button size="sm" fill="outline" onClick={() => unbookmark(content.url)}>
+              Remove Bookmark
+            </Button>
+          ) : (
+            <Button size="sm" fill="outline" onClick={() => bookmark(content)}>
+              Bookmark
+            </Button>
+          ))}
+      </div>
+      {error && (
+        <Text variant="b3" color="danger">
+          {error}
+        </Text>
+      )}
+    </div>
   );
 }
 
