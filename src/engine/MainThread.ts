@@ -20,6 +20,10 @@ import {
   RenderQualitySetting,
 } from "./renderer/renderer.common";
 import { createInputRingBuffer, InputRingBuffer } from "./common/InputRingBuffer";
+import { createSystemErrorLog, runSystems } from "./utils/runSystems";
+
+// Buzzar: one failing system no longer stops this thread's loop (see runSystems).
+const systemErrors = createSystemErrorLog();
 
 export interface MainContext extends ConsumerThreadContext {
   useOffscreenCanvas: boolean;
@@ -223,9 +227,7 @@ export async function MainThread(canvas: HTMLCanvasElement) {
     ctx.dt = (now - ctx.elapsed) / 1000;
     ctx.elapsed = now;
 
-    for (let i = 0; i < ctx.systems.length; i++) {
-      ctx.systems[i](ctx);
-    }
+    runSystems(ctx, ctx.systems, systemErrors);
   };
 
   function updateLoop() {

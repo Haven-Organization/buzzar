@@ -74,6 +74,10 @@ import { XRInputLayout, XRInputProfileManager } from "./xr/WebXRInputProfiles";
 import { InputRingBuffer } from "../common/InputRingBuffer";
 import { createObjectTripleBuffer } from "../allocator/ObjectBufferView";
 import { InputSourceId } from "../input/input.common";
+import { createSystemErrorLog, runSystems } from "../utils/runSystems";
+
+// Buzzar: one failing system no longer stops this thread's loop (see runSystems).
+const systemErrors = createSystemErrorLog();
 
 export interface RenderContext extends ConsumerThreadContext {
   canvas?: HTMLCanvasElement;
@@ -400,9 +404,7 @@ function onUpdate(ctx: RenderContext) {
   ctx.dt = (now - ctx.elapsed) / 1000;
   ctx.elapsed = now;
 
-  for (let i = 0; i < ctx.systems.length; i++) {
-    ctx.systems[i](ctx);
-  }
+  runSystems(ctx, ctx.systems, systemErrors);
 
   if (ctx.singleConsumerThreadSharedState) {
     ctx.singleConsumerThreadSharedState.update();

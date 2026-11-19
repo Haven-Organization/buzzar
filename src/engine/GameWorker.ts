@@ -5,6 +5,10 @@ import { InitializeGameWorkerMessage, WorkerMessageType } from "./WorkerMessage"
 import { Message, registerModules, Thread } from "./module/module.common";
 import gameConfig from "./config.game";
 import { GameContext, World } from "./GameTypes";
+import { createSystemErrorLog, runSystems } from "./utils/runSystems";
+
+// Buzzar: one failing system no longer stops this thread's loop (see runSystems).
+const systemErrors = createSystemErrorLog();
 
 const workerScope = globalThis as typeof globalThis & Worker;
 
@@ -168,7 +172,5 @@ function update(ctx: GameContext) {
   ctx.elapsed = now;
   ctx.tick++;
 
-  for (let i = 0; i < ctx.systems.length; i++) {
-    ctx.systems[i](ctx);
-  }
+  runSystems(ctx, ctx.systems, systemErrors);
 }
