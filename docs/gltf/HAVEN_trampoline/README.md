@@ -19,6 +19,7 @@ This extension marks part of a scene as a trampoline: a player who lands on it, 
 - **Bounce height.** Each bounce rises to `bounciness` × the height the player fell from, but never less than `minBounceHeight`. Simply walking or hopping on gets you bouncing straight away. Dropping on from high up sends you back up proportionally high, never higher than `maxBounceHeight`.
 - **Higher.** Holding jump as you land adds `jumpBoost` metres to that bounce, so a player can work their way up.
 - **Stopping.** Crouch (or go prone) to stop bouncing and stand on it normally.
+- **Objects.** Things thrown or dropped on it (crates, balls, anything with a dynamic physics body) bounce too, back up to `bounciness` × the height they fell, so they bounce lower each time and settle. They get no minimum bounce or jump boost.
 
 The bouncy area is a flat area in the node's XZ plane, centred on the node and facing the node's +Y. It is a rectangle, or the ellipse inside that rectangle for `"round"`. It counts for feet a little above or below it, so it can sit under a pad or frame. It doesn't block movement: give the trampoline its own collider for players to land on. In a world without `OMI_collider`, Buzzar builds one from every mesh, the mat included.
 

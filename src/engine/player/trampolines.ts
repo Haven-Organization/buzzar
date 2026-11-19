@@ -95,8 +95,11 @@ const _inverse = mat4.create();
 const _local = vec3.create();
 const _surface = vec3.create();
 
-/** Whether feet at `feet` (world space) are on the trampoline's bouncy area. */
-export function isOnTrampoline(trampoline: Trampoline, feet: ArrayLike<number>) {
+/**
+ * Whether feet at `feet` (world space) are on the trampoline's bouncy area: inside it, from `below` metres under its
+ * surface to `above` metres over it.
+ */
+export function isOnTrampoline(trampoline: Trampoline, feet: ArrayLike<number>, below = BELOW, above = ABOVE) {
   const world = trampoline.node.worldMatrix;
   if (!mat4.invert(_inverse, world)) return false;
   vec3.transformMat4(_local, vec3.set(_local, feet[0], feet[1], feet[2]), _inverse);
@@ -106,8 +109,8 @@ export function isOnTrampoline(trampoline: Trampoline, feet: ArrayLike<number>) 
   if (!inside) return false;
   // Height in metres: compare with the surface point straight under the feet, in world space.
   vec3.transformMat4(_surface, vec3.set(_surface, _local[0], 0, _local[2]), world);
-  const above = feet[1] - _surface[1];
-  return above >= -BELOW && above <= ABOVE;
+  const height = feet[1] - _surface[1];
+  return height >= -below && height <= above;
 }
 
 /** The trampoline under feet at `feet`, if any. */
@@ -130,5 +133,20 @@ export function bounceSpeed(
   let height = Math.max(settings.minBounceHeight, settings.bounciness * fallHeight);
   if (jumpHeld) height += settings.jumpBoost;
   height = Math.min(height, settings.maxBounceHeight);
+  return Math.sqrt(2 * gravity * height);
+}
+
+/** Objects landing slower than a drop from this height (metres) just settle. */
+const OBJECT_MIN_DROP = 0.15;
+
+/**
+ * The upward speed (m/s) for an object (a crate, a ball) landing on a trampoline at `impactSpeed`: back up to
+ * bounciness × the height it fell, so it bounces lower each time and comes to rest (no minimum, and no jump boost).
+ * 0 if it landed too gently to bounce.
+ */
+export function objectBounceSpeed(settings: TrampolineSettings, impactSpeed: number, gravity: number): number {
+  const fallHeight = (impactSpeed * impactSpeed) / (2 * gravity);
+  if (fallHeight < OBJECT_MIN_DROP) return 0;
+  const height = Math.min(settings.bounciness * fallHeight, settings.maxBounceHeight);
   return Math.sqrt(2 * gravity * height);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bounceSpeed, DEFAULT_TRAMPOLINE, trampolineSettings } from "./trampolines";
+import { bounceSpeed, DEFAULT_TRAMPOLINE, objectBounceSpeed, trampolineSettings } from "./trampolines";
 
 const g = 14.7;
 const heightOf = (speed: number) => (speed * speed) / (2 * g);
@@ -28,5 +28,14 @@ describe("trampoline bounces", () => {
       maxBounceHeight: 30,
       jumpBoost: 0,
     });
+  });
+
+  it("bounces dropped objects lower each time until they settle", () => {
+    const g9 = 9.81;
+    const h = (v: number) => (v * v) / (2 * g9);
+    const drop = (height: number) => Math.sqrt(2 * g9 * height);
+    expect(h(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(2), g9))).toBeCloseTo(1.7);
+    // No minimum for objects, and a near-rest landing doesn't bounce at all.
+    expect(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(0.1), g9)).toBe(0);
   });
 });

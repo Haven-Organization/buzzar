@@ -56,6 +56,7 @@ import { PlayerModule } from "./player/Player.game";
 import { ActionBarSystem } from "../plugins/thirdroom/action-bar.game";
 import { MirrorSystem } from "../plugins/mirrors/mirrors.game";
 import { LadderSystem } from "../plugins/ladders/ladders.game";
+import { TrampolineObjectSystem } from "./player/trampolineObjects";
 import { InteractableHighlightSystem } from "../plugins/interaction/highlight.game";
 import { AvatarPedestalModule, AvatarPedestalSystem } from "../plugins/avatar-pedestals/pedestals.game";
 import { AvatarModule, AvatarSystem } from "./avatar/avatar.game";
@@ -127,6 +128,8 @@ export default defineConfig<GameContext>({
 
     // step physics forward and copy rigidbody data to transform component
     PhysicsSystem,
+    // Buzzar: after the step, so it sees objects that just landed on a trampoline.
+    TrampolineObjectSystem,
 
     // interpolate towards authoritative state
     NetworkInterpolationSystem,
