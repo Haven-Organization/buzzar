@@ -1,5 +1,5 @@
 import { addComponent, defineQuery, exitQuery } from "bitecs";
-import { glMatrix, mat4, quat } from "gl-matrix";
+import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, SkinnedMesh } from "three";
 
@@ -999,18 +999,50 @@ function loadGLTFSpawnPoint({ ctx }: GLTFLoaderContext, node: RemoteNode) {
   addComponent(ctx.world, SpawnPoint, node.eid);
 }
 
+/**
+ * Buzzar: where a node's mesh is drawn, as world matrices: the node's own, or (EXT_mesh_gpu_instancing) one per
+ * instance. Upstream gave instanced meshes a single collider at the node, so instanced floors (e.g. Third Room
+ * Public's roads) had nothing to stand on beyond one copy.
+ */
+function meshWorldMatrices(node: RemoteNode): mat4[] {
+  const instanced = node.instancedMesh;
+  if (!instanced) return [node.worldMatrix as mat4];
+  const t = instanced.attributes[InstancedMeshAttributeIndex.TRANSLATION] as RemoteAccessor | undefined;
+  const r = instanced.attributes[InstancedMeshAttributeIndex.ROTATION] as RemoteAccessor | undefined;
+  const sc = instanced.attributes[InstancedMeshAttributeIndex.SCALE] as RemoteAccessor | undefined;
+  const translations = t ? getAccessorFloat32Array(t) : undefined;
+  const rotations = r ? getAccessorFloat32Array(r) : undefined;
+  const scales = sc ? getAccessorFloat32Array(sc) : undefined;
+  const count = (t ?? r ?? sc)?.count ?? 0;
+  const out: mat4[] = [];
+  const q = quat.create();
+  const v = vec3.create();
+  const scale = vec3.create();
+  for (let i = 0; i < count; i++) {
+    if (rotations) quat.set(q, rotations[i * 4], rotations[i * 4 + 1], rotations[i * 4 + 2], rotations[i * 4 + 3]);
+    else quat.identity(q);
+    if (translations) vec3.set(v, translations[i * 3], translations[i * 3 + 1], translations[i * 3 + 2]);
+    else vec3.zero(v);
+    if (scales) vec3.set(scale, scales[i * 3], scales[i * 3 + 1], scales[i * 3 + 2]);
+    else vec3.set(scale, 1, 1, 1);
+    const local = mat4.fromRotationTranslationScale(mat4.create(), q, v, scale);
+    out.push(mat4.multiply(local, node.worldMatrix as mat4, local));
+  }
+  return out;
+}
+
 function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh: RemoteMesh) {
   const { physicsWorld } = getModule(loaderCtx.ctx, PhysicsModule);
+  const matrices = meshWorldMatrices(node);
 
   // TODO: We don't really need the whole RemoteMesh just for a trimesh and tracking
   // the resource is expensive.
 
   for (const primitive of mesh.primitives) {
     // Buzzar: as floats, so quantized (integer) positions from compressed files make the right collider.
-    const positionsArray = getAccessorFloat32Array(
+    const localPositions = getAccessorFloat32Array(
       primitive.attributes[MeshPrimitiveAttributeIndex.POSITION] as RemoteAccessor
     );
-    vec3ArrayTransformMat4(positionsArray, positionsArray, node.worldMatrix);
 
     let indicesArr: Uint32Array;
 
@@ -1018,16 +1050,12 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
       const indicesArrView = getAccessorArrayView(primitive.indices as RemoteAccessor);
       indicesArr = indicesArrView instanceof Uint32Array ? indicesArrView : new Uint32Array(indicesArrView);
     } else {
-      indicesArr = new Uint32Array(positionsArray.length / 3);
+      indicesArr = new Uint32Array(localPositions.length / 3);
 
       for (let i = 0; i < indicesArr.length; i++) {
         indicesArr[i] = i;
       }
     }
-
-    const colliderDesc = RAPIER.ColliderDesc.trimesh(positionsArray, indicesArr);
-
-    colliderDesc.setCollisionGroups(staticRigidBodyCollisionGroups);
 
     const primitiveNode = new RemoteNode(loaderCtx.resource.manager);
     addChild(node, primitiveNode);
@@ -1045,9 +1073,15 @@ function addTrimeshFromMesh(loaderCtx: GLTFLoaderContext, node: RemoteNode, mesh
 
     // Buzzar: attach the trimesh to the node's tracked (fixed, origin-placed) body. Upstream created it on a
     // separate rigid body nobody kept a reference to, so it was never removed: every world you left kept its
-    // mesh colliders, which became invisible walls in the next world.
-    const collider = physicsWorld.createCollider(colliderDesc, primitiveNode.physicsBody!.body);
-    physics.handleToEid.set(collider.handle, primitiveNode.eid);
+    // mesh colliders, which became invisible walls in the next world. One collider per instance of the mesh.
+    matrices.forEach((matrix, i) => {
+      const positionsArray = i === matrices.length - 1 ? localPositions : localPositions.slice();
+      vec3ArrayTransformMat4(positionsArray, positionsArray, matrix);
+      const colliderDesc = RAPIER.ColliderDesc.trimesh(positionsArray, indicesArr);
+      colliderDesc.setCollisionGroups(staticRigidBodyCollisionGroups);
+      const collider = physicsWorld.createCollider(colliderDesc, primitiveNode.physicsBody!.body);
+      physics.handleToEid.set(collider.handle, primitiveNode.eid);
+    });
 
     if (mesh) {
       addResourceRef(loaderCtx.ctx, mesh.eid);
