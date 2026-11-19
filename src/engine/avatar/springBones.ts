@@ -413,7 +413,7 @@ export function getSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): Sprin
  * its VRM ones, or the ones it detects by bone name), so a file carries its behaviour with it
  * (scripts/buzzar/bake-avatar.ts). Per-joint VRM settings are written per chain from the first joint.
  */
-export function bakeAvatarMotion(chains: SpringChainSpec[], earMotion: EarMotionSettings | false) {
+export function bakeAvatarMotion(chains: SpringChainSpec[], earMotion: EarMotionSettings | false, face?: object) {
   const round = (x: number) => Math.round(x * 1e5) / 1e5;
   return {
     springs: chains.map((c) => {
@@ -431,6 +431,7 @@ export function bakeAvatarMotion(chains: SpringChainSpec[], earMotion: EarMotion
       };
     }),
     earMotion: earMotion === false ? { enabled: false } : { enabled: true, ...earMotion },
+    ...(face ? { face } : {}),
   };
 }
 

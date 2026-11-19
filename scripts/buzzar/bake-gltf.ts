@@ -2,7 +2,8 @@
  * Bakes Buzzar behaviour and details into a .glb / .vrm so they travel with the file (docs/buzzar/asset-files.md):
  *
  * - `--avatar`: writes `HAVEN_avatar_motion` from what Buzzar would do with the avatar today: its springs (its own,
- *   its VRM ones, or the ones Buzzar finds by bone name: hair, ears, tail, skirt…) and its idle ear motion settings.
+ *   its VRM ones, or the ones Buzzar finds by bone name: hair, ears, tail, skirt…), its idle ear motion settings, and
+ *   its face parts (blink and mouth shapes; eye, eyelid, jaw and lip bones).
  *   Edit the result to tune it; `--no-ear-motion` turns idle ear motion off.
  * - `--name`, `--description` (or `--description-file`, for several lines), `--author`, `--source`, `--version`:
  *   write `HAVEN_metadata` (only the fields given; existing ones are kept).
@@ -15,6 +16,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 import { getHumanoidMapping } from "../../src/engine/avatar/humanoid";
+import { bakeFace } from "../../src/engine/avatar/face";
 import {
   bakeAvatarMotion,
   DEFAULT_EAR_MOTION,
@@ -57,12 +59,17 @@ if (flags.has("--avatar")) {
   if (!mapping) throw new Error("no humanoid skeleton found: is this an avatar?");
   const chains = getSpringChains(gltf, mapping);
   const ear = flags.has("--no-ear-motion") ? false : parseEarMotion(gltf) || DEFAULT_EAR_MOTION;
-  gltf.extensions.HAVEN_avatar_motion = bakeAvatarMotion(chains, ear);
+  const face = bakeFace(gltf, mapping);
+  gltf.extensions.HAVEN_avatar_motion = bakeAvatarMotion(chains, ear, face);
   used.add("HAVEN_avatar_motion");
   const kinds = new Map<string, number>();
   for (const c of chains) kinds.set(c.kind ?? "spring", (kinds.get(c.kind ?? "spring") ?? 0) + 1);
   console.log(
     `springs: ${Array.from(kinds).map(([k, n]) => `${n} ${k}`).join(", ") || "none"}; ear motion ${ear ? "on" : "off"}`
+  );
+  const lipSync = face.mouth ? "mouth shapes" : face.jaw !== undefined ? "jaw bone" : face.lips ? `${face.lips.length} lip bones` : "none";
+  console.log(
+    `face: blink ${face.blink?.length ? "shapes" : face.eyelids ? "eyelid bones" : "none"}, ${face.eyes?.length ?? 0} eyes, lip sync ${lipSync}`
   );
 }
 

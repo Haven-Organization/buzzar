@@ -57,7 +57,12 @@ export type MouthShapes = MorphBindSpec[][];
  * open, rounded ("ou") and spread ("ee"/"ih").
  */
 export interface LipSpec {
-  moves: { node: number; open: [number, number, number]; round: [number, number, number]; wide: [number, number, number] }[];
+  moves: {
+    node: number;
+    open: [number, number, number];
+    round: [number, number, number];
+    wide: [number, number, number];
+  }[];
 }
 
 export interface FaceSpec {
@@ -209,14 +214,15 @@ const LIP_RULES = {
 } as const;
 const TEETH_LOWER = /(yachi|teeth|tooth|ha_?).*(lo|low|down|bottom|under)|(lo|lower|bottom).*(teeth|tooth)/i;
 
-export function detectLips(
-  gltf: GLTFLike,
-  restWorld: (node: number) => Vector3 | undefined,
-  toParent: (node: number, offset: Vector3) => Vector3 | undefined,
-  head?: number
-): LipSpec | undefined {
-  const nodes = (gltf.nodes ?? []).map((n, i) => ({ i, name: n.name ?? "" }));
-  const kindOf = (name: string): keyof typeof LIP_RULES | undefined => {
+export type LipKind = keyof typeof LIP_RULES;
+export interface LipBone {
+  node: number;
+  kind: LipKind;
+}
+
+/** Lip and teeth bones by name (rigs without mouth blend shapes). */
+export function findLipBones(gltf: GLTFLike): LipBone[] {
+  const kindOf = (name: string): LipKind | undefined => {
     if (TEETH_LOWER.test(name)) return "teeth";
     if (!LIP.test(name)) return undefined;
     if (LIP_CORNER.test(name)) return "corner";
@@ -224,9 +230,22 @@ export function detectLips(
     if (LIP_UPPER.test(name)) return "upper";
     return undefined;
   };
-  const bones = nodes
-    .map((n) => ({ ...n, kind: kindOf(n.name), pos: restWorld(n.i) }))
-    .filter((b): b is typeof b & { kind: keyof typeof LIP_RULES; pos: Vector3 } => !!b.kind && !!b.pos);
+  return (gltf.nodes ?? []).flatMap((n, i) => {
+    const kind = kindOf(n.name ?? "");
+    return kind ? [{ node: i, kind }] : [];
+  });
+}
+
+export function detectLips(
+  gltf: GLTFLike,
+  restWorld: (node: number) => Vector3 | undefined,
+  toParent: (node: number, offset: Vector3) => Vector3 | undefined,
+  head?: number,
+  chosen: LipBone[] = findLipBones(gltf)
+): LipSpec | undefined {
+  const bones = chosen
+    .map((b) => ({ i: b.node, kind: b.kind, pos: restWorld(b.node) }))
+    .filter((b): b is typeof b & { pos: Vector3 } => !!b.pos);
   const lips = bones.filter((b) => b.kind !== "teeth");
   if (lips.length < 2) return undefined;
 
@@ -285,15 +304,25 @@ const NOT_EYEBALL = /lid|brow|lash|corner|co_|eyeco|highlight|gaoguang|look|targ
  * `restWorld(i)` gives a node's rest position in avatar space; `toParent(i, v)` turns an avatar-space offset into
  * the node's parent space.
  */
+/** Upper and lower eyelid bones by name. */
+export function findLidBones(gltf: GLTFLike): { upper: number[]; lower: number[] } {
+  const lids = (gltf.nodes ?? []).map((n, i) => ({ i, name: n.name ?? "" })).filter((n) => LID.test(n.name));
+  return {
+    upper: lids.filter((n) => LID_UP.test(n.name) && !LID_LO.test(n.name.replace(/lid/i, ""))).map((n) => n.i),
+    lower: lids.filter((n) => LID_LO.test(n.name.replace(/lid/i, "")) && !LID_UP.test(n.name)).map((n) => n.i),
+  };
+}
+
 export function detectLids(
   gltf: GLTFLike,
   restWorld: (node: number) => Vector3 | undefined,
-  toParent: (node: number, offset: Vector3) => Vector3 | undefined
+  toParent: (node: number, offset: Vector3) => Vector3 | undefined,
+  chosen: { upper: number[]; lower: number[] } = findLidBones(gltf)
 ): LidSpec | undefined {
   const nodes = gltf.nodes ?? [];
-  const lids = nodes.map((n, i) => ({ i, name: n.name ?? "" })).filter((n) => LID.test(n.name));
-  const up = lids.filter((n) => LID_UP.test(n.name) && !LID_LO.test(n.name.replace(/lid/i, "")));
-  const lo = lids.filter((n) => LID_LO.test(n.name.replace(/lid/i, "")) && !LID_UP.test(n.name));
+  const named = (i: number) => ({ i, name: nodes[i]?.name ?? "" });
+  const up = chosen.upper.map(named);
+  const lo = chosen.lower.map(named);
   if (up.length === 0 || lo.length === 0) return undefined;
 
   const moves: LidSpec["moves"] = [];
@@ -369,24 +398,139 @@ export function detectEyes(gltf: GLTFLike, mapping: HumanoidMapping): number[] {
     .map((n) => n.i);
 }
 
+/**
+ * Buzzar: the face parts an avatar file chooses for itself (HAVEN_avatar_motion `face`): which morph targets blink and
+ * shape the mouth, and which bones are the eyes, eyelids, jaw and lips. Any part it gives replaces Buzzar's guess; a
+ * part it leaves out is still detected. Bone movements are still worked out from the rest pose when the avatar loads.
+ */
+export interface HavenFace {
+  blink?: MorphBindSpec[];
+  eyelids?: { upper: number[]; lower: number[] };
+  eyes?: number[];
+  look?: LookRange;
+  /** Lip sync: give one of `mouth` (blend shapes per viseme: aa, ih, ou, ee, oh), `jaw` or `lips`; the others none. */
+  mouth?: MouthShapes;
+  jaw?: number;
+  lips?: LipBone[];
+}
+
+const LIP_KINDS: LipKind[] = ["corner", "upper", "lower", "teeth"];
+
+export function parseHavenFace(gltf: GLTFLike): HavenFace | undefined {
+  const ext = gltf.extensions?.HAVEN_avatar_motion;
+  const face = isRecord(ext) ? ext.face : undefined;
+  if (!isRecord(face)) return undefined;
+  const nodeCount = gltf.nodes?.length ?? 0;
+  const meshCount = gltf.meshes?.length ?? 0;
+  const isNode = (i: unknown): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0 && i < nodeCount;
+  const nodeList = (v: unknown) => (Array.isArray(v) ? v.filter(isNode) : undefined);
+  const binds = (v: unknown): MorphBindSpec[] | undefined =>
+    Array.isArray(v)
+      ? v.filter(isRecord).flatMap((b): MorphBindSpec[] => {
+          const index = b.index;
+          if (typeof index !== "number" || !Number.isInteger(index) || index < 0) return [];
+          const weight = Math.min(1, Math.max(0, num(b.weight, 1)));
+          if (isNode(b.node)) return [{ node: b.node, index, weight }];
+          if (typeof b.mesh === "number" && Number.isInteger(b.mesh) && b.mesh >= 0 && b.mesh < meshCount)
+            return [{ mesh: b.mesh, index, weight }];
+          return [];
+        })
+      : undefined;
+
+  const out: HavenFace = {};
+  const blink = binds(face.blink);
+  if (blink) out.blink = blink;
+  if (isRecord(face.eyelids)) {
+    out.eyelids = { upper: nodeList(face.eyelids.upper) ?? [], lower: nodeList(face.eyelids.lower) ?? [] };
+  }
+  const eyes = nodeList(face.eyes);
+  if (eyes) out.eyes = eyes;
+  if (isRecord(face.look)) {
+    out.look = {
+      yaw: Math.max(num(face.look.yaw, DEFAULT_LOOK.yaw), 1),
+      pitchUp: Math.max(num(face.look.pitchUp, DEFAULT_LOOK.pitchUp), 1),
+      pitchDown: Math.max(num(face.look.pitchDown, DEFAULT_LOOK.pitchDown), 1),
+    };
+  }
+  if (Array.isArray(face.mouth))
+    out.mouth = VISEME_NAMES.map((_, v) => binds(face.mouth && (face.mouth as unknown[])[v]) ?? []);
+  if (isNode(face.jaw)) out.jaw = face.jaw;
+  if (Array.isArray(face.lips)) {
+    out.lips = face.lips
+      .filter(isRecord)
+      .flatMap((l) =>
+        isNode(l.node) && LIP_KINDS.includes(l.kind as LipKind) ? [{ node: l.node, kind: l.kind as LipKind }] : []
+      );
+  }
+  return out;
+}
+
+/** Whether a face block says how the mouth moves (then nothing else is detected for lip sync). */
+const givesMouth = (face: HavenFace | undefined) => !!face && ("mouth" in face || "jaw" in face || "lips" in face);
+/** Whether a face block says how the eyes close. */
+const givesBlink = (face: HavenFace | undefined) => !!face && ("blink" in face || "eyelids" in face);
+
+/** The face parts Buzzar would choose for an avatar today (for writing into its file; see bake-gltf.ts). */
+export function bakeFace(gltf: GLTFLike, mapping: HumanoidMapping): HavenFace {
+  const own = parseHavenFace(gltf);
+  const blink = givesBlink(own) ? own?.blink ?? [] : vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? namedBlink(gltf);
+  const lids = givesBlink(own) ? own?.eyelids : blink.length > 0 ? undefined : findLidBones(gltf);
+  const mouth = givesMouth(own) ? own?.mouth : vrm1Mouth(gltf) ?? vrm0Mouth(gltf) ?? namedMouth(gltf);
+  const jaw = givesMouth(own) ? own?.jaw : mouth ? undefined : detectJaw(gltf, mapping);
+  const lips = givesMouth(own) ? own?.lips : mouth || jaw !== undefined ? undefined : findLipBones(gltf);
+  const out: HavenFace = {
+    blink,
+    eyes: own?.eyes ?? detectEyes(gltf, mapping),
+    look: own?.look ?? lookRange(gltf),
+  };
+  if (lids && (lids.upper.length > 0 || lids.lower.length > 0)) out.eyelids = lids;
+  if (mouth) out.mouth = mouth;
+  if (jaw !== undefined) out.jaw = jaw;
+  if (lips && lips.length > 0) out.lips = lips;
+  return out;
+}
+
 export function getFaceSpec(
   gltf: GLTFLike,
   mapping: HumanoidMapping,
   restWorld: (node: number) => Vector3 | undefined,
   toParent: (node: number, offset: Vector3) => Vector3 | undefined
 ): FaceSpec {
-  const blink = vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? [];
-  const named = blink.length > 0 ? blink : namedBlink(gltf);
-  const mouth = vrm1Mouth(gltf) ?? vrm0Mouth(gltf) ?? namedMouth(gltf);
-  const jaw = mouth ? undefined : detectJaw(gltf, mapping);
+  const own = parseHavenFace(gltf);
+  const head = mapping.bones.get("head");
+
+  let blink: MorphBindSpec[];
+  let lids: LidSpec | undefined;
+  if (givesBlink(own)) {
+    blink = own?.blink ?? [];
+    lids = own?.eyelids ? detectLids(gltf, restWorld, toParent, own.eyelids) : undefined;
+  } else {
+    const vrm = vrm1Blink(gltf) ?? vrm0Blink(gltf) ?? [];
+    blink = vrm.length > 0 ? vrm : namedBlink(gltf);
+    lids = blink.length > 0 ? undefined : detectLids(gltf, restWorld, toParent);
+  }
+
+  let mouth: MouthShapes | undefined;
+  let jaw: number | undefined;
+  let lips: LipSpec | undefined;
+  if (givesMouth(own)) {
+    mouth = own?.mouth;
+    jaw = own?.jaw;
+    lips = own?.lips ? detectLips(gltf, restWorld, toParent, head, own.lips) : undefined;
+  } else {
+    mouth = vrm1Mouth(gltf) ?? vrm0Mouth(gltf) ?? namedMouth(gltf);
+    jaw = mouth ? undefined : detectJaw(gltf, mapping);
+    lips = mouth || jaw !== undefined ? undefined : detectLips(gltf, restWorld, toParent, head);
+  }
+
   return {
-    blink: named,
-    lids: named.length > 0 ? undefined : detectLids(gltf, restWorld, toParent),
-    eyes: detectEyes(gltf, mapping),
-    look: lookRange(gltf),
+    blink,
+    lids,
+    eyes: own?.eyes ?? detectEyes(gltf, mapping),
+    look: own?.look ?? lookRange(gltf),
     mouth,
     jaw,
-    lips: mouth || jaw !== undefined ? undefined : detectLips(gltf, restWorld, toParent, mapping.bones.get("head")),
+    lips,
   };
 }
 
@@ -460,7 +604,11 @@ export interface FaceRig {
   blinker: Blinker;
   binds: { weights: Float32Array[]; index: number; weight: number; channel: number }[];
   /** Binds not resolved to morph weights yet (see FaceRigInput.weightsFor). */
-  pendingBinds?: { specs: (MorphBindSpec & { channel: number })[]; weightsFor: FaceRigInput["weightsFor"]; tries: number };
+  pendingBinds?: {
+    specs: (MorphBindSpec & { channel: number })[];
+    weightsFor: FaceRigInput["weightsFor"];
+    tries: number;
+  };
   jaw?: { bone: Object3D; rest: Quaternion; right: Vector3 };
   lips: { bone: Object3D; rest: Vector3; open: Vector3; round: Vector3; wide: Vector3 }[];
   /** Whether the face has anything to lip sync. */
@@ -616,7 +764,11 @@ function applyFace(rig: FaceRig, closed: number, visemes: ArrayLike<number> | un
       rig.jaw.bone.quaternion.copy(_q).multiply(rig.jaw.rest);
     }
     for (const l of rig.lips) {
-      l.bone.position.copy(l.rest).addScaledVector(l.open, open).addScaledVector(l.round, round).addScaledVector(l.wide, wide);
+      l.bone.position
+        .copy(l.rest)
+        .addScaledVector(l.open, open)
+        .addScaledVector(l.round, round)
+        .addScaledVector(l.wide, wide);
     }
   }
 }

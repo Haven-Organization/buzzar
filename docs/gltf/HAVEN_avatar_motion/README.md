@@ -14,7 +14,7 @@ Written against the glTF 2.0 spec. Used on avatar files (`.glb` or `.vrm`).
 
 ## Overview
 
-This extension stores an avatar's secondary motion in the avatar file itself: which bones swing and bounce (hair, ears, tails, skirts, ribbons…), how stiff and heavy they are, and how animal ears move on their own. Because the behaviour travels with the file, every client that reads the extension animates the avatar the same way, and an author can tune or turn off anything Buzzar would otherwise guess.
+This extension stores an avatar's secondary motion in the avatar file itself: which bones swing and bounce (hair, ears, tails, skirts, ribbons…), how stiff and heavy they are, how animal ears move on their own, and which parts of the face blink, look around and move with the voice. Because the behaviour travels with the file, every client that reads the extension animates the avatar the same way, and an author can tune or turn off anything Buzzar would otherwise guess.
 
 **Without the extension**, Buzzar uses, in order:
 
@@ -24,7 +24,7 @@ This extension stores an avatar's secondary motion in the avatar file itself: wh
 
 Ears found any of these ways also get idle ear motion with Buzzar's defaults.
 
-**With the extension**, `springs` replaces all of that: only the chains it lists move, and an empty list means none do. `earMotion` sets how the ears listed with `"kind": "ear"` move on their own, or turns it off.
+**With the extension**, `springs` replaces all of that: only the chains it lists move, and an empty list means none do. `earMotion` sets how the ears listed with `"kind": "ear"` move on their own, or turns it off. `face` chooses the face parts (see [face](#face)).
 
 To write the extension from what Buzzar does today, then tune it by hand, see [Baking behaviour into a file](../../guides/asset-files#baking-behaviour-into-a-file).
 
@@ -105,3 +105,37 @@ The extension sits on the glTF root.
 | `foldSpeed`     | `number[2]` | Speed range of folds (1 = normal).                                        | `[0.35, 2.6]` |
 
 Joints that aren't valid node indices are skipped. At most 256 joints per avatar are simulated.
+
+### face
+
+Which parts of the face move. **Without it**, Buzzar finds them itself: VRM 1.0 expressions and VRM 0.x blend shape groups first, then morph targets and bones named like blinks, mouth shapes, eyes, eyelids, a jaw or lips. **With it**, each part it gives replaces that guess, and parts it leaves out are still found the usual way. The bake tool (`bake-gltf.ts --avatar`) writes what Buzzar finds today, so you can start from that.
+
+| Property  | Type        | Description                                                                                                                                                                                                         |
+| --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blink`   | `bind[]`    | Morph targets that close both eyes.                                                                                                                                                                                 |
+| `eyelids` | `object`    | For rigs without blink shapes: `{ "upper": [nodes], "lower": [nodes] }`. Each upper-lid bone slides down to the nearest lower-lid bone on the same side.                                                            |
+| `eyes`    | `integer[]` | Eye bones that turn toward nearby people. `[]` keeps the eyes still.                                                                                                                                                |
+| `look`    | `object`    | How far the eyes turn, in degrees: `{ "yaw": 12, "pitchUp": 8, "pitchDown": 10 }`.                                                                                                                                  |
+| `mouth`   | `bind[][]`  | Lip sync with blend shapes: five lists of morph targets, for the visemes aa, ih, ou, ee and oh in that order.                                                                                                       |
+| `jaw`     | `integer`   | Lip sync with a jaw bone, which opens with the voice.                                                                                                                                                               |
+| `lips`    | `object[]`  | Lip sync with lip bones: `{ "node": 12, "kind": "corner" }`, with `kind` one of `corner`, `upper`, `lower` or `teeth` (lower teeth). Buzzar works out how far each moves from where the bones sit in the rest pose. |
+
+A `bind` is `{ "mesh": 2, "index": 5, "weight": 1 }` (a morph target of every node using that mesh) or `{ "node": 7, "index": 5, "weight": 1 }` (a morph target of one node), with `weight` from 0 to 1.
+
+`blink` and `eyelids` together say how the eyes close: give either and neither is guessed. Likewise `mouth`, `jaw` and `lips` together say how lip sync works: give one and the others are not guessed, so `"jaw": 3` alone means a jaw bone and nothing else.
+
+```json
+"face": {
+  "blink": [{ "mesh": 1, "index": 12, "weight": 1 }],
+  "eyes": [41, 42],
+  "look": { "yaw": 12, "pitchUp": 8, "pitchDown": 10 },
+  "lips": [
+    { "node": 50, "kind": "corner" },
+    { "node": 51, "kind": "corner" },
+    { "node": 52, "kind": "upper" },
+    { "node": 53, "kind": "lower" }
+  ]
+}
+```
+
+Invalid node, mesh or morph indices and unknown lip kinds are skipped.

@@ -1,6 +1,16 @@
 import { Bone, Group, Vector3 } from "three";
 
-import { Blinker, createFaceRig, detectEyes, detectLids, detectLips, getFaceSpec, updateFaceRig } from "./face";
+import {
+  bakeFace,
+  Blinker,
+  createFaceRig,
+  detectEyes,
+  detectLids,
+  detectLips,
+  getFaceSpec,
+  parseHavenFace,
+  updateFaceRig,
+} from "./face";
 import type { HumanoidMapping } from "./humanoid";
 
 const mapping = (bones: Record<string, number> = {}): HumanoidMapping => ({
@@ -221,5 +231,48 @@ describe("lip sync", () => {
     updateFaceRig(face, 1 / 60, [], () => 0.5, [1, 0, 0, 0, 0]);
     // The jaw's forward (+Z) tips downward.
     expect(new Vector3(0, 0, 1).applyQuaternion(jaw.quaternion).y).toBeLessThan(-0.1);
+  });
+});
+
+describe("face parts from the file (HAVEN_avatar_motion face)", () => {
+  const gltf = {
+    nodes: [{ name: "Head" }, { name: "Jaw" }, { name: "Lip_Upper" }, { name: "Lip_Lower" }],
+    meshes: [{ extras: { targetNames: ["Blink", "A", "I", "U", "E", "O"] }, primitives: [{ targets: [{}, {}, {}, {}, {}, {}] }] }],
+  };
+
+  it("chooses what Buzzar would detect, for baking", () => {
+    const face = bakeFace(gltf, mapping({ head: 0 }));
+    expect(face.blink).toEqual([{ mesh: 0, index: 0, weight: 1 }]);
+    expect(face.mouth?.[0]).toEqual([{ mesh: 0, index: 1, weight: 1 }]);
+    expect(face.jaw).toBeUndefined();
+    expect(face.lips).toBeUndefined();
+  });
+
+  it("uses the file's choices over detection, and a given lip-sync part rules out the others", () => {
+    const withFace = {
+      ...gltf,
+      extensions: { HAVEN_avatar_motion: { face: { jaw: 1, blink: [{ mesh: 0, index: 4, weight: 0.5 }], eyes: [] } } },
+    };
+    const spec = getFaceSpec(withFace, mapping({ head: 0 }), noBones, noBones);
+    expect(spec.jaw).toBe(1);
+    expect(spec.mouth).toBeUndefined();
+    expect(spec.lips).toBeUndefined();
+    expect(spec.blink).toEqual([{ mesh: 0, index: 4, weight: 0.5 }]);
+    expect(spec.eyes).toEqual([]);
+  });
+
+  it("ignores bad indices", () => {
+    const face = parseHavenFace({
+      ...gltf,
+      extensions: {
+        HAVEN_avatar_motion: {
+          face: { jaw: 99, eyes: [0, 42, "x"], lips: [{ node: 2, kind: "upper" }, { node: 3, kind: "nose" }], mouth: [[{ mesh: 7, index: 0 }]] },
+        },
+      },
+    });
+    expect(face?.jaw).toBeUndefined();
+    expect(face?.eyes).toEqual([0]);
+    expect(face?.lips).toEqual([{ node: 2, kind: "upper" }]);
+    expect(face?.mouth).toEqual([[], [], [], [], []]);
   });
 });

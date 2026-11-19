@@ -111,6 +111,8 @@ Hair, ears, tails, skirts and ribbons swing and bounce as you move. Animal ears 
 2. VRM spring bones (`VRMC_springBone`, or VRM 0.x `secondaryAnimation`).
 3. A guess from bone names (`hair`, `ear`, `tail`, `skirt`, `ribbon`…), with defaults for each kind.
 
+Faces work the same way: the extension's `face` part can say which blend shapes or bones blink, which bones are the eyes, and whether lip sync uses mouth shapes, a jaw bone or lip bones; anything it leaves out is still found from the VRM data or the names.
+
 To make an avatar behave the same everywhere, or to change what Buzzar guesses, bake its behaviour into the file and tune it: see [Asset files](./asset-files). Put its name, description, author, source link and version in the file too, with [HAVEN_metadata](../gltf/HAVEN_metadata/README).
 
 ## Animation
