@@ -10,7 +10,8 @@ export function isBundledPath(url: string) {
 }
 
 export async function uploadBundledFile(auth: MatrixAuth, path: string): Promise<{ url: string; size: number }> {
-  const res = await fetch(path);
+  // Revalidate with the server: a cached copy from before an update would upload the old file under the new version.
+  const res = await fetch(path, { cache: "no-cache" });
   if (!res.ok) throw new Error(`Couldn't load bundled file ${path}: ${res.status}`);
   const blob = await res.blob();
   return { url: await uploadMedia(auth, blob, path.split("/").pop()!), size: blob.size };
