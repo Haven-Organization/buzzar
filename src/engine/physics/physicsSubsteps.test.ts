@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import RAPIER from "@dimforge/rapier3d-compat";
 
-import { kinematicFrameVelocity, MAX_PHYSICS_STEP, MAX_PHYSICS_SUBSTEPS, physicsSubsteps } from "./physics.game";
+import {
+  kinematicFrameVelocity,
+  markTeleported,
+  MAX_PHYSICS_STEP,
+  MAX_PHYSICS_SUBSTEPS,
+  physicsSubsteps,
+} from "./physics.game";
 
 describe("physicsSubsteps", () => {
   it("steps once at 60 fps and splits slower frames", () => {
@@ -42,13 +48,26 @@ describe("kinematicFrameVelocity", () => {
     expect(v[0]).toBe(0);
   });
 
-  it("ignores teleports", () => {
+  it("reads a teleport as standing still, not as speed", () => {
     const { position, body } = fakeBody();
     const v = [0, 0, 0];
     kinematicFrameVelocity(body, 1 / 60, v);
     position.x = 30;
-    v[0] = 1;
+    v[0] = 1800; // Rapier's own value: the teleport's speed
     kinematicFrameVelocity(body, 1 / 60, v);
-    expect(v[0]).toBe(1);
+    expect(v).toEqual([0, 0, 0]);
+  });
+
+  it("reads a short marked teleport (standing up from a seat) as standing still", () => {
+    const { position, body } = fakeBody();
+    const v = [0, 0, 0];
+    kinematicFrameVelocity(body, 1 / 60, v);
+    position.y = 0.6; // 36 m/s upwards: under the teleport speed, so it used to throw you into the air
+    markTeleported(body);
+    kinematicFrameVelocity(body, 1 / 60, v);
+    expect(v).toEqual([0, 0, 0]);
+    position.y = 0.65; // the next frame is ordinary movement again
+    kinematicFrameVelocity(body, 1 / 60, v);
+    expect(v[1]).toBeCloseTo(3);
   });
 });

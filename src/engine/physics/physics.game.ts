@@ -106,23 +106,37 @@ export function physicsSubsteps(dt: number): { steps: number; timestep: number }
 const lastKinematicPosition = new WeakMap<RAPIER.RigidBody, [number, number, number]>();
 /** A kinematic body moving faster than this (m/s) between frames was teleported (spawn, respawn), not moved. */
 const TELEPORT_SPEED = 50;
+const teleportedBodies = new WeakSet<RAPIER.RigidBody>();
+
+/** Buzzar: this frame's move of `body` is a teleport, not motion: its frame velocity reads as zero (see below). */
+export function markTeleported(body: RAPIER.RigidBody) {
+  teleportedBodies.add(body);
+}
 
 /**
  * Buzzar: a kinematic body's velocity over the whole frame. Rapier works it out per physics step from the move
  * requested for that step, so when a slow frame is split into substeps (physicsSubsteps) the body moves in the
  * first and reads as standing still after the last. The character controller carries its velocity from frame to
  * frame through this, so that zero cut jumps short (an "invisible ceiling") and froze walk animations on slow
- * frames. Leaves `out` (Rapier's value) alone on the first frame and after a teleport.
+ * frames. Leaves `out` (Rapier's value) alone on the first frame, and reads as standing still after a teleport:
+ * a jump across the map, or a short one such as standing up from a seat (see markTeleported), isn't speed to keep.
  */
 export function kinematicFrameVelocity(body: RAPIER.RigidBody, dt: number, out: Float32Array | number[]) {
   const t = body.translation();
   const last = lastKinematicPosition.get(body);
   lastKinematicPosition.set(body, [t.x, t.y, t.z]);
+  if (teleportedBodies.delete(body)) {
+    out[0] = out[1] = out[2] = 0;
+    return;
+  }
   if (!last || !(dt > 0)) return;
   const vx = (t.x - last[0]) / dt;
   const vy = (t.y - last[1]) / dt;
   const vz = (t.z - last[2]) / dt;
-  if (Math.hypot(vx, vy, vz) > TELEPORT_SPEED) return;
+  if (Math.hypot(vx, vy, vz) > TELEPORT_SPEED) {
+    out[0] = out[1] = out[2] = 0;
+    return;
+  }
   out[0] = vx;
   out[1] = vy;
   out[2] = vz;

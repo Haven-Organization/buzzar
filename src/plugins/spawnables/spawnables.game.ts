@@ -432,6 +432,48 @@ function spawnPlacement(prefabId: string) {
   return thing ? thingPhysics(thing.uri, thing.physics).spawn : undefined;
 }
 
+/** Buzzar: how far up, in steps of SPAWN_LIFT_STEP (m), a spawned object may be moved to clear what's already there. */
+const SPAWN_LIFT_STEP = 0.1;
+const SPAWN_LIFT_STEPS = 20;
+// Solid, and pushes back: not sensors, nor players' capsules (no solver contacts, so they never shove objects).
+const pushesObjects = (collider: RAPIER.Collider) => !collider.isSensor() && collider.solverGroups() !== 0;
+
+/**
+ * Buzzar: an object spawned overlapping something solid (another object, a wall) was thrown out of it by the
+ * physics solver, often high into the air. Raise it until it's clear, up to 2 m; past that, leave it where it was.
+ * Returns whether it moved.
+ */
+function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody): boolean {
+  const start = body.translation();
+  const overlaps = () => {
+    physicsWorld.propagateModifiedBodyPositionsToColliders();
+    for (let i = 0; i < body.numColliders(); i++) {
+      const c = body.collider(i);
+      if (c.isSensor()) continue;
+      const hit = physicsWorld.intersectionWithShape(
+        c.translation(),
+        c.rotation(),
+        c.shape,
+        undefined,
+        undefined,
+        undefined,
+        body,
+        pushesObjects
+      );
+      if (hit) return true;
+    }
+    return false;
+  };
+  if (!overlaps()) return false;
+  for (let step = 1; step <= SPAWN_LIFT_STEPS; step++) {
+    body.setTranslation({ x: start.x, y: start.y + step * SPAWN_LIFT_STEP, z: start.z }, true);
+    if (!overlaps()) return true;
+  }
+  body.setTranslation(start, true);
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+  return false;
+}
+
 const _direction = vec3.create();
 const _spawnWorldQuat = quat.create();
 const _spawnVelocity = new RAPIER.Vector3(0, 0, 0);
@@ -497,6 +539,10 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   }
 
   applyTransformToRigidBody(body, prefab);
+  if (liftClearOfOverlaps(getModule(ctx, PhysicsModule).physicsWorld, body)) {
+    const t = body.translation();
+    vec3.set(prefab.position, t.x, t.y, t.z);
+  }
   // Buzzar: a gentle, slightly random toss, so objects spawned in a row don't all drop along the same path
   // (Third Room #297).
   vec3.scale(direction, direction, SPAWN_TOSS_SPEED);

@@ -1,6 +1,7 @@
 import { vec3, quat } from "gl-matrix";
 import { Vector3, Quaternion } from "three";
 
+import { markTeleported } from "../physics/physics.game";
 import { RemoteNode } from "../resource/RemoteResources";
 
 const zero = new Vector3();
@@ -23,5 +24,6 @@ export function teleportEntity(node: RemoteNode, position: vec3, quaternion?: qu
 
     body.setLinvel(zero, true);
     body.setAngvel(zero, true);
+    markTeleported(body);
   }
 }

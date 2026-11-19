@@ -36,7 +36,7 @@ import { NetworkModule } from "../../engine/network/network.game";
 import { registerInboundMessageHandler } from "../../engine/network/inbound.game";
 import { broadcastReliable } from "../../engine/network/outbound.game";
 import { writeMetadata } from "../../engine/network/serialization.game";
-import { addPhysicsBody, addPhysicsCollider, PhysicsModule } from "../../engine/physics/physics.game";
+import { addPhysicsBody, addPhysicsCollider, markTeleported, PhysicsModule } from "../../engine/physics/physics.game";
 import { AvatarRef } from "../../engine/player/components";
 import { KinematicCharacterControllerActions } from "../../engine/player/KinematicCharacterController";
 import { ourPlayerQuery } from "../../engine/player/Player";
@@ -130,12 +130,16 @@ export const SeatModule = defineModule<GameContext, SeatModuleState>({
     });
 
     // Debug: `thirdroom.sit(n)` in the console (input.main.ts).
-    return registerMessageHandler(ctx, SitDebugMessage, (ctx: GameContext, message: { type: typeof SitDebugMessage; seat: number }) => {
-      const module = getModule(ctx, SeatModule);
-      const seat = [...module.seats.values()][message.seat];
-      if (seat) sit(ctx, module, seat);
-      else stand(ctx, module);
-    });
+    return registerMessageHandler(
+      ctx,
+      SitDebugMessage,
+      (ctx: GameContext, message: { type: typeof SitDebugMessage; seat: number }) => {
+        const module = getModule(ctx, SeatModule);
+        const seat = [...module.seats.values()][message.seat];
+        if (seat) sit(ctx, module, seat);
+        else stand(ctx, module);
+      }
+    );
   },
 });
 
@@ -223,6 +227,9 @@ function stand(ctx: GameContext, module: SeatModuleState) {
     SeatedEntities.delete(container.eid);
     vec3.copy(container.position, local.standPosition);
     moveBody(container, local.standPosition, container.quaternion);
+    // Back to where you stood in one frame: not speed to carry on with (it used to throw you into the air).
+    const body = container.physicsBody?.body;
+    if (body) markTeleported(body);
   }
 
   broadcastReliable(ctx, getModule(ctx, NetworkModule), createSeatMessage(undefined));

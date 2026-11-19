@@ -133,7 +133,6 @@ let autoRun = false;
 
 const MOVE_KEYS = ["Keyboard/KeyW", "Keyboard/KeyA", "Keyboard/KeyS", "Keyboard/KeyD"];
 
-
 type KinematicCharacterControllerModuleState = {};
 
 export const KinematicCharacterControllerModule = defineModule<GameContext, KinematicCharacterControllerModuleState>({
@@ -259,6 +258,10 @@ export function updateKinematicControls(
   const frameVelocity = rig.physicsBody?.velocity;
   if (frameVelocity) _linearVelocity.set(frameVelocity[0], frameVelocity[1], frameVelocity[2]);
   else _linearVelocity.copy(body.linvel() as Vector3);
+  // Buzzar: never carry on upwards faster than we last meant to move up. Last frame's actual move also holds what the
+  // controller did on its own: stepping up onto something, or being pushed out of someone you spawned inside. Taken
+  // as speed, those threw players into the air.
+  _linearVelocity.y = Math.min(_linearVelocity.y, Math.max(0, fallSpeeds.get(rig.eid) ?? 0));
 
   let isGrounded = characterController.computedGrounded();
 
