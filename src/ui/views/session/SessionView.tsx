@@ -35,23 +35,13 @@ function RegisterKBarActions() {
   return null;
 }
 
-export default function SessionView() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mainThread = useInitMainThreadContext(canvasRef);
-  const overlayVisible = useAtomValue(overlayVisibilityAtom);
-  const [worldId, worldAlias] = useUnknownWorldPath();
-  useHomeWorldCheck();
+/** Buzzar: on startup (no world in the address), go into your Home World (Settings → Worlds), or just show it.
+ * Rendered inside the main-thread provider, since entering a world needs the engine. */
+function EnterHomeOnStartup({ worldId, worldAlias }: { worldId?: string; worldAlias?: string }) {
+  const { session } = useHydrogen(true);
   const home = useAtomValue(homeWorldAtom);
   const homeWorldId = home.status === "ready" ? home.roomId : undefined;
-  useBuzzarSpace();
-  const { session } = useHydrogen(true);
-  useReadSync(session);
   const selectWorld = useSetAtom(overlayWorldAtom);
-
-  const editorEnabled = useAtomValue(editorEnabledAtom);
-  const hudHidden = useAtomValue(hudHiddenAtom);
-
-  // Buzzar: on startup (no world in the address), go into your Home World (Settings → Worlds), or just show it.
   const enterHomeOnStartup = useAtomValue(enterHomeOnStartupAtom);
   const setOverlayVisible = useSetAtom(overlayVisibilityAtom);
   const { navigateEnterWorld } = useWorldNavigator(session);
@@ -81,6 +71,22 @@ export default function SessionView() {
     setOverlayVisible,
   ]);
 
+  return null;
+}
+
+export default function SessionView() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mainThread = useInitMainThreadContext(canvasRef);
+  const overlayVisible = useAtomValue(overlayVisibilityAtom);
+  const [worldId, worldAlias] = useUnknownWorldPath();
+  useHomeWorldCheck();
+  useBuzzarSpace();
+  const { session } = useHydrogen(true);
+  useReadSync(session);
+
+  const editorEnabled = useAtomValue(editorEnabledAtom);
+  const hudHidden = useAtomValue(hudHiddenAtom);
+
   return (
     <DndProvider backend={HTML5Backend}>
       <KBarProvider
@@ -97,6 +103,7 @@ export default function SessionView() {
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
               <ThingKeysSync />
+              <EnterHomeOnStartup worldId={worldId} worldAlias={worldAlias} />
               <Outlet />
               {overlayVisible && <Overlay />}
               {!editorEnabled && !(hudHidden && !overlayVisible) && <StatusBar />}
