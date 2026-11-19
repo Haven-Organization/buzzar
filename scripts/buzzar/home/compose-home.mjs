@@ -2,7 +2,7 @@
 // Buzzar features are tagged as node extras (HAVEN_*, MX_*); scripts/buzzar/finish-world.mjs promotes them.
 // Usage: node compose-home.mjs <kenney GLTF dir> <grass.jpg> <paving.jpg> <out.glb>
 import { readFileSync } from "node:fs";
-import { Document, getBounds, NodeIO } from "@gltf-transform/core";
+import { Document, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, KHRLightsPunctual } from "@gltf-transform/extensions";
 import { dedup, join, mergeDocuments, prune, unpartition, weld } from "@gltf-transform/functions";
 
@@ -74,7 +74,14 @@ async function template(name) {
   if (templates[name]) return templates[name];
   const src = await io.read(`${kenneyDir}/${name}.glb`);
   const srcMeshes = src.getRoot().listMeshes();
-  const box3 = getBounds(src.getRoot().listScenes()[0]);
+  // The bare meshes' own bounds, since place() puts the meshes in without the kit's node transforms. (The scene's
+  // bounds include those, and stood every prop up to 40 cm off the ground.)
+  const box3 = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+  for (const mesh of srcMeshes) for (const prim of mesh.listPrimitives()) {
+    const pos = prim.getAttribute("POSITION");
+    const lo = pos.getMin([]), hi = pos.getMax([]);
+    for (let k = 0; k < 3; k++) { box3.min[k] = Math.min(box3.min[k], lo[k]); box3.max[k] = Math.max(box3.max[k], hi[k]); }
+  }
   const map = mergeDocuments(doc, src);
   for (const s of doc.getRoot().listScenes()) if (s !== scene) s.dispose();
   return (templates[name] = { meshes: srcMeshes.map((m) => map.get(m)), min: box3.min, max: box3.max });
