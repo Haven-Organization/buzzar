@@ -283,7 +283,13 @@ describe("spring rig building", () => {
       ear.add(tip);
       objs.push(ear, tip);
     }
-    const settings = { stiffness: 3.2, gravityPower: 0, gravityDir: new Vector3(0, -1, 0), dragForce: 0.6, hitRadius: 0 };
+    const settings = {
+      stiffness: 3.2,
+      gravityPower: 0,
+      gravityDir: new Vector3(0, -1, 0),
+      dragForce: 0.6,
+      hitRadius: 0,
+    };
     const chains: SpringChainSpec[] = [
       { joints: [1, 2], kind: "ear", settings, colliders: [] },
       { joints: [3, 4], kind: "ear", settings, colliders: [] },
@@ -311,13 +317,15 @@ describe("spring rig building", () => {
       if (!any && wasMoving) durations.push((f - since) / 60);
       wasMoving = any;
     }
-    // Rare: at least 6 s apart; a handful in five minutes.
-    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThan(6);
-    expect(starts.length).toBeGreaterThan(5);
+    // Rare: at least 15 s apart; a handful in five minutes.
+    for (let i = 1; i < starts.length; i++) expect(starts[i] - starts[i - 1]).toBeGreaterThan(15);
+    expect(starts.length).toBeGreaterThanOrEqual(4);
+    expect(starts.length).toBeLessThanOrEqual(14);
     // Sometimes one ear, sometimes both.
     expect(moving.some((m) => m.filter(Boolean).length === 1)).toBe(true);
     expect(moving.some((m) => m.every(Boolean))).toBe(true);
-    // Quick twitches and slow folds.
-    expect(Math.max(...durations) / Math.min(...durations)).toBeGreaterThan(3);
+    // Mostly quick flicks.
+    const quick = durations.filter((d) => d < 1.2).length;
+    expect(quick / durations.length).toBeGreaterThan(0.5);
   });
 });

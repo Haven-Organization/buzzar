@@ -405,7 +405,8 @@ export function createSpringRig(
   }
   if (joints.length === 0) return undefined;
   const rig: SpringRig = { joints, lastRootPosition: new Vector3(), hasLastRoot: false };
-  if (earJoints.length > 0) rig.ears = { joints: earJoints, ears, untilNext: 4 + Math.random() * 8 };
+  if (earJoints.length > 0)
+    rig.ears = { joints: earJoints, ears, untilNext: EAR_FIRST[0] + Math.random() * (EAR_FIRST[1] - EAR_FIRST[0]) };
   return rig;
 }
 
@@ -442,21 +443,25 @@ function earFolds(joint: SpringJoint, facesNegativeZ: boolean) {
 
 const _noTurn = new Quaternion();
 
-/** Seconds between one ear move ending and the next starting. */
-const EAR_GAP = [6, 18];
+/** Seconds between one ear move ending and the next starting (horses keep their ears still most of the time). */
+const EAR_GAP = [15, 40];
+/** Seconds before the first move after an avatar loads. */
+const EAR_FIRST = [8, 20];
+/** How many moves are slow folds; the rest are quick flicks. */
+const EAR_FOLD_SHARE = 0.2;
 
 /**
  * Picks the next ear move now and then, and eases each ear toward where it should be. Like a horse's: sometimes both
- * ears, sometimes one; a fold back and down or a quick flick; at a random speed, from a twitch to a slow fold.
+ * ears, sometimes one; mostly a quick flick, now and then a fold back and down at a random speed.
  */
 function updateEars(ears: EarMotion, dt: number, random: () => number) {
   ears.untilNext -= dt;
   if (ears.untilNext <= 0) {
     const both = ears.ears < 2 || random() < 0.45;
     const which = Math.floor(random() * ears.ears);
-    const pose = random() < 0.7 ? "fold" : "flick";
-    // Speed: about 0.35× (slow) to 2.6× (a twitch), skewed toward the middle.
-    const speed = 0.35 * Math.pow(2.6 / 0.35, (random() + random()) / 2);
+    const pose = random() < EAR_FOLD_SHARE ? "fold" : "flick";
+    // Speed: folds about 0.35× (slow) to 2.6×, skewed toward the middle; flicks are quick, 1.6× to 2.8×.
+    const speed = pose === "fold" ? 0.35 * Math.pow(2.6 / 0.35, (random() + random()) / 2) : 1.6 + random() * 1.2;
     const hold = pose === "fold" ? (0.4 + random() * 1.8) / Math.sqrt(speed) : 0.12 + random() * 0.3;
     const goal = pose === "fold" ? 0.7 + random() * 0.3 : 0.7 + random() * 0.3;
     let longest = 0;
