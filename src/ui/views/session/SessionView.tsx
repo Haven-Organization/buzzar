@@ -24,6 +24,7 @@ import { editorEnabledAtom } from "../../state/editor";
 import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
+import { useThingKeysSync } from "../../hooks/useThingKeys";
 
 function RegisterKBarActions() {
   useUserProfileAction();
@@ -66,6 +67,7 @@ export default function SessionView() {
           <DeviceVerificationDialog />
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
+              <ThingKeysSync />
               <Outlet />
               {overlayVisible && <Overlay />}
               {!editorEnabled && !(hudHidden && !overlayVisible) && <StatusBar />}
@@ -81,4 +83,10 @@ export default function SessionView() {
       </KBarProvider>
     </DndProvider>
   );
+}
+
+/** Buzzar: keeps the game's number-key Things in step with your account (needs the main thread context). */
+function ThingKeysSync() {
+  useThingKeysSync();
+  return null;
 }

@@ -2,6 +2,7 @@ import type { GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
 import type { GLTFAvatarPedestalExtension } from "../../plugins/avatar-pedestals/pedestals.game";
 import type { GLTFSeatExtension } from "../../plugins/seats/seats.game";
 import type { GLTFGrabbableExtension } from "../../plugins/scene-grabbables/grabbables.game";
+import type { GLTFTrampolineExtension } from "../player/trampolines";
 
 export type GLTFId = number;
 
@@ -554,6 +555,8 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     HAVEN_seat?: GLTFSeatExtension;
     HAVEN_grabbable?: GLTFGrabbableExtension;
     HAVEN_climbable?: GLTFClimbableExtension;
+    /** Buzzar: a trampoline (engine/player/trampolines.ts, docs/gltf/HAVEN_trampoline). */
+    HAVEN_trampoline?: GLTFTrampolineExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;

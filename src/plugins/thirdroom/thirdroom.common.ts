@@ -21,6 +21,34 @@ export enum ThirdRoomMessageType {
   ScriptFailed = "script-failed",
   /** Buzzar: spawn a stock Thing in front of the player (from the Things screen). */
   SpawnThing = "spawn-thing",
+  /** Buzzar: which Thing is on each number key (from the Things screen). */
+  SetThingKeys = "set-thing-keys",
+}
+
+/**
+ * Buzzar: the Thing (a stock Thing's prefab id) on each number key, or null: index 0 is key 1, index 8 key 9 and
+ * index 9 key 0, left to right along the keyboard.
+ */
+export type ThingKeys = (string | null)[];
+export const THING_KEY_COUNT = 10;
+export const DEFAULT_THING_KEYS: ThingKeys = [
+  "small-crate",
+  "medium-crate",
+  "large-crate",
+  "mirror-ball",
+  "black-mirror-ball",
+  "emissive-ball",
+  "trampoline",
+  null,
+  null,
+  null,
+];
+/** The key printed for a slot (slot 9 is the 0 key). */
+export const thingKeyName = (slot: number) => String((slot + 1) % 10);
+
+export interface SetThingKeysMessage {
+  type: ThirdRoomMessageType.SetThingKeys;
+  keys: ThingKeys;
 }
 
 export interface SpawnThingMessage {
@@ -121,6 +149,8 @@ export interface ActionBarItem {
   label: string;
   thumbnail: string;
   spawnable?: boolean;
+  /** Buzzar: the slot (see ThingKeys) it's on; items without one (a world script's bar) go on keys 1, 2… in order. */
+  slot?: number;
 }
 
 export interface SetActionBarItemsMessage {

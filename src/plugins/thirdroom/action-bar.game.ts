@@ -10,7 +10,14 @@ import { tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { ScriptComponent, scriptQuery } from "../../engine/scripting/scripting.game";
 import { spawnPrefab } from "../spawnables/spawnables.game";
 import { getSpawnRules, isSpawnAllowed } from "../../engine/network/spawnRules.game";
-import { ActionBarItem, SetActionBarItemsMessage, ThirdRoomMessageType } from "./thirdroom.common";
+import {
+  ActionBarItem,
+  DEFAULT_THING_KEYS,
+  SetActionBarItemsMessage,
+  THING_KEY_COUNT,
+  ThingKeys,
+  ThirdRoomMessageType,
+} from "./thirdroom.common";
 import { ThirdRoomModule } from "./thirdroom.game";
 
 export const actionBarMap: ActionMap = {
@@ -78,7 +85,25 @@ export const defaultActionBarItems: ActionBarItem[] = [
     thumbnail: "/image/emissive-ball-icon.png",
     spawnable: true,
   },
+  {
+    id: "trampoline",
+    label: "Trampoline",
+    thumbnail: "/image/trampoline-icon.png",
+    spawnable: true,
+  },
 ];
+
+/** Buzzar: which stock Thing is on which number key (the Things screen sets this; see ThingKeys). */
+let thingKeys: ThingKeys = DEFAULT_THING_KEYS;
+
+/** Buzzar: puts the user's Things on their keys, and refreshes the bar if it's the stock one (not a script's). */
+export function setThingKeys(ctx: GameContext, keys: ThingKeys) {
+  thingKeys = Array.from({ length: THING_KEY_COUNT }, (_, i) => (typeof keys[i] === "string" ? keys[i] : null));
+  const { actionBarItems } = getModule(ctx, ThirdRoomModule);
+  if (actionBarItems.every((item) => defaultActionBarItems.some((d) => d.id === item.id))) {
+    setDefaultActionBarItems(ctx);
+  }
+}
 
 /** Buzzar: Things asked for from the Things screen, spawned on the next frame like a number-key press. */
 const pendingThingSpawns: string[] = [];
@@ -91,9 +116,12 @@ export function setDefaultActionBarItems(ctx: GameContext) {
   const thirdroom = getModule(ctx, ThirdRoomModule);
 
   thirdroom.actionBarItems.length = 0;
-  // Buzzar: only the stock objects this world allows.
+  // Buzzar: the Things on your number keys, leaving out ones this world doesn't allow.
   const rules = getSpawnRules(ctx);
-  thirdroom.actionBarItems.push(...defaultActionBarItems.filter((item) => isSpawnAllowed(rules, item.id)));
+  thingKeys.forEach((id, slot) => {
+    const item = id ? defaultActionBarItems.find((d) => d.id === id) : undefined;
+    if (item && isSpawnAllowed(rules, item.id)) thirdroom.actionBarItems.push({ ...item, slot });
+  });
 
   ctx.sendMessage<SetActionBarItemsMessage>(Thread.Main, {
     type: ThirdRoomMessageType.SetActionBarItems,
@@ -164,7 +192,10 @@ function processPressedActionBarActions(
 
     if (action?.pressed) {
       const itemIndex = i === 0 ? 9 : i - 1;
-      const actionBarItem = actionBarItems[itemIndex];
+      // Buzzar: the stock bar puts Things on chosen keys (slot); a script's bar fills keys 1, 2… in order.
+      const actionBarItem = actionBarItems.some((item) => item.slot !== undefined)
+        ? actionBarItems.find((item) => item.slot === itemIndex)
+        : actionBarItems[itemIndex];
 
       if (!actionBarItem) {
         continue;

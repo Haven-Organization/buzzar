@@ -388,6 +388,10 @@ export function addPhysicsBody(
         );
       } else if (physicsBody.type === PhysicsBodyType.Rigid) {
         colliderDesc.setCollisionGroups(dynamicObjectCollisionGroups);
+        // Buzzar: rigid bodies honour the collider's offset too (it was dropped, so e.g. the trampoline's drum,
+        // which sits above its origin, ended up half in the ground).
+        const offset = node.collider.offset;
+        colliderDesc.setTranslation(offset[0], offset[1], offset[2]);
       } else if (physicsBody.type === PhysicsBodyType.Kinematic) {
         colliderDesc.setCollisionGroups(staticRigidBodyCollisionGroups);
 

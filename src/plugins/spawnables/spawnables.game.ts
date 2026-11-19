@@ -20,12 +20,7 @@ import {
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
 import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
-import {
-  getSpawnRules,
-  isSpawnAllowed,
-  isStockSpawnable,
-  TakenObject,
-} from "../../engine/network/spawnRules.game";
+import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
 import {
   addObjectToWorld,
   RemoteAudioData,
@@ -177,6 +172,12 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       create: (ctx, { kinematic }) => {
         return createBall(ctx, module, physics, 2, emissiveMaterial, ballAudioData, kinematic);
       },
+    });
+
+    registerPrefab(ctx, {
+      name: "trampoline",
+      type: PrefabType.Object,
+      create: (ctx, { kinematic }) => createTrampoline(ctx, physics, kinematic),
     });
 
     // collision handlers
@@ -349,6 +350,58 @@ function createCrate(
   return node;
 }
 
+const TRAMPOLINE_GLTF_URI = "/gltf/things/trampoline.glb";
+/** The trampoline's footprint and height (metres): a solid drum you can't walk through or under. */
+const TRAMPOLINE_RADIUS = 1.5;
+const TRAMPOLINE_HEIGHT = 0.53;
+/** About 150 kg: walking into it barely nudges it. */
+const TRAMPOLINE_DENSITY = 40;
+
+/**
+ * Buzzar: the stock Trampoline Thing (scripts/buzzar/make-trampoline-thing.py). Its model marks the mat with
+ * HAVEN_trampoline, which does the bouncing (engine/player/trampolines.ts). It's a heavy body that can only turn
+ * about the vertical, so it always stands flat on the ground and nothing tips it over; grab it to move it.
+ */
+function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinematic = false) {
+  const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI);
+
+  addPhysicsCollider(
+    ctx.world,
+    node,
+    new RemoteCollider(ctx.resourceManager, {
+      type: ColliderType.Cylinder,
+      radius: TRAMPOLINE_RADIUS,
+      height: TRAMPOLINE_HEIGHT,
+      offset: [0, TRAMPOLINE_HEIGHT / 2, 0],
+      density: TRAMPOLINE_DENSITY,
+      activeEvents: RAPIER.ActiveEvents.COLLISION_EVENTS,
+      collisionGroups: dynamicObjectCollisionGroups,
+    })
+  );
+
+  addPhysicsBody(
+    ctx.world,
+    physics,
+    node,
+    new RemotePhysicsBody(ctx.resourceManager, {
+      type: kinematic ? PhysicsBodyType.Kinematic : PhysicsBodyType.Rigid,
+    })
+  );
+  node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
+
+  addInteractableComponent(ctx, physics, node, InteractableType.Grabbable);
+
+  return node;
+}
+
+/**
+ * Buzzar: how far in front of you a Thing appears (metres; default 1), and whether it's stood upright (turned only
+ * to face the way you look) rather than tilted like your hand or view.
+ */
+const SPAWN_PLACEMENT: Record<string, { distance: number; upright: boolean }> = {
+  trampoline: { distance: TRAMPOLINE_RADIUS + 0.9, upright: true },
+};
+
 const _direction = vec3.create();
 const _spawnWorldQuat = quat.create();
 const _spawnVelocity = new RAPIER.Vector3(0, 0, 0);
@@ -393,8 +446,18 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   vec3.transformQuat(direction, direction, _spawnWorldQuat);
 
   // place object at direction
+  const placement = SPAWN_PLACEMENT[prefabId];
+  if (placement?.upright) {
+    // Level, facing the way you look (so it lands flat and comes out the same way round each time).
+    direction[1] = 0;
+    if (vec3.length(direction) < 1e-4) vec3.set(direction, 0, 0, -1);
+    vec3.normalize(direction, direction);
+    quat.setAxisAngle(_spawnWorldQuat, [0, 1, 0], Math.atan2(-direction[0], -direction[2]));
+  }
+  if (placement) vec3.scale(direction, direction, placement.distance);
   vec3.add(prefab.position, prefab.position, direction);
   prefab.quaternion.set(_spawnWorldQuat);
+  if (placement) vec3.normalize(direction, direction);
 
   const body = prefab.physicsBody?.body;
 

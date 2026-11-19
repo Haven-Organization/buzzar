@@ -1,9 +1,9 @@
 /**
- * Buzzar: the Things screen: objects you can spawn into worlds and use with your avatar. The stock Things (the
- * crates and balls on the number keys) come first, then Things you've bookmarked (e.g. from a .glb posted in chat;
- * kept in account data, see thingsMatrix.ts).
+ * Buzzar: the Things screen: objects you can spawn into worlds and use with your avatar. "On Your Keys" is a shelf of
+ * the Things on number keys 1–0 (you choose which; utils/thingKeys), and "My Things" has the rest: the other stock
+ * Things, then Things you've bookmarked (e.g. from a .glb posted in chat; kept in account data, see thingsMatrix.ts).
  */
-import { useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 
 import { Content } from "../../../atoms/content/Content";
@@ -28,12 +28,22 @@ import {
   removeFromThingCollection,
   SavedThing,
   STOCK_THINGS,
+  StockThing,
   ThingCollection,
 } from "../../../utils/thingsMatrix";
 import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { worldAtom } from "../../../state/world";
 import { Thread } from "../../../../engine/module/module.common";
-import { SpawnThingMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
+import {
+  SpawnThingMessage,
+  ThingKeys,
+  thingKeyName,
+  THING_KEY_COUNT,
+  ThirdRoomMessageType,
+} from "../../../../plugins/thirdroom/thirdroom.common";
+import { thingKeysAtom } from "../../../state/thingKeys";
+import { useSetThingKeys } from "../../../hooks/useThingKeys";
+import { mapThing, unmapThing } from "../../../utils/thingKeys";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
 
 export function ThingsView() {
@@ -57,6 +67,32 @@ export function ThingsView() {
       .then(setCollection)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [getAuth, session]);
+
+  const keys = useAtomValue(thingKeysAtom);
+  const setThingKeys = useSetThingKeys();
+  const changeKeys = (next: ThingKeys) => {
+    setError(undefined);
+    setThingKeys(next).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
+  // Things on keys (in key order) sit on the shelf; the rest are in My Things below.
+  const mapped = (keys ?? [])
+    .map((id, slot) => ({ thing: STOCK_THINGS.find((t) => t.id === id), slot }))
+    .filter((entry): entry is { thing: StockThing; slot: number } => !!entry.thing);
+  const unmapped = STOCK_THINGS.filter((thing) => !keys?.includes(thing.id));
+  const freeKeys = (keys ?? []).flatMap((id, slot) => (id ? [] : [thingKeyName(slot)]));
+
+  const spawnAction = (id: string) =>
+    inWorld ? (
+      allowed.some((item) => item.id === id) ? (
+        <Button size="sm" onClick={() => spawn(id)}>
+          Spawn
+        </Button>
+      ) : (
+        <Button size="sm" fill="outline" disabled>
+          Not Allowed Here
+        </Button>
+      )
+    ) : undefined;
 
   const spawn = (id: string) =>
     mainThread.sendMessage<SpawnThingMessage>(Thread.Game, { type: ThirdRoomMessageType.SpawnThing, id });
@@ -92,38 +128,48 @@ export function ThingsView() {
                 {error}
               </Text>
             )}
+            <div className="flex flex-column gap-sm">
+              <Text variant="b2" weight="semi-bold">
+                On Your Keys
+              </Text>
+              <Text variant="b3" color="surface-low">
+                Press a Thing’s number key in a world to spawn it.
+                {keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""} Use a Thing’s menu to put it
+                on a key or take it off.
+              </Text>
+              {keys && mapped.length === 0 && (
+                <Text variant="b3" color="surface-low">
+                  Nothing on your keys yet.
+                </Text>
+              )}
+              {mapped.length > 0 && (
+                <WorldTileGrid tall>
+                  {mapped.map(({ thing, slot }) => (
+                    <StockThingTile
+                      key={thing.id}
+                      thing={thing}
+                      slot={slot}
+                      keys={keys!}
+                      action={spawnAction(thing.id)}
+                      onChangeKeys={changeKeys}
+                    />
+                  ))}
+                </WorldTileGrid>
+              )}
+            </div>
+            <Text variant="b2" weight="semi-bold">
+              My Things
+            </Text>
             <WorldTileGrid tall>
-              {STOCK_THINGS.map((thing) => {
-                const key = STOCK_THINGS.indexOf(thing) + 1;
-                const here = allowed.some((item) => item.id === thing.id);
-                return (
-                  <WorldTile
-                    key={thing.id}
-                    shape="tall"
-                    imageSrc={thing.preview}
-                    title={thing.name}
-                    subtitle={
-                      <Text variant="b3" color="surface-low">
-                        {thing.description}
-                        {` · key ${key}`}
-                      </Text>
-                    }
-                    action={
-                      inWorld ? (
-                        here ? (
-                          <Button size="sm" onClick={() => spawn(thing.id)}>
-                            Spawn
-                          </Button>
-                        ) : (
-                          <Button size="sm" fill="outline" disabled>
-                            Not Allowed Here
-                          </Button>
-                        )
-                      ) : undefined
-                    }
-                  />
-                );
-              })}
+              {unmapped.map((thing) => (
+                <StockThingTile
+                  key={thing.id}
+                  thing={thing}
+                  keys={keys}
+                  action={spawnAction(thing.id)}
+                  onChangeKeys={changeKeys}
+                />
+              ))}
               {collection?.things.map((thing) => (
                 <SavedThingTile key={thing.url} thing={thing} onRemove={() => unbookmark(thing.url)} />
               ))}
@@ -140,6 +186,59 @@ export function ThingsView() {
         </Scroll>
       </Content>
     </Window>
+  );
+}
+
+/** A stock Thing, with its key (if it's on one) and a menu to put it on a key, move it, or take it off. */
+function StockThingTile({
+  thing,
+  slot,
+  keys,
+  action,
+  onChangeKeys,
+}: {
+  thing: StockThing;
+  slot?: number;
+  keys?: ThingKeys;
+  action?: ReactNode;
+  onChangeKeys: (keys: ThingKeys) => void;
+}) {
+  const onKey = slot !== undefined;
+  return (
+    <WorldTile
+      shape="tall"
+      imageSrc={thing.preview}
+      title={thing.name}
+      badge={onKey ? `Key ${thingKeyName(slot)}` : undefined}
+      subtitle={
+        <Text variant="b3" color="surface-low">
+          {thing.description}
+        </Text>
+      }
+      action={action}
+      menu={
+        keys && (
+          <>
+            {Array.from({ length: THING_KEY_COUNT }, (_, i) => {
+              if (i === slot) return null;
+              const occupant = keys[i] ? STOCK_THINGS.find((t) => t.id === keys[i])?.name : undefined;
+              return (
+                <DropdownMenuItem key={i} onSelect={() => onChangeKeys(mapThing(keys, thing.id, i))}>
+                  {`${onKey ? "Move to" : "Put on"} Key ${thingKeyName(i)}${
+                    occupant ? ` (${onKey ? "swap with" : "replaces"} ${occupant})` : ""
+                  }`}
+                </DropdownMenuItem>
+              );
+            })}
+            {onKey && (
+              <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapThing(keys, thing.id))}>
+                Take Off Key {thingKeyName(slot)}
+              </DropdownMenuItem>
+            )}
+          </>
+        )
+      }
+    />
   );
 }
 

@@ -93,6 +93,7 @@ import { getRotationNoAlloc } from "../utils/getRotationNoAlloc";
 import { TypedArray32 } from "../utils/typedarray";
 import { addResourceRef } from "../resource/resource.game";
 import { addClimbable } from "../player/climbing";
+import { addTrampoline } from "../player/trampolines";
 import { decompressGLTF, isMeshoptFallbackBuffer } from "./decompress";
 
 /**
@@ -1320,6 +1321,17 @@ const loadGLTFNode = createInstancedSubresourceLoader(
           : undefined;
         if (box) addClimbable(node, box.min, box.max, climbable?.sides);
         else console.warn(`HAVEN_climbable on "${name}": needs a size or a mesh`);
+      }
+
+      // Buzzar: trampolines: an area of the node's XZ plane (its `size`, or its mesh's bounds) that bounces you.
+      const trampoline = extensions?.HAVEN_trampoline;
+      if (trampoline) {
+        const size = Array.isArray(trampoline.size) ? trampoline.size : undefined;
+        const bounds = !size && meshIndex !== undefined ? gltfMeshBounds(resource.root, meshIndex) : undefined;
+        const width = size ? size[0] : bounds ? bounds.max[0] - bounds.min[0] : 0;
+        const depth = size ? size[1] : bounds ? bounds.max[2] - bounds.min[2] : 0;
+        if (width > 0 && depth > 0) addTrampoline(node, width, depth, trampoline);
+        else console.warn(`HAVEN_trampoline on "${name}": needs a size or a mesh`);
       }
 
       if (extensions?.HAVEN_mirror) {

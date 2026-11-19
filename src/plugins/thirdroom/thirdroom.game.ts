@@ -29,6 +29,7 @@ import {
   ActionBarItem,
   SetObjectCapMessage,
   SpawnThingMessage,
+  SetThingKeysMessage,
   ReloadWorldMessage,
   LoadWorldOptions,
   ReloadedWorldMessage,
@@ -69,7 +70,13 @@ import {
 } from "../../engine/resource/RemoteResources";
 import { findResourceRetainerRoots, findResourceRetainers } from "../../engine/resource/findResourceRetainers";
 import { RemoteResource } from "../../engine/resource/RemoteResourceClass";
-import { actionBarMap, defaultActionBarItems, queueThingSpawn, setDefaultActionBarItems } from "./action-bar.game";
+import {
+  actionBarMap,
+  defaultActionBarItems,
+  queueThingSpawn,
+  setDefaultActionBarItems,
+  setThingKeys,
+} from "./action-bar.game";
 import { onSpawnRulesChanged } from "../../engine/network/spawnRules.game";
 import { createDisposables } from "../../engine/utils/createDisposables";
 import {
@@ -146,6 +153,9 @@ export const ThirdRoomModule = defineModule<GameContext, ThirdRoomModuleState>({
       registerMessageHandler(ctx, ThirdRoomMessageType.SetObjectCap, onSetObjectCap),
       registerMessageHandler(ctx, ThirdRoomMessageType.SpawnThing, (_ctx: GameContext, message: SpawnThingMessage) =>
         queueThingSpawn(message.id)
+      ),
+      registerMessageHandler(ctx, ThirdRoomMessageType.SetThingKeys, (ctx: GameContext, message: SetThingKeysMessage) =>
+        setThingKeys(ctx, message.keys)
       ),
       // Buzzar: refresh the stock action bar when the world's object rules change (not a script's own bar).
       onSpawnRulesChanged(ctx, () => {

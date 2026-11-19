@@ -1,0 +1,7 @@
+trampoline.glb is adapted from "Trampoline" by 1-3D.com (https://sketchfab.com/1-3D.com),
+https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9
+licensed under CC BY-SA 4.0 (http://creativecommons.org/licenses/by-sa/4.0/).
+
+Changes for Buzzar: rescaled to metres standing on the ground, the Buzzar bee logo added to the middle of the mat,
+and a HAVEN_trampoline node marking the mat as bouncy (scripts/buzzar/make-trampoline-thing.py).
+This adapted model is also licensed under CC BY-SA 4.0.

@@ -18,6 +18,7 @@ import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
 import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
 import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder, ladderGrab } from "./climbing";
+import { bounceSpeed, findTrampoline } from "./trampolines";
 import { OurPlayer } from "./Player";
 
 function kinematicCharacterControllerAction(key: string) {
@@ -168,6 +169,8 @@ let lastFootstepFrame = 0;
 const climbRegrabAt = new Map<number, number>();
 /** Buzzar: rigs that were on a ladder last frame (they keep hold until they climb or jump off). */
 const climbingRigs = new Set<number>();
+/** Buzzar: per rig, the vertical speed of its last move (m/s), so a trampoline knows how hard you landed. */
+const fallSpeeds = new Map<number, number>();
 /** Buzzar: whether this rig is holding on to a ladder. */
 export const isClimbing = (eid: number) => climbingRigs.has(eid);
 /** Buzzar debug (playerDebug): each rig's last ladder decision. */
@@ -223,7 +226,22 @@ export function updateKinematicControls(
   if (frameVelocity) _linearVelocity.set(frameVelocity[0], frameVelocity[1], frameVelocity[2]);
   else _linearVelocity.copy(body.linvel() as Vector3);
 
-  const isGrounded = characterController.computedGrounded();
+  let isGrounded = characterController.computedGrounded();
+
+  // Buzzar: trampolines (see trampolines.ts). Landing on one, standing up, throws you back up instead of stopping you:
+  // from last frame's fall speed, plus a boost if you're holding jump. Crouch (or go prone) to stop bouncing.
+  if (isGrounded && localPosture.value === Posture.Standing && !climbingRigs.has(rig.eid)) {
+    const t = body.translation();
+    const trampoline = findTrampoline(ctx, [t.x, t.y, t.z]);
+    if (trampoline) {
+      const gravity = -physicsWorld.gravity.y * 1.5;
+      const impact = Math.max(0, -(fallSpeeds.get(rig.eid) ?? 0));
+      _linearVelocity.y = bounceSpeed(trampoline, impact, gravity, jump.held);
+      // Airborne from here: no ground jump, drag or footsteps this frame.
+      isGrounded = false;
+    }
+  }
+
   const isSprinting = isGrounded && sprint.held && !isSliding && localPosture.value === Posture.Standing;
 
   const speed = Math.sqrt(_linearVelocity.x * _linearVelocity.x + _linearVelocity.z * _linearVelocity.z);
@@ -347,6 +365,9 @@ export function updateKinematicControls(
   cameraHeadBob(ctx, rig, climbing ? 0 : speed, isGrounded, isSprinting);
 
   _acceleration.multiplyScalar(ctx.dt);
+
+  // Buzzar: this frame's vertical speed, which is the landing speed if this move lands (read by trampolines above).
+  fallSpeeds.set(rig.eid, climbing ? 0 : _linearVelocity.y + _acceleration.y);
 
   if (climbing) _linearVelocity.multiplyScalar(ctx.dt);
   else _linearVelocity.add(_acceleration).multiplyScalar(ctx.dt);

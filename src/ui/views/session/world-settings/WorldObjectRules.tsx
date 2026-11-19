@@ -22,6 +22,7 @@ const LABELS: Record<string, string> = {
   "mirror-ball": "Mirror Ball",
   "black-mirror-ball": "Black Mirror Ball",
   "emissive-ball": "Emissive Ball",
+  trampoline: "Trampoline",
 };
 
 export function WorldObjectRules({ room }: { room: Room }) {

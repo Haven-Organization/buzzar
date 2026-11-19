@@ -37,6 +37,7 @@ import { inputFocused } from "../../../utils/common";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useActionBar } from "../../../hooks/useActionBar";
+import { thingKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
 import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
 import "./WorldControls.css";
 
@@ -46,7 +47,12 @@ export function HotbarControls() {
   return (
     <Hotbar>
       {actionBarItems.map((item, index) => (
-        <HotbarSlot key={item.id} imageSrc={item.thumbnail} shortcutKey={index + 1} label={item.label} />
+        <HotbarSlot
+          key={item.id}
+          imageSrc={item.thumbnail}
+          shortcutKey={item.slot !== undefined ? thingKeyName(item.slot) : String((index + 1) % 10)}
+          label={item.label}
+        />
       ))}
     </Hotbar>
   );

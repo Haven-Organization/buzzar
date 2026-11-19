@@ -15,6 +15,7 @@ export const STOCK_SPAWNABLES = [
   "mirror-ball",
   "black-mirror-ball",
   "emissive-ball",
+  "trampoline",
 ] as const;
 
 export interface SpawnRules {

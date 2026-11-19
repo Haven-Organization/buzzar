@@ -27,7 +27,7 @@ export interface ThingCollection {
   things: SavedThing[];
 }
 
-/** A stock Thing: one of the objects on the number keys, in key order (its id is the spawn prefab's). */
+/** A stock Thing: one Buzzar ships (its id is the spawn prefab's), which you can put on a number key. */
 export interface StockThing {
   id: string;
   name: string;
@@ -51,6 +51,12 @@ export const STOCK_THINGS: StockThing[] = [
     name: "Emissive Ball",
     preview: "/image/things/emissive-ball.png",
     description: "2 m glowing ball",
+  },
+  {
+    id: "trampoline",
+    name: "Trampoline",
+    preview: "/image/things/trampoline.png",
+    description: "3 m trampoline: land on it to bounce, hold jump to go higher, crouch to stop",
   },
 ];
 
