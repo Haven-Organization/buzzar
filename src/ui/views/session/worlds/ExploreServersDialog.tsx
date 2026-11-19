@@ -16,13 +16,22 @@ interface ExploreServersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ownServer: string;
-  /** Extra servers (not including your own). */
+  /** Servers listed for everyone by this copy of Buzzar (config), which you can't remove here. */
+  defaultServers: string[];
+  /** Extra servers you added (not including the defaults). */
   servers: string[];
   onChange: (servers: string[]) => void;
 }
 
 /** Buzzar: the homeservers whose public world directories Explore lists (saved in account data). */
-export function ExploreServersDialog({ open, onOpenChange, ownServer, servers, onChange }: ExploreServersDialogProps) {
+export function ExploreServersDialog({
+  open,
+  onOpenChange,
+  ownServer,
+  defaultServers,
+  servers,
+  onChange,
+}: ExploreServersDialogProps) {
   const { session, platform, client } = useHydrogen(true);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string>();
@@ -52,7 +61,7 @@ export function ExploreServersDialog({ open, onOpenChange, ownServer, servers, o
       setError("That doesn't look like a homeserver name (for example matrix.org).");
       return;
     }
-    if (name === ownServer || servers.includes(name)) {
+    if (defaultServers.includes(name) || servers.includes(name)) {
       setError(`${name} is already in the list.`);
       return;
     }
@@ -73,30 +82,34 @@ export function ExploreServersDialog({ open, onOpenChange, ownServer, servers, o
             homeserver, so some may refuse or be slow.
           </Text>
           <div className="flex flex-column gap-xs">
-            <div className="flex items-center gap-xs">
-              <Text className="grow" variant="b2">
-                {ownServer}
-              </Text>
-              <Text variant="b3" color="surface-low">
-                Your server
-              </Text>
-            </div>
-            {servers.map((server) => (
+            {defaultServers.map((server) => (
               <div key={server} className="flex items-center gap-xs">
                 <Text className="grow" variant="b2">
                   {server}
                 </Text>
-                <Button
-                  size="sm"
-                  fill="none"
-                  variant="danger"
-                  disabled={saving}
-                  onClick={() => save(servers.filter((s) => s !== server))}
-                >
-                  Remove
-                </Button>
+                <Text variant="b3" color="surface-low">
+                  {server === ownServer ? "Your server" : "Default"}
+                </Text>
               </div>
             ))}
+            {servers
+              .filter((server) => !defaultServers.includes(server))
+              .map((server) => (
+                <div key={server} className="flex items-center gap-xs">
+                  <Text className="grow" variant="b2">
+                    {server}
+                  </Text>
+                  <Button
+                    size="sm"
+                    fill="none"
+                    variant="danger"
+                    disabled={saving}
+                    onClick={() => save(servers.filter((s) => s !== server))}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
           </div>
           <form className="flex items-center gap-xs" onSubmit={add}>
             <Input

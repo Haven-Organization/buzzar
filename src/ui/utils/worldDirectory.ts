@@ -66,6 +66,56 @@ export async function fetchWorldDirectory(
   return { worlds, nextBatch: body.next_batch, skipped: chunk.length - worlds.length };
 }
 
+const suggestedCache = new Map<string, Promise<DirectoryWorld | undefined>>();
+
+/**
+ * A suggested world's directory entry, from the room summary (MSC3266, Matrix 1.15), which works for rooms you
+ * haven't joined. Undefined when the room can't be reached or isn't a world. Cached for the session once found.
+ */
+export function fetchSuggestedWorld(
+  auth: MatrixAuth,
+  target: string,
+  via: string[]
+): Promise<DirectoryWorld | undefined> {
+  const key = `${target}|${via.join(",")}`;
+  let promise = suggestedCache.get(key);
+  if (!promise) {
+    promise = (async () => {
+      const params = new URLSearchParams();
+      for (const server of via) params.append("via", server);
+      const query = params.toString();
+      const res = await fetch(
+        `${base(auth)}/_matrix/client/v1/room_summary/${encodeURIComponent(target)}${query ? `?${query}` : ""}`,
+        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+      );
+      if (!res.ok) throw new Error(`Couldn't look up ${target}: ${await errorText(res)}`);
+      const s = (await res.json()) as Record<string, unknown>;
+      if (s.room_type !== WORLD_ROOM_TYPE || typeof s.room_id !== "string") return undefined;
+      const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+      return {
+        room_id: s.room_id,
+        name: str(s.name),
+        topic: str(s.topic),
+        avatar_url: str(s.avatar_url),
+        canonical_alias: str(s.canonical_alias) ?? (target.startsWith("#") ? target : undefined),
+        num_joined_members: typeof s.num_joined_members === "number" ? s.num_joined_members : 0,
+        room_type: WORLD_ROOM_TYPE,
+      };
+    })();
+    // Retry failures next time (the server may have been briefly unreachable).
+    promise.catch(() => suggestedCache.delete(key));
+    suggestedCache.set(key, promise);
+  }
+  return promise;
+}
+
+/** Whether a world matches an Explore search the way directory searches do (name, topic or alias). */
+export function worldMatchesSearch(world: DirectoryWorld, search: string) {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [world.name, world.topic, world.canonical_alias].some((v) => v?.toLowerCase().includes(needle));
+}
+
 /** A failed Matrix request, keeping the spec error code (e.g. M_NOT_FOUND) so callers can explain it. */
 export class MatrixRequestError extends Error {
   constructor(message: string, readonly status: number, readonly errcode?: string) {
@@ -98,9 +148,9 @@ export async function joinRoomVia(auth: MatrixAuth, roomIdOrAlias: string, via: 
   return ((await res.json()) as { room_id: string }).room_id;
 }
 
-/** Joins a world found in `viaServer`'s directory, routing the join through that server if needed. */
-export function joinDirectoryWorld(auth: MatrixAuth, world: DirectoryWorld, viaServer?: string) {
-  return joinRoomVia(auth, world.canonical_alias ?? world.room_id, viaServer ? [viaServer] : []);
+/** Joins a world found in a directory (or suggested), routing the join through `via` servers if needed. */
+export function joinDirectoryWorld(auth: MatrixAuth, world: DirectoryWorld, via: string[] = []) {
+  return joinRoomVia(auth, world.canonical_alias ?? world.room_id, via);
 }
 
 /** The server part of a Matrix user ID (`@alice:example.org` → `example.org`). */

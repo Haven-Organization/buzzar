@@ -44,11 +44,14 @@ import {
   DirectoryWorld,
   fetchExploreServers,
   fetchWorldDirectory,
+  fetchSuggestedWorld,
   fetchWorldPreviewUrl,
   joinDirectoryWorld,
+  worldMatchesSearch,
   serverNameOf,
   worldLink,
 } from "../../../utils/worldDirectory";
+import { exploreConfig } from "../../../utils/exploreConfig";
 import { worldAtom } from "../../../state/world";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { activeChatsAtom } from "../../../state/overlayChat";
@@ -57,6 +60,8 @@ import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
 import { developerModeAtom } from "../../../state/developerMode";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import AddIC from "../../../../../res/ic/add.svg";
+import ChevronBottomIC from "../../../../../res/ic/chevron-bottom.svg";
+import "./WorldsView.css";
 
 const TILE_IMAGE = { width: 640, height: 360 };
 
@@ -331,25 +336,39 @@ interface ServerResult {
 
 interface FoundWorld {
   world: DirectoryWorld;
-  /** Directory it was listed in (used to route the join over federation). */
-  server: string;
+  /** Servers to route the join through (the remote directory it was listed in, or a suggested world's via). */
+  via: string[];
 }
+
+/** The Suggested Worlds source in the directory picker (not a valid server name, so it can't clash with one). */
+const SUGGESTED = ":suggested";
+const SUGGESTED_LABEL = "Suggested Worlds";
 
 function ExploreWorlds() {
   const { session, platform, client } = useHydrogen(true);
   const ownServer = serverNameOf(session.userId);
+  const hasSuggested = exploreConfig.suggestedWorlds.length > 0;
 
   const [extraServers, setExtraServers] = useState<string[]>();
+  /** Directories listed for everyone (config), before the user's own additions. */
+  const defaultServers = useMemo(
+    () => [...(exploreConfig.includeOwnServer ? [ownServer] : []), ...exploreConfig.directoryServers],
+    [ownServer]
+  );
   const servers = useMemo(
-    () => [ownServer, ...(extraServers ?? []).filter((s) => s !== ownServer)],
-    [ownServer, extraServers]
+    () => [...new Set([...defaultServers, ...(extraServers ?? [])])],
+    [defaultServers, extraServers]
   );
-  /** undefined = all servers (the default each time you open the tab). */
+  /** Every source the picker offers: the servers, then Suggested Worlds. */
+  const sources = useMemo(() => (hasSuggested ? [...servers, SUGGESTED] : servers), [servers, hasSuggested]);
+  /** undefined = all sources (the default each time you open the tab). */
   const [selected, setSelected] = useState<string[]>();
-  const activeServers = useMemo(
-    () => (selected ? servers.filter((s) => selected.includes(s)) : servers),
-    [selected, servers]
+  const activeSources = useMemo(
+    () => (selected ? sources.filter((s) => selected.includes(s)) : sources),
+    [selected, sources]
   );
+  const activeServers = useMemo(() => activeSources.filter((s) => s !== SUGGESTED), [activeSources]);
+  const suggestedOn = activeSources.includes(SUGGESTED);
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -376,7 +395,7 @@ function ExploreWorlds() {
       setLoading(true);
       const auth = await getSessionAuth(platform, client.sessionId);
       const targets = more ? activeServers.filter((server) => more[server]?.nextBatch) : activeServers;
-      const pages = await Promise.all(
+      const pages: { source: string; worlds: FoundWorld[]; result: ServerResult }[] = await Promise.all(
         targets.map(async (server) => {
           try {
             if (!auth) throw new Error("Not signed in");
@@ -385,30 +404,54 @@ function ExploreWorlds() {
               search: search || undefined,
               since: more?.[server]?.nextBatch,
             });
-            return { server, worlds: page.worlds, result: { nextBatch: page.nextBatch } as ServerResult };
+            const via = server === ownServer ? [] : [server];
+            return {
+              source: server,
+              worlds: page.worlds.map((world) => ({ world, via })),
+              result: { nextBatch: page.nextBatch } as ServerResult,
+            };
           } catch (e) {
-            return { server, worlds: [], result: { error: e instanceof Error ? e.message : String(e) } };
+            return { source: server, worlds: [], result: { error: e instanceof Error ? e.message : String(e) } };
           }
         })
       );
+      if (!more && suggestedOn && auth) {
+        const looked = await Promise.all(
+          exploreConfig.suggestedWorlds.map(async (ref) => {
+            try {
+              const world = await fetchSuggestedWorld(auth, ref.target, ref.via);
+              return world ? { world, via: ref.via } : undefined;
+            } catch {
+              return undefined;
+            }
+          })
+        );
+        const worlds = looked.filter((w): w is FoundWorld => !!w && worldMatchesSearch(w.world, search));
+        const missing = looked.filter((w) => !w).length;
+        pages.push({
+          source: SUGGESTED,
+          worlds,
+          result: missing ? { error: `${missing} couldn't be reached right now.` } : {},
+        });
+      }
       setResults((current) => {
         const next: Record<string, ServerResult> = more ? { ...current } : {};
-        for (const page of pages) next[page.server] = page.result;
+        for (const page of pages) next[page.source] = page.result;
         return next;
       });
       setFound((current) => {
         const byId = new Map<string, FoundWorld>();
         for (const item of more ? current : []) byId.set(item.world.room_id, item);
         for (const page of pages) {
-          for (const world of page.worlds) {
-            if (!byId.has(world.room_id)) byId.set(world.room_id, { world, server: page.server });
+          for (const item of page.worlds) {
+            if (!byId.has(item.world.room_id)) byId.set(item.world.room_id, item);
           }
         }
         return [...byId.values()].sort((a, b) => b.world.num_joined_members - a.world.num_joined_members);
       });
       setLoading(false);
     },
-    [platform, client, activeServers, ownServer, search, extraServers]
+    [platform, client, activeServers, suggestedOn, ownServer, search, extraServers]
   );
 
   useEffect(() => {
@@ -420,22 +463,25 @@ function ExploreWorlds() {
     setSearch(searchInput.trim());
   };
 
-  const toggleServer = (server: string) => {
-    const current = selected ?? servers;
-    const next = current.includes(server) ? current.filter((s) => s !== server) : [...current, server];
-    setSelected(next.length === servers.length || next.length === 0 ? undefined : next);
+  const toggleSource = (source: string) => {
+    const current = selected ?? sources;
+    const next = current.includes(source) ? current.filter((s) => s !== source) : [...current, source];
+    setSelected(next.length === sources.length || next.length === 0 ? undefined : next);
   };
 
+  const sourceName = (source: string) =>
+    source === SUGGESTED ? SUGGESTED_LABEL : source === ownServer ? `${source} (yours)` : source;
   const errors = Object.entries(results).filter(([, r]) => r.error);
   const hasMore = Object.values(results).some((r) => r.nextBatch);
-  const serverLabel =
-    activeServers.length === servers.length
-      ? servers.length === 1
-        ? servers[0]
-        : `All servers (${servers.length})`
-      : activeServers.length === 1
-      ? activeServers[0]
-      : `${activeServers.length} of ${servers.length} servers`;
+  const sourceLabel =
+    extraServers === undefined
+      ? "Loading…"
+      : activeSources.length === sources.length
+      ? "All"
+      : activeSources.length === 1
+      ? sourceName(activeSources[0])
+      : `${activeSources.length} of ${sources.length}`;
+  const listedOn = [...activeServers, ...(suggestedOn ? [SUGGESTED_LABEL.toLowerCase()] : [])];
 
   return (
     <>
@@ -443,6 +489,7 @@ function ExploreWorlds() {
         open={manage.open}
         onOpenChange={manage.setOpen}
         ownServer={ownServer}
+        defaultServers={defaultServers}
         servers={extraServers ?? []}
         onChange={(list) => {
           setExtraServers(list);
@@ -469,38 +516,42 @@ function ExploreWorlds() {
                   e.preventDefault();
                   setSelected(undefined);
                 }}
-                before={<Checkbox checked={activeServers.length === servers.length} />}
               >
-                All servers
+                All
               </DropdownMenuItem>
-              {servers.map((server) => (
+              {sources.map((source) => (
                 <DropdownMenuItem
-                  key={server}
+                  key={source}
                   onSelect={(e) => {
                     e.preventDefault();
-                    toggleServer(server);
+                    toggleSource(source);
                   }}
-                  before={<Checkbox checked={activeServers.includes(server)} />}
+                  before={<Checkbox checked={activeSources.includes(source)} />}
                 >
-                  {server === ownServer ? `${server} (yours)` : server}
+                  {sourceName(source)}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem onSelect={manage.openDialog}>Add or Remove Servers…</DropdownMenuItem>
             </>
           }
         >
-          <Button fill="outline">{extraServers === undefined ? "Servers…" : serverLabel}</Button>
+          <button type="button" className="ExploreSourcePicker flex items-center gap-xs" aria-label="Where to look">
+            <Text className="grow truncate" variant="b2">
+              {sourceLabel}
+            </Text>
+            <Icon src={ChevronBottomIC} size="sm" color="surface" />
+          </button>
         </DropdownMenu>
       </form>
       <Scroll type="hover">
         <div className="TileScreen__body flex flex-column gap-sm">
           <Text variant="b3" color="surface-low">
-            Public worlds listed on {activeServers.join(", ")}
+            {listedOn.length ? `Public worlds from ${listedOn.join(", ")}` : "Nothing selected to look in"}
             {search ? ` matching “${search}”` : ""}.
           </Text>
-          {errors.map(([server, r]) => (
-            <Text key={server} variant="b3" color="danger">
-              {server}: {r.error}
+          {errors.map(([source, r]) => (
+            <Text key={source} variant="b3" color="danger">
+              {sourceName(source)}: {r.error}
             </Text>
           ))}
           {!loading && found.length === 0 && (
@@ -510,12 +561,8 @@ function ExploreWorlds() {
             </Text>
           )}
           <WorldTileGrid>
-            {found.map(({ world, server }) => (
-              <ExploreWorldTile
-                key={world.room_id}
-                world={world}
-                viaServer={server === ownServer ? undefined : server}
-              />
+            {found.map(({ world, via }) => (
+              <ExploreWorldTile key={world.room_id} world={world} via={via} />
             ))}
           </WorldTileGrid>
           {loading && <Dots size="md" />}
@@ -532,7 +579,7 @@ function ExploreWorlds() {
   );
 }
 
-function ExploreWorldTile({ world, viaServer }: { world: DirectoryWorld; viaServer?: string }) {
+function ExploreWorldTile({ world, via }: { world: DirectoryWorld; via: string[] }) {
   const { session, platform, client } = useHydrogen(true);
   const [preview, setPreview] = useState<string>();
   const [joining, setJoining] = useState(false);
@@ -567,7 +614,7 @@ function ExploreWorldTile({ world, viaServer }: { world: DirectoryWorld; viaServ
     try {
       const auth = await getSessionAuth(platform, client.sessionId);
       if (!auth) throw new Error("Not signed in");
-      setJoinedId(await joinDirectoryWorld(auth, world, viaServer));
+      setJoinedId(await joinDirectoryWorld(auth, world, via));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

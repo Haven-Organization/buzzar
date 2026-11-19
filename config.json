@@ -1,9 +1,26 @@
 {
   "defaultHomeServer": "matrix.org",
-  "homeserverList": [
-    "matrix.org"
-  ],
+  "homeserverList": ["matrix.org"],
   "onboardingVersion": 1,
   "bugReportEndpointUrl": "https://element.io/bugreports/submit",
-  "staticOidcClients": {}
+  "staticOidcClients": {},
+  "explore": {
+    "includeOwnServer": true,
+    "directoryServers": [],
+    "suggestedWorlds": [
+      "#mobile-home-campground:matrix.org",
+      "#convenience-store:matrix.org",
+      "#living-room-buzzar:matrix.org",
+      "#backrooms-buzzar:matrix.org",
+      "#backrooms-maze:matrix.org",
+      "#test-room-buzzar:matrix.org",
+      "#uk-city-1-thirdroom:matrix.org",
+      "#uk-city-3-thirdroom:matrix.org",
+      "#terra-2-thirdroom:matrix.org",
+      "#leon7.6.1-thirdroom:matrix.org",
+      "#webxr-hall-thirdroom:matrix.org",
+      "#the-court-thirdroom:matrix.org",
+      "#third-room-public-thirdroom:matrix.org"
+    ]
+  }
 }
