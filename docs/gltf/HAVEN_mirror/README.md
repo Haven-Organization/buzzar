@@ -26,7 +26,9 @@ A mirror has three states:
 | `"low"`  | Reflects avatars only, over a solid `backgroundColor`. Cheap. |
 | `"high"` | Reflects everything.                                          |
 
-Mirror state is local to each user, following VRChat's convention: turning a mirror on or off never changes it for anyone else. Pressing the mirror surface (unless `clickToToggle` is `false`) or one of its toggle nodes cycles the state Off, High, Low, Off.
+Mirror state is local to each user, following VRChat's convention: turning a mirror on or off never changes it for anyone else. Pressing the mirror surface (unless `clickToToggle` is `false`) or one of its toggle nodes cycles the state Off, High, Low, Off. Pressing one of its state buttons sets that state directly.
+
+A mirror can be controlled either way, or both. A mirror you face on arrival (as in Buzzar's Home World) reads better with `clickToToggle: false` and a High / Low / Off button panel beside it: otherwise the "Interact" prompt sits in the middle of your view as you arrive.
 
 Each client also has a quality cap (for example on low-end devices). A mirror never renders above the cap; the cycle skips states above it, and the `defaultState` is clamped to it.
 
@@ -75,10 +77,24 @@ The `HAVEN_mirror` extension can be added to any `node`.
 | `backgroundColor` | `number[3]` | Linear RGB background used by `"low"` (avatars-only) reflections.                                                      | No, default: `[0.1, 0.1, 0.12]` |
 | `toggles`         | `integer[]` | Indices of nodes that act as toggle buttons for this mirror.                                                           | No, default: none               |
 | `clickToToggle`   | `boolean`   | Whether pressing the mirror surface itself cycles its state.                                                           | No, default: `true`             |
+| `buttons`         | `object`    | State buttons: `{"high": [nodes], "low": [nodes], "off": [nodes]}`. Pressing one sets the mirror to that state.        | No, default: none               |
 
 ### Toggle nodes
 
 Each entry in `toggles` is a glTF node index in the same file. A toggle node needs an explicit collider (for example `OMI_collider`) to be pressable: Buzzar gives it a static physics body and makes it interactable, but does not create a collider for it. A toggle node without a collider is logged as a warning and cannot be pressed. A mesh alone is not enough, because the default triangle-mesh collider generated for scene meshes is not attached to the node. One node can toggle several mirrors, and pressing it cycles each of them.
+
+### State buttons
+
+Each key of `buttons` is a state (`"off"`, `"low"` or `"high"`, case-insensitive; other keys are ignored) and each value is a list of glTF node indices in the same file. Pressing one of those nodes sets the mirror to that state, clamped to the client's quality cap. Like toggle nodes, a button node needs an explicit collider. The interaction prompt shows the node's name, so name buttons for what they do (Buzzar's Home World uses "Mirror: High", "Mirror: Low" and "Mirror: Off").
+
+```json
+"HAVEN_mirror": {
+  "size": [3, 2],
+  "defaultState": "high",
+  "clickToToggle": false,
+  "buttons": { "high": [148], "low": [149], "off": [150] }
+}
+```
 
 ### Clicking the mirror surface
 
@@ -137,6 +153,15 @@ When `clickToToggle` is not `false`, Buzzar gives the mirror node a box collider
       "description": "Whether pressing the mirror surface toggles it.",
       "default": true
     },
+    "buttons": {
+      "type": "object",
+      "description": "Node indices of state buttons, by the state each sets. Each needs a collider.",
+      "properties": {
+        "off": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "low": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "high": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+      }
+    },
     "extensions": {},
     "extras": {}
   }
@@ -149,12 +174,12 @@ Buzzar also loads the Hubs mirror component (`MOZ_hubs_components.mirror`) as a 
 
 ## Authoring with extras
 
-Some tools drop extensions they do not know (gltf-transform, for one), and authoring tools such as Blender export custom properties as node `extras`. Buzzar's `scripts/buzzar/finish-world.mjs` promotes any node `extras` key starting with `HAVEN_`, `MX_` or `OMI_` to a real extension and adds it to `extensionsUsed`. So a Blender custom property `HAVEN_mirror` with the value `{"size": [3, 2]}` becomes this extension once the file goes through `finish-world.mjs`. Node indices in `toggles` must be correct in the final file, so set them after any step that reorders nodes. Buzzar's loader itself only reads `extensions`, not `extras`.
+Some tools drop extensions they do not know (gltf-transform, for one), and authoring tools such as Blender export custom properties as node `extras`. Buzzar's `scripts/buzzar/finish-world.mjs` promotes any node `extras` key starting with `HAVEN_`, `MX_` or `OMI_` to a real extension and adds it to `extensionsUsed`. So a Blender custom property `HAVEN_mirror` with the value `{"size": [3, 2]}` becomes this extension once the file goes through `finish-world.mjs`. Node indices in `toggles` and `buttons` must be correct in the final file, so set them after any step that reorders nodes. Buzzar's loader itself only reads `extensions`, not `extras`.
 
 ## Compatibility
 
-Third Room and other clients that do not know this extension ignore it. The node loads as a plain node: an empty mirror node shows nothing (the modeled frame, if any, is still drawn), and toggle nodes are inert scenery. Do not list `HAVEN_mirror` in `extensionsRequired`.
+Third Room and other clients that do not know this extension ignore it. The node loads as a plain node: an empty mirror node shows nothing (the modeled frame, if any, is still drawn), and toggle and button nodes are inert scenery. Do not list `HAVEN_mirror` in `extensionsRequired`.
 
 ## Known Implementations
 
-- Buzzar (`src/plugins/mirrors/mirrors.game.ts`, loaded from `src/engine/gltf/gltf.game.ts`). Example scenes: `scripts/buzzar/make-mirror-test-scene.mjs` (one mirror with a separate toggle button, one without) and `scripts/buzzar/home/compose-home.mjs`.
+- Buzzar (`src/plugins/mirrors/mirrors.game.ts`, loaded from `src/engine/gltf/gltf.game.ts`). Example scenes: `scripts/buzzar/make-mirror-test-scene.mjs` (one mirror with a separate toggle button, one without) and `scripts/buzzar/home/compose-home.mjs` with `add-mirror-buttons.py` (High / Low / Off buttons, surface not pressable).

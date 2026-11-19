@@ -3,7 +3,13 @@ import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, SkinnedMesh } from "three";
 
-import { addMirror, addMirrorToggleNode, GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
+import {
+  addMirror,
+  addMirrorButtonNode,
+  addMirrorToggleNode,
+  GLTFMirrorExtension,
+  mirrorStateFromName,
+} from "../../plugins/mirrors/mirrors.game";
 import { addAvatarPedestal } from "../../plugins/avatar-pedestals/pedestals.game";
 import { addSeat } from "../../plugins/seats/seats.game";
 import { addSceneGrabbable } from "../../plugins/scene-grabbables/grabbables.game";
@@ -1219,6 +1225,22 @@ function loadGLTFMirror(loaderCtx: GLTFLoaderContext, node: RemoteNode, extensio
           addMirrorToggleNode(loaderCtx.ctx, toggleNode, node);
         } else {
           console.warn(`HAVEN_mirror on "${node.name}": toggle node ${toggleIndex} not found`);
+        }
+      }
+    });
+  }
+
+  // Buzzar: state buttons (High / Low / Off beside the mirror) set one state instead of cycling.
+  const buttons = extension.buttons;
+  if (buttons) {
+    loaderCtx.postLoadCallbacks.push(() => {
+      for (const [name, indices] of Object.entries(buttons)) {
+        const state = mirrorStateFromName(name);
+        if (state === undefined || !Array.isArray(indices)) continue;
+        for (const buttonIndex of indices) {
+          const buttonNode = loaderCtx.nodeMap.get(buttonIndex);
+          if (buttonNode) addMirrorButtonNode(loaderCtx.ctx, buttonNode, node, state);
+          else console.warn(`HAVEN_mirror on "${node.name}": ${name} button node ${buttonIndex} not found`);
         }
       }
     });

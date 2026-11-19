@@ -3,7 +3,7 @@
  *
  * Mirror state (Off / Low = avatars only / High = everything) is local to each user, like VRChat:
  * toggling a mirror never changes it for anyone else. Pressing the mirror surface or one of its toggle
- * nodes cycles Off → High → Low → Off. A per-client cap (`setMaxMirrorState`) limits quality, e.g. for
+ * nodes cycles Off → High → Low → Off; pressing one of its state buttons sets that state. A per-client cap (`setMaxMirrorState`) limits quality, e.g. for
  * low-end devices.
  */
 import { GameContext } from "../../engine/GameTypes";
@@ -30,7 +30,12 @@ export interface GLTFMirrorExtension {
   toggles?: number[];
   /** Whether pressing the mirror surface itself toggles it. Default true. */
   clickToToggle?: boolean;
+  /** Indices of nodes that set this mirror to one state when pressed (each needs a collider). */
+  buttons?: { off?: number[]; low?: number[]; high?: number[] };
 }
+
+/** What pressing a control does to a mirror: cycle its state, or set one. */
+export type MirrorControlAction = "cycle" | MirrorState;
 
 const MIRROR_STATE_NAMES: Record<string, MirrorState> = {
   off: MirrorState.Off,
@@ -42,8 +47,8 @@ const COLLIDER_DEPTH = 0.02;
 
 // Keyed by node object (not eid): eids are recycled, so a node is only considered alive while the
 // resource map still returns this exact object for its eid.
-/** Toggle node → mirror nodes it controls. */
-const mirrorToggles = new Map<RemoteNode, RemoteNode[]>();
+/** Control node (the surface, a toggle or a state button) → the mirror nodes it controls, and how. */
+const mirrorControls = new Map<RemoteNode, { mirror: RemoteNode; action: MirrorControlAction }[]>();
 /** Mirror node → the state the world/user asked for, before the client cap is applied. */
 const requestedStates = new Map<RemoteNode, MirrorState>();
 
@@ -52,6 +57,11 @@ function isAlive(ctx: GameContext, node: RemoteNode): boolean {
 }
 
 let maxMirrorState: MirrorState = MirrorState.High;
+
+/** "off" / "low" / "high" (any case) → the state, else undefined. */
+export function mirrorStateFromName(name: unknown): MirrorState | undefined {
+  return typeof name === "string" ? MIRROR_STATE_NAMES[name.toLowerCase()] : undefined;
+}
 
 export function parseMirrorState(value: unknown, fallback: MirrorState): MirrorState {
   if (typeof value !== "string") return fallback;
@@ -87,7 +97,7 @@ export function addMirror(ctx: GameContext, node: RemoteNode, extension: GLTFMir
   mirror.state = clampMirrorState(requested, maxMirrorState);
 
   if (extension.clickToToggle !== false) {
-    makeToggle(ctx, node, node, [width, height, COLLIDER_DEPTH]);
+    makeControl(ctx, node, node, "cycle", [width, height, COLLIDER_DEPTH]);
   }
 
   return mirror;
@@ -95,30 +105,41 @@ export function addMirror(ctx: GameContext, node: RemoteNode, extension: GLTFMir
 
 /** Called after all nodes of a glTF are loaded, so toggle indices can be resolved. */
 export function addMirrorToggleNode(ctx: GameContext, toggleNode: RemoteNode, mirrorNode: RemoteNode) {
-  makeToggle(ctx, toggleNode, mirrorNode);
+  makeControl(ctx, toggleNode, mirrorNode, "cycle");
 }
 
-function makeToggle(
+/** A node that sets the mirror to `state` when pressed (resolved after load, like toggles). */
+export function addMirrorButtonNode(ctx: GameContext, buttonNode: RemoteNode, mirrorNode: RemoteNode, state: MirrorState) {
+  makeControl(ctx, buttonNode, mirrorNode, state);
+}
+
+/** The state a control moves a mirror to, within the client's cap. */
+export function applyMirrorControl(current: MirrorState, action: MirrorControlAction, max: MirrorState): MirrorState {
+  return action === "cycle" ? nextMirrorState(current, max) : clampMirrorState(action, max);
+}
+
+function makeControl(
   ctx: GameContext,
   node: RemoteNode,
   mirrorNode: RemoteNode,
+  action: MirrorControlAction,
   colliderSize?: [number, number, number]
 ) {
-  const controlled = mirrorToggles.get(node);
+  const controlled = mirrorControls.get(node);
 
   if (controlled) {
-    if (!controlled.includes(mirrorNode)) controlled.push(mirrorNode);
+    if (!controlled.some((c) => c.mirror === mirrorNode && c.action === action)) controlled.push({ mirror: mirrorNode, action });
     return;
   }
 
-  mirrorToggles.set(node, [mirrorNode]);
+  mirrorControls.set(node, [{ mirror: mirrorNode, action }]);
 
   const physics = getModule(ctx, PhysicsModule);
 
   if (!node.physicsBody) {
     if (!node.collider) {
       if (!colliderSize) {
-        console.warn(`Mirror toggle node "${node.name}" has no collider; it can't be pressed.`);
+        console.warn(`Mirror control node "${node.name}" has no collider; it can't be pressed.`);
         return;
       }
 
@@ -152,18 +173,18 @@ export function setMaxMirrorState(ctx: GameContext, max: MirrorState) {
 }
 
 export function MirrorSystem(ctx: GameContext) {
-  for (const [toggleNode, mirrorNodes] of mirrorToggles) {
-    if (!isAlive(ctx, toggleNode)) {
-      mirrorToggles.delete(toggleNode);
+  for (const [controlNode, controls] of mirrorControls) {
+    if (!isAlive(ctx, controlNode)) {
+      mirrorControls.delete(controlNode);
       continue;
     }
 
-    if (!toggleNode.interactable?.pressed) continue;
+    if (!controlNode.interactable?.pressed) continue;
 
-    for (const mirrorNode of mirrorNodes) {
+    for (const { mirror: mirrorNode, action } of controls) {
       if (!mirrorNode.mirror || !isAlive(ctx, mirrorNode)) continue;
-      const next = nextMirrorState(mirrorNode.mirror.state, maxMirrorState);
-      requestedStates.set(mirrorNode, next);
+      const next = applyMirrorControl(mirrorNode.mirror.state, action, maxMirrorState);
+      requestedStates.set(mirrorNode, action === "cycle" ? next : action);
       mirrorNode.mirror.state = next;
     }
   }

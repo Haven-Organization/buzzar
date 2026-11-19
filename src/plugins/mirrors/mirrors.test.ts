@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import { MirrorState } from "../../engine/resource/schema";
-import { clampMirrorState, nextMirrorState, parseMirrorState } from "./mirrors.game";
+import {
+  applyMirrorControl,
+  clampMirrorState,
+  mirrorStateFromName,
+  nextMirrorState,
+  parseMirrorState,
+} from "./mirrors.game";
 
 describe("mirror state", () => {
   test("cycles Off → High → Low → Off", () => {
@@ -16,6 +22,16 @@ describe("mirror state", () => {
     expect(nextMirrorState(MirrorState.Off, MirrorState.Off)).toBe(MirrorState.Off);
     // A state above the cap (e.g. cap lowered while on) moves to the start of the capped cycle.
     expect(nextMirrorState(MirrorState.High, MirrorState.Low)).toBe(MirrorState.Off);
+  });
+
+  test("state buttons set their state (within the cap); toggles cycle", () => {
+    expect(applyMirrorControl(MirrorState.Off, MirrorState.High, MirrorState.High)).toBe(MirrorState.High);
+    expect(applyMirrorControl(MirrorState.High, MirrorState.High, MirrorState.High)).toBe(MirrorState.High);
+    expect(applyMirrorControl(MirrorState.High, MirrorState.Off, MirrorState.High)).toBe(MirrorState.Off);
+    expect(applyMirrorControl(MirrorState.Off, MirrorState.High, MirrorState.Low)).toBe(MirrorState.Low);
+    expect(applyMirrorControl(MirrorState.Off, "cycle", MirrorState.High)).toBe(MirrorState.High);
+    expect(mirrorStateFromName("Low")).toBe(MirrorState.Low);
+    expect(mirrorStateFromName("medium")).toBeUndefined();
   });
 
   test("clamps to the cap", () => {
