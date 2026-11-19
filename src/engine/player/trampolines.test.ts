@@ -33,6 +33,7 @@ describe("trampoline bounces", () => {
       bounciness: 1.2,
       maxBounceHeight: 30,
       jumpBoost: 0,
+      objectMinBounceHeight: 2,
     });
   });
 
@@ -43,6 +44,19 @@ describe("trampoline bounces", () => {
     expect(h(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(2), g9))).toBeCloseTo(1.7);
     // No minimum for objects, and a near-rest landing doesn't bounce at all.
     expect(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(0.1), g9)).toBe(0);
+  });
+
+  it("bounces a thrown object at least 2 m on its first landing, however shallow its fall", () => {
+    const g9 = 9.81;
+    const h = (v: number) => (v * v) / (2 * g9);
+    const drop = (height: number) => Math.sqrt(2 * g9 * height);
+    // Thrown in from the side: only 0.3 m of fall into the mat.
+    expect(h(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(0.3), g9, true))).toBeCloseTo(2);
+    // Higher drops still go higher.
+    expect(h(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(5), g9, true))).toBeCloseTo(4.25);
+    // Still too gentle to count is still no bounce, and the bounces after the first fade as before.
+    expect(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(0.1), g9, true)).toBe(0);
+    expect(h(objectBounceSpeed(DEFAULT_TRAMPOLINE, drop(2), g9, false))).toBeCloseTo(1.7);
   });
 
   it("bounces an object tossed in at an angle on and away at much the same angle", () => {

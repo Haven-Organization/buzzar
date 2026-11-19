@@ -28,6 +28,11 @@ export interface GLTFTrampolineExtension {
   maxBounceHeight?: number;
   /** Extra metres for each bounce you land holding jump (default 1.5). */
   jumpBoost?: number;
+  /**
+   * Lowest bounce in metres for a Thing thrown or dropped on (default 2): its first landing only, so it then bounces
+   * lower each time and settles.
+   */
+  objectMinBounceHeight?: number;
 }
 
 export interface TrampolineSettings {
@@ -35,6 +40,7 @@ export interface TrampolineSettings {
   bounciness: number;
   maxBounceHeight: number;
   jumpBoost: number;
+  objectMinBounceHeight: number;
 }
 
 export const DEFAULT_TRAMPOLINE: TrampolineSettings = {
@@ -42,6 +48,7 @@ export const DEFAULT_TRAMPOLINE: TrampolineSettings = {
   bounciness: 0.85,
   maxBounceHeight: 30,
   jumpBoost: 1.5,
+  objectMinBounceHeight: 2,
 };
 
 export interface Trampoline extends TrampolineSettings {
@@ -64,6 +71,7 @@ export function trampolineSettings(ext: GLTFTrampolineExtension = {}): Trampolin
     bounciness: num(ext.bounciness, DEFAULT_TRAMPOLINE.bounciness, 0, 1.2),
     maxBounceHeight: num(ext.maxBounceHeight, DEFAULT_TRAMPOLINE.maxBounceHeight, 0.1, 200),
     jumpBoost: num(ext.jumpBoost, DEFAULT_TRAMPOLINE.jumpBoost, 0, 20),
+    objectMinBounceHeight: num(ext.objectMinBounceHeight, DEFAULT_TRAMPOLINE.objectMinBounceHeight, 0, 50),
   };
 }
 
@@ -140,15 +148,22 @@ export function bounceSpeed(
 const OBJECT_MIN_DROP = 0.15;
 
 /**
- * The upward speed (m/s) for an object (a crate, a ball) landing on a trampoline at `impactSpeed`: back up to
- * bounciness × the height it fell, so it bounces lower each time and comes to rest (no minimum, and no jump boost).
- * 0 if it landed too gently to bounce.
+ * The upward speed (m/s) for an object (a crate, a ball) landing on a trampoline at `impactSpeed` (m/s, into the
+ * mat): back up to bounciness × the height it fell, so it bounces lower each time and comes to rest. A `firstLanding`
+ * (thrown or dropped on, not bouncing already) goes at least `objectMinBounceHeight`, however shallow its fall: a
+ * ball thrown in from the side has little speed into the mat and barely bounced. 0 if it landed too gently to bounce.
  */
-export function objectBounceSpeed(settings: TrampolineSettings, impactSpeed: number, gravity: number): number {
+export function objectBounceSpeed(
+  settings: TrampolineSettings,
+  impactSpeed: number,
+  gravity: number,
+  firstLanding = false
+): number {
   const fallHeight = (impactSpeed * impactSpeed) / (2 * gravity);
   if (fallHeight < OBJECT_MIN_DROP) return 0;
-  const height = Math.min(settings.bounciness * fallHeight, settings.maxBounceHeight);
-  return Math.sqrt(2 * gravity * height);
+  let height = settings.bounciness * fallHeight;
+  if (firstLanding) height = Math.max(height, settings.objectMinBounceHeight);
+  return Math.sqrt(2 * gravity * Math.min(height, settings.maxBounceHeight));
 }
 
 /** How much of an object's speed across the mat it keeps through a bounce (the mat grips it a little). */
@@ -158,18 +173,19 @@ const OBJECT_ALONG_KEEP = 0.9;
  * The velocity an object (a crate, a ball) leaves the trampoline with, given its velocity `before` it hit the mat and
  * the mat's `normal` (unit, facing out of the bouncy side): like a ball off a real trampoline, its speed across the
  * mat carries on (OBJECT_ALONG_KEEP of it) and its speed into the mat comes back out (objectBounceSpeed). So one
- * tossed in at an angle bounces on and away at much the same angle. Undefined if it isn't moving into the mat fast
+ * tossed in at an angle bounces on and away at much the same angle (higher, on a `firstLanding`). Undefined if it isn't moving into the mat fast
  * enough to bounce.
  */
 export function objectBounceVelocity(
   settings: TrampolineSettings,
   before: ArrayLike<number>,
   normal: ArrayLike<number>,
-  gravity: number
+  gravity: number,
+  firstLanding = false
 ): [number, number, number] | undefined {
   const into = -(before[0] * normal[0] + before[1] * normal[1] + before[2] * normal[2]);
   if (!(into > 0)) return undefined;
-  const out = objectBounceSpeed(settings, into, gravity);
+  const out = objectBounceSpeed(settings, into, gravity, firstLanding);
   if (!(out > 0)) return undefined;
   const v: [number, number, number] = [0, 0, 0];
   for (let k = 0; k < 3; k++) {

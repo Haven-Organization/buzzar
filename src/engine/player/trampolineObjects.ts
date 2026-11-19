@@ -19,6 +19,13 @@ import { isOnTrampoline, liveTrampolines, objectBounceVelocity, Trampoline, tram
 
 /** Body handle → its velocity after the previous step. */
 let lastVelocity = new Map<number, [number, number, number]>();
+/** Body handle → when it last bounced (ms, ctx.elapsed). */
+const lastBounceAt = new Map<number, number>();
+/**
+ * A landing this long (ms) after the body's last bounce is a new throw or drop (it gets the minimum bounce); sooner,
+ * it's still bouncing (bounces fade). Longer than the flight of the highest bounce worth keeping up (30 m: ~5 s).
+ */
+const REBOUND_WINDOW = 6000;
 /** Moving into the mat at least this fast (m/s) before the step counts as a landing. */
 const MIN_IMPACT_SPEED = 1.5;
 const _v = new RAPIER.Vector3(0, 0, 0);
@@ -50,6 +57,7 @@ export function TrampolineObjectSystem(ctx: GameContext) {
   const trampolines = liveTrampolines(ctx);
   if (trampolines.length === 0) {
     if (lastVelocity.size) lastVelocity = new Map();
+    lastBounceAt.clear();
     return;
   }
   const { physicsWorld } = getModule(ctx, PhysicsModule);
@@ -76,16 +84,20 @@ export function TrampolineObjectSystem(ctx: GameContext) {
       if (intoBefore < MIN_IMPACT_SPEED || -dot(v, _normal) > intoBefore * 0.5) break;
       // Bounce from the velocity it hit the mat with: the step's contact and friction have already stopped it,
       // so a ball tossed in at an angle used to pop straight up. Now it carries on and away, like off a real one.
-      const out = objectBounceVelocity(trampoline, before, _normal, gravity);
+      const last = lastBounceAt.get(body.handle);
+      const firstLanding = last === undefined || ctx.elapsed - last > REBOUND_WINDOW;
+      const out = objectBounceVelocity(trampoline, before, _normal, gravity, firstLanding);
       if (out && dot(out, _normal) > dot(v, _normal)) {
         _v.x = out[0];
         _v.y = out[1];
         _v.z = out[2];
         body.setLinvel(_v, true);
         next.set(body.handle, out);
+        lastBounceAt.set(body.handle, ctx.elapsed);
       }
       break;
     }
   });
   lastVelocity = next;
+  for (const [handle, at] of lastBounceAt) if (ctx.elapsed - at > REBOUND_WINDOW) lastBounceAt.delete(handle);
 }
