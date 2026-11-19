@@ -3,8 +3,11 @@
 Buzzar: gives the Home World mirror a High / Low / Off button panel on its right-hand side, and stops the mirror
 surface itself being pressable, so you don't arrive with the mirror's "Interact" prompt in your face.
 
-Edits a finished home.glb in place (run after finish-world.mjs): adds a panel, three labelled buttons with box
-colliders, and points the mirror's HAVEN_mirror `buttons` at them. Only appends to the binary chunk.
+Edits a finished home.glb in place (run after finish-world.mjs): adds a panel, three labelled buttons, and points the
+mirror's HAVEN_mirror `buttons` at them. Only appends to the binary chunk.
+
+The buttons get no OMI_collider: Buzzar boxes a mirror control's mesh itself, and a file that uses OMI_collider anywhere
+loses the collision Buzzar otherwise generates for all its meshes (the ground included).
 
 Usage: python3 add-mirror-buttons.py <home.glb> [--font /path/to/Bold.ttf]
 """
@@ -133,7 +136,6 @@ panel_node = {"name": "Mirror button panel", "translation": PANEL["at"], "mesh":
 nodes.append(panel_node)
 parent["children"].append(len(nodes) - 1)
 
-collider_ext = gltf.setdefault("extensions", {}).setdefault("OMI_collider", {"colliders": []})
 buttons = {}
 for state, text, y, rgb in STATES:
     linear = [round((c / 255) ** 2.2, 4) for c in rgb] + [1]
@@ -145,14 +147,12 @@ for state, text, y, rgb in STATES:
             "primitives": [box_primitive(BUTTON, body), face_primitive(BUTTON[0] - 0.01, BUTTON[1] - 0.01, BUTTON[2] / 2 + 0.002, label)],
         }
     )
-    collider_ext["colliders"].append({"type": "box", "extents": [v / 2 for v in BUTTON]})
     nodes.append(
         {
             # The name is what the interaction tooltip shows.
             "name": f"Mirror: {text.title()}",
             "translation": [PANEL["at"][0], y, BUTTON_Z],
             "mesh": len(gltf["meshes"]) - 1,
-            "extensions": {"OMI_collider": {"collider": len(collider_ext["colliders"]) - 1}},
         }
     )
     parent["children"].append(len(nodes) - 1)
@@ -161,9 +161,8 @@ for state, text, y, rgb in STATES:
 mirror = nodes[mirror_index]["extensions"]["HAVEN_mirror"]
 mirror["clickToToggle"] = False
 mirror["buttons"] = buttons
-for ext in ("OMI_collider", "KHR_materials_unlit"):
-    if ext not in gltf["extensionsUsed"]:
-        gltf["extensionsUsed"].append(ext)
+if "KHR_materials_unlit" not in gltf["extensionsUsed"]:
+    gltf["extensionsUsed"].append("KHR_materials_unlit")
 
 while len(binary) % 4:
     binary.append(0)

@@ -49,10 +49,7 @@ The `HAVEN_mirror` extension can be added to any `node`.
   {
     "name": "BackMirrorToggle",
     "mesh": 2,
-    "translation": [2.1, 1.2, -5.9],
-    "extensions": {
-      "OMI_collider": { "collider": 0 }
-    }
+    "translation": [2.1, 1.2, -5.9]
   },
   {
     "name": "BackMirror",
@@ -81,11 +78,15 @@ The `HAVEN_mirror` extension can be added to any `node`.
 
 ### Toggle nodes
 
-Each entry in `toggles` is a glTF node index in the same file. A toggle node needs an explicit collider (for example `OMI_collider`) to be pressable: Buzzar gives it a static physics body and makes it interactable, but does not create a collider for it. A toggle node without a collider is logged as a warning and cannot be pressed. A mesh alone is not enough, because the default triangle-mesh collider generated for scene meshes is not attached to the node. One node can toggle several mirrors, and pressing it cycles each of them.
+Each entry in `toggles` is a glTF node index in the same file. A toggle node needs a mesh or an explicit collider (for example `OMI_collider`) to be pressable. Buzzar gives it a static physics body and makes it interactable; if it has no collider of its own, Buzzar gives it a box centred on the node's origin that holds its whole mesh. A toggle node with neither is logged as a warning and cannot be pressed. One node can toggle several mirrors, and pressing it cycles each of them.
+
+Prefer a mesh over `OMI_collider` for these nodes. In Buzzar, as in Third Room, a file that lists `OMI_collider` in `extensionsUsed` is taken to declare all of its own collision, so no collision is generated for its other meshes: adding one collider for a button makes the rest of the scene, the ground included, walk-through.
 
 ### State buttons
 
-Each key of `buttons` is a state (`"off"`, `"low"` or `"high"`, case-insensitive; other keys are ignored) and each value is a list of glTF node indices in the same file. Pressing one of those nodes sets the mirror to that state, clamped to the client's quality cap. Like toggle nodes, a button node needs an explicit collider. The interaction prompt shows the node's name, so name buttons for what they do (Buzzar's Home World uses "Mirror: High", "Mirror: Low" and "Mirror: Off").
+Each key of `buttons` is a state (`"off"`, `"low"` or `"high"`, case-insensitive; other keys are ignored) and each value is a list of glTF node indices in the same file. Pressing one of those nodes sets the mirror to that state, clamped to the client's quality cap. Like toggle nodes, a button node needs a mesh or an explicit collider. The interaction prompt shows the node's name, so name buttons for what they do (Buzzar's Home World uses "Mirror: High", "Mirror: Low" and "Mirror: Off").
+
+The button for the mirror's current state is highlighted: its materials glow in their own base colour, and the other buttons' materials are dimmed to 40%. Give each button its own materials, since a material shared between buttons can only show one of those looks.
 
 ```json
 "HAVEN_mirror": {
@@ -145,7 +146,7 @@ When `clickToToggle` is not `false`, Buzzar gives the mirror node a box collider
     },
     "toggles": {
       "type": "array",
-      "description": "Indices of nodes that act as toggle buttons for this mirror. Each needs a collider.",
+      "description": "Indices of nodes that act as toggle buttons for this mirror. Each needs a mesh or a collider.",
       "items": { "type": "integer", "minimum": 0 }
     },
     "clickToToggle": {
@@ -155,7 +156,7 @@ When `clickToToggle` is not `false`, Buzzar gives the mirror node a box collider
     },
     "buttons": {
       "type": "object",
-      "description": "Node indices of state buttons, by the state each sets. Each needs a collider.",
+      "description": "Node indices of state buttons, by the state each sets. Each needs a mesh or a collider.",
       "properties": {
         "off": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
         "low": { "type": "array", "items": { "type": "integer", "minimum": 0 } },

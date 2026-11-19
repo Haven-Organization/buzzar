@@ -9,9 +9,22 @@
 import { GameContext } from "../../engine/GameTypes";
 import { getModule } from "../../engine/module/module.common";
 import { addPhysicsBody, addPhysicsCollider, PhysicsModule } from "../../engine/physics/physics.game";
-import { RemoteCollider, RemoteMirror, RemoteNode, RemotePhysicsBody } from "../../engine/resource/RemoteResources";
+import {
+  RemoteCollider,
+  RemoteMaterial,
+  RemoteMirror,
+  RemoteNode,
+  RemotePhysicsBody,
+} from "../../engine/resource/RemoteResources";
+import { getAccessorFloat32Array } from "../../engine/common/accessor";
 import { getRemoteResource } from "../../engine/resource/resource.game";
-import { ColliderType, InteractableType, MirrorState, PhysicsBodyType } from "../../engine/resource/schema";
+import {
+  ColliderType,
+  InteractableType,
+  MeshPrimitiveAttributeIndex,
+  MirrorState,
+  PhysicsBodyType,
+} from "../../engine/resource/schema";
 import { addInteractableComponent } from "../interaction/interaction.game";
 
 /** glTF node extension `HAVEN_mirror`. */
@@ -109,7 +122,12 @@ export function addMirrorToggleNode(ctx: GameContext, toggleNode: RemoteNode, mi
 }
 
 /** A node that sets the mirror to `state` when pressed (resolved after load, like toggles). */
-export function addMirrorButtonNode(ctx: GameContext, buttonNode: RemoteNode, mirrorNode: RemoteNode, state: MirrorState) {
+export function addMirrorButtonNode(
+  ctx: GameContext,
+  buttonNode: RemoteNode,
+  mirrorNode: RemoteNode,
+  state: MirrorState
+) {
   makeControl(ctx, buttonNode, mirrorNode, state);
 }
 
@@ -128,7 +146,8 @@ function makeControl(
   const controlled = mirrorControls.get(node);
 
   if (controlled) {
-    if (!controlled.some((c) => c.mirror === mirrorNode && c.action === action)) controlled.push({ mirror: mirrorNode, action });
+    if (!controlled.some((c) => c.mirror === mirrorNode && c.action === action))
+      controlled.push({ mirror: mirrorNode, action });
     return;
   }
 
@@ -138,8 +157,11 @@ function makeControl(
 
   if (!node.physicsBody) {
     if (!node.collider) {
+      // Buzzar: no collider of its own: a box around its mesh (a file that declares OMI_collider anywhere loses
+      // the generated collision for the rest of the scene, so buttons shouldn't need one).
+      colliderSize ??= meshBoxSize(node);
       if (!colliderSize) {
-        console.warn(`Mirror control node "${node.name}" has no collider; it can't be pressed.`);
+        console.warn(`Mirror control node "${node.name}" has no collider or mesh; it can't be pressed.`);
         return;
       }
 
@@ -160,6 +182,47 @@ function makeControl(
 
   if (!node.interactable) {
     addInteractableComponent(ctx, physics, node, InteractableType.Interactable);
+  }
+}
+
+/** A box centred on the node's origin that holds its whole mesh (undefined without a mesh). */
+function meshBoxSize(node: RemoteNode): [number, number, number] | undefined {
+  const half = [0, 0, 0];
+  let found = false;
+  for (const primitive of node.mesh?.primitives ?? []) {
+    const accessor = primitive.attributes[MeshPrimitiveAttributeIndex.POSITION];
+    if (!accessor) continue;
+    const positions = getAccessorFloat32Array(accessor);
+    for (let i = 0; i + 2 < positions.length; i += 3) {
+      for (let axis = 0; axis < 3; axis++) half[axis] = Math.max(half[axis], Math.abs(positions[i + axis]));
+    }
+    found = true;
+  }
+  if (!found) return undefined;
+  const scale = node.scale;
+  return [0, 1, 2].map((axis) => Math.max(half[axis] * 2 * Math.abs(scale[axis]), 0.01)) as [number, number, number];
+}
+
+// Buzzar: the button for the mirror's current state is lit; the others are dimmed. Each button's materials are
+// remembered as authored, so give every button its own materials.
+const authoredLook = new Map<RemoteMaterial, { base: number[]; emissive: number[] }>();
+const buttonLit = new Map<RemoteNode, boolean>();
+
+function highlightButton(node: RemoteNode, lit: boolean) {
+  if (buttonLit.get(node) === lit) return;
+  buttonLit.set(node, lit);
+  for (const primitive of node.mesh?.primitives ?? []) {
+    const material = primitive.material;
+    if (!material) continue;
+    let look = authoredLook.get(material);
+    if (!look) {
+      look = { base: Array.from(material.baseColorFactor), emissive: Array.from(material.emissiveFactor) };
+      authoredLook.set(material, look);
+    }
+    const [r, g, b, a] = look.base;
+    const dim = lit ? 1 : 0.4;
+    material.baseColorFactor.set([r * dim, g * dim, b * dim, a]);
+    material.emissiveFactor.set(lit ? [r * 0.8, g * 0.8, b * 0.8] : look.emissive);
   }
 }
 
@@ -187,6 +250,16 @@ export function MirrorSystem(ctx: GameContext) {
       requestedStates.set(mirrorNode, action === "cycle" ? next : action);
       mirrorNode.mirror.state = next;
     }
+  }
+
+  for (const [controlNode, controls] of mirrorControls) {
+    const button = controls.find((c) => c.action !== "cycle");
+    if (!button || !button.mirror.mirror) continue;
+    highlightButton(controlNode, button.mirror.mirror.state === button.action);
+  }
+
+  for (const node of buttonLit.keys()) {
+    if (!mirrorControls.has(node)) buttonLit.delete(node);
   }
 
   for (const mirrorNode of requestedStates.keys()) {
