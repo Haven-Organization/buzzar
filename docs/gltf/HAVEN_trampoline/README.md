@@ -57,6 +57,6 @@ The `HAVEN_trampoline` extension can be added to any `node`:
 | `bounciness`            | `number`    | Bounce height as a fraction of the height fallen (0–1.2; 1 keeps every bounce as high as the last).   | No, default: `0.85`                 |
 | `maxBounceHeight`       | `number`    | The highest bounce in metres.                                                                         | No, default: `30`                   |
 | `jumpBoost`             | `number`    | Extra metres added to a bounce you land holding jump.                                                 | No, default: `1.5`                  |
-| `objectMinBounceHeight` | `number`    | The lowest bounce in metres for a Thing's first landing after it is thrown or dropped on.             | No, default: `2`                    |
+| `objectMinBounceHeight` | `number`    | The lowest bounce in metres for a Thing's first landing after it is thrown or dropped on.             | No, default: `2.7`                  |
 
 A node with neither a `size` nor a mesh is ignored (with a console warning).

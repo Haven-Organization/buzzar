@@ -29,8 +29,9 @@ export interface GLTFTrampolineExtension {
   /** Extra metres for each bounce you land holding jump (default 1.5). */
   jumpBoost?: number;
   /**
-   * Lowest bounce in metres for a Thing thrown or dropped on (default 2): its first landing only, so it then bounces
-   * lower each time and settles.
+   * Lowest bounce in metres for a Thing thrown or dropped on (default 2.7): its first landing only, so it then bounces
+   * lower each time and settles. 2.7 m off a stock trampoline's mat (0.5 m up) lifts a ball's underside to 3.2 m, just
+   * over the top of the backboard's square in The Court (rim 2.66 m, square 3.15 m), so trick shots off it can score.
    */
   objectMinBounceHeight?: number;
 }
@@ -48,7 +49,7 @@ export const DEFAULT_TRAMPOLINE: TrampolineSettings = {
   bounciness: 0.85,
   maxBounceHeight: 30,
   jumpBoost: 1.5,
-  objectMinBounceHeight: 2,
+  objectMinBounceHeight: 2.7,
 };
 
 export interface Trampoline extends TrampolineSettings {
