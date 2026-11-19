@@ -99,6 +99,12 @@ gltf["meshes"].append(
     }
 )
 
+# --- the pad round the edge: Buzzar purple (#7000FF; glTF colours are linear, so sRGB 0x70 -> 0.162) ---
+for m in gltf["materials"]:
+    if m.get("name") == "blue-plastic":
+        m["name"] = "buzzar-purple-plastic"
+        m["pbrMetallicRoughness"]["baseColorFactor"] = [0.162, 0.0, 1.0, 1.0]
+
 # --- node tree: Trampoline (metres, Y up, feet on y=0) ---
 nodes = gltf["nodes"]
 scene = gltf.get("scene", 0)
@@ -119,7 +125,20 @@ bed = len(nodes) - 1
 nodes.append({"name": "Trampoline", "children": [model, logo, bed]})
 gltf["scene"] = scene
 gltf["scenes"][scene]["nodes"] = [len(nodes) - 1]
-gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline"]))
+gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline", "HAVEN_metadata"]))
+# What it is and where it's from (docs/gltf/HAVEN_metadata). Bump the version with each change to this file.
+gltf.setdefault("extensions", {})["HAVEN_metadata"] = {
+    "name": "Trampoline",
+    "description": (
+        "A 3 m trampoline with the Buzzar logo on the mat.\n"
+        "Land on it to bounce (at least 2.5 m, higher the further you fall). Hold jump as you land to go higher; "
+        "crouch to stop. Crates, balls and other Things bounce on it too.\n"
+        "Adapted from \"Trampoline\" by 1-3D.com (CC BY-SA 4.0); this adaptation is CC BY-SA 4.0 as well."
+    ),
+    "author": "1-3D.com",
+    "sourceUrl": "https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9",
+    "version": "0.1.2",
+}
 gltf["asset"]["generator"] = "Buzzar make-trampoline-thing.py (from Sketchfab-12.78.0)"
 gltf["asset"]["copyright"] = (
     '"Trampoline" by 1-3D.com (https://sketchfab.com/1-3D.com), CC BY-SA 4.0; adapted for Buzzar '
