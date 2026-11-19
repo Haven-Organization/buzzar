@@ -10,6 +10,10 @@ import {
   SpringChainSpec,
   SpringSettings,
   updateSpringRig,
+  bakeAvatarMotion,
+  DEFAULT_EAR_MOTION,
+  parseEarMotion,
+  parseHavenSprings,
 } from "./springBones";
 
 const mapping = (bones: Record<string, number>): HumanoidMapping => ({
@@ -327,5 +331,34 @@ describe("spring rig building", () => {
     // Mostly quick flicks.
     const quick = durations.filter((d) => d < 1.2).length;
     expect(quick / durations.length).toBeGreaterThan(0.5);
+  });
+
+  it("round-trips springs and ear settings through HAVEN_avatar_motion, which overrides detection", () => {
+    const chains: SpringChainSpec[] = [
+      {
+        joints: [1, 2],
+        kind: "ear",
+        settings: {
+          stiffness: 3.2,
+          gravityPower: 0,
+          gravityDir: new Vector3(0, -1, 0),
+          dragForce: 0.6,
+          hitRadius: 0.01,
+        },
+        colliders: [],
+      },
+    ];
+    const ext = bakeAvatarMotion(chains, { ...DEFAULT_EAR_MOTION, gapSeconds: [30, 60] });
+    const gltf = { nodes: [{}, {}, {}], extensions: { HAVEN_avatar_motion: JSON.parse(JSON.stringify(ext)) } };
+    const parsed = parseHavenSprings(gltf)!;
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].joints).toEqual([1, 2]);
+    expect(parsed[0].kind).toBe("ear");
+    expect((parsed[0].settings as { stiffness: number }).stiffness).toBeCloseTo(3.2);
+    expect(parseEarMotion(gltf)).toMatchObject({ gapSeconds: [30, 60], foldShare: DEFAULT_EAR_MOTION.foldShare });
+    // An empty list means no springs at all (detection doesn't kick in).
+    expect(parseHavenSprings({ nodes: [], extensions: { HAVEN_avatar_motion: { springs: [] } } })).toEqual([]);
+    expect(parseEarMotion({ extensions: { HAVEN_avatar_motion: { earMotion: { enabled: false } } } })).toBe(false);
+    expect(parseEarMotion({})).toEqual(DEFAULT_EAR_MOTION);
   });
 });

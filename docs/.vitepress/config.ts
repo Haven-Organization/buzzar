@@ -36,6 +36,7 @@ export default defineConfig({
         { text: "Creators", link: "/guides/creators" },
         { text: "Developers", link: "/guides/developers" },
         { text: "Avatars", link: "/guides/avatars" },
+        { text: "Asset Files", link: "/guides/asset-files" },
         { text: "Importing Worlds", link: "/guides/importing-worlds" },
         { text: "Coming from Third Room", link: "/guides/third-room" },
         {
@@ -103,6 +104,9 @@ export default defineConfig({
             { text: "HAVEN_mirror", link: "/gltf/HAVEN_mirror/README" },
             { text: "HAVEN_seat", link: "/gltf/HAVEN_seat/README" },
             { text: "HAVEN_climbable", link: "/gltf/HAVEN_climbable/README" },
+            { text: "HAVEN_trampoline", link: "/gltf/HAVEN_trampoline/README" },
+            { text: "HAVEN_avatar_motion", link: "/gltf/HAVEN_avatar_motion/README" },
+            { text: "HAVEN_metadata", link: "/gltf/HAVEN_metadata/README" },
           ],
         },
         {

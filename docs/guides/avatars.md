@@ -101,7 +101,17 @@ The upload button accepts `.vrm` and `.glb` files. Both are binary glTF 2.0. Buz
 
 For CATS names, matching ignores case, treats `.` and `_` as spaces, and also accepts a trailing `L`/`R` side (`Arm.L` is read as `Left arm`). Mixamo finger bones (`LeftHandIndex1`, …) are mapped too. A file without any of these is rejected as "not a humanoid avatar".
 
-Buzzar doesn't use these VRM features yet: spring bones (hair and cloth physics), expressions and visemes, and MToon shading. VRM materials render with their standard glTF materials.
+Buzzar doesn't use these VRM features yet: expressions and visemes, and MToon shading. VRM materials render with their standard glTF materials.
+
+## Secondary motion and custom behaviour
+
+Hair, ears, tails, skirts and ribbons swing and bounce as you move. Animal ears also flick, or fold back, on their own now and then. Buzzar takes this, in order, from:
+
+1. **[HAVEN_avatar_motion](../gltf/HAVEN_avatar_motion/README)** in the file: exactly which bones move, how stiff and heavy they are, and how the ears move. When it's there, it's the whole truth.
+2. VRM spring bones (`VRMC_springBone`, or VRM 0.x `secondaryAnimation`).
+3. A guess from bone names (`hair`, `ear`, `tail`, `skirt`, `ribbon`…), with defaults for each kind.
+
+To make an avatar behave the same everywhere, or to change what Buzzar guesses, bake its behaviour into the file and tune it: see [Asset files](./asset-files). Put its name, description, author, source link and version in the file too, with [HAVEN_metadata](../gltf/HAVEN_metadata/README).
 
 ## Animation
 

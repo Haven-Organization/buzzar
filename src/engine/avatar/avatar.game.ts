@@ -49,7 +49,7 @@ import {
   SetPeerAvatarMessageType,
 } from "./avatar.common";
 import { checkAvatarLimits, computeAvatarStats, getHumanoidMapping, HumanoidMapping, HumanBone } from "./humanoid";
-import { createSpringRig, getSpringChains, SpringRig, updateSpringRig } from "./springBones";
+import { createSpringRig, getSpringChains, parseEarMotion, SpringRig, updateSpringRig } from "./springBones";
 import { createFaceRig, FaceRig, getFaceSpec, updateFaceRig } from "./face";
 import {
   applyBindPose,
@@ -571,7 +571,12 @@ function createAvatarAnimationExtras(
   let springRig: SpringRig | undefined;
   try {
     const chains = getSpringChains(loaderCtx.resource.root, mapping);
-    if (chains.length > 0) springRig = createSpringRig(chains, objectFor, { facesNegativeZ: mapping.facesNegativeZ });
+    if (chains.length > 0) {
+      springRig = createSpringRig(chains, objectFor, {
+        facesNegativeZ: mapping.facesNegativeZ,
+        earMotion: parseEarMotion(loaderCtx.resource.root),
+      });
+    }
   } catch (error) {
     // Decoration only: never fail the avatar over it.
     console.warn("Avatar spring bones disabled:", error);

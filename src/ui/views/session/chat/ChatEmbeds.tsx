@@ -11,6 +11,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
 import { TileFallback, WorldTile } from "../../components/world-tile/WorldTile";
+import { AssetMetadata, readAssetMetadata } from "../../../../engine/gltf/assetMetadata";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import {
@@ -107,6 +108,8 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
   const { worldId, entered } = useAtomValue(worldAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const [kind, setKind] = useState<ModelKind>();
+  // Buzzar: what the file says about itself (HAVEN_metadata, VRM meta, or the exporter's asset.extras).
+  const [meta, setMeta] = useState<AssetMetadata>({});
   const [format, setFormat] = useState<AvatarFormat>("glb");
   const [failed, setFailed] = useState(false);
   const [wantPreview, setWantPreview] = useState(size === undefined || size <= AUTO_PREVIEW_BYTES);
@@ -116,7 +119,7 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
   const [busy, setBusy] = useState<string>();
   const [status, setStatus] = useState<string>();
   const httpUrl = session.mediaRepository.mxcUrl(mxc) ?? undefined;
-  const title = name.replace(/\.(glb|vrm)$/i, "");
+  const title = meta.name ?? name.replace(/\.(glb|vrm)$/i, "");
 
   // What it is, from the file's description (the first few KB).
   useEffect(() => {
@@ -127,6 +130,7 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
         const exts = new Set([...(json.extensionsUsed ?? []), ...Object.keys(json.extensions ?? {})]);
         setFormat(exts.has("VRMC_vrm") ? "vrm1" : exts.has("VRM") ? "vrm0" : "glb");
         setKind(classifyModel(json, name));
+        setMeta(readAssetMetadata(json));
       })
       .catch((e) => {
         if (!abort.signal.aborted) {
@@ -268,9 +272,31 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
         }
         title={title}
         subtitle={
-          <Text variant="b3" color={status ? "surface" : "surface-low"}>
-            {status ?? (kind ? KIND_LABEL[kind] : "3D model")}
-          </Text>
+          <>
+            <Text variant="b3" color={status ? "surface" : "surface-low"}>
+              {status ??
+                [kind ? KIND_LABEL[kind] : "3D model", meta.version && `version ${meta.version}`]
+                  .filter(Boolean)
+                  .join(" · ")}
+            </Text>
+            {meta.author && (
+              <Text variant="b3" color="surface-low">
+                by {meta.author}
+              </Text>
+            )}
+            {meta.description && (
+              <Text className="ChatEmbed__description" variant="b3">
+                {meta.description}
+              </Text>
+            )}
+            {meta.sourceUrl && (
+              <a className="ChatEmbed__source" href={meta.sourceUrl} target="_blank" rel="noopener noreferrer">
+                <Text variant="b3" color="primary">
+                  Source
+                </Text>
+              </a>
+            )}
+          </>
         }
         action={
           kind === "avatar" ? (

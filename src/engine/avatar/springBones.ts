@@ -3,13 +3,16 @@
  * and bounce as the avatar moves.
  *
  * Sources, in order of preference:
+ * 0. Buzzar's own `HAVEN_avatar_motion` (docs/gltf/HAVEN_avatar_motion): the file says exactly which bones spring,
+ *    how, and what kind they are. When present it's the whole truth (an empty list means no springs).
  * 1. VRM 1.0 `VRMC_springBone` (springs, joints, sphere/capsule colliders).
  * 2. VRM 0.x `VRM.secondaryAnimation` (bone groups + collider groups).
  * 3. Detection for plain glTF avatars: non-humanoid skin joints whose names say hair/ear/tail/skirt/… and that
  *    hang off the humanoid skeleton, with per-kind defaults.
  *
  * Animal ears also move on their own now and then (see EarMotion): both pinned back for a moment, like a horse's, or
- * one flicked. That tilts the ear's rest direction and lets the spring carry it there and back.
+ * one flicked. That tilts the ear's rest direction and lets the spring carry it there and back. How often and how
+ * (EarMotionSettings) comes from the file's `HAVEN_avatar_motion.earMotion`, else Buzzar's defaults.
  *
  * The simulation is the standard VRM one (as in three-vrm): each joint keeps a "tail" point in world space,
  * moved by inertia, a stiffness force back toward the rest pose, and gravity; the tail is kept at bone length
@@ -78,12 +81,37 @@ interface EarJoint {
   untilRelax: number;
 }
 
+/** Buzzar: how an avatar's ears move on their own (HAVEN_avatar_motion `earMotion`; all times in seconds). */
+export interface EarMotionSettings {
+  /** Wait between one move ending and the next starting: [shortest, longest]. */
+  gapSeconds: [number, number];
+  /** Wait before the first move after the avatar loads: [shortest, longest]. */
+  firstSeconds: [number, number];
+  /** Share of moves (0–1) that are slow folds back and down; the rest are quick flicks. */
+  foldShare: number;
+  /** Share of moves (0–1) made with both ears; the rest move one ear. */
+  bothEarsShare: number;
+  /** Speed range of flicks and of folds (1 = normal). */
+  flickSpeed: [number, number];
+  foldSpeed: [number, number];
+}
+
+export const DEFAULT_EAR_MOTION: EarMotionSettings = {
+  gapSeconds: [15, 40],
+  firstSeconds: [8, 20],
+  foldShare: 0.2,
+  bothEarsShare: 0.45,
+  flickSpeed: [1.6, 2.8],
+  foldSpeed: [0.35, 2.6],
+};
+
 /** Buzzar: idle ear motion for one avatar. */
 interface EarMotion {
   joints: EarJoint[];
   ears: number;
   /** Seconds until the next move. */
   untilNext: number;
+  settings: EarMotionSettings;
 }
 
 export interface SpringRig {
@@ -302,9 +330,108 @@ export function detectSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): Sp
   return chains;
 }
 
+/** Buzzar: `HAVEN_avatar_motion.springs`, the file's own spring chains (undefined if it doesn't say). */
+export function parseHavenSprings(gltf: GLTFLike): SpringChainSpec[] | undefined {
+  const ext = gltf.extensions?.HAVEN_avatar_motion;
+  if (!isRecord(ext) || !Array.isArray(ext.springs)) return undefined;
+  const nodeCount = gltf.nodes?.length ?? 0;
+  const isNode = (i: unknown): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0 && i < nodeCount;
+  const chains: SpringChainSpec[] = [];
+  for (const spring of ext.springs) {
+    if (!isRecord(spring) || !Array.isArray(spring.joints)) continue;
+    const joints = spring.joints.filter(isNode);
+    if (joints.length === 0) continue;
+    const settings: SpringSettings = {
+      stiffness: num(spring.stiffness, 1),
+      gravityPower: num(spring.gravityPower, 0),
+      gravityDir: new Vector3(...vec(spring.gravityDir, DOWN)).normalize(),
+      dragForce: num(spring.dragForce, 0.5),
+      hitRadius: num(spring.hitRadius, 0.02),
+    };
+    const colliders = (Array.isArray(spring.colliders) ? spring.colliders : []).filter(isRecord).flatMap((c) =>
+      isNode(c.node)
+        ? [
+            {
+              node: c.node,
+              offset: vec(c.offset, [0, 0, 0]),
+              radius: num(c.radius, 0),
+              ...(c.tail !== undefined ? { tail: vec(c.tail, [0, 0, 0]) } : {}),
+            },
+          ]
+        : []
+    );
+    chains.push({
+      joints,
+      settings,
+      kind: typeof spring.kind === "string" ? spring.kind : undefined,
+      lastIsTip: spring.lastIsTip === true && joints.length > 1,
+      colliders,
+    });
+  }
+  return chains;
+}
+
+const range = (v: unknown, fallback: [number, number], min: number, max: number): [number, number] => {
+  if (!Array.isArray(v) || v.length !== 2 || !v.every((x) => typeof x === "number" && Number.isFinite(x)))
+    return fallback;
+  const a = Math.min(max, Math.max(min, v[0] as number));
+  const b = Math.min(max, Math.max(min, v[1] as number));
+  return [Math.min(a, b), Math.max(a, b)];
+};
+const share = (v: unknown, fallback: number) =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback;
+
+/**
+ * Buzzar: `HAVEN_avatar_motion.earMotion`: false when the file turns idle ear motion off, else its settings over
+ * Buzzar's defaults.
+ */
+export function parseEarMotion(gltf: GLTFLike): EarMotionSettings | false {
+  const ext = gltf.extensions?.HAVEN_avatar_motion;
+  const ear = isRecord(ext) ? ext.earMotion : undefined;
+  if (ear === false || (isRecord(ear) && ear.enabled === false)) return false;
+  if (!isRecord(ear)) return DEFAULT_EAR_MOTION;
+  const d = DEFAULT_EAR_MOTION;
+  return {
+    gapSeconds: range(ear.gapSeconds, d.gapSeconds, 0, 3600),
+    firstSeconds: range(ear.firstSeconds, d.firstSeconds, 0, 3600),
+    foldShare: share(ear.foldShare, d.foldShare),
+    bothEarsShare: share(ear.bothEarsShare, d.bothEarsShare),
+    flickSpeed: range(ear.flickSpeed, d.flickSpeed, 0.05, 10),
+    foldSpeed: range(ear.foldSpeed, d.foldSpeed, 0.05, 10),
+  };
+}
+
 /** The spring chains for an avatar from its glTF JSON, or [] if it has none. */
 export function getSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): SpringChainSpec[] {
-  return parseVRM1Springs(gltf) ?? parseVRM0Springs(gltf) ?? detectSpringChains(gltf, mapping);
+  return (
+    parseHavenSprings(gltf) ?? parseVRM1Springs(gltf) ?? parseVRM0Springs(gltf) ?? detectSpringChains(gltf, mapping)
+  );
+}
+
+/**
+ * Buzzar: `HAVEN_avatar_motion` for an avatar, written out from the springs Buzzar would use for it today (its own,
+ * its VRM ones, or the ones it detects by bone name), so a file carries its behaviour with it
+ * (scripts/buzzar/bake-avatar.ts). Per-joint VRM settings are written per chain from the first joint.
+ */
+export function bakeAvatarMotion(chains: SpringChainSpec[], earMotion: EarMotionSettings | false) {
+  const round = (x: number) => Math.round(x * 1e5) / 1e5;
+  return {
+    springs: chains.map((c) => {
+      const s = Array.isArray(c.settings) ? c.settings[0] : c.settings;
+      return {
+        ...(c.kind ? { kind: c.kind } : {}),
+        joints: c.joints,
+        ...(c.lastIsTip ? { lastIsTip: true } : {}),
+        stiffness: round(s.stiffness),
+        gravityPower: round(s.gravityPower),
+        gravityDir: [round(s.gravityDir.x), round(s.gravityDir.y), round(s.gravityDir.z)],
+        dragForce: round(s.dragForce),
+        hitRadius: round(s.hitRadius),
+        ...(c.colliders.length ? { colliders: c.colliders } : {}),
+      };
+    }),
+    earMotion: earMotion === false ? { enabled: false } : { enabled: true, ...earMotion },
+  };
 }
 
 // --- Rig ------------------------------------------------------------------------------------------
@@ -313,7 +440,10 @@ export function getSpringChains(gltf: GLTFLike, mapping: HumanoidMapping): Sprin
 export function createSpringRig(
   chains: SpringChainSpec[],
   objectFor: (nodeIndex: number) => Object3D | undefined,
-  { facesNegativeZ = false }: { facesNegativeZ?: boolean } = {}
+  {
+    facesNegativeZ = false,
+    earMotion = DEFAULT_EAR_MOTION,
+  }: { facesNegativeZ?: boolean; earMotion?: EarMotionSettings | false } = {}
 ): SpringRig | undefined {
   const joints: SpringJoint[] = [];
   const seen = new Set<Object3D>();
@@ -369,7 +499,7 @@ export function createSpringRig(
         initialized: false,
       });
     }
-    if (isEar) {
+    if (isEar && earMotion !== false) {
       // The chain's first simulated joints (under any hub) fold; the rest of the ear follows as springs.
       const chainJoints = joints.slice(chainStart);
       // Game rigs put a tiny-scaled helper pivot at the ear's base (e.g. Umamusume's Sp_He_Ear0, scale 0.01):
@@ -405,8 +535,10 @@ export function createSpringRig(
   }
   if (joints.length === 0) return undefined;
   const rig: SpringRig = { joints, lastRootPosition: new Vector3(), hasLastRoot: false };
-  if (earJoints.length > 0)
-    rig.ears = { joints: earJoints, ears, untilNext: EAR_FIRST[0] + Math.random() * (EAR_FIRST[1] - EAR_FIRST[0]) };
+  if (earJoints.length > 0 && earMotion !== false) {
+    const [a, b] = earMotion.firstSeconds;
+    rig.ears = { joints: earJoints, ears, untilNext: a + Math.random() * (b - a), settings: earMotion };
+  }
   return rig;
 }
 
@@ -443,13 +575,6 @@ function earFolds(joint: SpringJoint, facesNegativeZ: boolean) {
 
 const _noTurn = new Quaternion();
 
-/** Seconds between one ear move ending and the next starting (horses keep their ears still most of the time). */
-const EAR_GAP = [15, 40];
-/** Seconds before the first move after an avatar loads. */
-const EAR_FIRST = [8, 20];
-/** How many moves are slow folds; the rest are quick flicks. */
-const EAR_FOLD_SHARE = 0.2;
-
 /**
  * Picks the next ear move now and then, and eases each ear toward where it should be. Like a horse's: sometimes both
  * ears, sometimes one; mostly a quick flick, now and then a fold back and down at a random speed.
@@ -457,11 +582,16 @@ const EAR_FOLD_SHARE = 0.2;
 function updateEars(ears: EarMotion, dt: number, random: () => number) {
   ears.untilNext -= dt;
   if (ears.untilNext <= 0) {
-    const both = ears.ears < 2 || random() < 0.45;
+    const set = ears.settings;
+    const both = ears.ears < 2 || random() < set.bothEarsShare;
     const which = Math.floor(random() * ears.ears);
-    const pose = random() < EAR_FOLD_SHARE ? "fold" : "flick";
-    // Speed: folds about 0.35× (slow) to 2.6×, skewed toward the middle; flicks are quick, 1.6× to 2.8×.
-    const speed = pose === "fold" ? 0.35 * Math.pow(2.6 / 0.35, (random() + random()) / 2) : 1.6 + random() * 1.2;
+    const pose = random() < set.foldShare ? "fold" : "flick";
+    // Speed: folds across their range skewed toward the middle (geometric), flicks evenly across theirs.
+    const [f0, f1] = set.foldSpeed;
+    const speed =
+      pose === "fold"
+        ? f0 * Math.pow(f1 / f0, (random() + random()) / 2)
+        : set.flickSpeed[0] + random() * (set.flickSpeed[1] - set.flickSpeed[0]);
     const hold = pose === "fold" ? (0.4 + random() * 1.8) / Math.sqrt(speed) : 0.12 + random() * 0.3;
     const goal = pose === "fold" ? 0.7 + random() * 0.3 : 0.7 + random() * 0.3;
     let longest = 0;
@@ -476,7 +606,7 @@ function updateEars(ears: EarMotion, dt: number, random: () => number) {
       e.untilRelax = e.delay + hold;
       longest = Math.max(longest, e.untilRelax + 1.5 / e.speed);
     }
-    ears.untilNext = longest + EAR_GAP[0] + random() * (EAR_GAP[1] - EAR_GAP[0]);
+    ears.untilNext = longest + set.gapSeconds[0] + random() * (set.gapSeconds[1] - set.gapSeconds[0]);
   }
   for (const e of ears.joints) {
     if (e.delay > 0) {
