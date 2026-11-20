@@ -24,7 +24,8 @@ const args = Object.fromEntries(
     return [k, v];
   })
 );
-const backState = args["back-state"] ?? "off"; // VRChat convention: mirrors start off
+// The mirror you spawn facing starts on (high), so avatars under test are on show straight away.
+const backState = args["back-state"] ?? "high";
 const spawnZ = Number(args["spawn-z"] ?? 1.5);
 const spawnX = Number(args["spawn-x"] ?? 0);
 const spawnYaw = Number(args["spawn-yaw"] ?? 180);
