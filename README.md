@@ -7,6 +7,7 @@
   />
   <br/>
   <br/>
+  <h3>Try Buzzar at <a href="https://buzzar.haven.software">https://buzzar.haven.software</a></h3>
 </div>
 
 Buzzar is a platform for shared virtual worlds built on top of [Matrix](https://matrix.org). Buzzar aims to
@@ -22,8 +23,9 @@ See [docs/buzzar](./docs/buzzar/) for the roadmap and feature-parity checklist.
 
 ## Getting Started
 
-Buzzar isn't publicly hosted yet; see [Local Development](#local-development) to run it against any Matrix
-homeserver. (Third Room's own hosted instance at thirdroom.io is no longer running.)
+Use the hosted app at **[buzzar.haven.software](https://buzzar.haven.software)** with any Matrix account, or see
+[Local Development](#local-development) to run it yourself. (Third Room's own hosted instance at thirdroom.io is no
+longer running.)
 
 ## Homeserver Requirements
 
