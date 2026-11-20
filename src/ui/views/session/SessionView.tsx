@@ -29,6 +29,7 @@ import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 import { useThingKeysSync } from "../../hooks/useThingKeys";
 import { useAutoRunSync } from "../../hooks/useAutoRun";
+import { ConfirmDialogHost } from "../components/confirm-dialog/ConfirmDialog";
 
 function RegisterKBarActions() {
   useUserProfileAction();
@@ -114,6 +115,8 @@ export default function SessionView() {
               {!worldId && !worldAlias && <HomeWelcome />}
               {/* Buzzar: world scripts ask here before reading the chat or posting as you. */}
               <ScriptConsent />
+              {/* Buzzar: the app's own confirm dialogs (confirmDialog), instead of the browser's. */}
+              <ConfirmDialogHost />
               {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}
             </MainThreadContextProvider>
           ) : (

@@ -28,6 +28,7 @@ import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
 import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { eventByOrderKey } from "../../../utils/matrixUtils";
 import { useOrderString } from "../../../hooks/useOrderString";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 const getScenes = async (
   session: Session,
@@ -271,7 +272,14 @@ export function DiscoverCreator({ room, permissions }: DiscoverCreatorProps) {
                                     {(permissions.canRedact || session.userId === sceneEvent.sender) && (
                                       <DropdownMenuItem
                                         onSelect={() => {
-                                          if (window.confirm("Are you sure?")) deleteScene(sceneEvent);
+                                          confirmDialog({
+                                            title: "Delete Scene?",
+                                            message: "This removes the scene for everyone.",
+                                            confirmLabel: "Delete",
+                                            danger: true,
+                                          }).then((ok) => {
+                                            if (ok) deleteScene(sceneEvent);
+                                          });
                                         }}
                                       >
                                         Delete

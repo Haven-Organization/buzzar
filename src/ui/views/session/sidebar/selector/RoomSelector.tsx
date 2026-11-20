@@ -17,6 +17,7 @@ import { useDialog } from "../../../../hooks/useDialog";
 import { NotificationBadge } from "../../../../atoms/badge/NotificationBadge";
 import { useRecentMessage } from "../../../../hooks/useRecentMessage";
 import { Text } from "../../../../atoms/text/Text";
+import { confirmDialog } from "../../../components/confirm-dialog/ConfirmDialog";
 
 interface RoomSelectorProps {
   isSelected: boolean;
@@ -95,7 +96,14 @@ export function RoomSelector({ isSelected, onSelect, room, platform }: RoomSelec
                 <DropdownMenuItem
                   variant="danger"
                   onSelect={() => {
-                    if (confirm("Are you sure?")) room.leave();
+                    confirmDialog({
+                      title: `Leave ${room.name || "this room"}?`,
+                      message: "You can join again later if it's public or you're invited.",
+                      confirmLabel: "Leave",
+                      danger: true,
+                    }).then((ok) => {
+                      if (ok) room.leave();
+                    });
                   }}
                 >
                   Leave

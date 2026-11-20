@@ -23,19 +23,24 @@ import { useMemberDisplayName } from "../../../hooks/useMemberDisplayName";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { waitForJoinedRoom } from "../../../utils/roomUpgrade";
 import { joinRoomVia, MatrixRequestError, serverNameOf } from "../../../utils/worldDirectory";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 const MAX_TOMBSTONE_HOPS = 3;
 
 /**
  * Buzzar: a portal to a web page used to replace the whole app with that page, silently. A world can put any link
- * in a portal, so ask first (with a browser dialog the world can't draw over) and open it in a new tab.
+ * in a portal, so ask first (in the app's own dialog, which the world's canvas can't draw over) and open it in a new
+ * tab.
  */
-function openExternalPortal(url: URL) {
+async function openExternalPortal(url: URL) {
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     throw new Error(`Portals can't open ${url.protocol} links.`);
   }
-  document.exitPointerLock();
-  const ok = window.confirm(`This portal leads to a website outside Buzzar:\n\n${url.href}\n\nOpen it in a new tab?`);
+  const ok = await confirmDialog({
+    title: "Open Website?",
+    message: `This portal leads to a website outside Buzzar:\n\n${url.href}\n\nOpen it in a new tab?`,
+    confirmLabel: "Open in New Tab",
+  });
   if (ok) window.open(url.href, "_blank", "noopener,noreferrer");
 }
 
@@ -89,7 +94,7 @@ export function WorldInteraction({ session, world }: WorldInteractionProps) {
 
         const parsedUri = parseMatrixUri(uri);
         if (parsedUri instanceof URL) {
-          openExternalPortal(parsedUri);
+          await openExternalPortal(parsedUri);
           return;
         }
         if (parsedUri.mxid1.startsWith("@")) throw new Error("This portal points to a person, not a world.");

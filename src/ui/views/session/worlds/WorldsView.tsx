@@ -65,6 +65,7 @@ import PlanetIC from "../../../../../res/ic/planet.svg";
 import AddIC from "../../../../../res/ic/add.svg";
 import ChevronBottomIC from "../../../../../res/ic/chevron-bottom.svg";
 import "./WorldsView.css";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 const TILE_IMAGE = { width: 640, height: 360 };
 
@@ -327,7 +328,15 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
             <DropdownMenuItem
               variant="danger"
               onSelect={() => {
-                if (confirm(`Leave ${name}?`)) room.leave();
+                confirmDialog({
+                  title: `Leave ${name}?`,
+                  message:
+                    "It will no longer be in your worlds. You can join again later if it's public or you're invited.",
+                  confirmLabel: "Leave",
+                  danger: true,
+                }).then((ok) => {
+                  if (ok) room.leave();
+                });
               }}
             >
               Leave

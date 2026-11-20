@@ -16,6 +16,7 @@ import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
 import { RageshakeDialog } from "../rageshake/RageshakeDialog";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 export function UserMenu() {
   const { session, platform, logout } = useHydrogen(true);
@@ -75,7 +76,14 @@ export function UserMenu() {
               <DropdownMenuItem onSelect={() => setBugReport(true)}>Report Bug</DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
-                  if (confirm("Are you sure?")) logout();
+                  confirmDialog({
+                    title: "Log Out?",
+                    message: "You'll need to sign in again to use Buzzar on this device.",
+                    confirmLabel: "Log Out",
+                    danger: true,
+                  }).then((ok) => {
+                    if (ok) logout();
+                  });
                 }}
                 variant="danger"
               >

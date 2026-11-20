@@ -30,6 +30,7 @@ import { eventByOrderKey, isValidRoomId } from "../../../utils/matrixUtils";
 import { getRoomSummary } from "../../../hooks/useRoomSummary";
 import { useOrderString } from "../../../hooks/useOrderString";
 import { useOrderMove } from "../../../hooks/useOrderMove";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 interface FeaturedItemProps {
   before?: ReactNode;
@@ -80,8 +81,9 @@ function FeatureRoom({ room }: { room: Room }) {
     [session, order]
   );
 
-  const removeFeatured = (roomId: string) => {
-    if (window.confirm("Are you sure?")) {
+  const removeFeatured = async (roomId: string) => {
+    const ok = await confirmDialog({ title: "Remove From Featured?", confirmLabel: "Remove", danger: true });
+    if (ok) {
       session.hsApi.sendState(room.id, RepositoryEvents.FeaturedRoom, roomId, {});
     }
   };
@@ -262,8 +264,9 @@ function FeatureWorld({ room }: { room: Room }) {
     [session]
   );
 
-  const removeFeatured = (roomId: string) => {
-    if (window.confirm("Are you sure?")) {
+  const removeFeatured = async (roomId: string) => {
+    const ok = await confirmDialog({ title: "Remove From Featured?", confirmLabel: "Remove", danger: true });
+    if (ok) {
       session.hsApi.sendState(room.id, RepositoryEvents.FeaturedWorld, roomId, {});
     }
   };
@@ -444,8 +447,9 @@ function FeatureScene({ room }: { room: Room }) {
     }
   };
 
-  const removeFeatured = (roomId: string) => {
-    if (window.confirm("Are you sure?")) {
+  const removeFeatured = async (roomId: string) => {
+    const ok = await confirmDialog({ title: "Remove From Featured?", confirmLabel: "Remove", danger: true });
+    if (ok) {
       session.hsApi.sendState(room.id, RepositoryEvents.FeaturedScene, roomId, {});
     }
   };
