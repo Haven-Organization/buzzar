@@ -63,6 +63,28 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
   useEffect(() => {
     if (pickedFile) loadFrom(pickedFile);
   }, [pickedFile, loadFrom]);
+  // Buzzar: show the picked avatar straight away (the same picture is uploaded with it if you don't add your own).
+  // It used to be rendered only on Save, so the preview panel stayed empty until then.
+  const [autoPreview, setAutoPreview] = useState<{ blob: Blob; url: string }>();
+  useEffect(() => {
+    setAutoPreview(undefined);
+    if (!pickedFile) return;
+    let cancelled = false;
+    let url: string | undefined;
+    pickedFile
+      .arrayBuffer()
+      .then((data) => renderAvatarPreview(data))
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setAutoPreview({ blob, url });
+      })
+      .catch((e) => console.warn("Couldn't render an avatar preview", e));
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [pickedFile]);
 
   /** Merge newly uploaded files with the current default avatar. */
   const buildContent = async (): Promise<AvatarContent | undefined> => {
@@ -98,7 +120,7 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
       const file = avatarInfo.blob?.nativeBlob as Blob | undefined;
       if (avatarInfo.mxc && !previewInfo.mxc && file) {
         try {
-          const image = await renderAvatarPreview(await file.arrayBuffer());
+          const image = autoPreview?.blob ?? (await renderAvatarPreview(await file.arrayBuffer()));
           content.preview_url = await uploadMedia(auth, image, "avatar-preview.png");
         } catch (e) {
           console.warn("Couldn't render an avatar preview", e);
@@ -215,7 +237,7 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
               <ModalAside className="flex">
                 <ScenePreview
                   className="grow"
-                  src={previewInfo.url}
+                  src={previewInfo.url ?? autoPreview?.url}
                   alt="3D Avatar preview"
                   fallback={
                     <Text variant="b3" color="surface-low" weight="medium">
