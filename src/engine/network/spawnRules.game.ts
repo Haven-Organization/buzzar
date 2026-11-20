@@ -3,7 +3,7 @@
  *
  * There's no server, so every honest client checks incoming messages itself: a peer can only create, move,
  * rename or delete objects whose network ID carries *its own* peer index, can only claim to be itself, and can
- * only spawn stock objects the world allows, up to the per-person limit. Anything else is dropped (so a modified
+ * only spawn Things the world allows (its list and blocked behaviours), up to the per-person limit. Anything else is dropped (so a modified
  * client only sees its junk on its own screen) and reported to the UI, which tells moderators.
  */
 import { defineComponent, hasComponent } from "bitecs";
@@ -17,6 +17,9 @@ import { Player } from "../player/Player";
 import { createDisposables } from "../utils/createDisposables";
 import { GameNetworkState, getPeerIndexFromNetworkId, NetworkModule } from "./network.game";
 import {
+  DEFAULT_SPAWN_RULES,
+  isSpawnAllowed,
+  isThingId,
   SetSpawnRulesMessage,
   SpawnRules,
   SpawnRulesMessageType,
@@ -49,7 +52,7 @@ interface SpawnRulesState {
 export const SpawnRulesModule = defineModule<GameContext, SpawnRulesState>({
   name: "spawn-rules",
   create() {
-    return { rules: {}, lastReport: new Map(), listeners: new Set() };
+    return { rules: DEFAULT_SPAWN_RULES, lastReport: new Map(), listeners: new Set() };
   },
   init(ctx) {
     return createDisposables([
@@ -75,9 +78,7 @@ export function isStockSpawnable(prefab: string) {
   return STOCK.has(prefab);
 }
 
-export function isSpawnAllowed(rules: SpawnRules, prefab: string) {
-  return !STOCK.has(prefab) || !rules.allowed || rules.allowed.includes(prefab);
-}
+export { isSpawnAllowed };
 
 /** Stock objects a peer index spawned (not ones it took from others) that are currently out. */
 export function countStockObjects(ctx: GameContext, network: GameNetworkState, peerIndex: number) {
@@ -86,7 +87,7 @@ export function countStockObjects(ctx: GameContext, network: GameNetworkState, p
     if (getPeerIndexFromNetworkId(nid) !== peerIndex) continue;
     if (hasComponent(ctx.world, TakenObject, eid)) continue;
     const prefab = Prefab.get(eid);
-    if (prefab && STOCK.has(prefab)) count++;
+    if (prefab && isThingId(prefab)) count++;
   }
   return count;
 }
@@ -146,7 +147,7 @@ export function checkCreate(
 ): { reject?: string; taken?: boolean; replacesNid?: number } {
   if (!peerOwnsNetworkId(network, peerId, nid)) return { reject: "created an object under someone else's ID" };
   if (!knownPrefab) return { reject: `spawned an unknown object type "${prefab.slice(0, 60)}"` };
-  if (!STOCK.has(prefab)) return {};
+  if (!isThingId(prefab)) return {};
   const rules = getSpawnRules(ctx);
   if (!isSpawnAllowed(rules, prefab)) return { reject: `spawned "${prefab}", which this world doesn't allow` };
   const credit = consumeTakeCredit(ctx, peerId, prefab);

@@ -12,6 +12,7 @@ import { addChild } from "../../src/engine/component/transform";
 import { MatrixModule } from "../../src/engine/matrix/matrix.game";
 import { WebSGNetworkModule } from "../../src/engine/network/scripting.game";
 import { SpawnRulesModule } from "../../src/engine/network/spawnRules.game";
+import { DEFAULT_SPAWN_RULES } from "../../src/engine/network/spawnRules.common";
 
 export function registerDefaultPrefabs(ctx: GameContext) {
   registerPrefab(ctx, {
@@ -123,7 +124,7 @@ export const mockGameState = () => {
   ctx.modules.set(PrefabModule, mockPrefabState());
   ctx.modules.set(MatrixModule, mockMatrixModule());
   ctx.modules.set(WebSGNetworkModule, mockWebSGNetworkModule());
-  ctx.modules.set(SpawnRulesModule, { rules: {}, lastReport: new Map(), listeners: new Set() });
+  ctx.modules.set(SpawnRulesModule, { rules: DEFAULT_SPAWN_RULES, lastReport: new Map(), listeners: new Set() });
 
   // NOOP Entity
   addEntity(ctx.world);

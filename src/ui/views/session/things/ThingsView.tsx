@@ -34,7 +34,7 @@ import {
   StockThing,
   ThingCollection,
 } from "../../../utils/thingsMatrix";
-import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
+import { useThingPreview } from "../../../hooks/useThingPreview";
 import { worldAtom } from "../../../state/world";
 import { Thread } from "../../../../engine/module/module.common";
 import {
@@ -418,40 +418,14 @@ function StockThingTile({
 
 /** A bookmarked Thing: its preview (rendered from the file when it has none). */
 function SavedThingTile({ thing, onRemove }: { thing: SavedThing; onRemove: () => void }) {
-  const { session } = useHydrogen(true);
-  const [rendered, setRendered] = useState<string>();
-  const [loading, setLoading] = useState(false);
-  const preview = thing.preview_url
-    ? session.mediaRepository.mxcUrlThumbnail(thing.preview_url, 360, 480, "scale") ?? undefined
-    : undefined;
-
-  useEffect(() => {
-    if (thing.preview_url) return;
-    const httpUrl = session.mediaRepository.mxcUrl(thing.url);
-    if (!httpUrl) return;
-    let objectUrl: string | undefined;
-    let cancelled = false;
-    setLoading(true);
-    renderAvatarPreviewFromUrl(thing.url, httpUrl, "thing")
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setRendered(objectUrl);
-      })
-      .catch((e) => console.warn("Couldn't render a Thing preview", e))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [thing.url, thing.preview_url, session]);
+  const { src, rendered, loading } = useThingPreview(thing.url, thing.preview_url);
 
   const name = thing.name || "Thing";
   const openDetails = useOpenDetails();
   return (
     <WorldTile
       shape="tall"
-      imageSrc={preview ?? rendered}
+      imageSrc={src}
       fallback={
         loading ? (
           <div className="WorldTile__fallback flex flex-column items-center justify-center gap-xs">

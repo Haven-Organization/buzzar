@@ -15,6 +15,7 @@ import { Networked } from "../../../src/engine/network/NetworkComponents";
 import { deserializeCreates, deserializeUpdatesChanged } from "../../../src/engine/network/serialization.game";
 import { deserializeRemoveOwnership, deserializeTakeOwnership } from "../../../src/engine/network/ownership.game";
 import { SpawnRulesModule } from "../../../src/engine/network/spawnRules.game";
+import { DEFAULT_SPAWN_RULES } from "../../../src/engine/network/spawnRules.common";
 import { PrefabType, registerPrefab } from "../../../src/engine/prefab/prefab.game";
 import { RemoteNode } from "../../../src/engine/resource/RemoteResources";
 import { mockGameState } from "../mocks";
@@ -26,8 +27,16 @@ const nid = (index: number, local: number) => ((local << 16) | index) >>> 0;
 function setup() {
   const ctx = mockGameState();
   (ctx as unknown as { sendMessage: () => void }).sendMessage = () => undefined;
-  registerPrefab(ctx, { name: "small-crate", type: PrefabType.Object, create: () => new RemoteNode(ctx.resourceManager) });
-  registerPrefab(ctx, { name: "small-ball", type: PrefabType.Object, create: () => new RemoteNode(ctx.resourceManager) });
+  registerPrefab(ctx, {
+    name: "small-crate",
+    type: PrefabType.Object,
+    create: () => new RemoteNode(ctx.resourceManager),
+  });
+  registerPrefab(ctx, {
+    name: "small-ball",
+    type: PrefabType.Object,
+    create: () => new RemoteNode(ctx.resourceManager),
+  });
   const network = getModule(ctx, NetworkModule);
   network.peerIdToIndex.set(ALICE, 1);
   network.peerIdToIndex.set(MALLORY, 2);
@@ -75,7 +84,11 @@ describe("Buzzar spawn rules and ownership", () => {
 
   it("rejects stock objects the world doesn't allow", () => {
     const { ctx, network } = setup();
-    getModule(ctx, SpawnRulesModule).rules = { allowed: ["small-crate"] };
+    getModule(ctx, SpawnRulesModule).rules = {
+      ...DEFAULT_SPAWN_RULES,
+      default: "block",
+      things: { "small-crate": true },
+    };
     deserializeCreates(
       ctx,
       creates([
@@ -90,7 +103,7 @@ describe("Buzzar spawn rules and ownership", () => {
 
   it("enforces the per-person limit", () => {
     const { ctx, network } = setup();
-    getModule(ctx, SpawnRulesModule).rules = { maxPerUser: 2 };
+    getModule(ctx, SpawnRulesModule).rules = { ...DEFAULT_SPAWN_RULES, maxPerUser: 2 };
     deserializeCreates(
       ctx,
       creates([
@@ -133,7 +146,7 @@ describe("Buzzar spawn rules and ownership", () => {
 
   it("lets a player at the limit take (grab) someone else's object without it being refused", () => {
     const { ctx, network } = setup();
-    getModule(ctx, SpawnRulesModule).rules = { maxPerUser: 1 };
+    getModule(ctx, SpawnRulesModule).rules = { ...DEFAULT_SPAWN_RULES, maxPerUser: 1 };
     deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
     deserializeCreates(ctx, creates([[nid(2, 1), "small-crate"]]), MALLORY); // Mallory is at her limit
 
@@ -163,7 +176,7 @@ describe("Buzzar spawn rules and ownership", () => {
 
   it("hands an object over in place: same entity, new owner, not counted against the taker", () => {
     const { ctx, network } = setup();
-    getModule(ctx, SpawnRulesModule).rules = { maxPerUser: 1 };
+    getModule(ctx, SpawnRulesModule).rules = { ...DEFAULT_SPAWN_RULES, maxPerUser: 1 };
     deserializeCreates(ctx, creates([[nid(1, 1), "small-crate"]]), ALICE);
     deserializeCreates(ctx, creates([[nid(2, 1), "small-crate"]]), MALLORY);
     const eid = network.networkIdToEntityId.get(nid(1, 1))!;
