@@ -62,9 +62,6 @@ export function UserMenu() {
               <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.UserProfile })}>
                 User Settings
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setOverlayWindow({ type: OverlayWindow.Avatars })}>
-                Avatars
-              </DropdownMenuItem>
               {accountManagementUrl && (
                 <DropdownMenuItem onSelect={() => window.open(accountManagementUrl)}>Manage Account</DropdownMenuItem>
               )}
