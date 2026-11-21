@@ -1,6 +1,8 @@
 # Plan 01: custom avatars + mirrors
 
-Status: draft, 2026-11-13. These are the first two features to ship (user priority).
+Status: **done** (2026-11-21). Drafted 2026-11-13 as the first two features to ship (user priority). Custom avatars,
+mirrors and avatar pedestals have shipped; what's left is listed under [Still open](#still-open), and each of those
+items is tracked in the parity checklist. The design notes below are kept as a record of how it was built.
 Checklist refs: §1 Avatars, §2 Mirrors.
 
 ## Prerequisite: authenticated media (both features need it)
@@ -10,11 +12,11 @@ with an `Authorization` header. Hydrogen 0.1.2 builds legacy `/_matrix/media/r0/
 (`src/ui/hooks/useWorldLoader.ts:60`, `src/ui/utils/avatar.ts:68`, …), so **new avatar uploads won't load**.
 Older media, like the reference worlds' scenes, still loads.
 
-- [ ] Extend the existing service worker (`sw.ts`, which already intercepts and caches `/_matrix/media/r0/download`):
+- [x] Extend the existing service worker (`sw.ts`, which already intercepts and caches `/_matrix/media/r0/download`):
       rewrite the request to `/_matrix/client/v1/media/download/…` and add `Authorization: Bearer <token>`.
       The page passes the token to the SW over `postMessage`, which is the pattern Element Web uses.
       Fall back to the legacy URL for homeservers without authenticated media (check `/versions` ≥ v1.11).
-- [ ] Keep the cache keyed by mxc URI, never by a URL containing the token.
+- [x] Keep the cache keyed by mxc URI, never by a URL containing the token.
 
 This is a stopgap until the matrix-js-sdk migration (checklist §0), but the SW approach carries over to it.
 
@@ -36,15 +38,17 @@ Content (same shape in both places):
   "url": "mxc://example.org/abc",          // glb / vrm
   "preview_url": "mxc://example.org/def",  // png thumbnail
   "format": "vrm1" | "vrm0" | "glb",
-  "sha256": "…",                            // integrity + cache key
-  "stats": { "triangles": 52000, "bones": 74, "texture_bytes": 41943040, "size_bytes": 12000000 }
+  "name": "Devil"                          // shown on the Avatars screen
 }
 ```
 
-Resolution per player: member-event key → profile field → default rig.
-`stats` is advisory. Every client recomputes limits on load and never trusts the numbers.
+Resolution per player: member-event key → profile field → default rig. (The draft also had `sha256` and `stats`
+fields; they were never needed, since every client checks limits itself when it loads an avatar.)
 
-**Caveats to handle:**
+Built-in avatars (Devil, Rose) are worn from one shared copy on matrix.org each (`res/sharedMedia.json`), so wearing
+one never uploads anything.
+
+**Caveats** (neither followed up yet, see [Still open](#still-open)):
 - When a user changes their global displayname/avatar, Synapse rewrites member events in every room.
   Check whether it keeps unknown keys; if not, re-apply ours after detecting the change.
 - Third Room's old avatar storage (`org.matrix.msc3815.world.profile` in a *private* profile room) was
@@ -150,40 +154,47 @@ Also: Hubs-exported scenes with `MOZ_hubs_components.mirror` get mapped to the s
 - Unit: extension parsing, toggle state machine.
 - Manual: `/viewer` with the test scene (desktop + WebXR emulator), then perf comparison off/low/high.
 
-## Progress (2026-11-13)
+## Progress
 
-- [x] Authenticated media in the SW (`sw.ts`, `src/ui/utils/mediaAuth*.ts`). Unit-tested; **not yet tested
-      end to end** (needs a login in the dev build).
+- [x] Authenticated media in the SW (`sw.ts`, `src/ui/utils/mediaAuth*.ts`), in use with real logins.
 - [x] Render layers `Avatar` + `Lights`. Your own avatar is hidden from the first-person camera via layers
       instead of `visible = false`, so mirrors show it (`src/engine/player/avatarLayers.ts`).
 - [x] `HAVEN_mirror` + Hubs `mirror`: resource on all three threads, `Mirror` render object, toggle system
-      (`src/plugins/mirrors/`). Verified in `/viewer?src=/gltf/test/mirror-room.glb` (and `-low`, `-off`
-      variants) for high/low/off rendering.
-- [ ] Toggle interaction checked by hand (automation can't get pointer lock).
-- [ ] WebXR check (per-eye reflections).
-- [ ] Settings UI for the client quality cap (`setMaxMirrorState` exists; no UI yet); remember per-world state.
+      (`src/plugins/mirrors/`), including world-defined state buttons (Home World, test room).
+- [x] Toggle interaction checked by hand.
 - [x] Avatar engine (`src/engine/avatar/`):
       - humanoid mapping for VRM 1.0, VRM 0.x, Mixamo and CATS names;
       - limits check;
       - retargeting of the built-in locomotion clips (bind pose from inverse bind matrices, handling both
         the spec and the "world-space IBM" exporter conventions);
       - swap into the player container;
-      - camera and nametag at the avatar's eye height.
-      Verified in `/viewer?src=/gltf/test/mirror-room-close.glb&avatar=/avatars/031_Devil.vrm`
-      (and `057_Rose.vrm`): correct facing, height and idle animation; the mirror shows the avatar.
+      - camera and nametag at the avatar's eye height;
+      - spring bones (`springBones.ts`), expressions, lip sync, blinking and eye gaze (`face.ts`).
 - [x] Fixed two upstream bugs found along the way: skins with inverse bind matrices at accessor 0 lost
       them, and animated nodes that aren't skin joints never synced.
 - [x] Matrix protocol (`src/ui/utils/avatarMatrix.ts`): profile field + member-event key, resolution
       order, publishing.
 - [x] Main-thread sync per world (`src/engine/avatar/avatar.main.ts`): resolves us + every call peer and
       re-resolves on member-event changes (live switching).
-- [x] Avatar editor accepts `.vrm`: "Save as Default" (profile field + legacy profile room) and "Use Only in
-      This World" (member event).
-- [ ] **End-to-end test with a real login** (two accounts in one world, switching in-world). Not done yet;
-      it writes a member event in a real room.
-- [ ] Spring bones, expressions/visemes, MToon shading, per-viewer hide/show, avatar picker with history,
-      height scaling (§1 of the checklist).
-- [ ] Cache retargeted clips per avatar URL (retargeting costs ~70 ms per load today).
+- [x] Avatars screen: upload (`.glb` / `.vrm`, preview before upload), Wear / Wear Only in This World, saved and
+      bookmarked avatars (account data `software.haven.world.avatars`), stock avatars, avatars of people in the world.
+- [x] End-to-end tests with real logins: two accounts in one world, switching in-world.
+- [x] Avatar pedestals (section C).
+
+### Still open
+
+Each of these is tracked in `docs/buzzar/parity-checklist.md` (§1 Avatars, §2 Mirrors, §5 Personal safety).
+
+- [ ] Client setting for the mirror quality cap: `setMaxMirrorState` exists but no setting uses it. Mirror state
+      isn't remembered per world either.
+- [ ] WebXR check of the per-eye reflections in a real headset.
+- [ ] MToon shading (VRM avatars render with standard materials).
+- [ ] Per-viewer hide/show of other people's avatars (§5 Personal safety).
+- [ ] User-adjustable height and world height limits (§1).
+- [ ] Performance ranking and hard limits beyond today's load-time check (§1).
+- [ ] Cache retargeted clips per avatar URL (retargeting costs ~70 ms per load).
+- [ ] Check whether Synapse keeps our member-event key when a user changes their global displayname/avatar.
+- [ ] (Maybe) "Import my Third Room avatar" from the old private profile room.
 
 ## Order of work
 
@@ -219,18 +230,23 @@ avatar stands (top of the podium), facing +Z:
 
 ## Test world on matrix.org
 
-`!roS2wueFnoGf7M-GOlSbtfvaXp7vxMMGt5V7w5AhROQ` ("Buzzar Mirror Test", invite-only, room v12,
-type `org.matrix.msc3815.world`). It was created with Third Room's own `createWorld()` (which validates the
-v12 power-level fix) from `public/gltf/test/mirror-room-matrix.glb`, generated by:
+"Buzzar Test Room", `#test-room-buzzar:matrix.org` (public, room v12, type `org.matrix.msc3815.world`). It started on
+2026-11-14 as "Buzzar Mirror Test" and is now the general debug/physics test room. It has:
+
+- the two mirrors (the one you spawn facing starts on, so avatars under test are visible at once);
+- pedestals for Default, Devil and Rose along the right-hand wall;
+- an 8 m ladder up to a platform past the front-left corner, with the pillars clear of the pedestals.
+
+Its scene is `public/gltf/test/test-room-compressed.glb`, made from `mirror-room-matrix.glb`:
 
 ```
 node scripts/buzzar/make-mirror-test-scene.mjs \
-  --devil-uri=mxc://glowers.club/uNVIIrOMFNxhmMVMfOgmMOtj \
-  --rose-uri=mxc://matrix.org/UBOGinazYEjdBpSRsgIkCCoo --out=mirror-room-matrix.glb
+  --devil-uri=mxc://matrix.org/… --rose-uri=mxc://matrix.org/… --out=mirror-room-matrix.glb
+node scripts/buzzar/gltf-tools/compress-world.mjs public/gltf/test/mirror-room-matrix.glb \
+  public/gltf/test/test-room-compressed.glb
 ```
 
-It contains the two mirrors plus pedestals for Default, Devil and Rose along the right-hand wall. Since 2026-11-17 it is the general debug/physics test room ("Buzzar Test Room", now owned by q as
-`!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4`) and also has an 8 m ladder up to a platform past the front-left corner. The pillars stand clear of the pedestals. The room's scene is the compressed copy
-(`node scripts/buzzar/gltf-tools/compress-world.mjs public/gltf/test/mirror-room-matrix.glb public/gltf/test/test-room-compressed.glb`,
-146 KB → 30 KB), uploaded as q: `mxc://glowers.club/uPuSIdNSGUBDrfPFcVYZdpjB`. When a pedestal avatar changes (e.g. the Devil's tail, 2026-11-18), upload the new .vrm, regenerate with its mxc, and re-upload the scene; the pedestal otherwise keeps offering the old upload. To update it,
-regenerate the .glb, upload it, and change `scene_url` in the `org.matrix.msc3815.world` state event.
+To update it, regenerate the .glb, upload it to matrix.org and change `scene_url` in the room's
+`org.matrix.msc3815.world` state event. When a pedestal avatar's file changes, upload the new .vrm and regenerate
+with its mxc first; otherwise the pedestal keeps offering the old upload. Locally, the same scene opens with
+`/viewer?src=/gltf/test/mirror-room.glb&avatar=/avatars/031_Devil.vrm`.

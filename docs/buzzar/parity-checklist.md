@@ -63,7 +63,7 @@ infrastructure and can't scale to VRChat-sized instances.
 | | Item | Size | Notes |
 |---|---|---|---|
 | ✅ | **Load custom avatars in the engine** | M | Upload UI stores `.glb` in the profile room, but everyone renders the hard-coded `full-animation-rig.glb` (`PlayerRig.ts:62`). **Buzzar:** Done: glb/VRM avatars from profile or per-world member state, loaded by every client. |
-| ✅ | VRM 0.x/1.0 import (humanoid mapping, spring bones, expressions) | L | Most likely interchange format for VRChat-style avatars. **Buzzar:** Done: humanoid mapping, spring bones (VRM 0/1 + name-detected), morph-target expressions. |
+| ✅ | VRM 0.x/1.0 import (humanoid mapping, spring bones, expressions) | L | Most likely interchange format for VRChat-style avatars. **Buzzar:** Done: humanoid mapping, spring bones (VRM 0/1 + name-detected), morph-target expressions. Still to do: MToon shading, and caching retargeted clips per avatar URL (~70 ms per load). |
 | ✅ | Choose avatar per world entry + **switch in-world** without rejoining | M | 🅼 Per-world `world.member` writer exists but is never called, and its PL entry is misspelled (`member.world`). **Buzzar:** Done: Avatars screen (Wear / Wear Only in This World), live switch announced to peers. |
 | ✅ | Avatar library / favourites / pedestals in worlds | M | 🅼 Pedestal = world node that offers an avatar. Store the library in account data or a profile room. **Buzzar:** Done: Avatars screen (Stock, Bookmarked in account data, In World) and HAVEN_avatar_pedestal. |
 | ❌ | **User-adjustable height** (VRChat ≈0.2–5 m eye height, *verify*) + world min/max/forced height | M | Capsule fixed at 1.7 m. The engine enforces world limits on every avatar change; scripts don't have to (fixes VRChat's `OnAvatarEyeHeightChanged` bypass). 🅼 limits in world rules. |
@@ -97,7 +97,7 @@ infrastructure and can't scale to VRChat-sized instances.
 | ❌ | **Runtime set swapping**: enable/disable node subtrees, load extra glTF "sets" at runtime, swap skybox/lighting/reflection probes | M | Live scene reload exists for state changes, but it reloads everything. Needed: additive per-set loading + toggling. |
 | ❌ | Persistence (per-player + per-world data, VRChat 100 KB/player, *verify*) | L | 🅼 Per-user state events (`state_key = @user`) or room account data. World-level data is written by members with the right PL, often a world bot (§9). |
 | ❌ | Video players (URL + mxc, synced playback) | M | Respect §7 URL policy. |
-| ✅ | Mirrors (planar, quality levels) | M | Only reflective spheres exist today. **Buzzar:** Done: HAVEN_mirror planar mirrors. |
+| ✅ | Mirrors (planar, quality levels) | M | Only reflective spheres exist today. **Buzzar:** Done: HAVEN_mirror planar mirrors. Still to do: a client setting for the quality cap (`setMaxMirrorState` is unused), remembering mirror state per world, and checking the per-eye reflections in a headset. |
 | ❌ | MIDI input/playback | S | WebMIDI. Low priority. |
 | ❌ | Multiple scripts per world / per-node scripts | L | Today: exactly one script per world. |
 | 🟡 | Script CPU/memory budget + watchdog; a script error must not block world load | M | No budget today. #619: a script error stops the world loading. **Buzzar:** #619 done: a script that fails to load or errors is stopped with a notice and the world keeps running. No CPU/memory budget yet. |
