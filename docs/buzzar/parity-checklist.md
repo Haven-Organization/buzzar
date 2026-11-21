@@ -27,7 +27,7 @@ These aren't features VRChat has. Without them, Third Room doesn't run properly 
 infrastructure and can't scale to VRChat-sized instances.
 
 - [ ] ❌ **L** Replace Hydrogen (`@thirdroom/hydrogen-view-sdk` 0.1.2, unmaintained, libolm) with
-      **matrix-js-sdk** (Rust crypto WASM). This touches all of `src/ui` and `src/engine/matrix`.
+      **matrix-js-sdk** (Rust crypto WASM). This touches all of `src/ui` and `src/engine/matrix`. Plan: [plans/02-matrix-js-sdk-migration.md](plans/02-matrix-js-sdk-migration.md).
 - [x] ✅ **S** Authenticated media (`/_matrix/client/v1/media/*`), done in `src/ui/utils/mediaAuth.ts`. Hydrogen builds legacy URLs, so new
       scenes, avatars and scripts fail on modern homeservers. *Note: the reference rooms loaded fine through matrix.org's authenticated endpoint.*
 - [x] ✅ **S** Room v12 compatibility (done: no `users` entry in power-level overrides; Backrooms on glowers.club is a v12 world). World, home and profile creation puts the creator in
