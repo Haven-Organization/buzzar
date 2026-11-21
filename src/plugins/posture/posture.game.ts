@@ -31,6 +31,7 @@ import { ourPlayerQuery } from "../../engine/player/Player";
 import { localPosture, Posture, PostureEntities } from "../../engine/player/posture.common";
 import { RemoteNode } from "../../engine/resource/RemoteResources";
 import { getRemoteResource } from "../../engine/resource/resource.game";
+import { hasRoomFor, PostureCapsule } from "./postureClearance";
 
 /** Holding crouch this long goes prone. */
 const HOLD_FOR_PRONE = 0.5;
@@ -40,13 +41,7 @@ const REBROADCAST_SECONDS = 3;
  * Capsule per posture (body space; the body's origin is at the feet, forward is -Z). Standing matches the player
  * rig (PlayerRig.ts). Prone is a capsule lying along the body, centred a little behind the hips.
  */
-interface CapsuleShape {
-  halfHeight: number;
-  radius: number;
-  center: [number, number, number];
-  lying: boolean;
-}
-const CAPSULES: Record<Posture, CapsuleShape> = {
+const CAPSULES: Record<Posture, PostureCapsule> = {
   [Posture.Standing]: { halfHeight: 0.575, radius: 0.35, center: [0, 0.85, 0], lying: false },
   [Posture.Crouching]: { halfHeight: 0.25, radius: 0.35, center: [0, 0.525, 0], lying: false },
   [Posture.Prone]: { halfHeight: 0.5, radius: 0.25, center: [0, 0.175, 0.15], lying: true },
@@ -95,49 +90,12 @@ function createPostureMessage(posture: Posture) {
   return sliceCursorView(messageView);
 }
 
-const _q = new Quaternion();
-const _v = new Vector3();
 const LYING = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
 
-function shapePose(body: RAPIER.RigidBody, shape: CapsuleShape) {
-  const t = body.translation();
-  const r = body.rotation();
-  _q.set(r.x, r.y, r.z, r.w);
-  _v.set(...shape.center).applyQuaternion(_q);
-  const rotation = shape.lying ? _q.clone().multiply(LYING) : _q.clone();
-  return {
-    position: { x: t.x + _v.x, y: t.y + _v.y, z: t.z + _v.z },
-    rotation: { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w },
-  };
-}
-
-/** Whether the capsule for `posture` fits where the player is (nothing solid in the way). */
-function fits(ctx: GameContext, body: RAPIER.RigidBody, collider: RAPIER.Collider, posture: Posture): boolean {
+/** Whether there's room to go from `from` to `to` where the player is (see postureClearance.ts). */
+function fits(ctx: GameContext, body: RAPIER.RigidBody, collider: RAPIER.Collider, from: Posture, to: Posture) {
   const { physicsWorld } = getModule(ctx, PhysicsModule);
-  const shape = CAPSULES[posture];
-  // A hair smaller, so resting on the floor doesn't count as being blocked.
-  const capsule = new RAPIER.Capsule(shape.halfHeight, shape.radius - 0.02);
-  const { position, rotation } = shapePose(body, {
-    ...shape,
-    center: [shape.center[0], shape.center[1] + 0.03, shape.center[2]],
-  });
-  let blocked = false;
-  physicsWorld.intersectionsWithShape(
-    position,
-    rotation,
-    capsule,
-    (other) => {
-      if (other.handle === collider.handle || other.parent()?.handle === body.handle) return true;
-      blocked = true;
-      return false;
-    },
-    undefined, // not EXCLUDE_SENSORS: in this Rapier build it also drops dynamic bodies (see isSolid)
-    collider.collisionGroups(),
-    collider,
-    body,
-    isSolid
-  );
-  return !blocked;
+  return hasRoomFor(physicsWorld, body, collider, CAPSULES, from, to, isSolid);
 }
 
 function applyCapsule(collider: RAPIER.Collider, posture: Posture) {
@@ -206,8 +164,9 @@ export function PostureSystem(ctx: GameContext) {
     // Only change when the new capsule fits (e.g. you can't stand up under a table). Prone→standing via crouching
     // if only that fits.
     if (wanted !== localPosture.value) {
-      if (fits(ctx, body, collider, wanted)) setLocalPosture(ctx, module, wanted);
-      else if (wanted === Posture.Standing && fits(ctx, body, collider, Posture.Crouching)) {
+      const from = localPosture.value;
+      if (fits(ctx, body, collider, from, wanted)) setLocalPosture(ctx, module, wanted);
+      else if (wanted === Posture.Standing && fits(ctx, body, collider, from, Posture.Crouching)) {
         setLocalPosture(ctx, module, Posture.Crouching);
       }
     }
