@@ -210,6 +210,20 @@ export class ObservableMap<K, V> extends BaseObservableMap<K, V> {
     this.map = new Map(entries);
     this.each((h) => h.onReset?.());
   }
+
+  /** Changes the map without telling observers; follow with `notifyChanged()` once a batch is done. */
+  setSilently(key: K, value: V) {
+    this.map.set(key, value);
+  }
+
+  removeSilently(key: K) {
+    return this.map.delete(key);
+  }
+
+  /** Tells observers the map changed in ways they should re-read (one notification for any number of changes). */
+  notifyChanged() {
+    this.each((h) => h.onReset?.());
+  }
 }
 
 export interface IListObserver<T> {

@@ -267,6 +267,9 @@ export class Session {
   /** @internal */
   markRoomsLoaded: () => void = () => undefined;
   private statusObservers = new Map<string, ObservableValue<RoomStatus>>();
+  /** Whether room-list observers are waiting to be told about changes (see `changed`). */
+  private notifyTimer?: ReturnType<typeof setTimeout>;
+  private changedRooms = new Set<Room>();
   /** Rooms the user just left here: ignored until sync confirms they're no longer joined (or they rejoin). */
   private leftRooms = new Set<string>();
   private disposers: (() => void)[] = [];
@@ -347,6 +350,23 @@ export class Session {
     });
   }
 
+  /**
+   * Tells the room lists' observers that something changed, once per burst. Sync delivers events one at a time
+   * (hundreds when rooms load or the app catches up), and redrawing the lists for each one froze the app.
+   */
+  private changed(room?: Room) {
+    if (room) this.changedRooms.add(room);
+    if (this.notifyTimer !== undefined) return;
+    this.notifyTimer = setTimeout(() => {
+      this.notifyTimer = undefined;
+      const rooms = [...this.changedRooms];
+      this.changedRooms.clear();
+      for (const changedRoom of rooms) changedRoom.notifyChange();
+      this.rooms.notifyChanged();
+      this.invites.notifyChanged();
+    }, 50);
+  }
+
   /** Files a room under joined rooms, invites or neither, by the user's membership. */
   private place(sdkRoom: SdkRoom) {
     const id = sdkRoom.roomId;
@@ -354,25 +374,26 @@ export class Session {
     if (membership !== "join") this.leftRooms.delete(id);
     else if (this.leftRooms.has(id)) return;
     if (membership === "join") {
-      if (this.invites.has(id)) this.invites.remove(id);
-      if (!this.rooms.has(id)) {
-        const room = new Room(this.client, sdkRoom, this.mediaRepository, (roomId) => this.useRoom(roomId));
+      this.invites.removeSilently(id);
+      let room = this.rooms.get(id);
+      if (!room) {
+        room = new Room(this.client, sdkRoom, this.mediaRepository, (roomId) => this.useRoom(roomId));
         room.onLeft = () => this.drop(id);
-        this.rooms.add(id, room);
-      } else {
-        this.touch(id);
+        this.rooms.setSilently(id, room);
       }
+      this.changed(room);
     } else {
       const room = this.rooms.get(id);
       if (room) {
-        this.rooms.remove(id);
+        this.rooms.removeSilently(id);
         room.dispose();
       }
       if (membership === "invite") {
-        if (!this.invites.has(id)) this.invites.add(id, new Invite(this.client, sdkRoom, this.mediaRepository));
-      } else if (this.invites.has(id)) {
-        this.invites.remove(id);
+        if (!this.invites.has(id)) this.invites.setSilently(id, new Invite(this.client, sdkRoom, this.mediaRepository));
+      } else {
+        this.invites.removeSilently(id);
       }
+      this.changed();
     }
     this.statusObservers.get(id)?.set(this.statusOf(id));
   }
@@ -380,20 +401,17 @@ export class Session {
   private drop(roomId: string) {
     this.leftRooms.add(roomId);
     this.rooms.get(roomId)?.dispose();
-    this.rooms.remove(roomId);
-    this.invites.remove(roomId);
+    this.rooms.removeSilently(roomId);
+    this.invites.removeSilently(roomId);
+    this.changed();
     this.statusObservers.get(roomId)?.set(this.statusOf(roomId));
   }
 
   private touch(roomId?: string | null) {
     if (!roomId) return;
     const room = this.rooms.get(roomId);
-    if (room) {
-      room.notifyChange();
-      this.rooms.update(roomId);
-    } else if (this.invites.has(roomId)) {
-      this.invites.update(roomId);
-    }
+    if (room) this.changed(room);
+    else if (this.invites.has(roomId)) this.changed();
   }
 
   private statusOf(roomId: string): RoomStatus {

@@ -59,11 +59,20 @@ export function useBuzzarSpace() {
     };
 
     schedule();
+    // The room list reports every kind of change the same way; only a change in which rooms are joined matters here.
+    const joinedIds = () => [...session.rooms.keys()].sort().join("\n");
+    let lastIds = joinedIds();
+    const onChange = () => {
+      const ids = joinedIds();
+      if (ids === lastIds) return;
+      lastIds = ids;
+      schedule();
+    };
     const unsubscribe = session.rooms.subscribe({
-      onAdd: schedule,
-      onRemove: schedule,
+      onAdd: onChange,
+      onRemove: onChange,
       onUpdate: () => {},
-      onReset: schedule,
+      onReset: onChange,
     });
     return () => {
       disposed = true;
