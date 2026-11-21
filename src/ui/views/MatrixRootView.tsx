@@ -46,9 +46,17 @@ function initMatrix() {
   registerThirdroomGlobalVar("matrix", matrixInstance);
 
   // Buzzar: let the service worker fetch authenticated media for the active session (see sw.ts).
-  installMediaAuthResponder(async () => {
+  installMediaAuthResponder(async (refresh) => {
     const sessionId = client.sessionId;
     if (!sessionId) return undefined;
+    const matrix = client.matrix;
+    if (matrix) {
+      // Short-lived (OIDC) tokens: the SDK refreshes one when a request of its own finds it expired. Asked to
+      // refresh, make such a request, so the token handed back is one the server accepts.
+      if (refresh) await matrix.whoami().catch(() => undefined);
+      const accessToken = matrix.getAccessToken();
+      if (accessToken) return { homeserver: matrix.getHomeserverUrl(), accessToken };
+    }
     const info = await platform.sessionInfoStorage.get(sessionId);
     if (!info?.accessToken) return undefined;
     return { homeserver: info.homeserver ?? info.homeServer, accessToken: info.accessToken };

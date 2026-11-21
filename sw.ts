@@ -21,7 +21,10 @@ const MXC_THUMBNAIL_REGEX = /^\S+\/_matrix\/media\/r0\/thumbnail\/\S+$/;
 // (see src/ui/utils/mediaAuth.ts); it is only ever attached to requests for that session's own
 // homeserver origin. Cache entries stay keyed by the legacy (token-free) URL.
 
-const MEDIA_AUTH_TIMEOUT_MS = 3000;
+// The page can be busy for a while (first sync, loading a world), so give it time to answer.
+const MEDIA_AUTH_TIMEOUT_MS = 10_000;
+/** Longer when the page has to refresh its token first. */
+const MEDIA_AUTH_REFRESH_TIMEOUT_MS = 20_000;
 const MEDIA_AUTH_TTL_MS = 60_000;
 
 interface MediaAuth {
@@ -32,7 +35,7 @@ interface MediaAuth {
 let cachedAuth: { auth: MediaAuth | undefined; fetchedAt: number } | undefined;
 const authMediaSupport = new Map<string, Promise<boolean>>();
 
-async function requestAuthFromClient(clientId: string | undefined): Promise<MediaAuth | undefined> {
+async function requestAuthFromClient(clientId: string | undefined, refresh = false): Promise<MediaAuth | undefined> {
   // Only window clients answer (src/ui/utils/mediaAuth.ts). Requests from the engine's dedicated
   // workers carry the worker's clientId, so fall back to any same-origin window.
   const candidates: Client[] = [];
@@ -47,7 +50,10 @@ async function requestAuthFromClient(clientId: string | undefined): Promise<Medi
   for (const client of candidates) {
     const auth = await new Promise<MediaAuth | undefined>((resolve) => {
       const channel = new MessageChannel();
-      const timer = setTimeout(() => resolve(undefined), MEDIA_AUTH_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => resolve(undefined),
+        refresh ? MEDIA_AUTH_REFRESH_TIMEOUT_MS : MEDIA_AUTH_TIMEOUT_MS
+      );
       channel.port1.onmessage = (event) => {
         clearTimeout(timer);
         const data = event.data;
@@ -57,7 +63,8 @@ async function requestAuthFromClient(clientId: string | undefined): Promise<Medi
           resolve(undefined);
         }
       };
-      client.postMessage({ type: MEDIA_AUTH_REQUEST }, [channel.port2]);
+      // `refresh`: the token we had was rejected, so the page should make sure its token is current first.
+      client.postMessage({ type: MEDIA_AUTH_REQUEST, refresh }, [channel.port2]);
     });
     if (auth) return auth;
   }
@@ -70,8 +77,10 @@ async function getMediaAuth(clientId: string | undefined, forceRefresh = false):
   if (!forceRefresh && cachedAuth && now - cachedAuth.fetchedAt < MEDIA_AUTH_TTL_MS) {
     return cachedAuth.auth;
   }
-  const auth = await requestAuthFromClient(clientId);
-  cachedAuth = { auth, fetchedAt: now };
+  const auth = await requestAuthFromClient(clientId, forceRefresh);
+  // Only a real answer is remembered: "no answer" (page busy or still signing in) is asked again next time,
+  // instead of sending a minute's worth of pictures without the token.
+  cachedAuth = auth ? { auth, fetchedAt: now } : undefined;
   return auth;
 }
 

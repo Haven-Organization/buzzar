@@ -336,6 +336,7 @@ export class Client {
       },
     });
     this.matrix = client;
+    sessionInfoStorage.setLive(info.id, () => client.getAccessToken());
     // (After createClient: the store has to belong to a client before it starts.)
     // Classic and sliding sync can't continue from each other's cache: start clean after the setting changed.
     if (takeSyncStoreReset()) await store.deleteAllData().catch(() => undefined);
@@ -453,6 +454,7 @@ export class Client {
         headers: { Authorization: `Bearer ${info.accessToken}` },
       }).catch(() => undefined);
     }
+    this.platform.sessionInfoStorage.clearLive(sessionId);
     await this.platform.sessionInfoStorage.delete(sessionId);
     this.loadStatus.set(LoadStatus.NotLoading);
   }

@@ -60,8 +60,24 @@ export class SessionInfoStorage {
     }
   }
 
+  private live?: { id: string; accessToken: () => string | null | undefined };
+
+  /**
+   * The running session's token source. Short-lived (OIDC) tokens are refreshed in memory a moment before the
+   * saved copy is rewritten, so `get` answers with the live one for that session.
+   */
+  setLive(id: string, accessToken: () => string | null | undefined) {
+    this.live = { id, accessToken };
+  }
+
+  clearLive(id: string) {
+    if (this.live?.id === id) this.live = undefined;
+  }
+
   async get(id: string): Promise<ISessionInfo | undefined> {
-    return (await this.getAll()).find((session) => session.id === id);
+    const info = (await this.getAll()).find((session) => session.id === id);
+    const liveToken = info && this.live?.id === id ? this.live.accessToken() : undefined;
+    return info && liveToken ? { ...info, accessToken: liveToken } : info;
   }
 
   async add(info: ISessionInfo) {
