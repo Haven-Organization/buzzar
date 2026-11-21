@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import { useMatrix } from "../../../hooks/useMatrix";
@@ -29,6 +29,7 @@ export function RoomListChat() {
 
   const openedChatId = useAtomValue(openedChatAtom);
   const setActiveChat = useSetAtom(activeChatsAtom);
+  const onSelect = useCallback((roomId: string) => setActiveChat({ type: "OPEN", roomId }), [setActiveChat]);
 
   if (directs.length === 0 && rooms.length === 0) {
     return (
@@ -52,8 +53,9 @@ export function RoomListChat() {
     <RoomSelector
       key={room.id}
       isSelected={room.id === openedChatId}
-      onSelect={(roomId) => setActiveChat({ type: "OPEN", roomId })}
+      onSelect={onSelect}
       room={room}
+      version={room.version}
       platform={platform}
     />
   );

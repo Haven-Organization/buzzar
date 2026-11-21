@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import { Platform, Room } from "../../../../../matrix";
 import { Avatar } from "../../../../atoms/avatar/Avatar";
@@ -24,9 +24,14 @@ interface RoomSelectorProps {
   onSelect: (roomId: string) => void;
   room: Room;
   platform: Platform;
+  /** The room's `version` when the list was drawn: the tile only redraws when its own room changed. */
+  version?: number;
 }
 
-export function RoomSelector({ isSelected, onSelect, room, platform }: RoomSelectorProps) {
+/** Lists redraw on any room's change; a tile only needs to when its own room (or selection) changed. */
+export const RoomSelector = memo(RoomSelectorTile);
+
+function RoomSelectorTile({ isSelected, onSelect, room, platform }: RoomSelectorProps) {
   const [focused, setFocused] = useState(false);
   const eventEntry = useRecentMessage(room);
 

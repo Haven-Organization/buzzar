@@ -66,3 +66,48 @@ export function takeSyncStoreReset(): boolean {
   }
   return wanted;
 }
+
+/**
+ * The state the room list asks for, for every room (sliding sync). Enough to show rooms and worlds in lists and to
+ * enter a world, without subscribing to the room.
+ */
+export const SLIDING_SYNC_STATE = [
+  ["m.room.create", ""],
+  ["m.room.name", ""],
+  ["m.room.avatar", ""],
+  ["m.room.canonical_alias", ""],
+  ["m.room.topic", ""],
+  ["m.room.tombstone", ""],
+  ["m.room.encryption", ""],
+  ["m.room.join_rules", ""],
+  ["m.room.power_levels", ""],
+  ["m.room.member", "$ME"],
+  ["m.room.member", "$LAZY"],
+  ["m.space.child", "*"],
+  ["org.matrix.msc3815.world", ""],
+  ["software.haven.world.rules", ""],
+  ["org.matrix.msc3401.call", "*"],
+  ["org.matrix.msc3401.call.member", "*"],
+];
+
+/** State types every room in the list carries, so reading them needs no subscription. */
+export const LIST_STATE_TYPES = new Set(SLIDING_SYNC_STATE.map(([type]) => type));
+
+/**
+ * The state asked for a room someone is looking at (chat open, in the world, settings). Explicit rather than
+ * everything: everything includes every member, and for rooms with thousands of people that meant downloading and
+ * processing every member event (the full list loads on its own when a member list is opened).
+ */
+export const ROOM_SUBSCRIPTION_STATE = [
+  ...SLIDING_SYNC_STATE,
+  ["m.room.history_visibility", ""],
+  ["m.room.guest_access", ""],
+  ["m.room.server_acl", ""],
+  ["m.room.pinned_events", ""],
+  ["m.space.parent", "*"],
+  ["m.world", ""],
+  ["org.matrix.msc3815.world.profile", ""],
+  ["msc3948.repository_room.featured_world", "*"],
+  ["msc3948.repository_room.featured_room", "*"],
+  ["msc3948.repository_room.featured_scene", "*"],
+];

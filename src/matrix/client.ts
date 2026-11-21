@@ -13,7 +13,14 @@ import { ISessionInfo, Platform } from "./platform";
 import { TimelineEntry } from "./room";
 import { Session } from "./session";
 import { markStartup } from "./startupTiming";
-import { getStartRooms, isSlidingSyncEnabled, setStartRooms, takeSyncStoreReset } from "./syncSettings";
+import {
+  getStartRooms,
+  isSlidingSyncEnabled,
+  ROOM_SUBSCRIPTION_STATE,
+  setStartRooms,
+  SLIDING_SYNC_STATE,
+  takeSyncStoreReset,
+} from "./syncSettings";
 
 export enum LoadStatus {
   NotLoading = "NotLoading",
@@ -193,24 +200,6 @@ async function resolveHomeserver(input: string, signal: AbortSignal): Promise<st
  * Room state every room gets under sliding sync: enough to list rooms and worlds, show who is in a world's call,
  * and decide what the user may do. A room that's opened is subscribed for all of its state (Session.useRoom).
  */
-const SLIDING_SYNC_STATE = [
-  ["m.room.create", ""],
-  ["m.room.name", ""],
-  ["m.room.avatar", ""],
-  ["m.room.canonical_alias", ""],
-  ["m.room.topic", ""],
-  ["m.room.tombstone", ""],
-  ["m.room.encryption", ""],
-  ["m.room.join_rules", ""],
-  ["m.room.power_levels", ""],
-  ["m.room.member", "$ME"],
-  ["m.room.member", "$LAZY"],
-  ["m.space.child", "*"],
-  ["org.matrix.msc3815.world", ""],
-  ["software.haven.world.rules", ""],
-  ["org.matrix.msc3401.call", "*"],
-  ["org.matrix.msc3401.call.member", "*"],
-];
 
 function flag(name: string) {
   try {
@@ -419,7 +408,7 @@ export class Client {
       const sliding = new SlidingSync(
         homeserver,
         lists,
-        { timeline_limit: 30, required_state: [["*", "*"]] },
+        { timeline_limit: 30, required_state: ROOM_SUBSCRIPTION_STATE },
         client,
         30000
       );

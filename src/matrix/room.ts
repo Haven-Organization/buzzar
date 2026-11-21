@@ -17,6 +17,7 @@ import {
 
 import { BaseObservableList, EventEmitter, ObservableMap, ObservableValue } from "./observable";
 import type { MediaRepository } from "./session";
+import { LIST_STATE_TYPES } from "./syncSettings";
 
 /** A state event as it comes from the server. */
 export interface StateEvent {
@@ -298,6 +299,17 @@ export class TimelineEntries extends BaseObservableList<MatrixEvent> {
   }
 }
 
+/** The room IDs in an m.direct content, worked out once per version of it (the room lists ask for every room). */
+const directRoomSets = new WeakMap<object, Set<string>>();
+function directRoomIds(direct: Record<string, string[]>): Set<string> {
+  let ids = directRoomSets.get(direct);
+  if (!ids) {
+    ids = new Set(Object.values(direct).flatMap((rooms) => (Array.isArray(rooms) ? rooms : [])));
+    directRoomSets.set(direct, ids);
+  }
+  return ids;
+}
+
 export class Room extends EventEmitter<{ change: undefined }> {
   /** The open timeline, if any (kept so views reuse it). */
   _timeline?: Timeline;
@@ -373,7 +385,7 @@ export class Room extends EventEmitter<{ change: undefined }> {
     const direct = this.client.getAccountData("m.direct" as never)?.getContent() as
       | Record<string, string[]>
       | undefined;
-    if (direct && Object.values(direct).some((rooms) => Array.isArray(rooms) && rooms.includes(this.id))) return true;
+    if (direct && directRoomIds(direct).has(this.id)) return true;
     return !!this.sdk.getDMInviter();
   }
 
@@ -405,20 +417,43 @@ export class Room extends EventEmitter<{ change: undefined }> {
     return this.sdk.getLastActiveTimestamp();
   }
 
+  /** Subscribes the room (sliding sync) only for state the room list doesn't already carry for every room. */
+  private useForState(type: string) {
+    if (!LIST_STATE_TYPES.has(type)) this.use(this.id);
+  }
+
+  /**
+   * The newest message in what's loaded, for previews. Reads what sync already delivered: it doesn't open the
+   * timeline or subscribe the room (doing that per list tile subscribed every room in the list).
+   */
+  get recentMessage(): TimelineEntry | undefined {
+    const events = this.sdk.getLiveTimeline().getEvents();
+    for (let i = events.length - 1; i >= 0; i--) {
+      const type = events[i].getType();
+      if (type === "m.room.message" || type === "m.sticker" || type === "m.room.encrypted")
+        return TimelineEntry.of(events[i]);
+    }
+    return undefined;
+  }
+
+  /** Goes up whenever anything about the room changed, so views can skip redrawing rooms that didn't. */
+  version = 0;
+
   /** @internal The session calls this when anything about the room changed. */
   notifyChange() {
+    this.version++;
     this.emit("change");
   }
 
   async getStateEvent(type: string, key = ""): Promise<{ event: StateEvent; roomId: string } | undefined> {
-    this.use(this.id);
+    this.useForState(type);
     const event = this.sdk.currentState.getStateEvents(type, key);
     return event ? { event: toStateEvent(event), roomId: this.id } : undefined;
   }
 
   /** Every state event of a type, by state key, kept up to date. */
   async observeStateType(type: string): Promise<ObservableMap<string, StateEvent>> {
-    this.use(this.id);
+    this.useForState(type);
     let observer = this.stateObservers.get(type);
     if (!observer) {
       const events = this.sdk.currentState.getStateEvents(type) ?? [];
@@ -430,7 +465,7 @@ export class Room extends EventEmitter<{ change: undefined }> {
 
   /** One state event (type + key), kept up to date. */
   async observeStateTypeAndKey(type: string, key = ""): Promise<ObservableValue<StateEvent | undefined>> {
-    this.use(this.id);
+    this.useForState(type);
     const id = `${type}\n${key}`;
     let observer = this.keyObservers.get(id);
     if (!observer) {
