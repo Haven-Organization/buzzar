@@ -12,6 +12,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Input } from "../../../atoms/input/Input";
 import { Dots } from "../../../atoms/loading/Dots";
 import { useMatrix } from "../../../hooks/useMatrix";
+import { useDisableInput } from "../../../hooks/useDisableInput";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
 import {
   getDeviceVerificationStatus,
@@ -123,6 +124,8 @@ export function DeviceVerificationDialog() {
   const { session } = useMatrix(true);
   const [state, setState] = useAtom(deviceVerificationAtom);
   const [stage, setStage] = useState<Stage>({ kind: "choose" });
+  // Stop the player (and release the mouse) while the dialog is up, so typing goes to it and not the game.
+  useDisableInput(state.open);
   const [recoveryKey, setRecoveryKey] = useState("");
   // Whether this device can read older encrypted messages. After verifying, the other device sends the backup key
   // a few moments later; only if it never arrives does the "Device verified" screen offer the recovery key.

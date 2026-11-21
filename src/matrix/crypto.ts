@@ -33,13 +33,18 @@ export const secretStorageCallbacks = {
   },
 };
 
+/** Whether this device is signed by the account's own cross-signing (self-signing) key. */
+async function isDeviceSigned(session: Session): Promise<boolean> {
+  const status = await session.client.getCrypto()?.getDeviceVerificationStatus(session.userId, session.deviceId);
+  return !!status && (status.signedByOwner || status.crossSigningVerified);
+}
+
 export async function getDeviceVerificationStatus(session: Session): Promise<DeviceVerificationStatus> {
   const crypto = session.client.getCrypto();
   if (!crypto) return "unavailable";
   try {
     if (!(await crypto.userHasCrossSigningKeys(session.userId, true))) return "no-cross-signing";
-    const status = await crypto.getDeviceVerificationStatus(session.userId, session.deviceId);
-    return status?.crossSigningVerified ? "verified" : "unverified";
+    return (await isDeviceSigned(session)) ? "verified" : "unverified";
   } catch (e) {
     console.warn("Couldn't read this device's verification status", e);
     return "unavailable";
@@ -146,8 +151,14 @@ export async function verifyWithRecoveryKey(session: Session, input: string) {
   try {
     // With the cross-signing keys readable from secret storage, this loads them and signs this device.
     await crypto.bootstrapCrossSigning({});
-    const status = await crypto.getDeviceVerificationStatus(session.userId, session.deviceId);
-    if (!status?.crossSigningVerified) {
+    // The signature is uploaded and then read back through the device list, which can take a moment.
+    let signed = false;
+    for (let attempt = 0; attempt < 8 && !signed; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+      await crypto.getUserDeviceInfo([session.userId], true).catch(() => undefined);
+      signed = await isDeviceSigned(session);
+    }
+    if (!signed) {
       throw new Error("Your recovery key worked, but this device couldn't be signed. Try again.");
     }
     await waitForKeyBackup(session, 5000);

@@ -101,7 +101,6 @@ export default function SessionView() {
         <RegisterKBarActions />
         <div className="SessionView">
           <canvas className="SessionView__viewport" ref={canvasRef} />
-          <DeviceVerificationDialog />
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
               <ThingKeysSync />
@@ -115,6 +114,8 @@ export default function SessionView() {
               {!worldId && !worldAlias && <HomeWelcome />}
               {/* Buzzar: world scripts ask here before reading the chat or posting as you. */}
               <ScriptConsent />
+              {/* Buzzar: "Confirm your identity" after sign-in. In here so it can pause the player while it's open. */}
+              <DeviceVerificationDialog />
               {/* Buzzar: the app's own confirm dialogs (confirmDialog), instead of the browser's. */}
               <ConfirmDialogHost />
               {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}

@@ -216,6 +216,16 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
         return;
       }
 
+      // Buzzar: typing in a text field never reaches the game, even while the mouse is still captured (a dialog
+      // that opens over the world takes focus without releasing it; a recovery key with a 5 in it spawned a ball).
+      if (inputSourceId === InputSourceId.Keyboard) {
+        const focused = document.activeElement as HTMLElement | null;
+        if (focused && (focused.tagName === "INPUT" || focused.tagName === "TEXTAREA" || focused.isContentEditable)) {
+          debugCounts.dropped.disabled++;
+          return;
+        }
+      }
+
       const orbiting = camRigModule.orbiting;
       const pointerLocked = document.pointerLockElement !== null;
 
