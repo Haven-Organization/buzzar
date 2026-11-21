@@ -14,6 +14,12 @@ function useWorld(): [string | undefined, string | undefined, string | undefined
   return [worldId, alias.match(/^(#|!)\S+:\S+/) ? alias : undefined, reloadId];
 }
 
+/** The world named in the address (`/world/<id>` or `#alias`), joined or not. */
+export function useWorldInAddress(): [string | undefined, string | undefined] {
+  const [worldId, alias] = useWorld();
+  return [worldId, alias];
+}
+
 export function useWorldPath(): [string | undefined, string | undefined] {
   const { session } = useMatrix(true);
   const [worldId, alias, reloadId] = useWorld();

@@ -17,7 +17,7 @@ import { HomeWelcome } from "./HomeWelcome";
 import { useBuzzarSpace } from "../../hooks/useBuzzarSpace";
 import { useReadSync } from "../../hooks/useReadSync";
 import { useMatrix } from "../../hooks/useMatrix";
-import { useUnknownWorldPath } from "../../hooks/useWorld";
+import { useWorldInAddress } from "../../hooks/useWorld";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
 import { ScriptConsent } from "./world/ScriptConsent";
@@ -80,7 +80,8 @@ export default function SessionView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mainThread = useInitMainThreadContext(canvasRef);
   const overlayVisible = useAtomValue(overlayVisibilityAtom);
-  const [worldId, worldAlias] = useUnknownWorldPath();
+  // Any world in the address, joined or not: start-up goes there instead of Home World.
+  const [worldId, worldAlias] = useWorldInAddress();
   useHomeWorldCheck();
   useBuzzarSpace();
   const { session } = useMatrix(true);
