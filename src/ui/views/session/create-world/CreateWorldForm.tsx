@@ -98,7 +98,7 @@ export async function createWorld(
   const avatarInfo = !avatar
     ? undefined
     : {
-        name: avatar.nativeBlob.name,
+        name: (avatar.nativeBlob as File).name,
         blob: avatar,
         info: {
           mimetype: avatar.nativeBlob.type,

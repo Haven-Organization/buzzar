@@ -92,7 +92,7 @@ export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatar
     const current = auth ? await fetchProfileAvatar(auth, session.userId) : undefined;
     let url = avatarInfo.mxc ?? current?.url;
     if (!url) return undefined;
-    const fileName = avatarInfo.blob?.nativeBlob?.name as string | undefined;
+    const fileName = (avatarInfo.blob?.nativeBlob as File | undefined)?.name;
     // Buzzar: "Save Description and Version" on and changed: upload a copy with them written into the file.
     if (avatarInfo.mxc && pickedFile && auth) {
       const baked = await details.prepare(pickedFile);

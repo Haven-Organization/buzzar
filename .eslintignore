@@ -3,3 +3,4 @@ src/logviewer
 src/engine/scripting/emscripten
 public/
 examples/
+src/hydrogen-view-sdk.d.ts

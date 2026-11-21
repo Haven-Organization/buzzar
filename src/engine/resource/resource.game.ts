@@ -334,7 +334,7 @@ export function createStringResource(ctx: GameContext, value: string, dispose?: 
 }
 
 export function createArrayBufferResource(ctx: GameContext, value: SharedArrayBuffer): ResourceId {
-  const resourceId = createResource(ctx, ArrayBufferResourceType, value, value);
+  const resourceId = createResource(ctx, ArrayBufferResourceType, value as never, value as never);
   addComponent(ctx.world, ArrayBufferResourceType, resourceId);
   return resourceId;
 }

@@ -48,7 +48,7 @@ export function AutoFileUpload({ renderButton, mimeType, onUploadInfo }: AutoFil
 
   return fileData.blob ? (
     <FileUploadCard
-      name={fileData.blob.nativeBlob.name}
+      name={(fileData.blob.nativeBlob as File).name}
       sentBytes={mxc ? fileData.blob.size : progress}
       totalBytes={fileData.blob.size}
       onUploadDrop={dropFile}

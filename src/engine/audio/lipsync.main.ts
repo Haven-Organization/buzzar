@@ -12,7 +12,6 @@ import { Thread } from "../module/module.common";
 import { LipSyncMessage, LipSyncMessageType, LOCAL_VOICE, VISEMES } from "./lipsync.common";
 import { VisemeEstimator } from "./visemes";
 
-
 interface VoiceAnalysis {
   key: string;
   source: MediaStreamAudioSourceNode;
@@ -62,7 +61,6 @@ function disposeAnalysis(a: VoiceAnalysis) {
   }
 }
 
-
 /** Called every main-thread frame from the audio system. */
 export function updateLipSync(
   ctx: MainContext,
@@ -93,7 +91,7 @@ export function updateLipSync(
 
   const dt = ctx.dt > 0 ? ctx.dt : 1 / 60;
   for (const a of voices.values()) {
-    a.analyser.getFloatTimeDomainData(a.time);
+    a.analyser.getFloatTimeDomainData(a.time as Float32Array<ArrayBuffer>);
     // Smoothing (fast for the vowel, a little slower for how open) happens in the estimator.
     a.estimator.estimate(a.time, context.sampleRate, dt, a.smoothed);
   }

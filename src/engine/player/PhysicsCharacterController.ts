@@ -167,7 +167,7 @@ export const PhysicsCharacterControllerSystem = (ctx: GameContext) => {
     colliderShape,
     ctx.dt * 6,
     true,
-    0,
+    0 as never,
     playerShapeCastCollisionGroups
   );
 

@@ -9,7 +9,10 @@ export type CursorView = DataView & {
   [K: string]: Function;
 };
 
-export const createCursorView = (buffer = new ArrayBuffer(100000), littleEndian = false): CursorView => {
+export const createCursorView = (
+  buffer: ArrayBufferLike = new ArrayBuffer(100000),
+  littleEndian = false
+): CursorView => {
   const view = new DataView(buffer) as CursorView;
   view.cursor = 0;
   view.shadowMap = new Map();
@@ -18,7 +21,7 @@ export const createCursorView = (buffer = new ArrayBuffer(100000), littleEndian 
 };
 
 export const sliceCursorView = (v: CursorView) => {
-  const packet = v.buffer.slice(0, v.cursor);
+  const packet = v.buffer.slice(0, v.cursor) as ArrayBuffer;
   v.cursor = 0;
   return packet;
 };
@@ -49,8 +52,8 @@ export const resize = (ta: TypedArray, byteLength: number) => {
   return newTa;
 };
 
-export const writeArrayBuffer = (v: CursorView, buffer: ArrayBuffer) => {
-  new Uint8Array(v.buffer).set(new Uint8Array(buffer), v.cursor);
+export const writeArrayBuffer = (v: CursorView, buffer: ArrayBufferLike | Uint8Array) => {
+  new Uint8Array(v.buffer).set(new Uint8Array(buffer as ArrayBuffer), v.cursor);
   v.cursor += buffer.byteLength;
   return v;
 };
@@ -281,7 +284,7 @@ export const spaceInt8 = (v: CursorView) => {
 /* Readers */
 
 export const readArrayBuffer = (v: CursorView, byteLength: number) => {
-  const ab = v.buffer.slice(v.cursor, v.cursor + byteLength);
+  const ab = v.buffer.slice(v.cursor, v.cursor + byteLength) as ArrayBuffer;
   v.cursor += byteLength;
   return ab;
 };

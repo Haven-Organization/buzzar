@@ -411,10 +411,10 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
       const peerIndex = network.peerIdToIndex.get(peerId)!;
 
       if (data) {
-        replicator.eidToData.set(nodeId, data);
+        replicator.eidToData.set(nodeId, data as unknown as ArrayBuffer);
       }
 
-      replicator.spawned.push({ nodeId, peerIndex, data });
+      replicator.spawned.push({ nodeId, peerIndex, data: data as unknown as ArrayBuffer | undefined });
 
       return 0;
     },
@@ -438,10 +438,10 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
       const peerIndex = network.peerIdToIndex.get(peerId)!;
 
       if (data) {
-        replicator.eidToData.set(nodeId, data);
+        replicator.eidToData.set(nodeId, data as unknown as ArrayBuffer);
       }
 
-      replicator.despawned.push({ nodeId, peerIndex, data });
+      replicator.despawned.push({ nodeId, peerIndex, data: data as unknown as ArrayBuffer | undefined });
 
       return 0;
     },
@@ -688,13 +688,13 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
 
 const messageView = createCursorView(new ArrayBuffer(10000));
 
-function createScriptMessage(ctx: GameContext, packet: ArrayBuffer, binary: boolean) {
+function createScriptMessage(ctx: GameContext, packet: ArrayBufferLike | Uint8Array, binary: boolean) {
   writeMetadata(messageView, binary ? NetworkAction.BinaryScriptMessage : NetworkAction.StringScriptMessage);
   serializeScriptMessage(messageView, packet);
   return sliceCursorView(messageView);
 }
 
-function serializeScriptMessage(v: CursorView, packet: ArrayBuffer) {
+function serializeScriptMessage(v: CursorView, packet: ArrayBufferLike | Uint8Array) {
   writeUint32(v, packet.byteLength);
   cursorWriteArrayBuffer(v, packet);
 }
@@ -717,7 +717,7 @@ function deserializeScriptMessage(ctx: GameContext, v: CursorView, peerId: strin
     return;
   }
 
-  const message: [string, ArrayBuffer, boolean] = [peerId, packet, binary];
+  const message: [string, ArrayBuffer, boolean] = [peerId, packet as ArrayBuffer, binary];
 
   const scripts = scriptQuery(ctx.world);
 

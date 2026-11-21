@@ -61,12 +61,12 @@ export function createObjectBufferView<
       : byteOffset;
 
     if (elements === undefined) {
-      const arr = new typedArrayConstructor(buffer, byteOffset, length);
+      const arr = new typedArrayConstructor(buffer as ArrayBuffer, byteOffset, length);
       byteOffset += arr.byteLength;
       object[key] = arr;
     } else {
       object[key] = Array.from({ length }, () => {
-        const arr = new typedArrayConstructor(buffer, byteOffset, elements);
+        const arr = new typedArrayConstructor(buffer as ArrayBuffer, byteOffset, elements);
         byteOffset += arr.byteLength;
 
         return arr;

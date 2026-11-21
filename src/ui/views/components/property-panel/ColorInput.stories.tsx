@@ -9,8 +9,8 @@ export default {
 } as Meta<typeof ColorInput>;
 
 export function ColorInputStories() {
-  const [rgb, setRGB] = useState(new Float32Array(3));
-  const [rgba, setRGBA] = useState(new Float32Array(4));
+  const [rgb, setRGB] = useState<Float32Array>(new Float32Array(3));
+  const [rgba, setRGBA] = useState<Float32Array>(new Float32Array(4));
 
   return (
     <div className="flex flex-column gap-xs" style={{ backgroundColor: "white", padding: "8px", maxWidth: "380px" }}>

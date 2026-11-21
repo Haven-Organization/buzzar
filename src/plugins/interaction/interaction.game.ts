@@ -585,7 +585,7 @@ function hitscan(physics: PhysicsModuleState, node: RemoteNode, collisionGroup: 
     colliderShape,
     distance,
     true,
-    0,
+    0 as never,
     collisionGroup
   );
   return hit;

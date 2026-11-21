@@ -9,8 +9,8 @@ export default {
 } as Meta<typeof VectorInput>;
 
 export function VectorInputStories() {
-  const [v3, setV3] = useState(new Float32Array(3));
-  const [v2, setV2] = useState(new Float32Array(2));
+  const [v3, setV3] = useState<Float32Array>(new Float32Array(3));
+  const [v2, setV2] = useState<Float32Array>(new Float32Array(2));
 
   return (
     <div className="flex flex-column gap-xs" style={{ backgroundColor: "white", padding: "8px", maxWidth: "380px" }}>

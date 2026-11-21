@@ -99,5 +99,5 @@ export async function transformGLTFWeb(
     });
   }
 
-  downloadFile(glbBuffer, fileName, "model/gltf-binary");
+  downloadFile(glbBuffer as unknown as ArrayBuffer, fileName, "model/gltf-binary");
 }

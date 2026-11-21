@@ -94,7 +94,7 @@ export function compressTextures(onProgress?: GLTFTransformProgressCallback): Tr
         canvas.width = size[0];
         canvas.height = size[1];
         ctx.clearRect(0, 0, size[0], size[1]);
-        const bitmap = await createImageBitmap(new Blob([imageData], { type: mimeType }));
+        const bitmap = await createImageBitmap(new Blob([imageData as BlobPart], { type: mimeType }));
         ctx.drawImage(bitmap, 0, 0);
         imageData = ctx.getImageData(0, 0, size[0], size[1]).data;
         bitmap.close();

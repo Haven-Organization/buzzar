@@ -24,7 +24,7 @@ export function FileInput({ defaultLabel, onChange, platform, mimeType, disabled
   return (
     <button className="FileInput" onClick={pickFile} disabled={disabled}>
       <Text className="grow truncate" variant="b3">
-        {nativeBlob?.name ?? defaultLabel ?? "Select File"}
+        {(nativeBlob as File | undefined)?.name ?? defaultLabel ?? "Select File"}
       </Text>
     </button>
   );

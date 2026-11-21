@@ -86,7 +86,7 @@ export function getAccessorArrayView(accessor: AccessorLike, deinterleave = true
   let arrayView: AccessorTypedArray;
 
   if (accessor.bufferView !== undefined) {
-    const buffer = accessor.bufferView.buffer.data;
+    const buffer = accessor.bufferView.buffer.data as unknown as ArrayBuffer;
     const byteOffset = accessor.byteOffset + accessor.bufferView.byteOffset;
     const byteStride = accessor.bufferView.byteStride;
 
@@ -119,7 +119,7 @@ export function getAccessorArrayView(accessor: AccessorLike, deinterleave = true
     const { count, indicesBufferView, indicesByteOffset, indicesComponentType, valuesBufferView, valuesByteOffset } =
       sparse;
 
-    const indicesBuffer = indicesBufferView.buffer.data;
+    const indicesBuffer = indicesBufferView.buffer.data as unknown as ArrayBuffer;
     const indicesArrConstructor = AccessorComponentTypeToTypedArray[indicesComponentType];
     const indicesComponentByteLength = indicesArrConstructor.BYTES_PER_ELEMENT;
     const indicesComponentCount = indicesBufferView.byteStride
@@ -131,7 +131,7 @@ export function getAccessorArrayView(accessor: AccessorLike, deinterleave = true
       count * indicesComponentCount
     );
 
-    const valuesBuffer = valuesBufferView.buffer.data;
+    const valuesBuffer = valuesBufferView.buffer.data as unknown as ArrayBuffer;
     const valuesComponentCount = valuesBufferView.byteStride
       ? valuesBufferView.byteStride / componentByteLength
       : elementSize;

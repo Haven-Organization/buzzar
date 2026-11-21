@@ -108,7 +108,7 @@ const isGrounded = (ctx: GameContext, physicsWorld: RAPIER.World, body: RAPIER.R
     colliderShape,
     ctx.dt,
     true,
-    0,
+    0 as never,
     interactionGroup
   );
 
