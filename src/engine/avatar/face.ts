@@ -230,10 +230,33 @@ export function findLipBones(gltf: GLTFLike): LipBone[] {
     if (LIP_UPPER.test(name)) return "upper";
     return undefined;
   };
-  return (gltf.nodes ?? []).flatMap((n, i) => {
-    const kind = kindOf(n.name ?? "");
-    return kind ? [{ node: i, kind }] : [];
+  return topLipBones(
+    gltf,
+    (gltf.nodes ?? []).flatMap((n, i) => {
+      const kind = kindOf(n.name ?? "");
+      return kind ? [{ node: i, kind }] : [];
+    })
+  );
+}
+
+/**
+ * Drops lip bones whose parent (or any ancestor) is also listed: they move with it anyway. Rigs often give each lip
+ * bone a "_end" tip several centimetres out; counted as lips, two corner tips became the "corners" of the mouth,
+ * tilting its left-right axis so every lip moved askew (a lopsided mouth on Mint).
+ */
+export function topLipBones(gltf: GLTFLike, bones: LipBone[]): LipBone[] {
+  const parent = new Map<number, number>();
+  (gltf.nodes ?? []).forEach((n, i) => {
+    for (const child of n.children ?? []) parent.set(child, i);
   });
+  const listed = new Set(bones.map((b) => b.node));
+  const underListed = (node: number) => {
+    for (let p = parent.get(node), guard = 0; p !== undefined && guard < 256; p = parent.get(p), guard++) {
+      if (listed.has(p)) return true;
+    }
+    return false;
+  };
+  return bones.filter((b) => !underListed(b.node));
 }
 
 export function detectLips(
@@ -243,7 +266,8 @@ export function detectLips(
   head?: number,
   chosen: LipBone[] = findLipBones(gltf)
 ): LipSpec | undefined {
-  const bones = chosen
+  // Files baked before tips were left out can still list them.
+  const bones = topLipBones(gltf, chosen)
     .map((b) => ({ i: b.node, kind: b.kind, pos: restWorld(b.node) }))
     .filter((b): b is typeof b & { pos: Vector3 } => !!b.pos);
   const lips = bones.filter((b) => b.kind !== "teeth");

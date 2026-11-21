@@ -7,10 +7,12 @@ import {
   detectEyes,
   detectLids,
   detectLips,
+  findLipBones,
   getFaceSpec,
   parseHavenFace,
   updateFaceRig,
 } from "./face";
+import type { LipBone } from "./face";
 import type { HumanoidMapping } from "./humanoid";
 
 const mapping = (bones: Record<string, number> = {}): HumanoidMapping => ({
@@ -244,6 +246,26 @@ describe("lip sync", () => {
     expect(new Vector3(...move(0).round).dot(right)).toBeGreaterThan(0.005);
     expect(new Vector3(...move(1).round).dot(right)).toBeLessThan(-0.005);
     expect(move(3).round[2]).toBeGreaterThan(0);
+  }); // prettier-ignore
+
+  it("ignores lip bones under other lip bones (a rig's _end tips)", () => {
+    // Mint: each lip bone has an "_end" child 4 cm out along the bone, here sideways and down for the corners.
+    const pos: Record<number, Vector3> = {
+      0: new Vector3(-0.015, 1.4, 0.1), 1: new Vector3(0.015, 1.4, 0.1), 2: new Vector3(0, 1.402, 0.1), 3: new Vector3(0, 1.398, 0.1),
+      4: new Vector3(-0.05, 1.37, 0.08), 5: new Vector3(0.03, 1.36, 0.14), 6: new Vector3(0, 1.5, 0),
+    };
+    const nodes = [
+      { name: "Bon_colip_R_0162", children: [4] }, { name: "Bon_colip_L_0173", children: [5] }, { name: "Bon_uplip_M_0167" }, { name: "Bon_Lolip_M_0168" },
+      { name: "Bon_colip_R_end_0396" }, { name: "Bon_colip_L_end_0407" }, { name: "Head" },
+    ];
+    expect(findLipBones({ nodes }).map((b) => b.node)).toEqual([0, 1, 2, 3]);
+    const chosen = [0, 1, 2, 3, 4, 5].map((node) => ({ node, kind: node === 2 ? "upper" : node === 3 ? "lower" : "corner" })) as LipBone[];
+    const lips = detectLips({ nodes }, (i) => pos[i], (_i, o) => o.clone(), 6, chosen)!;
+    expect(lips.moves.map((m) => m.node)).toEqual([0, 1, 2, 3]);
+    // The mouth stays level: opening moves the lower lip straight down, not sideways.
+    const open = new Vector3(...lips.moves.find((m) => m.node === 3)!.open);
+    expect(Math.abs(open.x)).toBeLessThan(1e-6);
+    expect(open.y).toBeLessThan(0);
   }); // prettier-ignore
 
   it("opens a jaw bone with the voice", () => {
