@@ -1,7 +1,7 @@
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 
-import { Room, Content } from "../../matrix";
+import { Room, Content, markStartup } from "../../matrix";
 import { AudioModule } from "../../engine/audio/audio.main";
 import { disposeActiveMatrixRoom, setActiveMatrixRoom } from "../../engine/matrix/matrix.main";
 import { getModule } from "../../engine/module/module.common";
@@ -56,6 +56,7 @@ export function useWorldLoader(): WorldLoader {
     async (world: Room, content: Content) => {
       const roomId = world.id;
 
+      markStartup("world load started");
       setWorld({ type: "LOAD", roomId });
 
       // Buzzar: "Enter Without Script" lasts for this visit (scene/script reloads included), not beyond it.
@@ -151,6 +152,7 @@ export function useWorldLoader(): WorldLoader {
         const audio = getModule(mainThread, AudioModule);
         audio.context.resume().catch(() => console.error("Couldn't resume audio context"));
 
+        markStartup("in world");
         setWorld({ type: "ENTER" });
       } catch (err: any) {
         networkPromise?.then((network) => network.dispose()).catch(() => undefined);

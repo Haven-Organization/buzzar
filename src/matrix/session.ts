@@ -259,6 +259,8 @@ export class Session {
    */
   useRoom: (roomId: string) => void = () => undefined;
   private statusObservers = new Map<string, ObservableValue<RoomStatus>>();
+  /** Rooms the user just left here: ignored until sync confirms they're no longer joined (or they rejoin). */
+  private leftRooms = new Set<string>();
   private disposers: (() => void)[] = [];
 
   constructor(readonly client: MatrixClient, readonly platform: Platform, private info: ISessionInfo) {
@@ -340,11 +342,17 @@ export class Session {
   private place(sdkRoom: SdkRoom) {
     const id = sdkRoom.roomId;
     const membership = sdkRoom.getMyMembership();
+    if (membership !== "join") this.leftRooms.delete(id);
+    else if (this.leftRooms.has(id)) return;
     if (membership === "join") {
       if (this.invites.has(id)) this.invites.remove(id);
-      if (!this.rooms.has(id))
-        this.rooms.add(id, new Room(this.client, sdkRoom, this.mediaRepository, (roomId) => this.useRoom(roomId)));
-      else this.touch(id);
+      if (!this.rooms.has(id)) {
+        const room = new Room(this.client, sdkRoom, this.mediaRepository, (roomId) => this.useRoom(roomId));
+        room.onLeft = () => this.drop(id);
+        this.rooms.add(id, room);
+      } else {
+        this.touch(id);
+      }
     } else {
       const room = this.rooms.get(id);
       if (room) {
@@ -361,6 +369,7 @@ export class Session {
   }
 
   private drop(roomId: string) {
+    this.leftRooms.add(roomId);
     this.rooms.get(roomId)?.dispose();
     this.rooms.remove(roomId);
     this.invites.remove(roomId);
@@ -404,6 +413,7 @@ export class Session {
   /** Joins a room by ID or alias; resolves with its room ID once it's in `rooms`. */
   async joinRoom(roomIdOrAlias: string, viaServers?: string[]): Promise<string> {
     const sdkRoom = await this.client.joinRoom(roomIdOrAlias, viaServers?.length ? { viaServers } : undefined);
+    this.leftRooms.delete(sdkRoom.roomId);
     await this.waitForRoom(sdkRoom.roomId);
     return sdkRoom.roomId;
   }

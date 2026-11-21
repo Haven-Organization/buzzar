@@ -11,6 +11,7 @@ import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
 import { ISessionInfo, Platform } from "./platform";
 import { Session } from "./session";
+import { markStartup } from "./startupTiming";
 import { isSlidingSyncEnabled, takeSyncStoreReset } from "./syncSettings";
 
 export enum LoadStatus {
@@ -340,7 +341,9 @@ export class Client {
     // (After createClient: the store has to belong to a client before it starts.)
     // Classic and sliding sync can't continue from each other's cache: start clean after the setting changed.
     if (takeSyncStoreReset()) await store.deleteAllData().catch(() => undefined);
+    markStartup("session start");
     await store.startup().catch((e) => console.warn("Couldn't open the local sync store", e));
+    markStartup("local store open");
 
     this.loadStatus.set(LoadStatus.SessionSetup);
     // Developers can skip encryption (localStorage "buzzar.devNoCrypto" = "1"), e.g. to try a build with a token that
@@ -356,6 +359,7 @@ export class Client {
       }
     }
 
+    markStartup("encryption ready");
     encryptCallSignalling(client);
 
     const session = new Session(client, this.platform, { ...info, homeserver });
@@ -379,6 +383,7 @@ export class Client {
           this.sync.status.set(SyncStatus.Syncing);
           if (!prepared) {
             prepared = true;
+            markStartup("sync ready");
             session.start();
             this.session = session;
             this.loadStatus.set(LoadStatus.Ready);

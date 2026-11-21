@@ -11,6 +11,7 @@ export * from "./client";
 export * from "./oidc";
 export * from "./crypto";
 export * from "./syncSettings";
+export * from "./startupTiming";
 
 /** A transaction ID for sending events through `hsApi.send` / `redact`. */
 export function makeTxnId(): string {

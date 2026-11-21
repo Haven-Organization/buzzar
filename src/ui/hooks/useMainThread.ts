@@ -2,6 +2,7 @@ import { RefObject, useState, useEffect, createContext, useContext } from "react
 
 import { MainContext, MainThread } from "../../engine/MainThread";
 import { useIsMounted } from "./useIsMounted";
+import { markStartup } from "../../matrix/startupTiming";
 
 export function useInitMainThreadContext(canvasRef: RefObject<HTMLCanvasElement>) {
   const [ctx, setContext] = useState<MainContext>();
@@ -16,6 +17,7 @@ export function useInitMainThreadContext(canvasRef: RefObject<HTMLCanvasElement>
           dispose();
         } else {
           disposeFn = dispose;
+          markStartup("engine ready");
           setContext(ctx);
         }
       });

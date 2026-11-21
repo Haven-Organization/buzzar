@@ -102,7 +102,14 @@ export function RoomSelector({ isSelected, onSelect, room, platform }: RoomSelec
                       confirmLabel: "Leave",
                       danger: true,
                     }).then((ok) => {
-                      if (ok) room.leave();
+                      if (!ok) return;
+                      room.leave().catch((e) =>
+                        confirmDialog({
+                          title: "Couldn't Leave",
+                          message: e instanceof Error ? e.message : String(e),
+                          cancelLabel: "Close",
+                        })
+                      );
                     });
                   }}
                 >

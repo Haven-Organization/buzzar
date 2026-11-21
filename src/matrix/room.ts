@@ -469,8 +469,14 @@ export class Room extends EventEmitter<{ change: undefined }> {
     if (last) await this.client.sendReadReceipt(last).catch(() => undefined);
   }
 
+  /** Called once the user has left this room, so lists drop it without waiting for sync to say so. */
+  onLeft?: () => void;
+
   async leave() {
     await this.client.leave(this.id);
+    // Sync normally reports the new membership, but not always promptly (and sliding sync may just stop
+    // mentioning the room), so take it out of the lists now.
+    this.onLeft?.();
   }
 
   dispose() {

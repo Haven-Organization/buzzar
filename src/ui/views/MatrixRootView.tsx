@@ -70,7 +70,7 @@ const LOADING_MESSAGES: Partial<Record<LoadStatus, string>> = {
   [LoadStatus.Login]: "Signing in…",
   [LoadStatus.Loading]: "Opening your session…",
   [LoadStatus.SessionSetup]: "Setting up encryption…",
-  [LoadStatus.FirstSync]: "Syncing your rooms… (the first time can take a minute)",
+  [LoadStatus.FirstSync]: "Syncing your rooms…",
 };
 
 function getSessionInfo(): ISessionInfo | undefined {
