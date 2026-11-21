@@ -108,8 +108,7 @@ but **`#mars:thirdroom.dev` does not resolve** (the thirdroom.dev homeserver is 
 ## Buzzar copies (2026-11-15)
 
 Copies of the Third Room worlds, so they keep working if thirdroom.io goes away like thirdroom.dev did. Scenes and
-previews were downloaded from thirdroom.io (and matrix.org for Third Room Public) and kept on the NAS
-(`World Files/Third Room/downloads`). Since 2026-11-18 the copies are public, with their files on matrix.org and a
+previews were downloaded from thirdroom.io (and matrix.org for Third Room Public). Since 2026-11-18 the copies are public, with their files on matrix.org and a
 `-thirdroom` alias there. Room v12.
 
 | World | Alias | Room ID | Original |
