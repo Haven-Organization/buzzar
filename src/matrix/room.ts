@@ -394,11 +394,25 @@ export class Room extends EventEmitter<{ change: undefined }> {
   }
 
   get notificationCount(): number {
+    if (this.readToEnd) return 0;
     return this.sdk.getUnreadNotificationCount(NotificationCountType.Total) ?? 0;
   }
 
   get highlightCount(): number {
+    if (this.readToEnd) return 0;
     return this.sdk.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0;
+  }
+
+  /**
+   * Encrypted rooms only: whether the user has read up to the newest event. The SDK recounts unread messages in
+   * encrypted rooms on this device as it decrypts them, and that count could stay up after the user's read marker
+   * arrived (seen with sliding sync), leaving rooms marked unread that had been read.
+   */
+  private get readToEnd(): boolean {
+    if (!this.sdk.hasEncryptionStateEvent()) return false;
+    const events = this.sdk.getLiveTimeline().getEvents();
+    const newest = events[events.length - 1]?.getId();
+    return !!newest && this.sdk.hasUserReadEvent(this.client.getSafeUserId(), newest);
   }
 
   get isUnread(): boolean {
