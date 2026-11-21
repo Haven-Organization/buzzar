@@ -257,11 +257,10 @@ export class GroupCall extends EventEmitter<{ change: undefined }> {
   }
 
   private callFor(userId: string, deviceId: string): MatrixCall | undefined {
-    let found: MatrixCall | undefined;
-    this.sdk.forEachCall((call) => {
-      if (call.getOpponentMember()?.userId === userId && call.getOpponentDeviceId() === deviceId) found = call;
-    });
-    return found;
+    // The group call's own table of calls by user and device (a call we placed has no opponent member until it's
+    // answered, so asking each call who it's with misses those).
+    const calls = (this.sdk as unknown as { calls: Map<string, Map<string, MatrixCall>> }).calls;
+    return calls?.get(userId)?.get(deviceId);
   }
 
   /** Joins with the given microphone stream (or none: data channel only). */

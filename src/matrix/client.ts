@@ -277,7 +277,6 @@ export class Client {
       localStorage: window.localStorage,
       dbName: `buzzar-sync-${info.id}`,
     });
-    await store.startup().catch((e) => console.warn("Couldn't open the local sync store", e));
 
     const client = createClient({
       baseUrl: homeserver,
@@ -302,6 +301,8 @@ export class Client {
       },
     });
     this.matrix = client;
+    // (After createClient: the store has to belong to a client before it starts.)
+    await store.startup().catch((e) => console.warn("Couldn't open the local sync store", e));
 
     this.loadStatus.set(LoadStatus.SessionSetup);
     // Developers can skip encryption (localStorage "buzzar.devNoCrypto" = "1"), e.g. to try a build with a token that
