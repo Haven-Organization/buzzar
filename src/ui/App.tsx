@@ -9,7 +9,7 @@ import "./App.css";
 import "@fontsource/inter/variable.css";
 import "@fontsource/noto-serif/latin.css";
 
-import { HydrogenRootView } from "./views/HydrogenRootView";
+import { MatrixRootView } from "./views/MatrixRootView";
 import { SplashScreen } from "./views/components/splash-screen/SplashScreen";
 import { PageNotFound } from "./views/components/page-not-found/PageNotFound";
 import { LoadingScreen } from "./views/components/loading-screen/LoadingScreen";
@@ -46,7 +46,7 @@ export function App() {
     <JotaiProvider>
       <FocusOutlineManager />
       <SentryRoutes>
-        <Route element={<HydrogenRootView />}>
+        <Route element={<MatrixRootView />}>
           <Route
             path="/login"
             element={

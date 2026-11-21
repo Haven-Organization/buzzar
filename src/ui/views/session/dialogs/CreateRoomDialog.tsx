@@ -12,7 +12,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Switch } from "../../../atoms/button/Switch";
 import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { waitToCreateRoom } from "../../../utils/matrixUtils";
 import { activeChatsAtom } from "../../../state/overlayChat";
 import CrossIC from "../../../../../res/ic/cross.svg";
@@ -26,7 +26,7 @@ interface CreateRoomDialogProps {
  * invite-only; public ones anyone can join. Encryption is on by default.
  */
 export function CreateRoomDialog({ requestClose }: CreateRoomDialogProps) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const setActiveChat = useSetAtom(activeChatsAtom);
 
   const [isPublic, setIsPublic] = useState(false);

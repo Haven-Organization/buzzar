@@ -11,7 +11,7 @@ import { Dialog } from "../../../atoms/dialog/Dialog";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { Scroll } from "../../../atoms/scroll/Scroll";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
@@ -54,7 +54,7 @@ export const useUserProfileAction = () => {
 };
 
 export const useAccountManagementAction = () => {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const { accountManagementUrl } = session.sessionInfo;
 
   useRegisterActions(

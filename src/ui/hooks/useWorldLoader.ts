@@ -15,7 +15,7 @@ import { worldAtom } from "../state/world";
 import { makeWorldNotice, worldNoticeAtom } from "../state/worldNotice";
 import { scriptPolicy, takeEnterWithoutScript } from "../utils/scriptSettings";
 import { removeStaleCallMemberships } from "../utils/callCleanup";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
 import { getSessionAuth } from "../utils/avatarMatrix";
@@ -37,7 +37,7 @@ export interface WorldLoader {
 }
 
 export function useWorldLoader(): WorldLoader {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const setWorld = useSetAtom(worldAtom);
   const setWorldNotice = useSetAtom(worldNoticeAtom);

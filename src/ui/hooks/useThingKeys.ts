@@ -5,7 +5,7 @@ import { thingKeysAtom } from "../state/thingKeys";
 import { fetchThingKeys, saveThingKeys } from "../utils/thingKeys";
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { STOCK_THINGS } from "../utils/thingsMatrix";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
 import {
@@ -22,7 +22,7 @@ const STOCK_IDS = STOCK_THINGS.map((thing) => thing.id);
  * Mounted once, in SessionView.
  */
 export function useThingKeysSync() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const [keys, setKeys] = useAtom(thingKeysAtom);
 
@@ -48,7 +48,7 @@ export function useThingKeysSync() {
 
 /** Buzzar: changes your number-key Things (straight away in the game, then saved to your account). */
 export function useSetThingKeys() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [, setKeys] = useAtom(thingKeysAtom);
   return useCallback(
     async (keys: ThingKeys) => {

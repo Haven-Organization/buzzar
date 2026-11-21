@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { GroupCall } from "../../../../matrix";
 import "./Overlay.css";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { SidebarView } from "../sidebar/SidebarView";
 import { SpacesView } from "../sidebar/SpacesView";
@@ -43,7 +43,7 @@ import { useDisableInput } from "../../../hooks/useDisableInput";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 
 export function Overlay() {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const calls = useCalls(session);
 
   const openedChatId = useAtomValue(openedChatAtom);

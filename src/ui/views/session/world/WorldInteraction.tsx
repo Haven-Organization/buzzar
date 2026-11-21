@@ -18,7 +18,7 @@ import { PlayerModule } from "../../../../engine/player/Player.main";
 import { Reticle } from "../reticle/Reticle";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useWorldLoader } from "../../../hooks/useWorldLoader";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useMemberDisplayName } from "../../../hooks/useMemberDisplayName";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { waitForJoinedRoom } from "../../../utils/roomUpgrade";
@@ -72,7 +72,7 @@ interface WorldInteractionProps {
 
 export function WorldInteraction({ session, world }: WorldInteractionProps) {
   const mainThread = useMainThreadContext();
-  const { platform, client } = useHydrogen(true);
+  const { platform, client } = useMatrix(true);
   const displayNameOf = useMemberDisplayName(world);
   const camRigModule = getModule(mainThread, PlayerModule);
 

@@ -12,7 +12,7 @@ import { IconButton } from "../../../atoms/button/IconButton";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { setHomeWorld } from "../../../hooks/useHomeWorld";
 import { homeWorldAtom } from "../../../state/homeWorld";
@@ -20,7 +20,7 @@ import CrossIC from "../../../../../res/ic/cross.svg";
 
 /** Reasons to think twice about making `room` your home (empty when there are none). */
 export function useHomeWorldWarnings(room: Room): string[] | undefined {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const { getPowerLevel } = usePowerLevels(room);
   const [joinRule, setJoinRule] = useState<string>();
   useEffect(() => {
@@ -51,7 +51,7 @@ export function useHomeWorldWarnings(room: Room): string[] | undefined {
 }
 
 export function SetHomeWorldDialog({ room, requestClose }: { room: Room; requestClose: () => void }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const setHome = useSetAtom(homeWorldAtom);
   const warnings = useHomeWorldWarnings(room);
   const [saving, setSaving] = useState(false);

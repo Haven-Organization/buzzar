@@ -4,7 +4,7 @@ import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { Switch } from "../../../atoms/button/Switch";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { getSpaceAccountData, setSpaceAccountData, SpaceAccountData } from "../../../utils/buzzarSpace";
 
@@ -13,7 +13,7 @@ import { getSpaceAccountData, setSpaceAccountData, SpaceAccountData } from "../.
  * Turning it off leaves the space as it is; the user can then leave it from any Matrix client.
  */
 export function BuzzarSpaceSetting() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [data, setData] = useState<SpaceAccountData>();
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);

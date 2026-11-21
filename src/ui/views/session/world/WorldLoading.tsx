@@ -14,7 +14,7 @@ import { Button } from "../../../atoms/button/Button";
 import { WorldPreviewCard } from "../../components/world-preview-card/WorldPreviewCard";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { OverlayWindow } from "../../../state/overlayWindow";
@@ -55,7 +55,7 @@ export function WorldLoading({ world, loading, error }: { world: Room; loading: 
   const [overlayVisible] = useAtom(overlayVisibilityAtom);
   const [resetLoadProgress, loadProgress] = useWorldLoadingProgress();
   const [creator, setCreator] = useState<string>();
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const { navigateEnterWorld, navigateExitWorld } = useWorldNavigator(session);
   // Buzzar: a world without a scene (e.g. a copied room that lost its world event) can be fixed right here.
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);

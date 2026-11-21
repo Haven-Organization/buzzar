@@ -11,7 +11,7 @@ import { Scroll } from "../../../atoms/scroll/Scroll";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { useAsyncCallback } from "../../../hooks/useAsyncCallback";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { RoomTypes, useRoomsOfType } from "../../../hooks/useRoomsOfType";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
 import { useFeaturedRooms } from "../../components/FeaturedRoomsProvider";
@@ -48,7 +48,7 @@ function FeaturedItem({ before, children, after }: FeaturedItemProps) {
 }
 
 function FeatureRoom({ room }: { room: Room }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const featuredRooms = useFeaturedRooms(room);
   const [allRooms] = useRoomsOfType(session, RoomTypes.Room);
   const unFeaturedRoom = allRooms.filter(
@@ -231,7 +231,7 @@ function FeatureRoom({ room }: { room: Room }) {
 }
 
 function FeatureWorld({ room }: { room: Room }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const featuredWorlds = useFeaturedWorlds(room);
   const [allWorlds] = useRoomsOfType(session, RoomTypes.World);
   const unFeaturedWorlds = allWorlds.filter(
@@ -415,7 +415,7 @@ function FeatureWorld({ room }: { room: Room }) {
 }
 
 function FeatureScene({ room }: { room: Room }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   const featuredScenes = useFeaturedScenes(room);
   const orderedScenes = featuredScenes.sort(eventByOrderKey);

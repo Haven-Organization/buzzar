@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 
 export interface EncryptedFile {
   url: string;
@@ -29,7 +29,7 @@ export function useMediaUrl(
   content: { url?: string; file?: EncryptedFile; info?: { mimetype?: string } } | undefined,
   thumbnail?: { width: number; height: number }
 ): string | undefined {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [decrypted, setDecrypted] = useState<string>();
   const file = content?.file;
   const mimetype = content?.info?.mimetype;

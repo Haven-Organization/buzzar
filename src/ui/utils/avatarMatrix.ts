@@ -149,7 +149,7 @@ export async function setWorldAvatar(
   if (!res.ok) throw new Error(`Failed to update world avatar: ${res.status} ${await res.text()}`);
 }
 
-/** Reads the active session's homeserver + token from Hydrogen's session storage. */
+/** Reads the active session's homeserver + token from session storage. */
 export async function getSessionAuth(
   platform: {
     sessionInfoStorage: {

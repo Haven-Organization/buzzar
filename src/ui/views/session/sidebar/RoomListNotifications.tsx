@@ -1,7 +1,7 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
 import { Invite, Room } from "../../../../matrix";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getIdentifierColorNumber, getAvatarHttpUrl } from "../../../utils/avatar";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { AvatarOutline } from "../../../atoms/avatar/AvatarOutline";
@@ -16,7 +16,7 @@ import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 
 export function RoomListNotifications() {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const [worldInvites] = useInvitesOfType(session, RoomTypes.World);
   const [roomInvites] = useInvitesOfType(session, RoomTypes.Room);
   const [dmInvites] = useInvitesOfType(session, RoomTypes.Direct);

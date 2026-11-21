@@ -9,7 +9,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Dots } from "../../../atoms/loading/Dots";
 import { Text } from "../../../atoms/text/Text";
 import { EditorHeader, EditorHeaderTab } from "../../components/editor-header/EditorHeader";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { uploadAttachment } from "../../../utils/matrixUtils";
 import { scriptSourceAtom } from "../../../state/editor";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
@@ -48,7 +48,7 @@ function findFunctionFor(resourceType: ResourceType | undefined) {
 const MONACO_THEME_KEY = "monaco_theme";
 
 export function ScriptEditor({ room }: { room: Room }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const mainThread = useMainThreadContext();
   // script sources
   const [activeScriptSource, setActiveScriptSource] = useAtom(scriptSourceAtom);

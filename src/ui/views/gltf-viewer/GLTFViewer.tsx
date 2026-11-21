@@ -18,7 +18,7 @@ import { EditorView } from "../session/editor/EditorView";
 import { Stats } from "../session/stats/Stats";
 import { Text } from "../../atoms/text/Text";
 import "./GLTFViewer.css";
-import { HydrogenContext } from "../../hooks/useHydrogen";
+import { MatrixContext } from "../../hooks/useMatrix";
 import { EntityTooltip } from "../session/entity-tooltip/EntityTooltip";
 import { InteractableAction } from "../../../plugins/interaction/interaction.common";
 import { InteractableType } from "../../../engine/resource/schema";
@@ -43,7 +43,7 @@ export default function GLTFViewer() {
     loaded: false,
   });
 
-  const { session } = useContext(HydrogenContext) || {};
+  const { session } = useContext(MatrixContext) || {};
 
   const [params] = useSearchParams();
 

@@ -11,10 +11,9 @@ import {
   OIDCLoginMethod,
   ILoginMethod,
   ISessionInfo,
-  LegacySessionError,
 } from "../../matrix";
 import { Text } from "../atoms/text/Text";
-import { HydrogenContext, HydrogenContextProvider } from "../hooks/useHydrogen";
+import { MatrixContext, MatrixContextProvider } from "../hooks/useMatrix";
 import { useAsyncCallback } from "../hooks/useAsyncCallback";
 import { LoadingScreen } from "./components/loading-screen/LoadingScreen";
 import { Button } from "../atoms/button/Button";
@@ -31,7 +30,7 @@ interface MatrixInstance {
 
 let matrixInstance: MatrixInstance;
 
-/** Buzzar: the Matrix layer (src/matrix, on matrix-js-sdk). The component's name is from the Hydrogen days. */
+/** Buzzar: the Matrix layer (src/matrix, on matrix-js-sdk), created once. */
 function initMatrix() {
   if (matrixInstance) {
     return matrixInstance;
@@ -58,7 +57,7 @@ function initMatrix() {
 }
 
 function getSessionInfo(): ISessionInfo | undefined {
-  const sessionsJson = localStorage.getItem("hydrogen_sessions_v1");
+  const sessionsJson = localStorage.getItem("buzzar_sessions_v1");
   if (sessionsJson) {
     const sessions = JSON.parse(sessionsJson);
     if (Array.isArray(sessions)) {
@@ -128,17 +127,7 @@ function useSession(client: Client, platform: Platform) {
     callback: loadInitialSession,
   } = useAsyncCallback(
     async (sessionInfo: ISessionInfo) => {
-      try {
-        await client.startWithExistingSession(sessionInfo.id);
-      } catch (e) {
-        if (e instanceof LegacySessionError) {
-          // The old session is gone; the login page explains why.
-          sessionStorage.setItem("buzzar_signin_notice", e.message);
-          window.location.assign("/login");
-          return;
-        }
-        throw e;
-      }
+      await client.startWithExistingSession(sessionInfo.id);
       sessionRef.current = await loadClient(client, sessionInfo.id);
     },
     [platform, client]
@@ -194,10 +183,22 @@ function useSession(client: Client, platform: Platform) {
   };
 }
 
-export function HydrogenRootView() {
+export function MatrixRootView() {
   const sessionInfo = getSessionInfo();
 
   const [{ client, platform }] = useState(initMatrix);
+
+  // Sessions from before plan 02 (another SDK's storage) can't be carried over: end them and say why.
+  const [legacyChecked, setLegacyChecked] = useState(() => localStorage.getItem("hydrogen_sessions_v1") === null);
+  useEffect(() => {
+    if (legacyChecked) return;
+    platform.sessionInfoStorage.endLegacySessions().then((hadSessions) => {
+      if (hadSessions) {
+        sessionStorage.setItem("buzzar_signin_notice", "Buzzar was updated and needs you to sign in again.");
+      }
+      setLegacyChecked(true);
+    });
+  }, [legacyChecked, platform]);
 
   const { session, profileRoom, loadInitialSession, login, logout, loading, errorMsg } = useSession(client, platform);
 
@@ -210,7 +211,7 @@ export function HydrogenRootView() {
     return () => window.removeEventListener("buzzar-session-logged-out", onLoggedOut);
   }, [logout]);
 
-  const context = useMemo<HydrogenContext>(
+  const context = useMemo<MatrixContext>(
     () => ({
       client,
       platform,
@@ -237,7 +238,7 @@ export function HydrogenRootView() {
     loadInitialSession(sessionInfo);
   }
 
-  if (loading) {
+  if (loading || !legacyChecked) {
     return <LoadingScreen />;
   }
 
@@ -272,8 +273,8 @@ export function HydrogenRootView() {
   }
 
   return (
-    <HydrogenContextProvider value={context}>
+    <MatrixContextProvider value={context}>
       <Outlet />
-    </HydrogenContextProvider>
+    </MatrixContextProvider>
   );
 }

@@ -25,7 +25,7 @@ import { SegmentControlItem } from "../../../atoms/segment-control/SegmentContro
 import { Window } from "../../components/window/Window";
 import { TileFallback, WorldTile, WorldTileGrid } from "../../components/world-tile/WorldTile";
 import { Edit3DAvatar } from "../user-profile/Edit3DAvatar";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useRoom } from "../../../hooks/useRoom";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
@@ -67,7 +67,7 @@ const STOCK: StockAvatar[] = [
 ];
 
 export function AvatarsView() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [overlayWindow, setOverlayWindow] = useAtom(overlayWindowAtom);
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;
@@ -216,7 +216,7 @@ function useRenderedPreview(
   avatar: AvatarContent | undefined,
   save?: (avatar: AvatarContent, image: Blob) => Promise<void>
 ) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [url, setUrl] = useState<string>();
   const [loading, setLoading] = useState(false);
   const avatarUrl = avatar?.url;
@@ -257,7 +257,7 @@ function useRenderedPreview(
 const savedPreviews = new Set<string>();
 
 function usePreview(mxc: string | undefined) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   if (!mxc) return undefined;
   return session.mediaRepository.mxcUrlThumbnail(mxc, 360, 480, "scale") ?? undefined;
 }
@@ -469,7 +469,7 @@ interface WornAvatar {
 }
 
 function InWorldAvatars({ ctx, worldId }: { ctx: TileContext; worldId: string }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const calls = useCalls(session);
   const groupCall = useRoomCall(calls, worldId);
   return groupCall ? (
@@ -488,7 +488,7 @@ function InWorldAvatarsOfCall({
   worldId: string;
   groupCall: GroupCall;
 }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const members = useObservableMap(() => groupCall.members, [groupCall]);
   const userIds = useMemo(
     () => [...new Set([...members.values()].map((m) => m.userId))].filter((id) => id !== session.userId).sort(),

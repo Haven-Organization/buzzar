@@ -1,5 +1,5 @@
 /**
- * Buzzar: the in-world chat's messages (plan 02: React, replacing Hydrogen's timeline views): text, images, GIFs and
+ * Buzzar: the in-world chat's messages (React, since plan 02): text, images, GIFs and
  * stickers, and membership notes, in translucent bubbles over the world.
  */
 import { useCallback } from "react";
@@ -7,7 +7,7 @@ import classNames from "classnames";
 
 import { Room } from "../../../../matrix";
 import { ChatItem, useChat } from "../../../hooks/useChat";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Text } from "../../../atoms/text/Text";
 import { FormattedBody } from "../../components/formatted-body/FormattedBody";
 import { TimelineScroller } from "../../components/timeline-scroller/TimelineScroller";
@@ -21,7 +21,7 @@ import "./tiles/WorldChatGap.css";
 type MessageItem = Extract<ChatItem, { continuation: boolean }>;
 
 function ImageMessage({ item }: { item: MessageItem }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
   const content = item.entry.content;
   const src = useImageSource(content, imageSize(content.info, 240, 180));
@@ -42,7 +42,7 @@ function ImageMessage({ item }: { item: MessageItem }) {
 }
 
 function TextMessage({ item }: { item: MessageItem }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
   const { entry } = item;
   const isEmote = entry.content.msgtype === "m.emote";

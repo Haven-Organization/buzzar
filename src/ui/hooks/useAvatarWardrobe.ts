@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import {
   AvatarCollection,
   AvatarContent,
@@ -38,7 +38,7 @@ export function stripSaved(avatar: AvatarContent): AvatarContent {
 }
 
 export function useAvatarWardrobe() {
-  const { session, platform, client, profileRoom } = useHydrogen(true);
+  const { session, platform, client, profileRoom } = useMatrix(true);
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;
 

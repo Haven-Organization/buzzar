@@ -298,6 +298,14 @@ export class Session {
       for (const id of this.rooms.keys()) this.touch(id);
     };
     const onMember = (event: MatrixEvent) => this.touch(event.getRoomId());
+    // Typing notifications, passed on as a window event (see ui/utils/typing.ts).
+    const onTyping = (event: MatrixEvent) => {
+      window.dispatchEvent(
+        new CustomEvent("buzzar:ephemeral", {
+          detail: { roomId: event.getRoomId(), events: [{ type: "m.typing", content: event.getContent() }] },
+        })
+      );
+    };
 
     client.on(ClientEvent.Room, onRoom);
     client.on(RoomEvent.MyMembership, onMembership);
@@ -308,6 +316,7 @@ export class Session {
     client.on(RoomEvent.Receipt, onReceipt);
     client.on(ClientEvent.AccountData, onAccountData);
     client.on(RoomMemberEvent.Membership, onMember);
+    client.on(RoomMemberEvent.Typing, onTyping);
     this.disposers.push(() => {
       client.off(ClientEvent.Room, onRoom);
       client.off(RoomEvent.MyMembership, onMembership);
@@ -318,6 +327,7 @@ export class Session {
       client.off(RoomEvent.Receipt, onReceipt);
       client.off(ClientEvent.AccountData, onAccountData);
       client.off(RoomMemberEvent.Membership, onMember);
+      client.off(RoomMemberEvent.Typing, onTyping);
     });
   }
 

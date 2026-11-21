@@ -10,7 +10,7 @@ import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avata
 import { UserProfileOverview } from "./UserProfileOverview";
 import { UserProfileInventory } from "./UserProfileInventory";
 import CrossIC from "../../../../../res/ic/cross.svg";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
 
@@ -20,7 +20,7 @@ enum UserProfileSegment {
 }
 
 export function UserProfile() {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const { userId, displayName, avatarUrl } = useAtomValue(userProfileAtom);
   const [selectedSegment] = useState(UserProfileSegment.Overview);

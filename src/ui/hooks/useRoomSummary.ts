@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Session } from "../../matrix";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 
 export function getRoomSummary(session: Session, roomIdOrAlias: string, signal?: AbortSignal) {
   const { homeserver } = session.sessionInfo;
@@ -22,7 +22,7 @@ export interface SummaryData {
 }
 
 export function useRoomSummary(roomIdOrAlias: string) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [summary, setSummary] = useState<SummaryData>();
 
   useEffect(() => {

@@ -229,7 +229,7 @@ export async function syncBuzzarSpace(
   return { spaceId, ...plan };
 }
 
-/** Joined world rooms, read from the server (for scripts; the app uses Hydrogen's room list instead). */
+/** Joined world rooms, read from the server (for scripts; the app uses the session's room list instead). */
 export async function fetchJoinedWorldIds(auth: MatrixAuth, joined?: Set<string>): Promise<string[]> {
   const worlds: string[] = [];
   for (const id of joined ?? (await getJoinedRoomIds(auth))) {

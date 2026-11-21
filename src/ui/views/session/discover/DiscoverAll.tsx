@@ -1,7 +1,7 @@
 import { Room } from "../../../../matrix";
 import { Content } from "../../../atoms/content/Content";
 import { Scroll } from "../../../atoms/scroll/Scroll";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { DiscoverGroupGrid } from "../../components/discover-group/DiscoverGroup";
 import { RepositoryEvents } from "./DiscoverView";
 import "./DiscoverAll.css";
@@ -14,7 +14,7 @@ import { FeaturedSceneCard } from "./FeaturedSceneCard";
 import { eventByOrderKey } from "../../../utils/matrixUtils";
 
 export function DiscoverAll({ eventType, room }: { eventType: RepositoryEvents; room: Room }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   return (
     <Scroll>

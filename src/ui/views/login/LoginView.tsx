@@ -6,7 +6,7 @@ import { Input } from "../../atoms/input/Input";
 import { Button } from "../../atoms/button/Button";
 import { Label } from "../../atoms/text/Label";
 import { SettingTile } from "../components/setting-tile/SettingTile";
-import { useHydrogen } from "../../hooks/useHydrogen";
+import { useMatrix } from "../../hooks/useMatrix";
 import LogoSVG from "../../../../res/svg/logo.svg";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Dots } from "../../atoms/loading/Dots";
@@ -46,7 +46,7 @@ function useQueryHomeserver(client: Client, homeserver: string) {
       queryRef.current = queryOperation;
       try {
         let result = await queryOperation.result;
-        // Buzzar: Hydrogen only finds OIDC servers through a 2023 .well-known key; current homeservers with
+        // Buzzar: queryLogin already looks for the OIDC issuer; this is a second look for homeservers with
         // Matrix Authentication Service (matrix.org, …) advertise it through /auth_metadata instead.
         if (!result.oidc) {
           const oidc = await discoverOidcIssuer(result.homeserver);
@@ -101,7 +101,7 @@ function hostOf(url: string) {
 }
 
 export default function LoginView() {
-  const { platform, urlRouter, login, client } = useHydrogen();
+  const { platform, urlRouter, login, client } = useMatrix();
   const [authenticating, setAuthenticating] = useState(false);
   const [oidcError, setOidcError] = useState<string>();
   // Why the visitor is back at the login page, when Buzzar sent them (e.g. after an update that needs a new sign-in).

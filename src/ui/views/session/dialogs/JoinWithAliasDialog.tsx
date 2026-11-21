@@ -10,7 +10,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
 import { Icon } from "../../../atoms/icon/Icon";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import InfoIC from "../../../../../res/ic/info.svg";
 import { Tooltip } from "../../../atoms/tooltip/Tooltip";
@@ -20,7 +20,7 @@ interface JoinWithAliasDialogProps {
 }
 
 export function JoinWithAliasDialog({ requestClose }: JoinWithAliasDialogProps) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string>();

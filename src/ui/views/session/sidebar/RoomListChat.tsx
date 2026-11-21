@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { useRoomsOfType, RoomTypes } from "../../../hooks/useRoomsOfType";
@@ -18,7 +18,7 @@ import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 
 /** Buzzar: the Chat list: direct messages and rooms (worlds have their own screen now). */
 export function RoomListChat() {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   const [directs] = useRoomsOfType(session, RoomTypes.Direct);
   const [rooms] = useRoomsOfType(session, RoomTypes.Room);

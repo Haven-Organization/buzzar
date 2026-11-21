@@ -5,7 +5,7 @@ import { Input } from "../../../atoms/input/Input";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth, uploadMedia } from "../../../utils/avatarMatrix";
 import {
   BANNER_KEY,
@@ -20,7 +20,7 @@ const MAX_BANNER_BYTES = 5 * 1024 * 1024;
 
 /** Buzzar: pronouns and a profile banner, shown on your name tag in worlds. Saved to your Matrix profile. */
 export function ProfileExtrasSettings() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [pronouns, setPronouns] = useState("");
   const [savedPronouns, setSavedPronouns] = useState("");
   const [banner, setBanner] = useState<string>();

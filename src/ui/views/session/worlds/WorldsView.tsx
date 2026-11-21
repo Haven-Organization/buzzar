@@ -32,7 +32,7 @@ import { homeWorldAtom } from "../../../state/homeWorld";
 import { InviteDialog } from "../dialogs/InviteDialog";
 import { JoinWithAliasDialog } from "../dialogs/JoinWithAliasDialog";
 import { ExploreServersDialog } from "./ExploreServersDialog";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useRoomsOfType, RoomTypes } from "../../../hooks/useRoomsOfType";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoom } from "../../../hooks/useRoom";
@@ -71,7 +71,7 @@ import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
 const TILE_IMAGE = { width: 640, height: 360 };
 
 function useThumbnail(mxcOrHttp: string | undefined) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   if (!mxcOrHttp) return undefined;
   if (!mxcOrHttp.startsWith("mxc:")) return mxcOrHttp;
   return session.mediaRepository.mxcUrlThumbnail(mxcOrHttp, TILE_IMAGE.width, TILE_IMAGE.height, "scale") ?? undefined;
@@ -131,7 +131,7 @@ export function WorldsView() {
 // --- Your Worlds ----------------------------------------------------------------------------------------------------
 
 function YourWorlds() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [worlds] = useRoomsOfType(session, RoomTypes.World);
   const calls = useCalls(session);
   const { worldId, entered } = useAtomValue(worldAtom);
@@ -238,7 +238,7 @@ function useReturnToWorld() {
 }
 
 function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const memberCount = useJoinedMemberCount(room);
   const { preview, topic, hasScript } = useJoinedWorldPreview(room);
   const openDetails = useOpenDetails();
@@ -368,7 +368,7 @@ const SUGGESTED = ":suggested";
 const SUGGESTED_LABEL = "Suggested Worlds";
 
 function ExploreWorlds() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const ownServer = serverNameOf(session.userId);
   const hasSuggested = exploreConfig.suggestedWorlds.length > 0;
 
@@ -608,7 +608,7 @@ function ExploreWorlds() {
 }
 
 function ExploreWorldTile({ world, via }: { world: DirectoryWorld; via: string[] }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [preview, setPreview] = useState<string>();
   const [joining, setJoining] = useState(false);
   const [joinedId, setJoinedId] = useState<string>();

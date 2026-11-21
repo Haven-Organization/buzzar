@@ -47,7 +47,7 @@ export function WorldTileMembers({ session, platform, groupCall, room }: WorldTi
 }
 
 /**
- * Buzzar: the world call's members come from Hydrogen without a display name or avatar (Third Room #404), so read
+ * Buzzar: the world call's members come without a display name or avatar (Third Room #404), so read
  * them from the world room's member.
  */
 function TileMemberAvatar({

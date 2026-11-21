@@ -7,7 +7,7 @@ import { IconButton } from "../../../atoms/button/IconButton";
 import { Button } from "../../../atoms/button/Button";
 import { Input } from "../../../atoms/input/Input";
 import { Text } from "../../../atoms/text/Text";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { normalizeServerName, saveExploreServers } from "../../../utils/worldDirectory";
 import CrossIC from "../../../../../res/ic/cross.svg";
@@ -32,7 +32,7 @@ export function ExploreServersDialog({
   servers,
   onChange,
 }: ExploreServersDialogProps) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);

@@ -10,7 +10,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Button } from "../../../atoms/button/Button";
 import { Switch } from "../../../atoms/button/Switch";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import {
   fetchScriptGrants,
@@ -21,7 +21,7 @@ import {
 } from "../../../utils/scriptSettings";
 
 export function WorldScriptSettings() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [runScripts, setRunScripts] = useLocalStorage(RUN_SCRIPTS_KEY, true);
   const [webScripts, setWebScripts] = useLocalStorage(WEB_SCRIPTS_KEY, false);
   const [grants, setGrants] = useState<ScriptGrants>();

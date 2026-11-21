@@ -20,7 +20,7 @@ import { Window } from "../../components/window/Window";
 import { MemberTile } from "../../components/member-tile/MemberTile";
 import { MemberListDialog } from "../dialogs/MemberListDialog";
 import { DmDialog } from "../dialogs/DmDialog";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useRoom } from "../../../hooks/useRoom";
 import { useDialog } from "../../../hooks/useDialog";
 import { useRoomsOfType, RoomTypes } from "../../../hooks/useRoomsOfType";
@@ -33,7 +33,7 @@ import PeoplesIC from "../../../../../res/ic/peoples.svg";
 import AddUserIC from "../../../../../res/ic/add-user.svg";
 
 export function PeopleView() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [overlayWindow, setOverlayWindow] = useAtom(overlayWindowAtom);
   const { worldId, entered } = useAtomValue(worldAtom);
   const world = useRoom(session, entered ? worldId : undefined);
@@ -94,7 +94,7 @@ export function PeopleView() {
 }
 
 function Friends({ onDirectMessage }: { onDirectMessage: () => void }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const [directs] = useRoomsOfType(session, RoomTypes.Direct);
   const setActiveChat = useSetAtom(activeChatsAtom);
   const setSidebarTab = useSetAtom(sidebarTabAtom);

@@ -13,7 +13,7 @@ import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import "./Edit3DAvatar.css";
 import { Footer } from "../../../atoms/footer/Footer";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { AutoFileUpload, AutoUploadInfo } from "../../components/AutoFileUpload";
 import { Label } from "../../../atoms/text/Label";
@@ -41,7 +41,7 @@ interface Edit3DAvatarProps {
 }
 
 export function Edit3DAvatar({ renderTrigger, open, onOpenChange }: Edit3DAvatarProps) {
-  const { session, profileRoom, client, platform } = useHydrogen(true);
+  const { session, profileRoom, client, platform } = useMatrix(true);
   const world = useAtomValue(worldAtom);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = open ?? uncontrolledOpen;

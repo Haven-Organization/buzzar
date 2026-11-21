@@ -10,12 +10,12 @@ import { Button } from "../../../atoms/button/Button";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { createAndSetHomeWorld } from "../../../hooks/useHomeWorld";
 import { enterHomeOnStartupAtom, homeWorldAtom } from "../../../state/homeWorld";
 
 export function HomeWorldSettings() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [enterOnStartup, setEnterOnStartup] = useAtom(enterHomeOnStartupAtom);
   const [home, setHome] = useAtom(homeWorldAtom);
   const [creating, setCreating] = useState(false);

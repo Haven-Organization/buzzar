@@ -18,3 +18,4 @@ docs/websg-js
 
 # Buzzar: local world previews for /viewer?src=… (not for commit)
 public/gltf/test/_tmp-*
+dist-next

@@ -1,6 +1,6 @@
 /**
  * Buzzar: Matrix typing notifications (m.typing). Sent while you type in a world's chat, so other players see
- * "…" above your head; received through the buzzar:ephemeral event from the patched Hydrogen sync.
+ * "…" above your head; received through the buzzar:ephemeral window event the Matrix layer sends (src/matrix/session.ts).
  */
 import { MatrixAuth } from "./avatarMatrix";
 

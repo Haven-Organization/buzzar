@@ -1,7 +1,7 @@
 /**
  * Shared between the service worker (sw.ts) and the page.
  *
- * Hydrogen builds legacy `/_matrix/media/r0/{download,thumbnail}` URLs. Media uploaded after the 2024
+ * Buzzar's MediaRepository builds legacy `/_matrix/media/r0/{download,thumbnail}` URLs. Media uploaded after the 2024
  * media freeze is only served from `/_matrix/client/v1/media/*` (spec v1.11, authenticated media).
  */
 export const MEDIA_AUTH_REQUEST = "software.haven.media_auth.request";

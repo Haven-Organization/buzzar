@@ -6,7 +6,7 @@ import "./WorldPreview.css";
 import { Button } from "../../../atoms/button/Button";
 import { WorldPreviewCard } from "../../components/world-preview-card/WorldPreviewCard";
 import { useRoom } from "../../../hooks/useRoom";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useRoomStatus } from "../../../hooks/useRoomStatus";
 import { Dots } from "../../../atoms/loading/Dots";
 import { useInviteControl } from "../../../hooks/useInviteControl";
@@ -60,7 +60,7 @@ function InviteWorldPreview({ session, roomId }: InviteWorldPreviewProps) {
 
 function JoinWorldCard({ worldIdOrAlias }: { worldIdOrAlias: string }) {
   const selectWorld = useSetAtom(overlayWorldAtom);
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const {
     loading,
@@ -115,7 +115,7 @@ export function EnterWorldButton({
   /** Buzzar: increase to enter through this button's usual steps, but without the world's script (this visit only). */
   withoutScriptRequest?: number;
 }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const micPermission = usePermissionState("microphone");
   const requestStream = useStreamRequest(platform, micPermission);
   const [micException, setMicException] = useState<RequestException>();
@@ -239,7 +239,7 @@ export function EnterWorldButton({
 }
 
 export function WorldPreview() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const worldId = useAtomValue(worldAtom).worldId;
   const selectedWorldId = useAtomValue(overlayWorldAtom);

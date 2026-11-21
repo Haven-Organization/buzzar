@@ -1,7 +1,7 @@
 import { useLocation, useMatch } from "react-router-dom";
 
 import { aliasToRoomId } from "../utils/matrixUtils";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 
 function useWorld(): [string | undefined, string | undefined, string | undefined] {
   const location = useLocation();
@@ -15,7 +15,7 @@ function useWorld(): [string | undefined, string | undefined, string | undefined
 }
 
 export function useWorldPath(): [string | undefined, string | undefined] {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [worldId, alias, reloadId] = useWorld();
 
   const roomId = alias ? aliasToRoomId(session.rooms, alias) : worldId;
@@ -24,7 +24,7 @@ export function useWorldPath(): [string | undefined, string | undefined] {
 }
 
 export function useUnknownWorldPath(): [string | undefined, string | undefined] {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [worldId, alias] = useWorld();
 
   if (worldId && session.rooms.get(worldId) === undefined) {

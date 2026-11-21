@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Session } from "../../matrix";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { aliasToRoomId, parseMatrixUri } from "../utils/matrixUtils";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { fetchRoomSummary } from "../utils/worldDirectory";
 
 /** Buzzar: what a portal leads to, shown on its tooltip before you step through (parity checklist §6). */
@@ -68,7 +68,7 @@ export async function resolveDestination(
 
 /** Looks up where a portal goes, once per address per session (failures are retried on the next look). */
 export function usePortalDestination(uri: string | undefined): PortalDestination | undefined {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [destination, setDestination] = useState<PortalDestination>();
 
   useEffect(() => {

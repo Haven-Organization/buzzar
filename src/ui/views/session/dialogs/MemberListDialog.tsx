@@ -14,7 +14,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { useRoomMembers } from "../../../hooks/useRoomMembers";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
 import MoreHorizontalIC from "../../../../../res/ic/more-horizontal.svg";
 import ChevronBottomIC from "../../../../../res/ic/chevron-bottom.svg";
@@ -64,7 +64,7 @@ function ActiveMemberTile({
 }
 
 export function MemberListDialog({ room, requestClose, embedded }: MemberListDialogProps) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   const { active: callMembersActive, invited, joined, leaved, banned } = useRoomMembers(room) ?? {};
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -72,7 +72,7 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
   const calls = useCalls(session);
   const groupCall = useRoomCall(calls, room.id);
 
-  // Buzzar: Hydrogen's groupCall.members only contains *other* participants, so you always appeared as
+  // Buzzar: groupCall.members only contains *other* participants, so you always appeared as
   // "Disconnected" in your own member list. Count yourself as connected while you're in the world's call.
   const self = joined?.find((member) => member.userId === session.userId);
   // Buzzar: call members carry a bare RoomMember (often no display name or avatar); show the room's own.

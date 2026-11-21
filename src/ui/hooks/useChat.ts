@@ -1,5 +1,5 @@
 /**
- * Buzzar: a room's messages as a list ready to draw (plan 02 replaced Hydrogen's timeline views with React):
+ * Buzzar: a room's messages as a list ready to draw (React, since plan 02):
  * messages, images, files, membership notes and date headers, with paging back through history.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";

@@ -310,7 +310,7 @@ class SortedMapList<K, V> extends BaseObservableList<V> {
   }
 }
 
-/** Minimal typed event emitter with Hydrogen's `disposableOn`. */
+/** Minimal typed event emitter; `disposableOn` returns a function that stops listening. */
 export class EventEmitter<E extends Record<string, unknown> = Record<string, unknown>> {
   private listeners = new Map<keyof E, Set<(value: never) => void>>();
 

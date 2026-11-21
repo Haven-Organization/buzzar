@@ -11,7 +11,7 @@ import { Scroll } from "../../../atoms/scroll/Scroll";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { PaginationDot } from "../../../atoms/pagination/PaginationDot";
 import { ShortcutUI } from "./ShortcutUI";
 import { Modal } from "../../../atoms/modal/Modal";
@@ -23,7 +23,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ open, world, requestClose }: OnboardingModalProps) {
-  const { platform } = useHydrogen(true);
+  const { platform } = useMatrix(true);
   const [screenNo, setScreenNo] = useState(1);
   const lastScreenNo = 2;
 

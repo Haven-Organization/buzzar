@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { createTypingNotifier, EphemeralDetail, typingUserIds } from "../utils/typing";
 import { getSessionAuth } from "../utils/avatarMatrix";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 
 /** Buzzar: who's typing in a room right now (from m.typing). */
 export function useTypingUsers(roomId: string | undefined): Set<string> {
@@ -22,7 +22,7 @@ export function useTypingUsers(roomId: string | undefined): Set<string> {
 
 /** Buzzar: sends typing notifications for a composer in `roomId`. */
 export function useTypingNotifier(roomId: string | undefined) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const notifier = useMemo(
     () =>
       roomId

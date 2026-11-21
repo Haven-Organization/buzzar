@@ -3,11 +3,11 @@
  */
 import { useEffect, useState } from "react";
 
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { renderAvatarPreviewFromUrl } from "../utils/avatarPreview";
 
 export function useThingPreview(url: string | undefined, previewUrl: string | undefined) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [rendered, setRendered] = useState<string>();
   const [loading, setLoading] = useState(false);
   const preview = previewUrl

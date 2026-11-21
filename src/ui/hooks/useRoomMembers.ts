@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { ObservableMap, Room, RoomMember } from "../../matrix";
 import { useIsMounted } from "./useIsMounted";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { getRoomCall } from "../utils/matrixUtils";
 
 interface MembersType {
@@ -13,7 +13,7 @@ interface MembersType {
 }
 
 export function useRoomMembers(room: Room) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [members, setMembers] = useState<MembersType>();
   const [activeMembers, setActiveMembers] = useState<RoomMember[]>([]);
   const isMounted = useIsMounted();

@@ -1,5 +1,5 @@
 /**
- * Buzzar: tiles inside chat messages. The timeline's message views (Hydrogen templates) leave placeholder elements
+ * Buzzar: tiles inside chat messages. The timeline's message views leave placeholder elements
  * (`data-model-mxc` for a .glb/.vrm file, `data-world-link` for a linked room); ChatTimeline finds them and renders
  * these React tiles into them through portals, so they get the app's state (session, wearing avatars, dialogs).
  */
@@ -12,7 +12,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
 import { TileFallback, WorldTile } from "../../components/world-tile/WorldTile";
 import { AssetMetadata, readAssetMetadata } from "../../../../engine/gltf/assetMetadata";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import {
   AvatarContent,
@@ -104,7 +104,7 @@ function useOpenDetailsFromChat() {
 }
 
 function useAuth() {
-  const { platform, client } = useHydrogen(true);
+  const { platform, client } = useMatrix(true);
   return useCallback(async () => {
     const auth = await getSessionAuth(platform, client.sessionId);
     if (!auth) throw new Error("Not signed in");
@@ -117,7 +117,7 @@ const KIND_LABEL: Record<ModelKind, string> = { avatar: "Avatar", world: "World"
 /** A .glb/.vrm posted in chat: what it is, a preview, and what you can do with it. */
 function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?: number }) {
   const openDetails = useOpenDetailsFromChat();
-  const { session, profileRoom } = useHydrogen(true);
+  const { session, profileRoom } = useMatrix(true);
   const getAuth = useAuth();
   const { worldId, entered } = useAtomValue(worldAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
@@ -355,7 +355,7 @@ interface WorldSummary {
 /** A linked room: if it's a world, a tile with what it is and a Join button. */
 function ChatWorldEmbed({ target, via }: { target: string; via: string[] }) {
   const openDetails = useOpenDetailsFromChat();
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const getAuth = useAuth();
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const selectWorld = useSetAtom(overlayWorldAtom);

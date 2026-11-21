@@ -1,5 +1,5 @@
 /**
- * Buzzar's Matrix layer (plan 02): browser services the app used to get from Hydrogen's Platform: saved sessions,
+ * Buzzar's Matrix layer (plan 02): browser services the Matrix layer and UI share: saved sessions,
  * settings storage, file picking, blobs and microphone access.
  */
 import configData from "../../config.json";
@@ -18,14 +18,39 @@ export interface ISessionInfo {
   oidcIssuer?: string;
   oidcClientId?: string;
   accountManagementUrl?: string;
-  /** 2 = created by the matrix-js-sdk layer (its own encryption store). Sessions without it are from Hydrogen. */
-  sdk?: number;
 }
 
-/** Same localStorage key Hydrogen used, so helpers that read the active session keep working. */
-const SESSIONS_KEY = "hydrogen_sessions_v1";
+const SESSIONS_KEY = "buzzar_sessions_v1";
+/** Where the SDK Buzzar used before plan 02 kept its sessions. */
+const LEGACY_SESSIONS_KEY = "hydrogen_sessions_v1";
 
 export class SessionInfoStorage {
+  /**
+   * Sessions saved before plan 02. Their devices' encryption keys can't move to the new encryption engine, so
+   * they're signed out; returns whether there were any (the user then needs to sign in again).
+   */
+  async endLegacySessions(): Promise<boolean> {
+    let sessions: Partial<ISessionInfo>[] = [];
+    try {
+      const stored = JSON.parse(localStorage.getItem(LEGACY_SESSIONS_KEY) ?? "[]");
+      if (Array.isArray(stored)) sessions = stored;
+    } catch {
+      // unreadable: just drop it
+    }
+    localStorage.removeItem(LEGACY_SESSIONS_KEY);
+    await Promise.all(
+      sessions.map((session) => {
+        const homeserver = (session.homeserver ?? session.homeServer ?? "").replace(/\/+$/, "");
+        if (!homeserver || !session.accessToken) return undefined;
+        return fetch(`${homeserver}/_matrix/client/v3/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.accessToken}` },
+        }).catch(() => undefined);
+      })
+    );
+    return sessions.length > 0;
+  }
+
   async getAll(): Promise<ISessionInfo[]> {
     try {
       const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) ?? "[]");
@@ -60,7 +85,7 @@ export class SessionInfoStorage {
 }
 
 export class SettingsStorage {
-  private prefix = "hydrogen_setting_v1_";
+  private prefix = "buzzar_setting_v1_";
 
   async setInt(key: string, value: number) {
     localStorage.setItem(this.prefix + key, String(value));
@@ -91,7 +116,7 @@ export interface IBlobHandle {
   mimeType: string;
   readAsBuffer(): Promise<ArrayBuffer>;
   dispose(): void;
-  /** Kept for code written against Hydrogen's handle. */
+  /** The same blob; older code reads it under this name. */
   _blob: Blob;
 }
 
@@ -273,7 +298,7 @@ export async function submitLogsToRageshakeServer(
   if (!res.ok) throw new Error(`Couldn't send the report (${res.status})`);
 }
 
-/** Hydrogen had structured logs; here calls just run, and the console's recent lines can be exported. */
+/** Runs labelled work (there are no structured logs), and exports the console's recent lines for bug reports. */
 export class Logger {
   reporters: { export: () => Promise<{ asBlob(): BlobHandle }> }[] = [
     {

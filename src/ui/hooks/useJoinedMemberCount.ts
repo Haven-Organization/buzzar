@@ -1,7 +1,7 @@
 /**
  * Buzzar: how many people have joined a world you're in.
  *
- * Hydrogen only knows the count the homeserver sends in sync (`m.joined_member_count`), and some servers get it
+ * The sync data only has the count the homeserver sends in sync (`m.joined_member_count`), and some servers get it
  * wrong for good: Synapse's faster joins report just its own members (often 1) when you join a room hosted elsewhere
  * and may never send the corrected count (seen 2026-11-21). So this also asks the server for the
  * room's summary, which counts properly, and prefers that.
@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 
 import { Room } from "../../matrix";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { fetchRoomSummary } from "../utils/worldDirectory";
 
@@ -19,7 +19,7 @@ const pending = new Map<string, Promise<number | undefined>>();
 const MAX_AGE_MS = 60_000;
 
 export function useJoinedMemberCount(room: Room | undefined): number {
-  const { platform, client } = useHydrogen(true);
+  const { platform, client } = useMatrix(true);
   const synced = room?.joinedMemberCount ?? 0;
   const [summary, setSummary] = useState<number | undefined>(() => (room ? cache.get(room.id)?.count : undefined));
 

@@ -28,7 +28,7 @@ import {
 import { Label } from "../../../atoms/text/Label";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import "./WorldSettings.css";
 import { getAvatarHttpUrl, getHttpUrl } from "../../../utils/avatar";
 import { Input } from "../../../atoms/input/Input";
@@ -68,7 +68,7 @@ interface WorldSettingsProps {
 }
 
 export function WorldSettings({ room }: WorldSettingsProps) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);

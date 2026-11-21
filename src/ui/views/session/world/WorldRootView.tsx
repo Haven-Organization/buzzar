@@ -2,7 +2,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 
 import { Room, StateEvent, SubscriptionHandle } from "../../../../matrix";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useIsMounted } from "../../../hooks/useIsMounted";
 import { useRoom } from "../../../hooks/useRoom";
 import { useWorldPath } from "../../../hooks/useWorld";
@@ -23,7 +23,7 @@ async function getWorldContent(world: Room) {
 export default function WorldRootView() {
   const { entered, loading } = useAtomValue(worldAtom);
   const setWorld = useSetAtom(worldAtom);
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const isMounted = useIsMounted();
   const [error, setError] = useState<Error>();
   const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);

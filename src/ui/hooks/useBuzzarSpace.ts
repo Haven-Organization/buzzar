@@ -3,7 +3,7 @@ import { useAtomValue } from "jotai";
 
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { syncBuzzarSpace, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { worldAtom } from "../state/world";
 
 /** Re-sync at most this often while rooms change (joining a world adds a room; leaving removes one). */
@@ -15,7 +15,7 @@ const SYNC_DELAY_MS = 5_000;
  * has no space yet gets one when they first enter a world, with all their worlds added.
  */
 export function useBuzzarSpace() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const { entered } = useAtomValue(worldAtom);
   // Once a world has been entered this session, the space may be created.
   const hasEntered = useRef(false);

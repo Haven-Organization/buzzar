@@ -12,7 +12,7 @@ import { DiscoverHome } from "./DiscoverHome";
 import { SegmentControl } from "../../../atoms/segment-control/SegmentControl";
 import { SegmentControlItem } from "../../../atoms/segment-control/SegmentControlItem";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { DiscoverAdmin } from "./DiscoverAdmin";
 import { DiscoverAll } from "./DiscoverAll";
 import { DiscoverCreator } from "./DiscoverCreator";
@@ -33,7 +33,7 @@ enum DiscoverTab {
 }
 
 export function DiscoverView({ room }: { room: Room }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const { getPowerLevel, canDoAction, canSendStateEvent } = usePowerLevels(room);
   const [discoverTab, setDiscoverTab] = useState<DiscoverTab>(DiscoverTab.Home);

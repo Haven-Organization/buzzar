@@ -6,7 +6,7 @@ import ArrowForwardIC from "../../../../../res/ic/arrow-forward.svg";
 import "./DiscoverHome.css";
 import { DiscoverGroup, DiscoverGroupGrid, DiscoverMoreButton } from "../../components/discover-group/DiscoverGroup";
 import { RepositoryEvents } from "./DiscoverView";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { FeaturedWorldsProvider } from "../../components/FeaturedWorldsProvider";
 import { FeaturedRoomsProvider } from "../../components/FeaturedRoomsProvider";
 import { FeaturedRoomCard } from "./FeaturedRoomCard";
@@ -21,7 +21,7 @@ interface DiscoverHomeProps {
   onLoadEvent: (eventType: RepositoryEvents) => void;
 }
 export function DiscoverHome({ room, supportRoomSummary, onLoadEvent }: DiscoverHomeProps) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   return (
     <Scroll>

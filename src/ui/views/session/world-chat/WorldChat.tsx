@@ -10,7 +10,7 @@ import MessageIC from "../../../../../res/ic/message.svg";
 import { useRecentMessage } from "../../../hooks/useRecentMessage";
 import { usePreviousState } from "../../../hooks/usePreviousState";
 import { useTombstone } from "../../../hooks/useTombstone";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { FormattedBody } from "../../components/formatted-body/FormattedBody";
 
 function useRecentMessages(room?: Room, maxCount = 5) {
@@ -47,7 +47,7 @@ export function WorldChat({ room, open }: IWorldChat) {
   const events = useRecentMessages(open ? undefined : room, 5);
   // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
   const upgraded = !!useTombstone(room);
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
 
   const renderTimeline = () => <WorldChatTimeline room={room} />;

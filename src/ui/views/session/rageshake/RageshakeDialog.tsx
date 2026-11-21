@@ -7,7 +7,7 @@ import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { IconButton } from "../../../atoms/button/IconButton";
 import CrossIC from "../../../../../res/ic/cross.svg";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { Label } from "../../../atoms/text/Label";
 import { Button } from "../../../atoms/button/Button";
@@ -32,7 +32,7 @@ interface RageshakeDialogProps {
 }
 
 export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
-  const { platform, session } = useHydrogen(true);
+  const { platform, session } = useMatrix(true);
 
   const {
     callback: submitLogs,

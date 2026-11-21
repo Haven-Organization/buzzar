@@ -6,7 +6,7 @@ import defaultWorlds from "../../../res/defaultWorlds.json";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { getJoinedRoomIds, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";
 import { bundledFileUrl } from "../utils/bundledMedia";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { homeWorldAtom } from "../state/homeWorld";
 
 /**
@@ -200,7 +200,7 @@ export function waitForRoom(session: Session, roomId: string, timeoutMs = 30_000
  * is upgraded to the bundled scene's latest version in the background; one the user chose themselves is left alone.
  */
 export function useHomeWorldCheck() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const setHome = useSetAtom(homeWorldAtom);
 
   useEffect(() => {

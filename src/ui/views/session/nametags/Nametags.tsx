@@ -8,7 +8,7 @@ import { getModule } from "../../../../engine/module/module.common";
 import { range } from "../../../../engine/utils/interpolation";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { useRoomMembers } from "../../../hooks/useRoomMembers";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
 import { AudioModule } from "../../../../engine/audio/audio.main";
@@ -64,7 +64,7 @@ const ANIMATED = new Set(["image/gif", "image/webp", "image/apng"]);
 
 /** Buzzar: a message above someone's head: text (formatted), or the image/GIF/sticker they sent. */
 function Bubble({ bubble }: { bubble: ChatBubble }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
   const content = bubble.content as { msgtype?: string; url?: string; body?: string; info?: { mimetype?: string } };
   const isImage = bubble.type === "m.sticker" || content.msgtype === "m.image";
@@ -87,7 +87,7 @@ function Bubble({ bubble }: { bubble: ChatBubble }) {
 
 /** Buzzar: pronouns and banner from the player's profile, refreshed every few minutes. */
 function useProfileExtras(userId: string): ProfileExtras {
-  const { platform, client } = useHydrogen(true);
+  const { platform, client } = useMatrix(true);
   const [extras, setExtras] = useState<ProfileExtras>({});
   useEffect(() => {
     let cancelled = false;
@@ -122,7 +122,7 @@ function Nametag({ room, nametag, groupCall, bubbles, typing, showBanners }: Nam
   const avatarUrl = member?.avatarUrl;
   const userId = member?.userId || nametag.name;
 
-  const { platform, session } = useHydrogen(true);
+  const { platform, session } = useMatrix(true);
   const volumeDetector =
     (memberCall && (memberCall as SpeakingRoomMember).volumeDetector) ||
     (memberCall?.remoteMedia?.userMedia &&
@@ -216,7 +216,7 @@ export function Nametags({ room, show, showBanners = true }: { room: Room; show:
     };
   }, [engine, onNametagsChanged]);
 
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const groupCall = getRoomCall(session.callHandler.calls, worldId);
   // Buzzar: messages and typing shown above heads.

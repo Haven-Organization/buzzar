@@ -314,7 +314,7 @@ function handleSendEventAction(
 
   sendEventPromise
     .then((event: any) => {
-      // TODO: Hydrogen doesn't make it easy to get the event id...
+      // TODO: the send call above could return it to get the event id...
       reply(ctx, request, {
         room_id: event?.room_id,
         event_id: event?.event_id,

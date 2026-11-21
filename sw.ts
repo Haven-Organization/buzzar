@@ -15,7 +15,7 @@ const MXC_DOWNLOAD_REGEX = /^\S+\/_matrix\/media\/r0\/download\/\S+$/;
 const MXC_THUMBNAIL_REGEX = /^\S+\/_matrix\/media\/r0\/thumbnail\/\S+$/;
 
 // --- Authenticated media (Buzzar) ---------------------------------------------------------------
-// Hydrogen builds legacy /_matrix/media/r0/{download,thumbnail} URLs. Media uploaded after the 2024
+// Buzzar's MediaRepository builds legacy /_matrix/media/r0/{download,thumbnail} URLs. Media uploaded after the 2024
 // media freeze is only served from /_matrix/client/v1/media/* with an Authorization header, so we
 // rewrite those requests here. The page hands us the access token on request
 // (see src/ui/utils/mediaAuth.ts); it is only ever attached to requests for that session's own

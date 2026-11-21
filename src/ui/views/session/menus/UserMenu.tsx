@@ -10,7 +10,7 @@ import { Text } from "../../../atoms/text/Text";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Tooltip } from "../../../atoms/tooltip/Tooltip";
 import { copyToClipboard } from "../../../utils/common";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import "./UserMenu.css";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { userProfileAtom } from "../../../state/userProfile";
@@ -19,7 +19,7 @@ import { deviceVerificationAtom } from "../../../state/deviceVerification";
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 export function UserMenu() {
-  const { session, platform, logout } = useHydrogen(true);
+  const { session, platform, logout } = useMatrix(true);
   const { accountManagementUrl } = session.sessionInfo;
   const { userId, displayName, avatarUrl } = useAtomValue(userProfileAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);

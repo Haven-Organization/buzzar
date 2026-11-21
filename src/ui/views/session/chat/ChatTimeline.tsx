@@ -1,5 +1,5 @@
 /**
- * Buzzar: the chat window's messages (plan 02: React, replacing Hydrogen's timeline views). Text with replies,
+ * Buzzar: the chat window's messages (React, since plan 02). Text with replies,
  * images and stickers, video/audio/files, 3D-model and world-link embeds, membership notes and date headers.
  */
 import { useCallback, useRef } from "react";
@@ -7,7 +7,7 @@ import classNames from "classnames";
 
 import { Room, TimelineEntry } from "../../../../matrix";
 import { ChatItem, useChat } from "../../../hooks/useChat";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { EncryptedFile, useMediaUrl } from "../../../hooks/useMediaUrl";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { extractRoomLinks, isModelFile } from "../../../utils/chatEmbeds";
@@ -54,7 +54,7 @@ function formatSize(bytes?: number) {
 }
 
 function useResolveMxc() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   return useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
 }
 
@@ -71,7 +71,7 @@ export function ReplyQuote({ item, className = REPLY_CLASS }: { item: MessageIte
 }
 
 function MessageAvatar({ entry, small }: { entry: TimelineEntry; small: boolean }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const avatarUrl = entry.avatarUrl
     ? session.mediaRepository.mxcUrlThumbnail(entry.avatarUrl, 80, 80, "crop") ?? undefined
     : undefined;

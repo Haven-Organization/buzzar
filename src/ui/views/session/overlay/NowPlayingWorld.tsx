@@ -23,7 +23,7 @@ import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
 import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../components/MuteButtonProvider";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 
 interface NowPlayingWorldProps {
   world: Room;
@@ -33,7 +33,7 @@ interface NowPlayingWorldProps {
 }
 
 export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: NowPlayingWorldProps) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const setActiveChat = useSetAtom(activeChatsAtom);
   const openedChatId = useAtomValue(openedChatAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);

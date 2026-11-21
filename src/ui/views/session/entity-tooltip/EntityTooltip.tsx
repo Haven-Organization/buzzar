@@ -5,7 +5,7 @@ import { Dots } from "../../../atoms/loading/Dots";
 import { Text } from "../../../atoms/text/Text";
 import { InteractionState } from "../../../hooks/useWorldInteraction";
 import { usePortalDestination } from "../../../hooks/usePortalDestination";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import "./EntityTooltip.css";
 
 export interface IPortalProcess {
@@ -131,7 +131,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
 
 /** Buzzar: where a portal leads: the world's picture, name, topic and how many people are in it. */
 function PortalDestinationCard({ uri, fallbackName }: { uri?: string; fallbackName: string }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const destination = usePortalDestination(uri);
   const image = destination?.image?.startsWith("mxc:")
     ? session.mediaRepository.mxcUrlThumbnail(destination.image, 320, 180, "scale") ?? undefined

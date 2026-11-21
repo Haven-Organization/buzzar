@@ -96,7 +96,7 @@ export function onDisconnect(ctx: GameContext, network: NetworkModuleState) {
   });
 }
 
-// Called when Hydrogen's GroupCall members changed. RTCPeerConnection may not be established yet.
+// Called when the GroupCall's members changed. RTCPeerConnection may not be established yet.
 export function onMembersChanged(network: NetworkModuleState, roomId: string, added: Member[], removed: Member[]) {
   if (roomId !== network.currentRoomId) {
     return;

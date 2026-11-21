@@ -7,7 +7,7 @@ import ChatIC from "../../../../../res/ic/chat.svg";
 import AvatarIC from "../../../../../res/ic/avatar.svg";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
 import NotificationIC from "../../../../../res/ic/notification.svg";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { BadgeWrapper } from "../../../atoms/badge/BadgeWrapper";
 import { NotificationBadge } from "../../../atoms/badge/NotificationBadge";
 import { useInviteList } from "../../../hooks/useInviteList";
@@ -18,7 +18,7 @@ import { sidebarTabAtom, SidebarTab as SidebarTabEnum } from "../../../state/sid
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 
 export function SpacesView() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const invites = useInviteList(session);
   const [rooms] = useRoomsOfType(session, RoomTypes.Room);
   const [directs] = useRoomsOfType(session, RoomTypes.Direct);

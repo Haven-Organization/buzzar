@@ -24,7 +24,7 @@ import { ChatViewContent } from "../chat/ChatViewContent";
 import { MemberListDialog } from "../dialogs/MemberListDialog";
 import { InviteDialog } from "../dialogs/InviteDialog";
 import { EnterWorldButton } from "../overlay/WorldPreview";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useRoom } from "../../../hooks/useRoom";
 import { useDialog } from "../../../hooks/useDialog";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
@@ -51,7 +51,7 @@ import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
 
 /** An mxc:// or app path as something the browser can load. */
 function useHttp(url: string | undefined, thumbnail?: { width: number; height: number }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   if (!url) return undefined;
   if (!url.startsWith("mxc:")) return url;
   return (
@@ -322,7 +322,7 @@ interface WorldInfo {
 }
 
 function WorldDetails({ item }: { item: Extract<DetailsItem, { kind: "world" }> }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [joinedId, setJoinedId] = useState<string>();
   const room = useRoom(session, joinedId ?? item.roomId) as Room | undefined;
   const joinedCount = useJoinedMemberCount(room);
@@ -505,7 +505,7 @@ function WorldDetails({ item }: { item: Extract<DetailsItem, { kind: "world" }> 
 
 /** World settings, for those allowed to change them (moderators and admins). */
 function SettingsButton({ room, onOpen }: { room: Room; onOpen: () => void }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(room);
   if (!canSendStateEvent(undefined, getPowerLevel(session.userId))) return null;
   return (

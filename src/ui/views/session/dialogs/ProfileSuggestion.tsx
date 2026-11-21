@@ -1,7 +1,7 @@
 import { Label } from "../../../atoms/text/Label";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { Text } from "../../../atoms/text/Text";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Chip } from "../../../atoms/chip/Chip";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
@@ -18,7 +18,7 @@ export function ProfileSuggestion({
   onSelect: (userProfile: UserProfile) => void;
   suggestion?: UserProfile[];
 }) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   return (
     <SettingTile label={<Label>Suggestions</Label>}>
       {loading ? (

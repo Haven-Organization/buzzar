@@ -10,7 +10,7 @@ import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { WindowContent } from "../../components/window/WindowContent";
 import { WindowAside } from "../../components/window/WindowAside";
 import LanguageIC from "../../../../../res/ic/language.svg";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Content } from "../../../atoms/content/Content";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import { ScenePreview } from "../../components/scene-preview/ScenePreview";
@@ -20,7 +20,7 @@ import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 
 export function CreateWorld({ scene }: { scene?: { url: string; previewUrl: string } } = {}) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
 
   const selectWorld = useSetAtom(overlayWorldAtom);

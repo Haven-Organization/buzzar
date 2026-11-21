@@ -18,7 +18,7 @@ import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import { TileFallback, WorldTile, WorldTileGrid } from "../../components/world-tile/WorldTile";
 import { AlertDialog } from "../dialogs/AlertDialog";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useThingPreview } from "../../../hooks/useThingPreview";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
@@ -234,7 +234,7 @@ function AddThingDialog({
   onAdd: (thing: ListedThing) => void;
   requestClose: () => void;
 }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [saved, setSaved] = useState<SavedThing[]>();
   const [error, setError] = useState<string>();
   const [link, setLink] = useState("");

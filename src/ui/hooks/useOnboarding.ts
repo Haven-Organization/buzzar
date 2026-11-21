@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 
 const ONBOARDING_KEY = "io.thirdroom.onboarding";
 
 export function useOnboarding(worldId?: string) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const [onboarding, setOnboarding] = useState(false);
 
   useEffect(() => {

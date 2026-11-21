@@ -20,7 +20,7 @@ import { Scroll } from "../../../atoms/scroll/Scroll";
 import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { Window } from "../../components/window/Window";
 import { TileFallback, WorldTile, WorldTileGrid } from "../../components/world-tile/WorldTile";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { useActionBar } from "../../../hooks/useActionBar";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
@@ -52,7 +52,7 @@ import { UploadThing } from "./UploadThing";
 import "./ThingsView.css";
 
 export function ThingsView() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;

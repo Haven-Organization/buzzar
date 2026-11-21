@@ -3,7 +3,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 
 import { Content } from "../../../atoms/content/Content";
 import { WindowContent } from "../../components/window/WindowContent";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { Input } from "../../../atoms/input/Input";
@@ -55,7 +55,7 @@ const CATEGORIES: SettingsNavItem<SettingsCategory>[] = [
 ];
 
 export function UserProfileOverview() {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
   const { displayName, avatarUrl } = useAtomValue(userProfileAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
 

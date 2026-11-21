@@ -8,7 +8,7 @@ import { Room, StateEvent } from "../../matrix";
 import { useMainThreadContext } from "./useMainThread";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
 import { usePowerLevels } from "./usePowerLevels";
-import { useHydrogen } from "./useHydrogen";
+import { useMatrix } from "./useMatrix";
 import { registerMessageHandler, Thread } from "../../engine/module/module.common";
 import {
   parseSpawnRules,
@@ -21,7 +21,7 @@ import { useMemberDisplayName } from "./useMemberDisplayName";
 
 export function useWorldRules(room: Room, notify: (text: string) => void) {
   const displayNameOf = useMemberDisplayName(room);
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const latest = useRef<{ rules?: unknown; legacyCap?: unknown }>({});
 

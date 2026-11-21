@@ -13,7 +13,7 @@ import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { Checkbox } from "../../../atoms/checkbox/Checkbox";
 import { AlertDialog } from "../dialogs/AlertDialog";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
@@ -29,7 +29,7 @@ interface Pending {
 }
 
 export function ScriptConsent() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const setWorldNotice = useSetAtom(worldNoticeAtom);
   const [queue, setQueue] = useState<Pending[]>([]);

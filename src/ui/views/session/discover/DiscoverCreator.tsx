@@ -9,7 +9,7 @@ import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { Thumbnail } from "../../../atoms/thumbnail/Thumbnail";
 import { ThumbnailImg } from "../../../atoms/thumbnail/ThumbnailImg";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getHttpUrl } from "../../../utils/avatar";
 import { DiscoverGroup, DiscoverGroupGrid } from "../../components/discover-group/DiscoverGroup";
 import { ScenePreviewCard, ScenePreviewCardContent } from "../../components/scene-preview-card/ScenePreviewCard";
@@ -54,7 +54,7 @@ const getScenes = async (
 };
 
 function useScenes(room: Room, sender?: string) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [scenes, setScenes] = useState<TimelineEvent[]>([]);
   const endPointsRef = useRef<{ start?: string; end?: string }>({});
   const isMounted = useIsMounted();
@@ -108,7 +108,7 @@ interface DiscoverCreatorProps {
   };
 }
 export function DiscoverCreator({ room, permissions }: DiscoverCreatorProps) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
 
   const [showAll, setShowAll] = useState(false);
   const order = useOrderString();

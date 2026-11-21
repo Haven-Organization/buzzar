@@ -34,13 +34,6 @@ export enum SyncStatus {
   Stopped = "Stopped",
 }
 
-/** A saved session from before the matrix-js-sdk layer: its encryption keys can't be carried over. */
-export class LegacySessionError extends Error {
-  constructor() {
-    super("Buzzar was updated and needs you to sign in again.");
-  }
-}
-
 export interface LoginResult {
   homeserver: string;
   accessToken: string;
@@ -258,7 +251,6 @@ export class Client {
       oidcClientId: result.oidcClientId,
       accountManagementUrl: result.accountManagementUrl,
       lastUsed: Date.now(),
-      sdk: 2,
     };
     await this.platform.sessionInfoStorage.add(info);
     await this.startSession(info);
@@ -270,16 +262,6 @@ export class Client {
       this.loginFailure = LoginFailure.Credentials;
       this.loadStatus.set(LoadStatus.LoginFailed);
       return;
-    }
-    if (info.sdk !== 2) {
-      // A Hydrogen session: its device's encryption keys live in Hydrogen's store and can't be moved to the new
-      // encryption engine, so end it and ask for a fresh sign-in (which makes a new device).
-      await fetch(`${(info.homeserver ?? info.homeServer).replace(/\/+$/, "")}/_matrix/client/v3/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${info.accessToken}` },
-      }).catch(() => undefined);
-      await this.platform.sessionInfoStorage.delete(sessionId);
-      throw new LegacySessionError();
     }
     await this.startSession(info);
   }
@@ -322,11 +304,21 @@ export class Client {
     this.matrix = client;
 
     this.loadStatus.set(LoadStatus.SessionSetup);
+    // Developers can skip encryption (localStorage "buzzar.devNoCrypto" = "1"), e.g. to try a build with a token that
+    // belongs to another client's device without touching that device's keys.
+    let cryptoWanted = true;
     try {
-      await client.initRustCrypto({ cryptoDatabasePrefix: `buzzar-crypto-${info.id}` });
-    } catch (e) {
-      // Sync and unencrypted rooms (worlds) still work; encrypted chats won't.
-      console.error("Couldn't start end-to-end encryption", e);
+      cryptoWanted = localStorage.getItem("buzzar.devNoCrypto") !== "1";
+    } catch {
+      // storage unavailable
+    }
+    if (cryptoWanted) {
+      try {
+        await client.initRustCrypto({ cryptoDatabasePrefix: `buzzar-crypto-${info.id}` });
+      } catch (e) {
+        // Sync and unencrypted rooms (worlds) still work; encrypted chats won't.
+        console.error("Couldn't start end-to-end encryption", e);
+      }
     }
 
     const session = new Session(client, this.platform, { ...info, homeserver });

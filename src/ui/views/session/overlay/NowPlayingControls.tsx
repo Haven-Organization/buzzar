@@ -7,13 +7,13 @@ import MicOffIC from "../../../../../res/ic/mic-off.svg";
 import "./NowPlayingControls.css";
 import { usePermissionState } from "../../../hooks/usePermissionState";
 import { useMicrophoneState } from "../../../hooks/useMicrophoneState";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { exceptionToString, RequestException, useStreamRequest } from "../../../hooks/useStreamRequest";
 import { AlertDialog } from "../dialogs/AlertDialog";
 import { Text } from "../../../atoms/text/Text";
 
 export function NowPlayingControls() {
-  const { platform } = useHydrogen(true);
+  const { platform } = useMatrix(true);
   const micPermission = usePermissionState("microphone");
   const requestStream = useStreamRequest(platform, micPermission);
   const [micException, setMicException] = useState<RequestException>();

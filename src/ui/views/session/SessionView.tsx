@@ -16,7 +16,7 @@ import { enterHomeOnStartupAtom, homeWorldAtom } from "../../state/homeWorld";
 import { HomeWelcome } from "./HomeWelcome";
 import { useBuzzarSpace } from "../../hooks/useBuzzarSpace";
 import { useReadSync } from "../../hooks/useReadSync";
-import { useHydrogen } from "../../hooks/useHydrogen";
+import { useMatrix } from "../../hooks/useMatrix";
 import { useUnknownWorldPath } from "../../hooks/useWorld";
 import { overlayWorldAtom } from "../../state/overlayWorld";
 import { overlayVisibilityAtom } from "../../state/overlayVisibility";
@@ -40,7 +40,7 @@ function RegisterKBarActions() {
 /** Buzzar: on startup (no world in the address), go into your Home World (Settings → Worlds), or just show it.
  * Rendered inside the main-thread provider, since entering a world needs the engine. */
 function EnterHomeOnStartup({ worldId, worldAlias }: { worldId?: string; worldAlias?: string }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const home = useAtomValue(homeWorldAtom);
   const homeWorldId = home.status === "ready" ? home.roomId : undefined;
   const selectWorld = useSetAtom(overlayWorldAtom);
@@ -83,7 +83,7 @@ export default function SessionView() {
   const [worldId, worldAlias] = useUnknownWorldPath();
   useHomeWorldCheck();
   useBuzzarSpace();
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   useReadSync(session);
 
   const editorEnabled = useAtomValue(editorEnabledAtom);

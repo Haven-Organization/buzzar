@@ -4,7 +4,7 @@ import { useSetAtom } from "jotai";
 import { Room } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { activeChatsAtom } from "../../../state/overlayChat";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import { joinUpgradedRoom } from "../../../utils/roomUpgrade";
@@ -15,7 +15,7 @@ import "./RoomUpgradedBanner.css";
  * the link joins (if needed) and opens the room that replaced it.
  */
 export function RoomUpgradedBanner({ room }: { room: Room }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const setActiveChat = useSetAtom(activeChatsAtom);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();

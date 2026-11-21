@@ -19,7 +19,7 @@ import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { AutoFileUpload, AutoUploadInfo } from "../../components/AutoFileUpload";
 import { FileDetailsFields, useFileDetails } from "../../components/file-details/FileDetails";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth, uploadMedia } from "../../../utils/avatarMatrix";
 import { saveToThingCollection, ThingCollection } from "../../../utils/thingsMatrix";
 import UploadIC from "../../../../../res/ic/upload.svg";
@@ -33,7 +33,7 @@ export function UploadThing({
   onOpenChange: (open: boolean) => void;
   onSaved: (collection: ThingCollection) => void;
 }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [fileInfo, setFileInfo] = useState<AutoUploadInfo>({});
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);

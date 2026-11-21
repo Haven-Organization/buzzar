@@ -10,7 +10,7 @@ import { Scroll } from "../../../atoms/scroll/Scroll";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { getMxIdDomain, isRoomAliasAvailable, waitToCreateRoom } from "../../../utils/matrixUtils";
 import { getImageDimension } from "../../../utils/common";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useDebounce } from "../../../hooks/useDebounce";
 import { useIsMounted } from "../../../hooks/useIsMounted";
 import { Footer } from "../../../atoms/footer/Footer";
@@ -164,7 +164,7 @@ export interface CreateWorldFormProps {
   onClose: () => void;
 }
 export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, onClose }: CreateWorldFormProps) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const userHSDomain = getMxIdDomain(session.userId);
   const isMounted = useIsMounted();
 

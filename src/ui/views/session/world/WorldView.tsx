@@ -21,7 +21,7 @@ import { Nametags } from "../nametags/Nametags";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { getModule, registerMessageHandler } from "../../../../engine/module/module.common";
 import { useToast } from "../../../hooks/useToast";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { MainContext } from "../../../../engine/MainThread";
 import { createDisposables } from "../../../../engine/utils/createDisposables";
 import { useCalls } from "../../../hooks/useCalls";
@@ -66,7 +66,7 @@ const HEADPHONES_TIP_KEY = "buzzar.headphonesTipShown";
 
 export function WorldView({ world }: WorldViewProps) {
   const mainThread = useMainThreadContext();
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);
   const canEditScene = canSendStateEvent("org.matrix.msc3815.world", getPowerLevel(session.userId));
   const calls = useCalls(session);

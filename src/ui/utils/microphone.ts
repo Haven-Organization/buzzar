@@ -12,7 +12,7 @@ export function getPreferredMicrophone(): string | undefined {
   }
 }
 
-/** The `audio` argument for Hydrogen's `getMediaTracks`: the chosen device, or `true` for the system default. */
+/** The `audio` argument for `platform.mediaDevices.getMediaTracks`: the chosen device, or `true` for the system default. */
 export function microphoneConstraint(): true | { deviceId: string } {
   const deviceId = getPreferredMicrophone();
   return deviceId ? { deviceId } : true;

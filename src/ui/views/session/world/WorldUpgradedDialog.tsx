@@ -5,7 +5,7 @@ import { Room } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { AlertDialog } from "../dialogs/AlertDialog";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useTombstone } from "../../../hooks/useTombstone";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
@@ -19,7 +19,7 @@ import { joinUpgradedRoom } from "../../../utils/roomUpgrade";
  * to join the replacement room and enter its world in one step.
  */
 export function WorldUpgradedDialog({ world }: { world: Room }) {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const tombstone = useTombstone(world);
   const [dismissed, setDismissed] = useState<string>();
   const [busy, setBusy] = useState(false);

@@ -2,7 +2,7 @@ import classNames from "classnames";
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useIsMounted } from "../../../hooks/useIsMounted";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
@@ -17,7 +17,7 @@ export function WorldThumbnail() {
 
   const previewId = selectedWorldId ?? worldId;
 
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [worldPreview, setWorldPreview] = useState<{ url?: string; thumbnail: string } | undefined>();
   const isMounted = useIsMounted();
 

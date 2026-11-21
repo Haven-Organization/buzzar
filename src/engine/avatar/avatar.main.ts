@@ -38,7 +38,7 @@ export interface AvatarSync {
 }
 
 /**
- * Other players' avatar changes are only visible to us through their member events, and Hydrogen doesn't notify
+ * Other players' avatar changes are only visible to us through their member events, and the room list doesn't notify
  * on member events whose displayname/avatar/membership didn't change. Until the matrix-js-sdk migration gives
  * us raw member events, re-check everyone in the call on this interval.
  */

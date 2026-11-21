@@ -3,7 +3,7 @@ import { useState } from "react";
 import { GroupCall, Stream } from "../../../matrix";
 import { usePermissionState } from "../../hooks/usePermissionState";
 import { useMicrophoneState } from "../../hooks/useMicrophoneState";
-import { useHydrogen } from "../../hooks/useHydrogen";
+import { useMatrix } from "../../hooks/useMatrix";
 import { exceptionToString, RequestException, RequestStream, useStreamRequest } from "../../hooks/useStreamRequest";
 import { AlertDialog } from "../session/dialogs/AlertDialog";
 import { MuteHandler, useCallMute } from "../../hooks/useCallMute";
@@ -35,7 +35,7 @@ export const useMuteButton = (
   micException: RequestException | undefined;
   setMicException: (value: RequestException | undefined) => void;
 } => {
-  const { platform } = useHydrogen(true);
+  const { platform } = useMatrix(true);
   const micPermission = usePermissionState("microphone");
   const requestStream = useStreamRequest(platform, micPermission);
   const [micException, setMicException] = useState<RequestException>();

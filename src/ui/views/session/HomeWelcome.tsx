@@ -9,7 +9,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { Text } from "../../atoms/text/Text";
 import { Button } from "../../atoms/button/Button";
 import { Dots } from "../../atoms/loading/Dots";
-import { useHydrogen } from "../../hooks/useHydrogen";
+import { useMatrix } from "../../hooks/useMatrix";
 import { useWorldNavigator } from "../../hooks/useWorldNavigator";
 import { createAndSetHomeWorld, waitForRoom } from "../../hooks/useHomeWorld";
 import { homeWelcomeSkippedAtom, homeWorldAtom } from "../../state/homeWorld";
@@ -18,7 +18,7 @@ import LogoFullSVG from "../../../../res/svg/logo-full.svg";
 import "./HomeWelcome.css";
 
 export function HomeWelcome() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session, platform, client } = useMatrix(true);
   const [home, setHome] = useAtom(homeWorldAtom);
   const [skipped, setSkipped] = useAtom(homeWelcomeSkippedAtom);
   const setOverlayVisible = useSetAtom(overlayVisibilityAtom);

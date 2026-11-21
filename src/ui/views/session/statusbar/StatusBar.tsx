@@ -4,7 +4,7 @@ import { useAtom, useSetAtom } from "jotai";
 
 import { Session } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { useResumePlay } from "../../../hooks/useResumePlay";
 import "./StatusBar.css";
 import { useWorldPath } from "../../../hooks/useWorld";
@@ -45,7 +45,7 @@ function useNotificationCount(session: Session) {
 }
 
 export function NotificationButton({ onClick }: { onClick: () => void }) {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const count = useNotificationCount(session);
   const label = count > 0 ? `${count} notification${count === 1 ? "" : "s"}` : "Notifications";
 
@@ -62,7 +62,7 @@ export function NotificationButton({ onClick }: { onClick: () => void }) {
 }
 
 export function StatusBar() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [overlayVisible, setOverlayVisibility] = useAtom(overlayVisibilityAtom);
   const setWorldChatVisibility = useSetAtom(worldChatVisibilityAtom);
   const setSidebarTab = useSetAtom(sidebarTabAtom);

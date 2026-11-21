@@ -11,7 +11,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Button } from "../../../atoms/button/Button";
 import { Input } from "../../../atoms/input/Input";
 import { Dots } from "../../../atoms/loading/Dots";
-import { useHydrogen } from "../../../hooks/useHydrogen";
+import { useMatrix } from "../../../hooks/useMatrix";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
 import {
   getDeviceVerificationStatus,
@@ -119,7 +119,7 @@ function Screen({
 }
 
 export function DeviceVerificationDialog() {
-  const { session } = useHydrogen(true);
+  const { session } = useMatrix(true);
   const [state, setState] = useAtom(deviceVerificationAtom);
   const [stage, setStage] = useState<Stage>({ kind: "choose" });
   const [recoveryKey, setRecoveryKey] = useState("");

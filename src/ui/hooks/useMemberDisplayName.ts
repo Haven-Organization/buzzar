@@ -6,7 +6,7 @@ import { useRoomMembers } from "./useRoomMembers";
 
 /**
  * Buzzar: a stable lookup from a Matrix user ID to their display name in `room`, falling back to the username.
- * The world call's members come from Hydrogen without display names (Third Room #404, #348), so names come from
+ * The world call's members come without display names (Third Room #404, #348), so names come from
  * the room's member list instead, the same as the nametags.
  */
 export function useMemberDisplayName(room: Room) {

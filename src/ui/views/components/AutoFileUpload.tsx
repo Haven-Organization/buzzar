@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { IBlobHandle } from "../../../matrix";
 import { FileUploadCard, FileUploadErrorCard } from "./file-upload-card/FileUploadCard";
 import { useAttachmentUpload } from "../../hooks/useAttachmentUpload";
-import { useHydrogen } from "../../hooks/useHydrogen";
+import { useMatrix } from "../../hooks/useMatrix";
 import { useFilePicker } from "../../hooks/useFilePicker";
 import { useThrottle } from "../../hooks/useThrottle";
 
@@ -20,7 +20,7 @@ interface AutoFileUploadProps {
 }
 
 export function AutoFileUpload({ renderButton, mimeType, onUploadInfo }: AutoFileUploadProps) {
-  const { session, platform } = useHydrogen(true);
+  const { session, platform } = useMatrix(true);
 
   const { fileData, pickFile, dropFile } = useFilePicker(platform, mimeType);
   const [progress, setProgress] = useState(0);
