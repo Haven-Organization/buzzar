@@ -68,8 +68,8 @@ export function mxcToHttp(mxc: string, homeserver: string): string | undefined {
 /**
  * CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). `mxc`/`previewMxc` are one shared copy of
  * the file and its preview on matrix.org (Buzzar's stock account), which everyone wears, so wearing one needs no
- * upload (some homeservers don't let their users upload at all). When a file changes, bump `version`, upload the new
- * file and preview, and update both.
+ * upload (some homeservers don't let their users upload at all). When a file changes, bump `version`, run
+ * scripts/buzzar/sync-shared-media.mjs and copy the new mxcs from res/sharedMedia.json (sharedMedia.test.ts checks).
  */
 export const BUILTIN_AVATARS = [
   {

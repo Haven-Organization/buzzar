@@ -5,13 +5,13 @@ import { useSetAtom } from "jotai";
 import defaultWorlds from "../../../res/defaultWorlds.json";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { getJoinedRoomIds, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";
-import { uploadBundledFile } from "../utils/bundledMedia";
+import { bundledFileUrl } from "../utils/bundledMedia";
 import { useHydrogen } from "./useHydrogen";
 import { homeWorldAtom } from "../state/homeWorld";
 
 /**
- * Buzzar: the default Home World ships with the app (public/worlds/home) and is uploaded to the user's own
- * homeserver when their Home World is created or upgraded. Upstream pointed at mxc://thirdroom.io media, which
+ * Buzzar: the default Home World ships with the app (public/worlds/home); its room points at the files' shared
+ * matrix.org copies (res/sharedMedia.json, bundledMedia.ts), so creating or upgrading it uploads nothing. Upstream pointed at mxc://thirdroom.io media, which
  * homeservers that can't fetch from thirdroom.io (e.g. glowers.club) couldn't load at all.
  */
 interface HomeWorldMedia {
@@ -20,12 +20,12 @@ interface HomeWorldMedia {
   avatar: { url: string; info: { w: number; h: number; mimetype: string; size: number } };
 }
 
-async function uploadHomeWorldMedia(auth: MatrixAuth): Promise<HomeWorldMedia> {
+async function homeWorldMedia(auth: MatrixAuth): Promise<HomeWorldMedia> {
   const { home } = defaultWorlds;
   const [scene, preview, avatar] = await Promise.all([
-    uploadBundledFile(auth, home.sceneUrl),
-    uploadBundledFile(auth, home.scenePreviewUrl),
-    uploadBundledFile(auth, home.defaultAvatar.url),
+    bundledFileUrl(auth, home.sceneUrl),
+    bundledFileUrl(auth, home.scenePreviewUrl),
+    bundledFileUrl(auth, home.defaultAvatar.url),
   ]);
   return {
     sceneUrl: scene.url,
@@ -154,7 +154,7 @@ async function findOrphanHomeWorld(session: Session): Promise<HomeWorldAccountDa
 export async function createAndSetHomeWorld(session: Session, platform: Platform, sessionId: string): Promise<string> {
   const auth = await getSessionAuth(platform, sessionId);
   if (!auth) throw new Error("No session credentials to upload the Home World");
-  const roomBeingCreated = await createHomeWorld(session, await uploadHomeWorldMedia(auth));
+  const roomBeingCreated = await createHomeWorld(session, await homeWorldMedia(auth));
   // Save the pointer as soon as the server has created the room. Waiting for the room to show up in sync first used
   // to fail on slower homeservers, so every reload created another Home World.
   const roomId = await waitForCreatedRoomId(roomBeingCreated);
@@ -231,7 +231,7 @@ export function useHomeWorldCheck() {
       ) {
         setHome({ status: "ready", roomId: homeAccountData.room_id });
         if (!homeAccountData.custom && (homeAccountData.version ?? 0) < defaultWorlds.home.version) {
-          await updateHomeWorld(session, homeAccountData, await uploadHomeWorldMedia(await auth()));
+          await updateHomeWorld(session, homeAccountData, await homeWorldMedia(await auth()));
           await session.setAccountData(HOME_ACCOUNT_DATA_TYPE, {
             version: defaultWorlds.home.version,
             room_id: homeAccountData.room_id,

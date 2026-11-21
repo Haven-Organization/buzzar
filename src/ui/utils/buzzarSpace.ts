@@ -8,7 +8,8 @@
  *   rooms the user added to the space by hand stay.
  * - Only `m.space.child` events in the space are written; the worlds themselves are never modified.
  */
-import { MatrixAuth, uploadMedia } from "./avatarMatrix";
+import { MatrixAuth } from "./avatarMatrix";
+import { bundledFileUrl } from "./bundledMedia";
 import { getAccountData } from "./legacyAccountData";
 
 export const SPACE_ACCOUNT_DATA_TYPE = "software.haven.world.space";
@@ -16,7 +17,7 @@ export const WORLD_ROOM_TYPE = "org.matrix.msc3815.world";
 export const AUTO_KEY = "software.haven.world.auto";
 /** The tag's name before 2026-11-17: still recognised, and replaced on the next sync. */
 export const LEGACY_AUTO_KEY = "software.haven.auto";
-const SPACE_ICON_PATH = "/icon-512.png";
+export const SPACE_ICON_PATH = "/icon-512.png";
 
 export interface SpaceAccountData {
   /** Missing if the user turned the space off before one was ever created. */
@@ -119,10 +120,9 @@ export async function getJoinedRoomIds(auth: MatrixAuth): Promise<Set<string>> {
   return new Set(rooms);
 }
 
-async function uploadSpaceIcon(auth: MatrixAuth): Promise<string> {
-  const res = await fetch(SPACE_ICON_PATH);
-  if (!res.ok) throw new Error(`Couldn't load the Buzzar icon: ${res.status}`);
-  return uploadMedia(auth, await res.blob(), "buzzar.png");
+/** The Buzzar icon for the space: its shared matrix.org copy (bundledMedia.ts). */
+async function spaceIconUrl(auth: MatrixAuth): Promise<string> {
+  return (await bundledFileUrl(auth, SPACE_ICON_PATH)).url;
 }
 
 async function createSpace(auth: MatrixAuth, avatarUrl: string): Promise<string> {
@@ -165,7 +165,7 @@ export function ensureBuzzarSpace(auth: MatrixAuth, userId: string, joined?: Set
     const data = await getSpaceAccountData(auth, userId);
     const joinedRooms = joined ?? (await getJoinedRoomIds(auth));
     if (data?.room_id && joinedRooms.has(data.room_id)) return data.room_id;
-    const avatarUrl = data?.avatar_url ?? (await uploadSpaceIcon(auth));
+    const avatarUrl = data?.avatar_url ?? (await spaceIconUrl(auth));
     const roomId = await createSpace(auth, avatarUrl);
     await setSpaceAccountData(auth, userId, { ...data, room_id: roomId, avatar_url: avatarUrl });
     return roomId;

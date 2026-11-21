@@ -1,0 +1,42 @@
+{
+  "/avatars/031_Devil.vrm": {
+    "mxc": "mxc://matrix.org/jOlCjOtcnHsmMeWvQmHgeqcC",
+    "sha256": "7818728630091739b3fd2bc263efbc65ef2a1105ce5e382d22d65e8f4912871f",
+    "size": 1396032
+  },
+  "/avatars/057_Rose.vrm": {
+    "mxc": "mxc://matrix.org/YBNWjPUZPlXQjmshmuoSpdLm",
+    "sha256": "8e44e5638ffdf935e5d6fa990aa6cba428269f342f2db024c2961ee286a41e5f",
+    "size": 2400964
+  },
+  "/avatars/previews/devil.png": {
+    "mxc": "mxc://matrix.org/PVIElDZDoMGPTBHHUXQbbBvY",
+    "sha256": "a09482b001079345fef68c949cf83bd6fddd63442e72c558eb038c42e0252be3",
+    "size": 41110
+  },
+  "/avatars/previews/rose.png": {
+    "mxc": "mxc://matrix.org/XHsMKIHjDURUFHdWjHQNLnRh",
+    "sha256": "4538a2868a81a597f68b490f67c09741b4bbfeaf129926c6bdbe0bca36a2389e",
+    "size": 66738
+  },
+  "/icon-512.png": {
+    "mxc": "mxc://matrix.org/TsMYDXwwvDiCiXZLDfvoPNuT",
+    "sha256": "ffb283acb2d777b93ee63d1099f33e555986a82223c9a0779eedb5417229c9b1",
+    "size": 94989
+  },
+  "/worlds/home/home-avatar.png": {
+    "mxc": "mxc://matrix.org/DgaimtrlzUXQPinsOXPuTetY",
+    "sha256": "286688e612c66c60fe9885be6053439e9b676182086e4a0e82a1800a5df27caa",
+    "size": 284207
+  },
+  "/worlds/home/home-preview.jpg": {
+    "mxc": "mxc://matrix.org/uVAhznOjsdAHYUMAUvSQKCXw",
+    "sha256": "57607199ce126308b59ceb39b0f6c6b3645028e65042b7fd97241ce2e158edf5",
+    "size": 80423
+  },
+  "/worlds/home/home.glb": {
+    "mxc": "mxc://matrix.org/zVfoUacNMSQnjMIsuqanLyNO",
+    "sha256": "6d526b81cefa734250f6065567d60c909a0406e80853dbbb3ad91d0c8e39ef89",
+    "size": 1707552
+  }
+}

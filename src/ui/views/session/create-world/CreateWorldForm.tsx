@@ -25,7 +25,7 @@ import { getSessionAuth, uploadMedia } from "../../../utils/avatarMatrix";
 import { fetchGlbJson } from "../../../utils/chatEmbeds";
 import { readAssetMetadata } from "../../../../engine/gltf/assetMetadata";
 import { FileDetailsFields, useFileDetails } from "../../components/file-details/FileDetails";
-import { isBundledPath, uploadBundledFile } from "../../../utils/bundledMedia";
+import { isBundledPath, bundledFileUrl } from "../../../utils/bundledMedia";
 import { UploadScene } from "./UploadScene";
 import { MAX_OBJECT_CAP } from "../../../../engine/config.common";
 import "./CreateWorldForm.css";
@@ -206,15 +206,15 @@ export function CreateWorldForm({ scene, initialScene, onSceneChange, onCreate, 
 
   const [createError, setCreateError] = useState<string>();
 
-  // Buzzar: bundled starter scenes (public/worlds/…) are uploaded to the user's own homeserver first.
+  // Buzzar: bundled starter scenes (public/worlds/…) point at their shared matrix.org copies (bundledMedia.ts).
   const uploadBundledScene = async (content: CreateWorldContent) => {
     if (!isBundledPath(content.scene_url) && !isBundledPath(content.scene_preview_url)) return content;
     const auth = await getSessionAuth(platform, client.sessionId);
     if (!auth) throw new Error("Not signed in");
     const [scene, preview] = await Promise.all([
-      isBundledPath(content.scene_url) ? uploadBundledFile(auth, content.scene_url) : { url: content.scene_url },
+      isBundledPath(content.scene_url) ? bundledFileUrl(auth, content.scene_url) : { url: content.scene_url },
       isBundledPath(content.scene_preview_url)
-        ? uploadBundledFile(auth, content.scene_preview_url)
+        ? bundledFileUrl(auth, content.scene_preview_url)
         : { url: content.scene_preview_url },
     ]);
     return { ...content, scene_url: scene.url, scene_preview_url: preview.url };
