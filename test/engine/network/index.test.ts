@@ -19,6 +19,7 @@ import {
   readUint16,
   readUint32,
   skipUint32,
+  writeUint32,
 } from "../../../src/engine/allocator/CursorView";
 import { mockGameState } from "../mocks";
 import { getModule } from "../../../src/engine/module/module.common";
@@ -36,6 +37,7 @@ import {
   deserializeCreates,
   serializeDeletes,
   deserializeDeletes,
+  deserializeNewPeerSnapshot,
 } from "../../../src/engine/network/serialization.game";
 import { toBinaryString } from "../../../src/engine/utils/toBinaryString";
 import { RemotePhysicsBody, RemoteNode } from "../../../src/engine/resource/RemoteResources";
@@ -472,6 +474,37 @@ describe("Network Tests", () => {
         strictEqual(quaternion[2], 6);
         strictEqual(quaternion[3], 7);
       });
+    });
+    it("applies the positions in a new peer's snapshot (someone who hasn't moved since we arrived)", () => {
+      const state = mockGameState();
+      const network = getModule(state, NetworkModule);
+      const writer = createCursorView();
+
+      const node = new RemoteNode(state.resourceManager);
+      const eid = node.eid;
+      addPhysicsBody(
+        state.world,
+        getModule(state, PhysicsModule),
+        node,
+        new RemotePhysicsBody(state.resourceManager, { type: PhysicsBodyType.Rigid })
+      );
+      node.position.set([1.5, 0, 2]);
+      node.quaternion.set([0, 0, 0, 1]);
+      addComponent(state.world, Networked, eid);
+      Networked.networkId[eid] = senderNid(eid);
+      network.networkIdToEntityId.set(senderNid(eid), eid);
+      addComponent(state.world, Owned, eid);
+
+      // A new-peer snapshot: no creates (the entity already exists here), then everyone's positions.
+      writeUint32(writer, 0);
+      serializeUpdatesSnapshot(state, writer);
+      Networked.position[eid].set([0, 0, 0]);
+
+      network.peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeNewPeerSnapshot(state, createCursorView(writer.buffer), SENDER);
+
+      strictEqual(Networked.position[eid][0], 1.5);
+      strictEqual(Networked.position[eid][2], 2);
     });
     it("should #serializeUpdatesChanged()", () => {
       const state = mockGameState();

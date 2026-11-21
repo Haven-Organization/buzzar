@@ -574,7 +574,9 @@ export const createNewPeerSnapshotMessage = (ctx: GameContext, v: CursorView) =>
 
 export const deserializeNewPeerSnapshot = (ctx: GameContext, v: CursorView, peerId: string) => {
   deserializeCreates(ctx, v, peerId);
-  deserializeUpdatesSnapshot(ctx, v);
+  // The sender is needed: without it the ownership check rejects every position, and someone who hadn't moved
+  // since we arrived stood at the world origin for us.
+  deserializeUpdatesSnapshot(ctx, v, peerId);
 };
 
 // Full Snapshot Update
@@ -591,7 +593,9 @@ export const createFullSnapshotMessage = (ctx: GameContext, v: CursorView) => {
 
 export const deserializeSnapshot = (ctx: GameContext, v: CursorView, peerId: string) => {
   deserializeCreates(ctx, v, peerId);
-  deserializeUpdatesSnapshot(ctx, v);
+  // The sender is needed: without it the ownership check rejects every position, and someone who hadn't moved
+  // since we arrived stood at the world origin for us.
+  deserializeUpdatesSnapshot(ctx, v, peerId);
 };
 
 // Changed State Update
