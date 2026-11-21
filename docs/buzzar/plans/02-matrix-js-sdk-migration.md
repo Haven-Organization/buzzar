@@ -1,6 +1,6 @@
 # Plan 02: replace Hydrogen with matrix-js-sdk
 
-Status: draft, 2026-11-21. Checklist ref: §0 Foundation ("Replace Hydrogen").
+Status: in progress on branch `matrix-js-sdk-migration` (2026-11-21); see [Migration status](#migration-status). Checklist ref: §0 Foundation ("Replace Hydrogen").
 
 ## Is Hydrogen abandoned?
 
@@ -122,6 +122,36 @@ uploads no keys.
 | **TypeScript**                                       | **matrix-js-sdk 45's type definitions need TypeScript ≥ 5.2** (`Symbol.dispose`, `.ts` import paths). Buzzar is on 4.9.5, which can't read them. With TypeScript 5.9 the spike type-checks; the app then has 69 type errors in 25 files, almost all from TS 5.7's generic typed arrays (`Uint8Array<ArrayBufferLike>` vs `ArrayBuffer`), which are mechanical. Added as phase 0b. |
 
 Noise seen: the SDK logs warnings about push rules missing from the server's defaults (it fills them in locally).
+
+## Migration status
+
+Done in one pass on branch `matrix-js-sdk-migration` (develop still runs Hydrogen), instead of the phased adapter
+route above: the Matrix layer in `src/matrix/` keeps the shapes the UI and engine were written against, so most
+call sites only changed their import. Hydrogen, libolm, the patch and the hand-written types are removed.
+
+| Area                                                                                    | State                                                                                                                                                               |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolchain (TypeScript 5.9, typescript-eslint 7, ESLint 8.57)                            | Done.                                                                                                                                                               |
+| Session: saved sessions, sync start-up, sign-out; old sessions signed out with a notice | Written; start-up from a saved session **tested**. Password and OIDC sign-in **not yet tried against a server**.                                                    |
+| Rooms: lists, state, members, creating/joining, account data, media URLs                | Written. Your Worlds, entering worlds, avatars, the chat list **tested**; creating rooms, invites and settings writes not yet.                                      |
+| Chat: React timelines for the chat window and in-world chat                             | In-world chat **tested** (history, join notes, live messages). Chat window, images, files, embeds, paging and encrypted media not yet.                              |
+| Calls + game networking (matrix-js-sdk MSC3401 group calls)                             | **Tested** with two accounts on two homeservers in one world: both connect, data channel open, they see each other. Microphone audio not tested (headless browser). |
+| Encryption: Rust crypto, verification by emoji or recovery key, key backup              | Written, **untested** (the smoke tests ran with encryption off).                                                                                                    |
+| Typing notifications, unread state, bug reports                                         | Written, untested.                                                                                                                                                  |
+
+Known gaps and things to check:
+
+- **Old and new clients can't share a world call.** matrix-js-sdk requires a per-device `expires_ts` in call
+  membership, which Hydrogen clients don't write, so each sees the other as absent. Everyone has to be on the new
+  build (or the Matrix layer has to write/accept both forms).
+- Call signalling is sent as plain to-device messages (`useE2eForGroupCall: false`); Hydrogen encrypted it.
+- Host election orders members by their call-membership event's timestamp, which the SDK refreshes hourly.
+- A link to a world you've already joined (`/world/<id>`) lands in your Home World on start-up (may predate this).
+- The chat badge shows the homeserver's total notification count.
+- Download size: the main bundle grew to 1.36 MB plus the 7.8 MB crypto WASM (2.1 MB gzip), not yet lazy-loaded.
+
+To try the branch next to the installed app: build, copy `dist` to `dist-next`, then
+`node scripts/buzzar/serve-dist.mjs dist-next 8091`.
 
 ## Testing
 
