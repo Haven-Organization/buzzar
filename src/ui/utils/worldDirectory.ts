@@ -68,6 +68,42 @@ export async function fetchWorldDirectory(
 
 const suggestedCache = new Map<string, Promise<DirectoryWorld | undefined>>();
 
+const STABLE_SUMMARY = "/_matrix/client/v1/room_summary/";
+const UNSTABLE_SUMMARY = "/_matrix/client/unstable/im.nheko.summary/summary/";
+/** Homeservers that don't have the stable room summary endpoint (they get the unstable one straight away). */
+const unstableSummaryServers = new Set<string>();
+
+/**
+ * GET a room's summary (MSC3266): works for rooms you haven't joined. Uses the stable endpoint (Matrix 1.15), or the
+ * unstable one on homeservers that don't have it yet (remembered per server).
+ */
+export async function fetchRoomSummary(auth: MatrixAuth, target: string, via: string[] = []): Promise<Response> {
+  const params = new URLSearchParams();
+  for (const server of via) params.append("via", server);
+  const query = params.toString();
+  const get = (path: string) =>
+    fetch(`${base(auth)}${path}${encodeURIComponent(target)}${query ? `?${query}` : ""}`, {
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    });
+  if (!unstableSummaryServers.has(base(auth))) {
+    const res = await get(STABLE_SUMMARY);
+    if (!(await isUnrecognized(res))) return res;
+    unstableSummaryServers.add(base(auth));
+  }
+  return get(UNSTABLE_SUMMARY);
+}
+
+/** Whether a response means the server doesn't have the endpoint at all (rather than the room not being found). */
+async function isUnrecognized(res: Response) {
+  if (res.status === 405) return true;
+  if (res.status !== 404 && res.status !== 400) return false;
+  try {
+    return (await res.clone().json())?.errcode === "M_UNRECOGNIZED";
+  } catch {
+    return res.status === 404; // a bare 404 page: no such route
+  }
+}
+
 /**
  * A suggested world's directory entry, from the room summary (MSC3266, Matrix 1.15), which works for rooms you
  * haven't joined. Undefined when the room can't be reached or isn't a world. Cached for the session once found.
@@ -81,13 +117,7 @@ export function fetchSuggestedWorld(
   let promise = suggestedCache.get(key);
   if (!promise) {
     promise = (async () => {
-      const params = new URLSearchParams();
-      for (const server of via) params.append("via", server);
-      const query = params.toString();
-      const res = await fetch(
-        `${base(auth)}/_matrix/client/v1/room_summary/${encodeURIComponent(target)}${query ? `?${query}` : ""}`,
-        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-      );
+      const res = await fetchRoomSummary(auth, target, via);
       if (!res.ok) throw new Error(`Couldn't look up ${target}: ${await errorText(res)}`);
       const s = (await res.json()) as Record<string, unknown>;
       if (s.room_type !== WORLD_ROOM_TYPE || typeof s.room_id !== "string") return undefined;

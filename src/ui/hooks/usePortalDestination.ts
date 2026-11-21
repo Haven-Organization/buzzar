@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { aliasToRoomId, parseMatrixUri } from "../utils/matrixUtils";
 import { useHydrogen } from "./useHydrogen";
+import { fetchRoomSummary } from "../utils/worldDirectory";
 
 /** Buzzar: what a portal leads to, shown on its tooltip before you step through (parity checklist §6). */
 export interface PortalDestination {
@@ -19,21 +20,13 @@ export interface PortalDestination {
 
 const cache = new Map<string, Promise<PortalDestination | undefined>>();
 
-/** The Matrix room summary (MSC3266, Matrix 1.15 `GET /v1/room_summary`): works for rooms you haven't joined. */
-async function fetchRoomSummary(
+/** A portal's destination, from the room summary (works for rooms you haven't joined). */
+async function fetchDestination(
   auth: MatrixAuth,
   target: string,
   via: string[]
 ): Promise<PortalDestination | undefined> {
-  const params = new URLSearchParams();
-  for (const server of via) params.append("via", server);
-  const query = params.toString();
-  const res = await fetch(
-    `${auth.homeserver.replace(/\/+$/, "")}/_matrix/client/v1/room_summary/${encodeURIComponent(target)}${
-      query ? `?${query}` : ""
-    }`,
-    { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-  );
+  const res = await fetchRoomSummary(auth, target, via);
   if (!res.ok) return undefined;
   const summary = (await res.json()) as Record<string, unknown>;
   const str = (value: unknown) => (typeof value === "string" && value ? value : undefined);
@@ -70,7 +63,7 @@ export async function resolveDestination(
   }
 
   const auth = await getAuth();
-  return auth ? fetchRoomSummary(auth, target, parsed.via) : undefined;
+  return auth ? fetchDestination(auth, target, parsed.via) : undefined;
 }
 
 /** Looks up where a portal goes, once per address per session (failures are retried on the next look). */

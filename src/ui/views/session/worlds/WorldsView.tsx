@@ -442,17 +442,22 @@ function ExploreWorlds() {
             try {
               const world = await fetchSuggestedWorld(auth, ref.target, ref.via);
               return world ? { world, via: ref.via } : undefined;
-            } catch {
-              return undefined;
+            } catch (e) {
+              return { error: e instanceof Error ? e.message : String(e) };
             }
           })
         );
-        const worlds = looked.filter((w): w is FoundWorld => !!w && worldMatchesSearch(w.world, search));
-        const missing = looked.filter((w) => !w).length;
+        const isFound = (w: (typeof looked)[number]): w is FoundWorld => !!w && "world" in w;
+        const worlds = looked.filter(isFound).filter((w) => worldMatchesSearch(w.world, search));
+        const missing = looked.filter((w) => !isFound(w)).length;
+        // Say why (the first failure), so a server problem can be told apart from one dead world.
+        const firstError = looked.find((w): w is { error: string } => !!w && "error" in w)?.error;
         pages.push({
           source: SUGGESTED,
           worlds,
-          result: missing ? { error: `${missing} couldn't be reached right now.` } : {},
+          result: missing
+            ? { error: `${missing} couldn't be reached right now${firstError ? ` (${firstError})` : ""}.` }
+            : {},
         });
       }
       setResults((current) => {

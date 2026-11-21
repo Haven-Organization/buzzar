@@ -34,6 +34,7 @@ import { DetailsItem, OverlayWindow, overlayWindowAtom } from "../../../state/ov
 import "./ChatEmbeds.css";
 import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
+import { fetchRoomSummary } from "../../../utils/worldDirectory";
 
 /** Previews are rendered automatically for files up to this size; bigger ones on request. */
 const AUTO_PREVIEW_BYTES = 30 * 1024 * 1024;
@@ -366,13 +367,7 @@ function ChatWorldEmbed({ target, via }: { target: string; via: string[] }) {
     let cancelled = false;
     (async () => {
       const auth = await getAuth();
-      const base = auth.homeserver.replace(/\/+$/, "");
-      const params = new URLSearchParams();
-      for (const server of via) params.append("via", server);
-      const res = await fetch(
-        `${base}/_matrix/client/v1/room_summary/${encodeURIComponent(target)}${via.length ? `?${params}` : ""}`,
-        { headers: { Authorization: `Bearer ${auth.accessToken}` } }
-      );
+      const res = await fetchRoomSummary(auth, target, via);
       if (!res.ok) return null;
       const s = (await res.json()) as Record<string, unknown>;
       if (s.room_type !== "org.matrix.msc3815.world") return null;
