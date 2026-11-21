@@ -304,11 +304,21 @@ function updateNodeAudioEmitters(ctx: MainContext, audioModule: MainAudioModule)
   }
 }
 
+/** The stream each voice source is playing, so a source whose person's stream changed is rebuilt. */
+const sourceStreams = new WeakMap<MainAudioSource, MediaStream>();
+
 function updateAudioDatas(ctx: MainContext, audioModule: MainAudioModule) {
   const audioDatas = getLocalResources(ctx, MainAudioData);
 
   for (let i = 0; i < audioDatas.length; i++) {
     const audioData = audioDatas[i];
+
+    // Buzzar: a person's voice (`mediastream:<peer>`) is looked up when their avatar's audio loads, but the stream
+    // can arrive later or be replaced (a reconnect); without this they stayed silent and their mouth never moved.
+    if (audioData.loadStatus === LoadStatus.Loaded && audioData.uri?.startsWith("mediastream:")) {
+      const stream = audioModule.mediaStreams.get(new URL(audioData.uri, window.location.href).pathname);
+      if (stream && stream !== audioData.data) audioData.data = stream;
+    }
 
     if (audioData.loadStatus === LoadStatus.Uninitialized) {
       const abortController = new AbortController();
@@ -378,11 +388,16 @@ function updateAudioSources(ctx: MainContext, audioModule: MainAudioModule) {
     gainNode.gain.value = localAudioSource.gain;
 
     if (audioData instanceof MediaStream) {
+      if (localAudioSource.sourceNode && sourceStreams.get(localAudioSource) !== audioData) {
+        localAudioSource.sourceNode.disconnect();
+        localAudioSource.sourceNode = undefined;
+      }
       // Create a new MediaElementSourceNode
       if (!localAudioSource.sourceNode) {
         localAudioSource.sourceNode = audioModule.context.createMediaStreamSource(audioData);
         localAudioSource.sourceNode.connect(gainNode);
         localAudioSource.canAutoPlay = false;
+        sourceStreams.set(localAudioSource, audioData);
       }
     } else if (audioData instanceof AudioBuffer) {
       const sourceNode = localAudioSource.sourceNode as AudioBufferSourceNode | undefined;

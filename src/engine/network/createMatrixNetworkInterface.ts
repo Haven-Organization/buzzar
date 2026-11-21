@@ -10,8 +10,9 @@ import {
   SubscriptionHandle,
 } from "../../matrix";
 import { exitWorld } from "../../plugins/thirdroom/thirdroom.main";
-import { setLocalMediaStream } from "../audio/audio.main";
+import { AudioModule, setLocalMediaStream, setPeerMediaStream } from "../audio/audio.main";
 import { MainContext } from "../MainThread";
+import { getModule } from "../module/module.common";
 import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
 import { getRoomCall } from "../../ui/utils/matrixUtils";
@@ -117,6 +118,8 @@ export async function createMatrixNetworkInterface(
   let unsubscibeMembersObservable: SubscriptionHandle | undefined;
   /** User ID → the call device backing that user's network peer. */
   const peerDevices = new Map<string, string>();
+  /** The voice stream each connected peer's audio is playing from (undefined: none yet). */
+  const peerStreams = new Map<string, MediaStream | undefined>();
 
   const userId = session.userId;
 
@@ -200,11 +203,29 @@ export async function createMatrixNetworkInterface(
         })),
         userId
       );
-      if (changes.remove.length === 0 && changes.add.length === 0) return;
-      updateHost(groupCall, userId);
-      for (const peerId of changes.remove) removePeer(ctx, peerId);
-      for (const { member } of changes.add) {
-        addPeer(ctx, member.userId, member.dataChannel!, member.remoteMedia?.userMedia);
+      if (changes.remove.length > 0 || changes.add.length > 0) {
+        updateHost(groupCall, userId);
+        for (const peerId of changes.remove) {
+          removePeer(ctx, peerId);
+          peerStreams.delete(peerId);
+        }
+        for (const { member } of changes.add) {
+          const stream = member.remoteMedia?.userMedia;
+          addPeer(ctx, member.userId, member.dataChannel!, stream);
+          peerStreams.set(member.userId, stream);
+        }
+      }
+
+      // A peer's voice can arrive after its data channel opened (seen with older builds as the other side): hand
+      // the engine the stream when it shows up or changes, or that person is never heard and their mouth never
+      // moves.
+      for (const [, member] of groupCall.members) {
+        if (peerDevices.get(member.userId) !== member.deviceId || !peerStreams.has(member.userId)) continue;
+        const stream = member.remoteMedia?.userMedia;
+        if (stream && stream !== peerStreams.get(member.userId)) {
+          setPeerMediaStream(getModule(ctx, AudioModule), member.userId, stream);
+          peerStreams.set(member.userId, stream);
+        }
       }
     };
 
