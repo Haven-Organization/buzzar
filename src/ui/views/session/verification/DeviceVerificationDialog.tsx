@@ -15,11 +15,12 @@ import { useMatrix } from "../../../hooks/useMatrix";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
 import {
   getDeviceVerificationStatus,
-  hasKeyBackup,
+  KeyBackupOutcome,
   RunningDeviceVerification,
   skippedVerificationKey,
   startDeviceVerification as startVerification,
   verifyWithRecoveryKey,
+  waitForKeyBackup,
 } from "../../../utils/deviceVerification";
 import "./DeviceVerificationDialog.css";
 
@@ -123,12 +124,14 @@ export function DeviceVerificationDialog() {
   const [state, setState] = useAtom(deviceVerificationAtom);
   const [stage, setStage] = useState<Stage>({ kind: "choose" });
   const [recoveryKey, setRecoveryKey] = useState("");
-  // Whether this device can read older encrypted messages. Verifying from another device normally hands the key
-  // backup over; if it didn't arrive, the "Device verified" screen offers the recovery key.
-  const [noKeyBackup, setNoKeyBackup] = useState(false);
+  // Whether this device can read older encrypted messages. After verifying, the other device sends the backup key
+  // a few moments later; only if it never arrives does the "Device verified" screen offer the recovery key.
+  const [keyBackup, setKeyBackup] = useState<KeyBackupOutcome | "checking">("checking");
   const refreshKeyBackup = useCallback(() => {
-    hasKeyBackup(session).then((has) => setNoKeyBackup(!has));
+    setKeyBackup("checking");
+    waitForKeyBackup(session).then(setKeyBackup);
   }, [session]);
+  const noKeyBackup = keyBackup === "missing";
   const running = useRef<RunningVerification>();
 
   // Check once per session whether this device still needs verifying.
@@ -428,10 +431,21 @@ export function DeviceVerificationDialog() {
           <Text variant="b2" color="surface-low" className="DeviceVerification__body">
             This device is now verified. Other people will see it as trusted, and new encrypted messages will reach it.
           </Text>
+          {keyBackup === "checking" && (
+            <Text variant="b2" color="surface-low" className="DeviceVerification__body">
+              Getting your message backup from your other device, so older encrypted messages can be read here…
+            </Text>
+          )}
+          {keyBackup === "active" && (
+            <Text variant="b2" color="surface-low" className="DeviceVerification__body">
+              Your message backup is on for this device. Older encrypted messages will appear as their keys are
+              restored.
+            </Text>
+          )}
           {noKeyBackup && (
             <Text variant="b2" color="surface-low" className="DeviceVerification__body">
-              To read your older encrypted messages here too, enter your recovery key once. (Verifying with another
-              device doesn't pass on your message backup yet.)
+              Your other device didn&apos;t send the message backup&apos;s key. To read your older encrypted messages
+              here too, enter your recovery key once.
             </Text>
           )}
         </Screen>

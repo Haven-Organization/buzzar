@@ -57,18 +57,47 @@ export async function hasKeyBackup(session: Session): Promise<boolean> {
   }
 }
 
-/** Turns on the key backup with whatever key this device has (after verification or a recovery key). */
-async function enableKeyBackup(session: Session) {
+export type KeyBackupOutcome =
+  /** The online backup is on for this device; older messages are being restored from it. */
+  | "active"
+  /** The account has no online backup, so there's nothing to fetch. */
+  | "none"
+  /** There is a backup, but its key never reached this device (the recovery key can still unlock it). */
+  | "missing";
+
+/**
+ * Turns on the account's online key backup for this device and restores older messages' keys from it. After a
+ * verification, the other device sends the backup key over a few moments later, so this waits for it (up to
+ * `timeoutMs`) instead of asking for the recovery key straight away.
+ */
+export async function waitForKeyBackup(session: Session, timeoutMs = 30000): Promise<KeyBackupOutcome> {
   const crypto = session.client.getCrypto();
-  if (!crypto) return;
+  if (!crypto) return "none";
   try {
-    if (!(await crypto.getSessionBackupPrivateKey())) {
-      await crypto.loadSessionBackupPrivateKeyFromSecretStorage().catch(() => undefined);
+    if (!(await crypto.getKeyBackupInfo())) return "none";
+  } catch {
+    // couldn't ask the server: keep trying below
+  }
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      if ((await crypto.getActiveSessionBackupVersion()) === null) {
+        if (!(await crypto.getSessionBackupPrivateKey())) {
+          // After a recovery key was entered the backup key is in secret storage; otherwise this does nothing.
+          await crypto.loadSessionBackupPrivateKeyFromSecretStorage().catch(() => undefined);
+        }
+        if (await crypto.getSessionBackupPrivateKey()) await crypto.checkKeyBackupAndEnable();
+      }
+      if ((await crypto.getActiveSessionBackupVersion()) !== null) {
+        // Fetch the old messages' keys in the background.
+        crypto.restoreKeyBackup().catch((e) => console.warn("Couldn't restore the key backup", e));
+        return "active";
+      }
+    } catch (e) {
+      console.warn("Couldn't enable the key backup yet", e);
     }
-    const check = await crypto.checkKeyBackupAndEnable();
-    if (check) await crypto.restoreKeyBackup().catch((e) => console.warn("Couldn't restore the key backup", e));
-  } catch (e) {
-    console.warn("Couldn't enable the key backup", e);
+    if (Date.now() >= deadline) return "missing";
+    await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 }
 
@@ -121,7 +150,7 @@ export async function verifyWithRecoveryKey(session: Session, input: string) {
     if (!status?.crossSigningVerified) {
       throw new Error("Your recovery key worked, but this device couldn't be signed. Try again.");
     }
-    await enableKeyBackup(session);
+    await waitForKeyBackup(session, 5000);
   } finally {
     enteredKey = undefined;
   }
@@ -174,12 +203,7 @@ export async function startDeviceVerification(
     const existing = v.getShowSasCallbacks();
     if (existing) showSas(existing);
     v.verify()
-      .then(async () => {
-        // The other device now shares the account's secrets with this one; give them a moment to arrive.
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        await enableKeyBackup(session);
-        finish(() => callbacks.onDone());
-      })
+      .then(() => finish(() => callbacks.onDone()))
       .catch(() => {
         finish(() =>
           callbacks.onCancelled(

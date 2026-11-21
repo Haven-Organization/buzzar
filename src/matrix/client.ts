@@ -4,7 +4,7 @@
  */
 import { ClientEvent, createClient, HttpApiEvent, IndexedDBStore, MatrixClient, SyncState } from "matrix-js-sdk";
 
-import { secretStorageCallbacks } from "./crypto";
+import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
 import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
 import { ISessionInfo, Platform } from "./platform";
@@ -362,7 +362,12 @@ export class Client {
     this.sync.status.set(SyncStatus.InitialSync);
     await client.startClient({ lazyLoadMembers: true, initialSyncLimit: 20 });
     await ready.catch(() => undefined);
-    if (prepared) sessionInfoStorage.update(info.id, { lastUsed: Date.now() });
+    if (prepared) {
+      sessionInfoStorage.update(info.id, { lastUsed: Date.now() });
+      // A device that's already verified may hold the backup key without the backup being on yet (e.g. the key
+      // arrived just before the page closed): turn it on and restore older messages' keys.
+      waitForKeyBackup(session, 10000).catch(() => undefined);
+    }
   }
 
   /** Signs a session out on the server and forgets it locally. */
