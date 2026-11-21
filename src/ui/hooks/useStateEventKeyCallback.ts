@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, StateEvent } from "../../matrix";
 import { useIsMounted } from "./useIsMounted";
 
 export function useStateEventKeyCallback(

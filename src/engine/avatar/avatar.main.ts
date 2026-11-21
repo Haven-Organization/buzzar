@@ -5,8 +5,7 @@
  * the game worker. Re-resolves a player when their member event changes, which is how in-world avatar
  * switching propagates to everyone.
  */
-import { GroupCall, Platform, Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { GroupCall, Platform, Room, Session } from "../../matrix";
 import { registerMessageHandler, Thread } from "../module/module.common";
 import { MainContext } from "../MainThread";
 import {

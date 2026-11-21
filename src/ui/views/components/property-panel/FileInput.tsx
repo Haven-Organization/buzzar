@@ -1,6 +1,6 @@
-import { Platform } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect } from "react";
 
+import { Platform } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
 import { useFilePicker } from "../../../hooks/useFilePicker";
 import "./FileInput.css";

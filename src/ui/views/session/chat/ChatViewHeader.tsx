@@ -1,5 +1,4 @@
-import { Invite, Platform, Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Invite, Platform, Room, Session } from "../../../../matrix";
 import { ChatHeader } from "../../components/chat-header/ChatHeader";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { IconButton } from "../../../atoms/button/IconButton";

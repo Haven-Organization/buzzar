@@ -1,8 +1,8 @@
 import { CSSProperties, ReactNode } from "react";
 import { useMatch } from "react-router-dom";
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useSetAtom } from "jotai";
 
+import { Session } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { useResumePlay } from "../../../hooks/useResumePlay";

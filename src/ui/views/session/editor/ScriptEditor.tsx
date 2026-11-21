@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useAtom } from "jotai";
-import { BlobHandle, Room } from "@thirdroom/hydrogen-view-sdk";
 import Editor, { Monaco, OnChange, useMonaco } from "@monaco-editor/react";
 import { editor as MonacoEditor } from "monaco-editor";
 import { useDrop } from "react-dnd";
 
+import { BlobHandle, Room } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Dots } from "../../../atoms/loading/Dots";
 import { Text } from "../../../atoms/text/Text";

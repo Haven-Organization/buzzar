@@ -1,6 +1,6 @@
-import { BaseObservable } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect, useReducer, useRef, useMemo } from "react";
 
+import { BaseObservable } from "../../matrix";
 import { useIsMounted } from "./useIsMounted";
 
 export function useObservable<O extends BaseObservable<H>, H, T>(

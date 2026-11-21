@@ -1,18 +1,17 @@
 import { FormEvent } from "react";
-import { ComposerViewModel } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../../../matrix";
+import { sendChatMessage } from "../../../hooks/useChat";
 import { useTypingNotifier } from "../../../hooks/useTyping";
 
 import "./WorldChatComposer.css";
 
 interface IWorldChatComposer {
-  composerViewModel: ComposerViewModel;
-  /** Buzzar: for typing notifications. */
-  roomId?: string;
+  room: Room;
 }
 
-export function WorldChatComposer({ composerViewModel, roomId }: IWorldChatComposer) {
-  const typing = useTypingNotifier(roomId);
+export function WorldChatComposer({ room }: IWorldChatComposer) {
+  const typing = useTypingNotifier(room.id);
   const handleSubmit = (ev: FormEvent) => {
     ev.preventDefault();
     typing?.stopped();
@@ -22,7 +21,7 @@ export function WorldChatComposer({ composerViewModel, roomId }: IWorldChatCompo
     const message = target.message.value.trim();
     if (message === "") return;
     target.message.value = "";
-    composerViewModel.sendMessage(message);
+    sendChatMessage(room, message);
   };
 
   return (

@@ -9,10 +9,11 @@ const N = 1024;
  */
 function vowel(f1: number, f2: number, f0 = 120, amplitude = 0.3, phase = 0): Float32Array {
   const out = new Float32Array(N);
-  const resonance = (f: number, fc: number, bw: number) => 1 / Math.sqrt((1 - (f / fc) ** 2) ** 2 + ((f * bw) / (fc * fc)) ** 2);
+  const resonance = (f: number, fc: number, bw: number) =>
+    1 / Math.sqrt((1 - (f / fc) ** 2) ** 2 + ((f * bw) / (fc * fc)) ** 2);
   for (let h = 1; h * f0 < 5000; h++) {
     const f = h * f0;
-    const gain = resonance(f, f1, 80) * resonance(f, f2, 120) / h; // falling source spectrum
+    const gain = (resonance(f, f1, 80) * resonance(f, f2, 120)) / h; // falling source spectrum
     for (let i = 0; i < N; i++) out[i] += gain * Math.sin((2 * Math.PI * f * (i + phase)) / RATE);
   }
   let peak = 0;
@@ -22,7 +23,13 @@ function vowel(f1: number, f2: number, f0 = 120, amplitude = 0.3, phase = 0): Fl
 }
 
 const NAMES = ["aa", "ih", "ou", "ee", "oh"];
-const VOWELS: Record<string, [number, number]> = { aa: [750, 1250], ih: [310, 2500], ou: [330, 950], ee: [620, 2050], oh: [450, 850] };
+const VOWELS: Record<string, [number, number]> = {
+  aa: [750, 1250],
+  ih: [310, 2500],
+  ou: [330, 950],
+  ee: [620, 2050],
+  oh: [450, 850],
+};
 const argmax = (v: ArrayLike<number>) => Array.from(v).indexOf(Math.max(...Array.from(v)));
 
 describe("formants", () => {

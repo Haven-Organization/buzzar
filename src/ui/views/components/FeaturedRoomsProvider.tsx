@@ -1,5 +1,4 @@
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, StateEvent } from "../../../matrix";
 import { useStateEvents } from "../../hooks/useStateEvents";
 import { RepositoryEvents } from "../session/discover/DiscoverView";
 

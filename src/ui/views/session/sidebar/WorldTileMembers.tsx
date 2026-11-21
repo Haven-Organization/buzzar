@@ -1,5 +1,4 @@
-import { GroupCall, Member, ObservableValue, Platform, Room, RoomMember, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { GroupCall, Member, ObservableValue, Platform, Room, RoomMember, Session } from "../../../../matrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { AvatarPile } from "../../../atoms/avatar/AvatarPile";
 import { Text } from "../../../atoms/text/Text";

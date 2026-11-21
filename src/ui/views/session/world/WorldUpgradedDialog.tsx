@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 
+import { Room } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { AlertDialog } from "../dialogs/AlertDialog";

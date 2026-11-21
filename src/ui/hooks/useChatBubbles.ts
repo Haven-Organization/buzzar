@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../matrix";
 import { useRoomTimeline } from "./useRoomTimeline";
 
 /** How long a message stays above someone's head. */

@@ -81,7 +81,10 @@ describe("climbing decisions", () => {
     expect(decideClimb([0.45, 0, 0.35], ladder, [-0.7071, -0.7071], 1, true, false)).toEqual({ type: "none" });
     // Front and back faces, including a slight angle and standing near (not past) an edge.
     expect(decideClimb(feet, ladder, facing, 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
-    expect(decideClimb([0, 0, -0.35], ladder, [0, 1], 1, true, false)).toEqual({ type: "climb", vertical: CLIMB_SPEED });
+    expect(decideClimb([0, 0, -0.35], ladder, [0, 1], 1, true, false)).toEqual({
+      type: "climb",
+      vertical: CLIMB_SPEED,
+    });
     expect(decideClimb([0.2, 0, 0.35], ladder, [-0.34, -0.94], 1, true, false)).toEqual({
       type: "climb",
       vertical: CLIMB_SPEED,

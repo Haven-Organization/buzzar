@@ -1,5 +1,4 @@
-import { Invite, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Invite, Session } from "../../matrix";
 import { useObservableMap } from "./useObservableMap";
 
 export function useInvite(session: Session, roomId: string | undefined): Invite | undefined {

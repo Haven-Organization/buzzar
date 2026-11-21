@@ -1,7 +1,7 @@
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 
+import { Room } from "../../../../matrix";
 import { useOnboarding } from "../../../hooks/useOnboarding";
 import { worldAtom } from "../../../state/world";
 import { OnboardingModal } from "./OnboardingModal";

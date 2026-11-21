@@ -1,6 +1,6 @@
-import { Platform, Stream } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback } from "react";
 
+import { Platform, Stream } from "../../matrix";
 import { microphoneConstraint } from "../utils/microphone";
 
 export type RequestStream = (

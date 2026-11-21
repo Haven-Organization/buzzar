@@ -6,9 +6,9 @@
  * in This World" for a per-world choice.
  */
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue } from "jotai";
 
+import { GroupCall } from "../../../../matrix";
 import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { stripSaved, useAvatarWardrobe } from "../../../hooks/useAvatarWardrobe";
 import { Content } from "../../../atoms/content/Content";

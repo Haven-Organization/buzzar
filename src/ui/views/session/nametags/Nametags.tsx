@@ -1,8 +1,8 @@
-import { GroupCall, Member, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import { useAtomValue } from "jotai";
 
+import { GroupCall, Member, Room } from "../../../../matrix";
 import "./Nametags.css";
 import { getModule } from "../../../../engine/module/module.common";
 import { range } from "../../../../engine/utils/interpolation";

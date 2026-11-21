@@ -1,32 +1,26 @@
 import { useEffect, useState } from "react";
-import { Room, Timeline } from "@thirdroom/hydrogen-view-sdk";
 
-export type TimelineType = Array<any>;
+import { Room, Timeline, TimelineEntry } from "../../matrix";
 
-export function useRoomTimeline(room?: Room) {
+export type TimelineType = TimelineEntry[];
+
+/** A room's loaded history, oldest first, re-read whenever it changes. */
+export function useRoomTimeline(room?: Room): TimelineType {
   const [timeline, setTimeline] = useState<TimelineType>([]);
 
   useEffect(() => {
     if (!room) return;
-    let unSub: () => void;
+    let unSub: (() => void) | undefined;
+    let cancelled = false;
     const handleLoad = (timeline: Timeline) => {
-      const entries = timeline.entries;
-      unSub = entries.subscribe({
-        onReset: () => setTimeline(Array.from(entries)),
-        onAdd: () => setTimeline(Array.from(entries)),
-        onUpdate: () => setTimeline(Array.from(entries)),
-        onMove: () => setTimeline(Array.from(entries)),
-        onRemove: () => setTimeline(Array.from(entries)),
-      });
-      setTimeline(Array.from(entries));
+      if (cancelled) return;
+      const read = () => setTimeline(timeline.events.map((event) => TimelineEntry.of(event)));
+      unSub = timeline.entries.subscribe({ onReset: read });
+      read();
     };
-
-    if (room._timeline?.entries) {
-      handleLoad(room._timeline);
-    } else {
-      room.openTimeline().then(handleLoad);
-    }
+    room.openTimeline().then(handleLoad);
     return () => {
+      cancelled = true;
       unSub?.();
     };
   }, [room]);

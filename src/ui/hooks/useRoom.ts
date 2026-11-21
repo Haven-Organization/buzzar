@@ -1,5 +1,4 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, Session } from "../../matrix";
 import { aliasToRoomId } from "../utils/matrixUtils";
 import { useObservableMap } from "./useObservableMap";
 

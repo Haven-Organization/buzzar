@@ -3,8 +3,8 @@
  * max_member_object_cap) to the engine, and tells moderators when someone's blocked by them.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, StateEvent } from "../../matrix";
 import { useMainThreadContext } from "./useMainThread";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
 import { usePowerLevels } from "./usePowerLevels";

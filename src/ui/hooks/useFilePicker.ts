@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { IBlobHandle, Platform } from "@thirdroom/hydrogen-view-sdk";
+
+import { IBlobHandle, Platform } from "../../matrix";
 
 export interface FileData {
   blob?: IBlobHandle;

@@ -1,6 +1,6 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect, useState } from "react";
 
+import { Session } from "../../matrix";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { aliasToRoomId, parseMatrixUri } from "../utils/matrixUtils";
 import { useHydrogen } from "./useHydrogen";

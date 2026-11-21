@@ -63,7 +63,11 @@ const assignNetworkIds = (ctx: GameContext) => {
     const eid = entered[i];
     // Buzzar: an object we just took already got its new ID (ownership.ts takeOwnership).
     const existing = Networked.networkId[eid];
-    if (existing && network.networkIdToEntityId.get(existing) === eid && peerOwnsNetworkId(network, network.peerId, existing)) {
+    if (
+      existing &&
+      network.networkIdToEntityId.get(existing) === eid &&
+      peerOwnsNetworkId(network, network.peerId, existing)
+    ) {
       continue;
     }
     const nid = createNetworkId(ctx) || 0;

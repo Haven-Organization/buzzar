@@ -1,5 +1,4 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, Session } from "../../matrix";
 import { useObservableList } from "./useObservableList";
 
 function roomListComparator(a: Room, b: Room) {

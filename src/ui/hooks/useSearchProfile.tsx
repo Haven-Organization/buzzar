@@ -1,6 +1,6 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useState } from "react";
 
+import { Session } from "../../matrix";
 import { useAsync } from "./useAsync";
 
 export interface UserProfile {

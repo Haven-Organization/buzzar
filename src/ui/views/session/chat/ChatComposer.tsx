@@ -1,19 +1,18 @@
 import { FormEvent } from "react";
-import { ComposerViewModel } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../../../matrix";
+import { sendChatMessage } from "../../../hooks/useChat";
 import { useTypingNotifier } from "../../../hooks/useTyping";
 import { IconButton } from "../../../atoms/button/IconButton";
 import SendIC from "../../../../../res/ic/send.svg";
 import "./ChatComposer.css";
 
 interface ChatComposerProps {
-  composerViewModel: ComposerViewModel;
-  /** Buzzar: for typing notifications. */
-  roomId?: string;
+  room: Room;
 }
 
-export function ChatComposer({ composerViewModel, roomId }: ChatComposerProps) {
-  const typing = useTypingNotifier(roomId);
+export function ChatComposer({ room }: ChatComposerProps) {
+  const typing = useTypingNotifier(room.id);
   const handleSubmit = (ev: FormEvent) => {
     ev.preventDefault();
     typing?.stopped();
@@ -23,7 +22,7 @@ export function ChatComposer({ composerViewModel, roomId }: ChatComposerProps) {
     const message = target.message.value.trim();
     if (message === "") return;
     target.message.value = "";
-    composerViewModel.sendMessage(message);
+    sendChatMessage(room, message);
   };
 
   return (

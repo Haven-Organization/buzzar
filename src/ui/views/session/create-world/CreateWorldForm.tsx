@@ -1,6 +1,6 @@
 import { useCallback, useState, FormEvent, ChangeEvent, ReactNode, useEffect } from "react";
-import { RoomVisibility, IBlobHandle, RoomType, Session, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 
+import { RoomVisibility, IBlobHandle, RoomType, Session, StateEvent } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
 import { Button } from "../../../atoms/button/Button";
 import { Switch } from "../../../atoms/button/Switch";

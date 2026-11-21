@@ -1,5 +1,4 @@
-import { RoomBeingCreated, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { RoomBeingCreated, Session } from "../../matrix";
 import { useObservableMap } from "./useObservableMap";
 
 export function useRoomBeingCreated(session: Session, roomId: string | undefined): RoomBeingCreated | undefined {

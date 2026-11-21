@@ -1,6 +1,6 @@
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback, useState } from "react";
 
+import { Room, StateEvent } from "../../matrix";
 import { parseTombstone, Tombstone } from "../utils/roomUpgrade";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
 

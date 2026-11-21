@@ -1,7 +1,7 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Room, Session } from "../../matrix";
 import { roomIdToAlias } from "../utils/matrixUtils";
 import { useWorldLoader } from "./useWorldLoader";
 

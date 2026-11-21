@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { HomeServerApi, IBlobHandle, IHomeServerRequest } from "@thirdroom/hydrogen-view-sdk";
 
+import { HomeServerApi, IBlobHandle, IHomeServerRequest } from "../../matrix";
 import { uploadAttachment } from "../utils/matrixUtils";
 
 export function useAttachmentUpload(

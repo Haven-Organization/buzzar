@@ -1,6 +1,6 @@
-import { Room, makeTxnId } from "@thirdroom/hydrogen-view-sdk";
 import { FormEvent, ReactNode, useRef } from "react";
 
+import { Room, makeTxnId } from "../../../../matrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { Button } from "../../../atoms/button/Button";
 import { IconButton } from "../../../atoms/button/IconButton";

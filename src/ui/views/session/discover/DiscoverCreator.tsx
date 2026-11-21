@@ -1,6 +1,6 @@
-import { Session, Room, TimelineEvent, makeTxnId } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Session, Room, TimelineEvent, makeTxnId } from "../../../../matrix";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Content } from "../../../atoms/content/Content";
 import { Dots } from "../../../atoms/loading/Dots";

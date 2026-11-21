@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { renderHook } from "@testing-library/react-hooks";
-import { ObservableValue } from "@thirdroom/hydrogen-view-sdk";
 
+import { ObservableValue } from "../../../src/matrix";
 import { useObservableValue } from "../../../src/ui/hooks/useObservableValue";
 
 describe("useObservableValue", () => {

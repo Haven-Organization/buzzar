@@ -3,9 +3,9 @@
  * the room directories of your homeserver and any others you add, all as big picture tiles.
  */
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { GroupCall, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
+import { GroupCall, Room } from "../../../../matrix";
 import { useOpenDetails } from "../../../hooks/useOpenDetails";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";

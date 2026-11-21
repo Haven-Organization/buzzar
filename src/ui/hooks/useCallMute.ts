@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { GroupCall, Stream } from "@thirdroom/hydrogen-view-sdk";
+
+import { GroupCall, Stream } from "../../matrix";
 
 export type MuteHandler = (requestStream: () => Promise<Stream | undefined>) => void;
 

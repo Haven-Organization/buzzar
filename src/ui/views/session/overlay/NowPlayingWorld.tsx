@@ -1,7 +1,7 @@
 import { MouseEventHandler, useState } from "react";
-import { GroupCall, Platform, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtomValue, useSetAtom } from "jotai";
 
+import { GroupCall, Platform, Room } from "../../../../matrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { AvatarOutline } from "../../../atoms/avatar/AvatarOutline";
 import { IconButton } from "../../../atoms/button/IconButton";

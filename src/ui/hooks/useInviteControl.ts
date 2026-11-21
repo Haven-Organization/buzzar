@@ -1,6 +1,6 @@
 import { useReducer } from "react";
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 
+import { Session } from "../../matrix";
 import { useInvite } from "./useInvite";
 import { useIsMounted } from "./useIsMounted";
 

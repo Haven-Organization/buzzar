@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState, useRef } from "react";
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 
+import { Room, StateEvent } from "../../../../matrix";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";

@@ -1,6 +1,6 @@
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback, useRef } from "react";
 
+import { Room } from "../../matrix";
 import { getMxIdUsername } from "../utils/matrixUtils";
 import { useRoomMembers } from "./useRoomMembers";
 

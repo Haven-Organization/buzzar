@@ -1,6 +1,6 @@
-import { IBlobHandle, Platform, submitLogsToRageshakeServer } from "@thirdroom/hydrogen-view-sdk";
 import React, { FormEventHandler } from "react";
 
+import { IBlobHandle, Platform, submitLogsToRageshakeServer } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { Header } from "../../../atoms/header/Header";
@@ -53,8 +53,7 @@ export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
         text: `Buzzar user ${session.userId} on device ${session.deviceId}: ${text ?? "No description provided."}`,
       },
       logs,
-      bugReportEndpointUrl,
-      platform.request
+      bugReportEndpointUrl
     );
   }, []);
 

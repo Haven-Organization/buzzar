@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ObservableMap, Room, RoomMember } from "@thirdroom/hydrogen-view-sdk";
 
+import { ObservableMap, Room, RoomMember } from "../../matrix";
 import { useIsMounted } from "./useIsMounted";
 import { useHydrogen } from "./useHydrogen";
 import { getRoomCall } from "../utils/matrixUtils";

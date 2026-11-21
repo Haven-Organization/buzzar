@@ -368,4 +368,3 @@ describe("narrowLegSpread", () => {
     expect(Math.abs(foot.z - knee.z)).toBeGreaterThan(0.1);
   });
 });
-

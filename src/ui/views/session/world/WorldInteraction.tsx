@@ -1,7 +1,7 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 
+import { Room, Session } from "../../../../matrix";
 import { InteractableType } from "../../../../engine/resource/schema";
 import { InteractableAction } from "../../../../plugins/interaction/interaction.common";
 import { useIsMounted } from "../../../hooks/useIsMounted";

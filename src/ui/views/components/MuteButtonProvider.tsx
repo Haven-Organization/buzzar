@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { GroupCall, Stream } from "@thirdroom/hydrogen-view-sdk";
 
+import { GroupCall, Stream } from "../../../matrix";
 import { usePermissionState } from "../../hooks/usePermissionState";
 import { useMicrophoneState } from "../../hooks/useMicrophoneState";
 import { useHydrogen } from "../../hooks/useHydrogen";

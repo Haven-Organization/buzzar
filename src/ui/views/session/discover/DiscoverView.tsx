@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../../../matrix";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";

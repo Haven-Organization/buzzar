@@ -1,7 +1,7 @@
 import classNames from "classnames";
-import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue } from "jotai";
 
+import { GroupCall } from "../../../../matrix";
 import "./Overlay.css";
 import { getAvatarHttpUrl, getIdentifierColorNumber } from "../../../utils/avatar";
 import { useHydrogen } from "../../../hooks/useHydrogen";

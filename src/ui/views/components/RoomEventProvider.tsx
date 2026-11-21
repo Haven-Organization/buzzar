@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Session, TimelineEvent } from "@thirdroom/hydrogen-view-sdk";
+
+import { Session, TimelineEvent } from "../../../matrix";
 
 function useRoomEvent(session: Session, roomId: string, eventId: string): TimelineEvent | undefined {
   const [event, setEvent] = useState<TimelineEvent>();

@@ -1,8 +1,8 @@
-import { GroupCall } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRegisterActions } from "kbar";
 import { useCallback, useState } from "react";
 
+import { GroupCall } from "../../../../matrix";
 import { Thread } from "../../../../engine/module/module.common";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
 import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";

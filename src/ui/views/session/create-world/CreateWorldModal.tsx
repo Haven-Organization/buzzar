@@ -1,6 +1,6 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useState } from "react";
 
+import { Session } from "../../../../matrix";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";

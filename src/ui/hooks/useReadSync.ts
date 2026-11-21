@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, Session } from "../../matrix";
 import { coversLatest, OwnReceipt, ownReadReceipts, ReceiptEphemeralDetail } from "../utils/readSync";
 
 // Hydrogen internals used here: the room's latest event id, and writing the cleared summary without Room.clearUnread(),

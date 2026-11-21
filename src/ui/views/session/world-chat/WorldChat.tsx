@@ -1,10 +1,9 @@
 import { useCallback, useReducer, useRef } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../../../matrix";
 import "./WorldChat.css";
 import { WorldChatTimeline } from "./WorldChatTimeline";
 import { WorldChatComposer } from "./WorldChatComposer";
-import { useRoomViewModel, worldChatTileClassForEntry } from "../../../hooks/useRoomViewModel";
 import { Text } from "../../../atoms/text/Text";
 import { Icon } from "../../../atoms/icon/Icon";
 import MessageIC from "../../../../../res/ic/message.svg";
@@ -45,25 +44,13 @@ interface IWorldChat {
 }
 
 export function WorldChat({ room, open }: IWorldChat) {
-  const { loading, roomViewModel, error } = useRoomViewModel(room, worldChatTileClassForEntry);
   const events = useRecentMessages(open ? undefined : room, 5);
   // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
   const upgraded = !!useTombstone(room);
   const { session } = useHydrogen(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
 
-  const renderTimeline = () =>
-    error ? (
-      <div className="grow flex justify-center items-center">
-        <Text>{error.message}</Text>
-      </div>
-    ) : loading || !roomViewModel ? (
-      <div className="grow flex justify-center items-center">
-        <Text>loading...</Text>
-      </div>
-    ) : (
-      <WorldChatTimeline timelineViewModel={roomViewModel.timelineViewModel!} />
-    );
+  const renderTimeline = () => <WorldChatTimeline room={room} />;
 
   const renderTimelinePreview = () =>
     events.length > 0 && (
@@ -105,9 +92,9 @@ export function WorldChat({ room, open }: IWorldChat) {
           <Text variant="b2" color="world">
             This world has been upgraded. Chat continues in the new world.
           </Text>
-        ) : open && roomViewModel ? (
+        ) : open ? (
           <>
-            <WorldChatComposer composerViewModel={roomViewModel.composerViewModel} roomId={room.id} />
+            <WorldChatComposer room={room} />
             <Text variant="b3" color="world" weight="bold" className="uppercase">
               Enter
             </Text>

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 
+import { Session } from "../../matrix";
 import { resolveDestination } from "./usePortalDestination";
 
 const auth = { homeserver: "https://hs.example/", accessToken: "tok" };

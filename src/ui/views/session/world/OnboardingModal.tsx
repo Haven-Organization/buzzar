@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Room, RoomBeingCreated } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, RoomBeingCreated } from "../../../../matrix";
 import "./OnboardingModal.css";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";

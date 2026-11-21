@@ -66,7 +66,7 @@ export const Keys = [
   "ArrowDown",
 ] as const;
 
-export type KeyCode = typeof Keys[number];
+export type KeyCode = (typeof Keys)[number];
 
 export type KeyCodeMap = Record<KeyCode, number>;
 

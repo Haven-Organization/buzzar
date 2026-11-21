@@ -1,6 +1,6 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect } from "react";
 
+import { Session } from "../../matrix";
 import { useRoom } from "./useRoom";
 
 export function useAutoJoinRoom(session: Session, roomIdOrAlias: string) {

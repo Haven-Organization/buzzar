@@ -1,7 +1,7 @@
-import { Platform, RoomBeingCreated, RoomType, RoomVisibility, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect } from "react";
 import { useSetAtom } from "jotai";
 
+import { Platform, RoomBeingCreated, RoomType, RoomVisibility, Session } from "../../matrix";
 import defaultWorlds from "../../../res/defaultWorlds.json";
 import { getSessionAuth, MatrixAuth } from "../utils/avatarMatrix";
 import { getJoinedRoomIds, WORLD_ROOM_TYPE } from "../utils/buzzarSpace";

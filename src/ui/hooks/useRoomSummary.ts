@@ -1,6 +1,6 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
 import { useEffect, useState } from "react";
 
+import { Session } from "../../matrix";
 import { useHydrogen } from "./useHydrogen";
 
 export function getRoomSummary(session: Session, roomIdOrAlias: string, signal?: AbortSignal) {

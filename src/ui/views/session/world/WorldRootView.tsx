@@ -1,7 +1,7 @@
-import { Room, StateEvent, SubscriptionHandle } from "@thirdroom/hydrogen-view-sdk";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 
+import { Room, StateEvent, SubscriptionHandle } from "../../../../matrix";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { useIsMounted } from "../../../hooks/useIsMounted";
 import { useRoom } from "../../../hooks/useRoom";

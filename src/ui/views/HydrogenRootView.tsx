@@ -1,166 +1,49 @@
 // @refresh reset
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Outlet, useLocation, useMatch, useNavigate } from "react-router-dom";
+
 import {
   Platform,
-  Segment,
-  Navigation,
   Client,
   Session,
   LoadStatus,
-  URLRouter,
-  CallIntent,
-  ILogger,
   LoginFailure,
   OIDCLoginMethod,
   ILoginMethod,
   ISessionInfo,
-  FeatureSet,
-  FeatureFlag,
-} from "@thirdroom/hydrogen-view-sdk";
-import downloadSandboxPath from "@thirdroom/hydrogen-view-sdk/download-sandbox.html?url";
-import workerPath from "@thirdroom/hydrogen-view-sdk/main.js?url";
-import olmWasmPath from "@matrix-org/olm/olm.wasm?url";
-import olmJsPath from "@matrix-org/olm/olm.js?url";
-import olmLegacyJsPath from "@matrix-org/olm/olm_legacy.js?url";
-
+  LegacySessionError,
+} from "../../matrix";
 import { Text } from "../atoms/text/Text";
 import { HydrogenContext, HydrogenContextProvider } from "../hooks/useHydrogen";
 import { useAsyncCallback } from "../hooks/useAsyncCallback";
 import { LoadingScreen } from "./components/loading-screen/LoadingScreen";
 import { Button } from "../atoms/button/Button";
 import { useUserProfile } from "../hooks/useUserProfile";
-import { registerThirdroomGlobalFn, registerThirdroomGlobalVar } from "../../engine/utils/registerThirdroomGlobal";
+import { registerThirdroomGlobalVar } from "../../engine/utils/registerThirdroomGlobal";
 import { CoverScreen } from "./components/cover-screen/CoverScreen";
-import { downloadFile } from "../../engine/utils/downloadFile";
 import configData from "../../../config.json";
 import { installMediaAuthResponder } from "../utils/mediaAuth";
-import { BuzzarOidcApi, oidcRedirectUri } from "../utils/oidc";
 
-function allowsChild(parent: Segment, child: Segment) {
-  const parentType = parent.type;
-
-  if (parentType === undefined) return ["session", "login"].includes(child.type);
-  if (parentType === "session") return ["left-panel"].includes(child.type);
-  if (parentType === "left-panel") return ["room"].includes(child.type);
-  return false;
-}
-
-enum SyncStatus {
-  InitialSync = "InitialSync",
-  CatchupSync = "CatchupSync",
-  Syncing = "Syncing",
-  Stopped = "Stopped",
-}
-
-class MockRouter {
-  attach() {}
-
-  dispose() {}
-
-  pushUrl(url: string) {}
-
-  tryRestoreLastUrl() {
-    return false;
-  }
-
-  urlForSegments(segments: string[]) {
-    return "";
-  }
-
-  urlForSegment(type: string, value: any) {
-    return "";
-  }
-
-  urlUntilSegment(type: string) {
-    return "";
-  }
-
-  urlForPath(path: string) {
-    return "";
-  }
-
-  openRoomActionUrl(roomId: string) {
-    return "";
-  }
-
-  createSSOCallbackURL() {
-    return "";
-  }
-
-  createOIDCRedirectURL() {
-    // Buzzar: must match what BuzzarOidcApi registers (utils/oidc.ts).
-    return oidcRedirectUri();
-  }
-
-  absoluteAppUrl() {
-    return window.location.origin;
-  }
-
-  absoluteUrlForAsset(asset: string) {
-    return new URL("/assets/" + asset, window.location.origin).toString();
-  }
-
-  normalizeUrl() {}
-}
-
-interface HydrogenInstance {
+interface MatrixInstance {
   client: Client;
   platform: Platform;
-  navigation: Navigation;
-  containerEl: HTMLElement;
-  urlRouter: URLRouter;
-  logger: ILogger;
 }
 
-let hydrogenInstance: HydrogenInstance;
+let matrixInstance: MatrixInstance;
 
-function initHydrogen() {
-  if (hydrogenInstance) {
-    return hydrogenInstance;
+/** Buzzar: the Matrix layer (src/matrix, on matrix-js-sdk). The component's name is from the Hydrogen days. */
+function initMatrix() {
+  if (matrixInstance) {
+    return matrixInstance;
   }
 
-  // Container element used by Hydrogen for downloads etc.
-  const container = document.createElement("div");
-  container.id = "hydrogen-root";
-  document.body.append(container);
-
-  const assetPaths = {
-    downloadSandbox: downloadSandboxPath,
-    worker: workerPath,
-    olm: {
-      wasm: olmWasmPath,
-      legacyBundle: olmLegacyJsPath,
-      wasmBundle: olmJsPath,
-    },
-  };
-
   // Buzzar: no hard-coded OIDC clients. Third Room's Keycloak (id.thirdroom.io) and its guest login are gone.
-  const config = { ...configData };
+  const platform = new Platform({ config: { ...configData } });
+  const client = new Client(platform, { deviceName: "Buzzar" });
 
-  const options = {
-    development: false, //import.meta.env.DEV,
-  };
+  matrixInstance = { client, platform };
 
-  const platform = new Platform({ container, assetPaths, config, options });
-  // Buzzar: cross-signing lets a recovery key verify this device (views/session/verification).
-  const features = new FeatureSet(FeatureFlag.Calls).withFeature(FeatureFlag.CrossSigning);
-
-  const navigation = new Navigation(allowsChild);
-  platform.setNavigation(navigation);
-
-  const client = new Client(platform, features, { deviceName: "Buzzar" });
-
-  hydrogenInstance = {
-    client,
-    platform,
-    navigation,
-    containerEl: container,
-    urlRouter: new MockRouter() as unknown as URLRouter,
-    logger: platform.logger,
-  };
-
-  registerThirdroomGlobalVar("hydrogen", hydrogenInstance);
+  registerThirdroomGlobalVar("matrix", matrixInstance);
 
   // Buzzar: let the service worker fetch authenticated media for the active session (see sw.ts).
   installMediaAuthResponder(async () => {
@@ -170,33 +53,8 @@ function initHydrogen() {
     if (!info?.accessToken) return undefined;
     return { homeserver: info.homeserver ?? info.homeServer, accessToken: info.accessToken };
   });
-  registerThirdroomGlobalFn("openCallLogs", () => {
-    const logViewer = window.open("/logviewer", "__blank");
 
-    function onReady() {
-      window.removeEventListener("log-viewer-ready", onReady);
-
-      logViewer?.postMessage({
-        hydrogenLogs: JSON.parse(
-          JSON.stringify({
-            items: Array.from((platform.logger as any)._openItems).map((i: any) =>
-              i.serialize(undefined, undefined, false)
-            ),
-          })
-        ),
-      });
-    }
-
-    window.addEventListener("log-viewer-ready", onReady);
-  });
-  registerThirdroomGlobalFn("downloadCallLogs", () => {
-    const logs = JSON.stringify({
-      items: Array.from((platform.logger as any)._openItems).map((i: any) => i.serialize(undefined, undefined, false)),
-    });
-    downloadFile(logs, "thirdroom-call-logs.json", "application/json");
-  });
-
-  return hydrogenInstance;
+  return matrixInstance;
 }
 
 function getSessionInfo(): ISessionInfo | undefined {
@@ -210,92 +68,36 @@ function getSessionInfo(): ISessionInfo | undefined {
   return undefined;
 }
 
-async function waitToLoadClient(client: Client) {
-  await client.loadStatus.waitFor((loadStatus: LoadStatus) => {
-    const isCatchupSync = loadStatus === LoadStatus.FirstSync && client.sync.status.get() === SyncStatus.CatchupSync;
-
-    return (
-      isCatchupSync ||
-      loadStatus === LoadStatus.LoginFailed ||
-      loadStatus === LoadStatus.Error ||
-      loadStatus === LoadStatus.Ready
-    );
-  });
-
-  const loadStatus = client.loadStatus.get();
-
-  if (loadStatus === LoadStatus.Error || loadStatus === LoadStatus.LoginFailed) {
-    throw new Error(loginFailureToMsg(client.loginFailure));
-  }
-}
-
 function loginFailureToMsg(loginFailure: LoginFailure) {
   if (loginFailure === LoginFailure.Connection) return "Connection timeout. Please try again.";
   if (loginFailure === LoginFailure.Credentials) return "Invalid credentials. Please try again.";
-  if (loginFailure === LoginFailure.Unknown) return "Unknown error. Please try again.";
+  return "Unknown error. Please try again.";
 }
 
 async function loadClient(client: Client, sessionId: string): Promise<Session | undefined> {
   // Buzzar: Third Room cleared all of localStorage (every saved session and setting) whenever a session failed to
   // load, so a connection timeout or a hiccup at startup signed people out. Keep the session on errors and show
   // them (with Refresh); only drop this one session when the homeserver rejected its credentials.
-  try {
-    await waitToLoadClient(client);
-  } catch (error) {
-    if (client.loginFailure === LoginFailure.Credentials) {
+  const loadStatus = client.loadStatus.get();
+  if (loadStatus === LoadStatus.Error || loadStatus === LoadStatus.LoginFailed) {
+    if (client.loginFailure === LoginFailure.Credentials && sessionId) {
       await client.startLogout(sessionId).catch(() => undefined);
     }
-    throw error;
+    throw new Error(client.loadError?.message || loginFailureToMsg(client.loginFailure));
   }
   if (client.session) {
-    await client.session.callHandler.loadCalls("m.room" as CallIntent);
+    await client.session.callHandler.loadCalls();
     return client.session;
   }
-  await client.startLogout(sessionId);
+  if (sessionId) await client.startLogout(sessionId);
   return undefined;
 }
 
-async function getOidcLoginMethod(platform: Platform, urlCreator: URLRouter, state: string, code: string) {
-  const { settingsStorage } = platform;
-  const storageKeys = [
-    `oidc_${state}_nonce`,
-    `oidc_${state}_code_verifier`,
-    `oidc_${state}_redirect_uri`,
-    `oidc_${state}_homeserver`,
-    `oidc_${state}_issuer`,
-    `oidc_${state}_client_id`,
-    `oidc_${state}_account_management_url`,
-  ];
-  const [nonce, codeVerifier, redirectUri, homeserver, issuer, clientId, accountManagementUrl] = await Promise.all(
-    storageKeys.map((key) => settingsStorage.getString(key))
-  );
-  settingsStorage.remove(`oidc_${state}_started_at`);
-  storageKeys.forEach((key) => settingsStorage.remove(key));
-
-  // Buzzar: the account management URL is optional (not every OIDC server has one).
-  if (!nonce || !codeVerifier || !redirectUri || !homeserver || !issuer || !clientId) {
-    return;
-  }
-
-  return new OIDCLoginMethod({
-    oidcApi: new BuzzarOidcApi({ issuer, platform, urlRouter: urlCreator, clientId }),
-    nonce,
-    codeVerifier,
-    code,
-    homeserver,
-    redirectUri,
-    accountManagementUrl: accountManagementUrl || undefined,
-  });
-}
-
-function useOidcComplete(
-  platform: Platform,
-  urlRouter: URLRouter,
-  login: (loginMethod: ILoginMethod) => Promise<void>
-) {
+function useOidcComplete(platform: Platform, login: (loginMethod: ILoginMethod) => Promise<void>) {
   const navigate = useNavigate();
+  const started = useRef<string>();
   const completeOidc = async (state: string, code: string) => {
-    const loginMethod = await getOidcLoginMethod(platform, urlRouter, state, code);
+    const loginMethod = await OIDCLoginMethod.fromRedirect(platform, state, code);
     if (!loginMethod) return;
     login(loginMethod);
     navigate("/");
@@ -309,13 +111,14 @@ function useOidcComplete(
     if (params.get("error")) {
       return params.get("error_description");
     }
-    if (code && state) {
+    if (code && state && started.current !== state) {
+      started.current = state;
       completeOidc(state, code);
     }
   }
   return null;
 }
-function useSession(client: Client, platform: Platform, urlRouter: URLRouter) {
+function useSession(client: Client, platform: Platform) {
   const sessionRef = useRef<Session>();
   const session = sessionRef.current ?? undefined;
 
@@ -325,7 +128,17 @@ function useSession(client: Client, platform: Platform, urlRouter: URLRouter) {
     callback: loadInitialSession,
   } = useAsyncCallback(
     async (sessionInfo: ISessionInfo) => {
-      await client.startWithExistingSession(sessionInfo.id);
+      try {
+        await client.startWithExistingSession(sessionInfo.id);
+      } catch (e) {
+        if (e instanceof LegacySessionError) {
+          // The old session is gone; the login page explains why.
+          sessionStorage.setItem("buzzar_signin_notice", e.message);
+          window.location.assign("/login");
+          return;
+        }
+        throw e;
+      }
       sessionRef.current = await loadClient(client, sessionInfo.id);
     },
     [platform, client]
@@ -363,7 +176,7 @@ function useSession(client: Client, platform: Platform, urlRouter: URLRouter) {
     }
   }, [client, session]);
 
-  const oidcCompleteError = useOidcComplete(platform, urlRouter, login);
+  const oidcCompleteError = useOidcComplete(platform, login);
   const profileRoom = useUserProfile(client, session);
 
   const loading = loadingInitialSession || loggingIn || loggingOut || (session && !profileRoom);
@@ -384,35 +197,31 @@ function useSession(client: Client, platform: Platform, urlRouter: URLRouter) {
 export function HydrogenRootView() {
   const sessionInfo = getSessionInfo();
 
-  const [{ client, containerEl, platform, navigation, urlRouter, logger }] = useState(initHydrogen);
+  const [{ client, platform }] = useState(initMatrix);
 
-  const { session, profileRoom, loadInitialSession, login, logout, loading, errorMsg } = useSession(
-    client,
-    platform,
-    urlRouter
-  );
+  const { session, profileRoom, loadInitialSession, login, logout, loading, errorMsg } = useSession(client, platform);
 
   useEffect(() => {
-    return () => {
-      client.dispose();
-      containerEl.remove();
+    // Signed out elsewhere (or the token was revoked): back to the login page.
+    const onLoggedOut = () => {
+      logout().finally(() => window.location.assign("/login"));
     };
-  }, [client, containerEl]);
+    window.addEventListener("buzzar-session-logged-out", onLoggedOut);
+    return () => window.removeEventListener("buzzar-session-logged-out", onLoggedOut);
+  }, [logout]);
 
   const context = useMemo<HydrogenContext>(
     () => ({
       client,
       platform,
-      navigation,
-      containerEl,
-      urlRouter,
-      logger,
+      urlRouter: undefined,
+      logger: platform.logger,
       session,
       profileRoom,
       login,
       logout,
     }),
-    [client, platform, navigation, containerEl, urlRouter, logger, session, profileRoom, login, logout]
+    [client, platform, session, profileRoom, login, logout]
   );
 
   const loginPath = useMatch({ path: "/login" });

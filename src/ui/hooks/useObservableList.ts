@@ -1,5 +1,4 @@
-import { BaseObservableList } from "@thirdroom/hydrogen-view-sdk";
-
+import { BaseObservableList } from "../../matrix";
 import { useObservable } from "./useObservable";
 
 export function useObservableList<T>(observableFactory: () => BaseObservableList<T>, deps: unknown[]): T[] {

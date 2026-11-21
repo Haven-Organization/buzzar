@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue } from "jotai";
 
+import { Room } from "../../../../matrix";
 import { MainContext } from "../../../../engine/MainThread";
 import { registerMessageHandler } from "../../../../engine/module/module.common";
 import { FetchProgressMessage, FetchProgressMessageType } from "../../../../engine/utils/fetchWithProgress.game";

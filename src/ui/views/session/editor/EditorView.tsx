@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { TreeViewRefApi } from "@thirdroom/manifold-editor-components";
 import { useAtomValue } from "jotai";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../../../matrix";
 import "./EditorView.css";
 import { useEditor } from "../../../hooks/useEditor";
 import { HierarchyPanel } from "./HierarchyPanel";

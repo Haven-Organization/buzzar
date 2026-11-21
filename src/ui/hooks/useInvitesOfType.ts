@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Invite, Session } from "@thirdroom/hydrogen-view-sdk";
 
+import { Invite, Session } from "../../matrix";
 import { useObservableList } from "./useObservableList";
 import { roomTypeFilter, RoomTypes } from "./useRoomsOfType";
 

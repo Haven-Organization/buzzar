@@ -1,7 +1,7 @@
-import { Session, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 import { useState } from "react";
 
+import { Session, StateEvent } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Modal } from "../../../atoms/modal/Modal";
 import { Text } from "../../../atoms/text/Text";

@@ -12,7 +12,9 @@ describe("name tag profile extras", () => {
     expect(parseProfileExtras({ "chat.commet.profile_banner": "mxc://hs.example/abc" }).bannerUrl).toBe(
       "mxc://hs.example/abc"
     );
-    expect(parseProfileExtras({ "chat.commet.profile_banner": "https://evil.example/x.png" }).bannerUrl).toBeUndefined();
+    expect(
+      parseProfileExtras({ "chat.commet.profile_banner": "https://evil.example/x.png" }).bannerUrl
+    ).toBeUndefined();
   });
 });
 

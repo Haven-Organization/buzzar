@@ -9,7 +9,7 @@ import {
   StateEvent,
   IHomeServerRequest,
   IBlobHandle,
-} from "@thirdroom/hydrogen-view-sdk";
+} from "../../matrix";
 
 export const MX_PATH_PREFIX = "/_matrix/client/r0";
 

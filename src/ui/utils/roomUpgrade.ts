@@ -3,8 +3,7 @@
  * room; the old room stays readable but is no longer used. Buzzar stops chat in the old room and offers to
  * join the replacement, like Element does, and moves players in an upgraded world to the new one.
  */
-import { Room, RoomStatus, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, RoomStatus, Session } from "../../matrix";
 import { MatrixAuth } from "./avatarMatrix";
 import { joinRoomVia, serverNameOf } from "./worldDirectory";
 

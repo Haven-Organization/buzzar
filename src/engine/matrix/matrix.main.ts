@@ -1,5 +1,4 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, Session } from "../../matrix";
 import { MainContext } from "../MainThread";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { createDisposables } from "../utils/createDisposables";
@@ -224,28 +223,17 @@ async function initializeRoomEventListener(ctx: MainContext, matrixModule: Matri
   // Buzzar: live messages only, never the history the timeline loads first.
   const since = Date.now() - 5000;
 
-  const unsubscribe = timeline.entries.subscribe({
-    onAdd(index, entry, list) {
-      if (
-        !("isPending" in entry) &&
-        "event" in entry &&
-        (entry.event?.origin_server_ts ?? 0) >= since &&
-        widget.capabilities.get("m.receive.event")?.has(entry.eventType)
-      ) {
-        send(ctx, widget, WidgetAction.SendEvent, entry.event).catch((error) => {
-          console.error(error);
-        });
-      }
-    },
-    onMove(from, to, value, list) {},
-    onRemove(index, value, list) {},
-    onUpdate(index, value, params, list) {},
-    onReset(list) {},
+  const unsubscribe = timeline.onLiveEvent((event) => {
+    if ((event.origin_server_ts ?? 0) >= since && widget.capabilities.get("m.receive.event")?.has(event.type)) {
+      send(ctx, widget, WidgetAction.SendEvent, event as unknown as { [key: string]: unknown }).catch((error) => {
+        console.error(error);
+      });
+    }
   });
 
   widget.disposeTimeline = () => {
+    // The timeline itself is the room's shared one; only stop listening.
     unsubscribe();
-    timeline.dispose();
   };
 }
 

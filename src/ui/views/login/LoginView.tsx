@@ -1,6 +1,6 @@
 import { ChangeEvent, KeyboardEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { AbortableOperation, Client, QueryLoginResult } from "@thirdroom/hydrogen-view-sdk";
 
+import { AbortableOperation, Client, QueryLoginResult } from "../../../matrix";
 import { Text } from "../../atoms/text/Text";
 import { Input } from "../../atoms/input/Input";
 import { Button } from "../../atoms/button/Button";
@@ -104,6 +104,16 @@ export default function LoginView() {
   const { platform, urlRouter, login, client } = useHydrogen();
   const [authenticating, setAuthenticating] = useState(false);
   const [oidcError, setOidcError] = useState<string>();
+  // Why the visitor is back at the login page, when Buzzar sent them (e.g. after an update that needs a new sign-in).
+  const [notice] = useState(() => {
+    try {
+      const text = sessionStorage.getItem("buzzar_signin_notice");
+      sessionStorage.removeItem("buzzar_signin_notice");
+      return text ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const isMounted = useIsMounted();
@@ -272,6 +282,7 @@ export default function LoginView() {
               }
             />
           </SettingTile>
+          {notice && <Text variant="b2">{notice}</Text>}
           {oidcError && (
             <Text color="danger" variant="b2">
               {oidcError}

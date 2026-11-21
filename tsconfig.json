@@ -10,11 +10,16 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "bitecs": ["./node_modules/bitecs/dist/index.d.ts"],
+      "ktx-parse": ["./node_modules/ktx-parse/dist/index.d.ts"],
+      "@thirdroom/manifold-editor-components": ["./node_modules/@thirdroom/manifold-editor-components/dist/lib.d.ts"]
+    }
   },
   "include": [
     "./src",

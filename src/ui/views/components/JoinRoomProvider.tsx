@@ -1,5 +1,4 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Session } from "../../../matrix";
 import { useAsyncCallback } from "../../hooks/useAsyncCallback";
 
 export function JoinRoomProvider({

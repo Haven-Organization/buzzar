@@ -1,6 +1,6 @@
 import { useState, ReactNode, useReducer } from "react";
-import { Member, Room, RoomMember } from "@thirdroom/hydrogen-view-sdk";
 
+import { Member, Room, RoomMember } from "../../../../matrix";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { IconButton } from "../../../atoms/button/IconButton";

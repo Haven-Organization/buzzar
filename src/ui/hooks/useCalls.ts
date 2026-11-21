@@ -1,5 +1,4 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Session } from "../../matrix";
 import { useObservableMap } from "./useObservableMap";
 
 export function useCalls(session: Session) {

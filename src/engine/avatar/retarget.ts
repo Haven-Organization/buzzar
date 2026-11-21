@@ -866,7 +866,10 @@ export function narrowLegSpread(
       // Direction in the thighs' parent space.
       dir.copy(toChild).applyQuaternion(q).applyQuaternion(parentQ);
       const extra = dir.dot(lateral) - restSideAt(track.times[k]);
-      target.copy(dir).addScaledVector(lateral, -extra * amount).normalize();
+      target
+        .copy(dir)
+        .addScaledVector(lateral, -extra * amount)
+        .normalize();
       // The swing in that space, brought into the bone's parent space: parent⁻¹ · swing · parent · q.
       swing.setFromUnitVectors(dir, target);
       q.premultiply(parentQ).premultiply(swing).premultiply(parentQ.invert()).normalize();
@@ -914,15 +917,20 @@ export function narrowLegSpread(
  * pose over the clip, so the legs keep running but swing less. Modifies `clip` in place and returns it.
  */
 export function shortenStride(clip: AnimationClip, rig: RetargetRig, amount = 0.5): AnimationClip {
-  const bones: HumanBone[] = ["leftUpperLeg", "rightUpperLeg", "leftLowerLeg", "rightLowerLeg", "leftFoot", "rightFoot"];
+  const bones: HumanBone[] = [
+    "leftUpperLeg",
+    "rightUpperLeg",
+    "leftLowerLeg",
+    "rightLowerLeg",
+    "leftFoot",
+    "rightFoot",
+  ];
   const q = new Quaternion();
   const mean = new Quaternion();
   for (const name of bones) {
     const bone = rig.bones.get(name);
     if (!bone) continue;
-    const track = clip.tracks.find(
-      (t) => t.name === `${bone.uuid}.quaternion` || t.name === `${bone.name}.quaternion`
-    );
+    const track = clip.tracks.find((t) => t.name === `${bone.uuid}.quaternion` || t.name === `${bone.name}.quaternion`);
     if (!track) continue;
     const values = track.values;
     // Average rotation (keys are close together, so a sign-aligned normalized sum is a good mean).

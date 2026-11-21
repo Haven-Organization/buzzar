@@ -207,7 +207,8 @@ export const deserializeTransformChanged = (v: CursorView, nid: number, node: Re
     // Buzzar: skip exactly what was sent (a change mask and only the changed fields). The fixed-size skip here
     // misread every following entry.
     const changeMask = readUint16(v);
-    for (let b = 0; b < 10; b++) if (checkBitflag(changeMask, 1 << b)) scrollCursorView(v, Float32Array.BYTES_PER_ELEMENT);
+    for (let b = 0; b < 10; b++)
+      if (checkBitflag(changeMask, 1 << b)) scrollCursorView(v, Float32Array.BYTES_PER_ELEMENT);
     if (checkBitflag(changeMask, 1 << 10)) scrollCursorView(v, Uint32Array.BYTES_PER_ELEMENT);
   }
 };
@@ -299,7 +300,14 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
     const replicator = getReplicator(network, prefabName);
 
     // Buzzar: only accept objects the sender owns, of known types, within the world's rules.
-    const check = checkCreate(ctx, network, peerId, nid, prefabName, !!replicator || hasPrefabTemplate(ctx, prefabName));
+    const check = checkCreate(
+      ctx,
+      network,
+      peerId,
+      nid,
+      prefabName,
+      !!replicator || hasPrefabTemplate(ctx, prefabName)
+    );
     if (check.reject) {
       scrollCursorView(v, dataByteLength);
       reportViolation(ctx, peerId, check.reject);

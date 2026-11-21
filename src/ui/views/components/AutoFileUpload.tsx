@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { IBlobHandle } from "@thirdroom/hydrogen-view-sdk";
 
+import { IBlobHandle } from "../../../matrix";
 import { FileUploadCard, FileUploadErrorCard } from "./file-upload-card/FileUploadCard";
 import { useAttachmentUpload } from "../../hooks/useAttachmentUpload";
 import { useHydrogen } from "../../hooks/useHydrogen";

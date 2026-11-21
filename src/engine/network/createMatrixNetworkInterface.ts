@@ -8,8 +8,7 @@ import {
   Room,
   Session,
   SubscriptionHandle,
-} from "@thirdroom/hydrogen-view-sdk";
-
+} from "../../matrix";
 import { exitWorld } from "../../plugins/thirdroom/thirdroom.main";
 import { setLocalMediaStream } from "../audio/audio.main";
 import { MainContext } from "../MainThread";

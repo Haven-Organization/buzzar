@@ -1,6 +1,6 @@
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 import { useCallback, useState } from "react";
 
+import { Room, StateEvent } from "../../matrix";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
 
 enum DefaultPowerLevels {

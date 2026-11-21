@@ -1,6 +1,6 @@
-import { GroupCall, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useMemo } from "react";
 
+import { GroupCall, Session } from "../../matrix";
 import { useCalls } from "./useCalls";
 
 export function useCallsByRoom(session: Session, roomId: string): GroupCall[] {

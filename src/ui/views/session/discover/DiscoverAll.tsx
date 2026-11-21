@@ -1,5 +1,4 @@
-import { Room } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room } from "../../../../matrix";
 import { Content } from "../../../atoms/content/Content";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { useHydrogen } from "../../../hooks/useHydrogen";

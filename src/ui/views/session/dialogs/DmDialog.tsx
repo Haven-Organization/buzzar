@@ -1,6 +1,6 @@
 import { useState, FormEvent, useCallback, ChangeEvent } from "react";
-import { RoomVisibility } from "@thirdroom/hydrogen-view-sdk";
 
+import { RoomVisibility } from "../../../../matrix";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { Input } from "../../../atoms/input/Input";

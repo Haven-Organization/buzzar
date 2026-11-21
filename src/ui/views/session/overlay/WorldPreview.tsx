@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Room, RoomStatus, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useAtomValue, useSetAtom } from "jotai";
 
+import { Room, RoomStatus, Session } from "../../../../matrix";
 import "./WorldPreview.css";
 import { Button } from "../../../atoms/button/Button";
 import { WorldPreviewCard } from "../../components/world-preview-card/WorldPreviewCard";
@@ -39,7 +39,7 @@ function InviteWorldPreview({ session, roomId }: InviteWorldPreviewProps) {
   return (
     <WorldPreviewCard
       title={invite.name}
-      desc={`${invite.inviter.name} invites you`}
+      desc={`${invite.inviter?.name} invites you`}
       options={
         <div className="flex gap-xs">
           {!(invite.accepting || invite.accepted) && (

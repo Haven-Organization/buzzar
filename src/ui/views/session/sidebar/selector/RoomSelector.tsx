@@ -1,6 +1,6 @@
-import { Platform, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useState } from "react";
 
+import { Platform, Room } from "../../../../../matrix";
 import { Avatar } from "../../../../atoms/avatar/Avatar";
 import { AvatarOutline } from "../../../../atoms/avatar/AvatarOutline";
 import { IconButton } from "../../../../atoms/button/IconButton";

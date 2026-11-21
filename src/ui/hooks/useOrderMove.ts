@@ -1,4 +1,4 @@
-import { Session, StateEvent } from "@thirdroom/hydrogen-view-sdk";
+import { Session, StateEvent } from "../../matrix";
 
 export function useOrderMove(
   session: Session,

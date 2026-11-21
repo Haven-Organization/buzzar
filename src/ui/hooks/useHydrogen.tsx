@@ -1,23 +1,16 @@
-import {
-  Platform,
-  Navigation,
-  Client,
-  Session,
-  ILogger,
-  URLRouter,
-  Room,
-  ILoginMethod,
-} from "@thirdroom/hydrogen-view-sdk";
 import { createContext, useContext } from "react";
 
+import { Platform, Client, Session, ILogger, Room, ILoginMethod } from "../../matrix";
+
+/** The app's Matrix context. (The name is historical: Buzzar ran on the Hydrogen SDK until plan 02.) */
 export interface HydrogenContext {
   client: Client;
-  navigation: Navigation;
   platform: Platform;
   session?: Session;
   profileRoom?: Room;
   logger: ILogger;
-  urlRouter: URLRouter;
+  /** Unused; kept so callers that pass it along still compile. */
+  urlRouter: undefined;
   login: (loginMethod: ILoginMethod) => Promise<void>;
   logout: () => Promise<void>;
 }

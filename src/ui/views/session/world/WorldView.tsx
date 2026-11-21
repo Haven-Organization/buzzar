@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import classNames from "classnames";
 import { useAtom, useAtomValue } from "jotai";
 import { useKBar, VisualState } from "kbar";
 
+import { Room } from "../../../../matrix";
 import {
   installPointerLockTracking,
   requestGamePointerLock,

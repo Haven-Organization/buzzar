@@ -3,9 +3,9 @@
  * world a less private home: it isn't private (anyone can join), you don't own or run it, or other people are in it.
  */
 import { useEffect, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 
+import { Room } from "../../../../matrix";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
 import { IconButton } from "../../../atoms/button/IconButton";

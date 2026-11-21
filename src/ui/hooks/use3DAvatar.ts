@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { Room, StateEvent } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, StateEvent } from "../../matrix";
 import { useStateEventKeyCallback } from "./useStateEventKeyCallback";
 
 export function use3DAvatar(profileRoom: Room) {

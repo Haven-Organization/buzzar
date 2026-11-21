@@ -1,5 +1,4 @@
-import { Room } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room } from "../../matrix";
 import { useRoomTimeline, TimelineType } from "./useRoomTimeline";
 
 export function useRecentMessage(room?: Room) {

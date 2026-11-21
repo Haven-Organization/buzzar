@@ -1,5 +1,4 @@
-import { Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Session } from "../../../../matrix";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { Dots } from "../../../atoms/loading/Dots";
@@ -28,7 +27,7 @@ export function ChatViewInvite({ session, roomId }: ChatViewInviteProps) {
         bgColor={`var(--usercolor${getIdentifierColorNumber(invite.id)})`}
       />
       <Text>
-        <b>{invite.inviter.name}</b> invites you to <b>{invite.name || "Unnamed Room"}</b>.
+        <b>{invite.inviter?.name}</b> invites you to <b>{invite.name || "Unnamed Room"}</b>.
       </Text>
       <div className="flex gap-xs">
         {!(invite.accepting || invite.accepted) && (

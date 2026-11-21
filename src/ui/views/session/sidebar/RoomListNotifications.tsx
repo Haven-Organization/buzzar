@@ -1,6 +1,6 @@
-import { Invite, Room } from "@thirdroom/hydrogen-view-sdk";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
+import { Invite, Room } from "../../../../matrix";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { getIdentifierColorNumber, getAvatarHttpUrl } from "../../../utils/avatar";
 import { Avatar } from "../../../atoms/avatar/Avatar";

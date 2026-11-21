@@ -14,9 +14,11 @@ import { Dots } from "../../../atoms/loading/Dots";
 import { useHydrogen } from "../../../hooks/useHydrogen";
 import { deviceVerificationAtom } from "../../../state/deviceVerification";
 import {
-  crossSigningForVerification,
   getDeviceVerificationStatus,
+  hasKeyBackup,
+  RunningDeviceVerification,
   skippedVerificationKey,
+  startDeviceVerification as startVerification,
   verifyWithRecoveryKey,
 } from "../../../utils/deviceVerification";
 import "./DeviceVerificationDialog.css";
@@ -34,8 +36,7 @@ type Stage =
   | { kind: "cancelled"; message: string };
 
 interface RunningVerification {
-  sas?: { finished: boolean; abort(): Promise<void> };
-  dispose: () => void;
+  sas?: RunningDeviceVerification;
 }
 
 function cancelMessage(code: string | undefined, byUs: boolean) {
@@ -118,19 +119,22 @@ function Screen({
 }
 
 export function DeviceVerificationDialog() {
-  const { session, platform, client } = useHydrogen(true);
+  const { session } = useHydrogen(true);
   const [state, setState] = useAtom(deviceVerificationAtom);
   const [stage, setStage] = useState<Stage>({ kind: "choose" });
   const [recoveryKey, setRecoveryKey] = useState("");
-  // Buzzar: verifying from another device doesn't hand over the key backup (Hydrogen has no secret sharing), so
-  // offer the recovery key afterwards to unlock older encrypted messages.
-  const noKeyBackup = !session.keyBackup.get();
+  // Whether this device can read older encrypted messages. Verifying from another device normally hands the key
+  // backup over; if it didn't arrive, the "Device verified" screen offers the recovery key.
+  const [noKeyBackup, setNoKeyBackup] = useState(false);
+  const refreshKeyBackup = useCallback(() => {
+    hasKeyBackup(session).then((has) => setNoKeyBackup(!has));
+  }, [session]);
   const running = useRef<RunningVerification>();
 
   // Check once per session whether this device still needs verifying.
   useEffect(() => {
     let cancelled = false;
-    getDeviceVerificationStatus(session, platform, client.sessionId).then((status) => {
+    getDeviceVerificationStatus(session).then((status) => {
       if (cancelled) return;
       let skipped = false;
       try {
@@ -143,14 +147,13 @@ export function DeviceVerificationDialog() {
     return () => {
       cancelled = true;
     };
-  }, [session, platform, client, setState]);
+  }, [session, setState]);
 
   const stopVerification = useCallback(() => {
     const current = running.current;
     running.current = undefined;
     if (!current) return;
     if (current.sas && !current.sas.finished) current.sas.abort().catch(() => undefined);
-    current.dispose();
   }, []);
 
   useEffect(() => stopVerification, [stopVerification]);
@@ -164,43 +167,35 @@ export function DeviceVerificationDialog() {
 
   const markVerified = useCallback(() => {
     setStage({ kind: "done" });
+    refreshKeyBackup();
     // The other device uploads its signature for us; re-read the status once it has.
     setTimeout(() => {
-      getDeviceVerificationStatus(session, platform, client.sessionId).then((status) =>
-        setState((s) => ({ ...s, status }))
-      );
+      getDeviceVerificationStatus(session).then((status) => setState((s) => ({ ...s, status })));
     }, 2000);
-  }, [session, platform, client, setState]);
+  }, [session, setState, refreshKeyBackup]);
 
   const startDeviceVerification = useCallback(() => {
     stopVerification();
     setStage({ kind: "waiting" });
-    const { crossSigning, dispose } = crossSigningForVerification(session);
-    const current: RunningVerification = { dispose };
+    const current: RunningVerification = {};
     running.current = current;
-
-    platform.logger
-      .run("Buzzar: verify this device", async (log) => {
-        const sas = crossSigning.startVerification(session.userId, log);
-        if (!sas) throw new Error("Another verification is already running.");
+    startVerification(session, {
+      onEmoji: (emoji, confirm) => {
+        if (running.current !== current) return;
+        setStage({ kind: "emoji", emoji, confirm });
+      },
+      onCancelled: (code, byUs) => {
+        if (running.current !== current) return;
+        setStage({ kind: "cancelled", message: cancelMessage(code, byUs) });
+      },
+      onDone: () => {
+        if (running.current !== current) return;
+        markVerified();
+      },
+    })
+      .then((sas) => {
         current.sas = sas;
-        sas.on("SelectVerificationStage", (selectStage: { selectEmojiMethod(log: unknown): Promise<void> }) => {
-          // The other device accepted; go straight to emoji, as Element does.
-          platform.logger.run("Buzzar: select emoji", (log2) => selectStage.selectEmojiMethod(log2));
-        });
-        sas.on("EmojiGenerated", (emojiStage: { emoji: Emoji[]; setEmojiMatch(match: boolean): Promise<void> }) => {
-          if (running.current !== current) return;
-          setStage({ kind: "emoji", emoji: emojiStage.emoji, confirm: (match) => emojiStage.setEmojiMatch(match) });
-        });
-        sas.on("VerificationCancelled", (cancellation: { code?: string; cancelledByUs?: boolean }) => {
-          if (running.current !== current) return;
-          setStage({ kind: "cancelled", message: cancelMessage(cancellation?.code, !!cancellation?.cancelledByUs) });
-        });
-        sas.on("VerificationCompleted", () => {
-          if (running.current !== current) return;
-          markVerified();
-        });
-        await sas.start();
+        if (running.current !== current) sas.abort().catch(() => undefined);
       })
       .catch((error: unknown) => {
         if (running.current !== current) return;
@@ -209,13 +204,13 @@ export function DeviceVerificationDialog() {
           message: error instanceof Error ? error.message : "Couldn't start verification.",
         });
       });
-  }, [session, platform, stopVerification, markVerified]);
+  }, [session, stopVerification, markVerified]);
 
   const submitRecoveryKey = async (event: FormEvent) => {
     event.preventDefault();
     setStage({ kind: "recovery", busy: true });
     try {
-      await verifyWithRecoveryKey(session, platform, recoveryKey);
+      await verifyWithRecoveryKey(session, recoveryKey);
       setRecoveryKey("");
       markVerified();
     } catch (error) {

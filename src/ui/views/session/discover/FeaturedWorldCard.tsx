@@ -1,6 +1,6 @@
-import { Platform, Session } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 
+import { Platform, Session } from "../../../../matrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { Button } from "../../../atoms/button/Button";
 import { RoomPreviewCard } from "../../components/room-preview-card/RoomPreviewCard";

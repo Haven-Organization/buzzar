@@ -1,5 +1,4 @@
-import { Room, Session } from "@thirdroom/hydrogen-view-sdk";
-
+import { Room, Session } from "../../matrix";
 import { RepositoryEvents } from "../views/session/discover/DiscoverView";
 import { usePowerLevels } from "./usePowerLevels";
 

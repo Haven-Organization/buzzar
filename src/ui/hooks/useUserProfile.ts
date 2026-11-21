@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Session, Client, SyncStatus, Room, RoomVisibility, RoomType } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 
+import { Session, Client, SyncStatus, Room, RoomVisibility, RoomType } from "../../matrix";
 import { getMxIdUsername, getProfileRoom, waitToCreateRoom } from "../utils/matrixUtils";
 import { useIsMounted } from "./useIsMounted";
 import { userProfileAtom } from "../state/userProfile";

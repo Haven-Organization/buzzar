@@ -1,8 +1,8 @@
 import { forwardRef, useCallback, useEffect, useState } from "react";
 import { useSetAtom } from "jotai";
-import { GroupCall, Room, Session } from "@thirdroom/hydrogen-view-sdk";
 import classNames from "classnames";
 
+import { GroupCall, Room, Session } from "../../../../matrix";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Tooltip } from "../../../atoms/tooltip/Tooltip";
 import { Hotbar, HotbarSlot } from "../../components/hotbar/Hotbar";

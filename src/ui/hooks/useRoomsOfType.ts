@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Room, Invite, Session } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room, Invite, Session } from "../../matrix";
 import { useObservableList } from "./useObservableList";
 
 function roomListComparator(a: Room, b: Room) {

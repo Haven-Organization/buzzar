@@ -1,7 +1,7 @@
-import { Room, Content } from "@thirdroom/hydrogen-view-sdk";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 
+import { Room, Content } from "../../matrix";
 import { AudioModule } from "../../engine/audio/audio.main";
 import { disposeActiveMatrixRoom, setActiveMatrixRoom } from "../../engine/matrix/matrix.main";
 import { getModule } from "../../engine/module/module.common";

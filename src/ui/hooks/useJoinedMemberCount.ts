@@ -7,8 +7,8 @@
  * room's summary, which counts properly, and prefers that.
  */
 import { useEffect, useState } from "react";
-import { Room } from "@thirdroom/hydrogen-view-sdk";
 
+import { Room } from "../../matrix";
 import { useHydrogen } from "./useHydrogen";
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { fetchRoomSummary } from "../utils/worldDirectory";
