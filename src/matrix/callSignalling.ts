@@ -12,6 +12,18 @@ import type { MatrixClient } from "matrix-js-sdk";
 
 type ContentMap = Map<string, Map<string, Record<string, unknown>>>;
 
+const STREAM_METADATA = "sdp_stream_metadata";
+const STREAM_METADATA_UNSTABLE = "org.matrix.msc3077.sdp_stream_metadata";
+
+/**
+ * matrix-js-sdk labels the call's audio/video streams (which stream is someone's voice) under the stable key only;
+ * builds from before plan 02 read only the unstable one, received the audio and never played it. Send both.
+ */
+function withUnstableStreamMetadata(content: Record<string, unknown>) {
+  if (!(STREAM_METADATA in content) || STREAM_METADATA_UNSTABLE in content) return content;
+  return { ...content, [STREAM_METADATA_UNSTABLE]: content[STREAM_METADATA] };
+}
+
 function isCallSignal(eventType: string) {
   return eventType.startsWith("m.call.") || eventType.startsWith("org.matrix.call.");
 }
@@ -50,8 +62,15 @@ export function encryptCallSignalling(client: MatrixClient) {
   const fetched = new Map<string, number>();
 
   client.sendToDevice = async (eventType: string, contentMap: ContentMap, txnId?: string) => {
+    if (!isCallSignal(eventType)) return sendPlain(eventType, contentMap, txnId);
+    contentMap = new Map(
+      [...contentMap].map(([userId, devices]) => [
+        userId,
+        new Map([...devices].map(([deviceId, content]) => [deviceId, withUnstableStreamMetadata(content)])),
+      ])
+    );
     const crypto = client.getCrypto();
-    if (!crypto || !isCallSignal(eventType)) return sendPlain(eventType, contentMap, txnId);
+    if (!crypto) return sendPlain(eventType, contentMap, txnId);
 
     const plain: ContentMap = new Map();
     for (const [userId, devices] of contentMap) {
