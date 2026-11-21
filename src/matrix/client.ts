@@ -4,6 +4,7 @@
  */
 import { ClientEvent, createClient, HttpApiEvent, IndexedDBStore, MatrixClient, SyncState } from "matrix-js-sdk";
 
+import { encryptCallSignalling } from "./callSignalling";
 import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
 import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
@@ -286,7 +287,8 @@ export class Client {
       deviceId: info.deviceId,
       store,
       timelineSupport: true,
-      // World calls: join without a microphone if there is none; signalling goes as plain to-device messages.
+      // World calls: join without a microphone if there is none. The SDK can't encrypt call set-up messages itself
+      // on Rust crypto, so it's told not to, and callSignalling.ts encrypts them instead.
       isVoipWithNoMediaAllowed: true,
       useE2eForGroupCall: false,
       cryptoCallbacks: secretStorageCallbacks,
@@ -321,6 +323,8 @@ export class Client {
         console.error("Couldn't start end-to-end encryption", e);
       }
     }
+
+    encryptCallSignalling(client);
 
     const session = new Session(client, this.platform, { ...info, homeserver });
     let prepared = false;
