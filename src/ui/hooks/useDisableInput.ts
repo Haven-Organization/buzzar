@@ -28,7 +28,16 @@ export function useDisableInput(state = true) {
 
     inputModule.disableInputStack.push(stackId);
 
+    // Buzzar: keep the mouse free for as long as input is disabled. Something else can capture it after we
+    // released it above (a world finishing loading behind a dialog, which the desktop app allows without a click),
+    // leaving a dialog on screen that can't be clicked.
+    const releasePointer = () => {
+      if (document.pointerLockElement === mainThread.canvas && !cameraRigModule.orbiting) document.exitPointerLock();
+    };
+    document.addEventListener("pointerlockchange", releasePointer);
+
     return () => {
+      document.removeEventListener("pointerlockchange", releasePointer);
       const index = inputModule.disableInputStack.indexOf(stackId);
 
       if (index !== -1) {
