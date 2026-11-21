@@ -217,17 +217,26 @@ export class Timeline {
     return () => this.sdkRoom.off(RoomEvent.Timeline, handler);
   }
 
+  /** Set when paging back stopped bringing anything in, whatever the server's token says. */
+  private exhausted = false;
+
   /** Whether there is older history on the server. */
   get canLoadMore(): boolean {
-    return !!this.sdkRoom.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS);
+    return !this.exhausted && !!this.sdkRoom.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS);
   }
 
   /** Loads older messages; resolves false when there are none left. */
   loadMore(limit = 30): Promise<boolean> {
     if (!this.loadingMore) {
+      const before = this.sdkRoom.getLiveTimeline().getEvents().length;
       this.loadingMore = this.client
         .scrollback(this.sdkRoom, limit)
-        .then(() => {
+        .then(async () => {
+          // A page that adds nothing means there's nothing more to get (a token can outlive the history it
+          // pointed at). Without this, callers that keep paging "while there's more" never stop.
+          if (this.sdkRoom.getLiveTimeline().getEvents().length <= before) this.exhausted = true;
+          // Always give the browser a turn before the next page, so paging can never monopolise the page.
+          await new Promise((resolve) => setTimeout(resolve, 0));
           this.entries.refresh();
           return this.canLoadMore;
         })

@@ -2,7 +2,7 @@
  * Buzzar: a room's messages as a list ready to draw (React, since plan 02):
  * messages, images, files, membership notes and date headers, with paging back through history.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Room, Timeline, TimelineEntry } from "../../matrix";
 
@@ -176,8 +176,18 @@ export function useChat(room: Room, options: ChatOptions) {
   }, [timeline, loadingMore]);
 
   // A short room history may not fill the view (or hold any message at all): page back a little at first.
+  // At most a few pages, on a timer: this must never be able to turn into a loop that hogs the page.
+  const autoPages = useRef(0);
   useEffect(() => {
-    if (timeline && items.length < 15 && timeline.canLoadMore && !loadingMore) loadMore();
+    autoPages.current = 0;
+  }, [timeline]);
+  useEffect(() => {
+    if (!timeline || items.length >= 15 || !timeline.canLoadMore || loadingMore || autoPages.current >= 4) return;
+    const timer = setTimeout(() => {
+      autoPages.current++;
+      loadMore();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [timeline, items.length, loadingMore, loadMore]);
 
   return { loading: !timeline && !error, error, items, loadMore, loadingMore, canLoadMore: !!timeline?.canLoadMore };
