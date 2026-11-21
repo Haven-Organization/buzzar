@@ -15,6 +15,8 @@ export type ChatItem =
       entry: TimelineEntry;
       /** The content when the list was built: a different object means the message was edited or decrypted. */
       content: Record<string, unknown>;
+      /** The sender's name and picture when the list was built (they fill in once member events arrive). */
+      profile: string;
       /** Same sender as the message right above, shortly after it: drawn without avatar and name. */
       continuation: boolean;
       /** The message this one replies to, when it's loaded. */
@@ -108,6 +110,7 @@ export function buildChatItems(timeline: Timeline, options: ChatOptions): ChatIt
           key: entry.id,
           entry,
           content: entry.content,
+          profile: `${entry.displayName}\n${entry.avatarUrl ?? ""}`,
           continuation,
           isReply: !!replyId,
           reply: replyId ? timeline.findEntry(replyId) : undefined,

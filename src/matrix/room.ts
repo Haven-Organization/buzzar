@@ -51,9 +51,16 @@ function toStateEvent(event: MatrixEvent): StateEvent {
 const entries = new WeakMap<MatrixEvent, TimelineEntry>();
 
 /** A timeline event with the fields views read. One per event, so identity is stable across refreshes. */
+let lookupRoom: ((roomId: string) => SdkRoom | null) | undefined;
+
 export class TimelineEntry {
   /** Stable for the life of the page (a message being sent keeps its local ID after it's sent). */
   readonly id: string;
+
+  /** How entries find their room (for current member profiles); set by the client when it starts. */
+  static setRoomLookup(lookup: (roomId: string) => SdkRoom | null) {
+    lookupRoom = lookup;
+  }
 
   private constructor(readonly sdk: MatrixEvent) {
     this.id = sdk.getId() ?? sdk.getTxnId() ?? `local-${Math.random()}`;
@@ -86,12 +93,24 @@ export class TimelineEntry {
     return this.sdk.getSender() ?? "";
   }
 
+  /**
+   * The sender as the room knew them when the event was sent, or as it knows them now when that's missing: with
+   * lazy-loaded members (and sliding sync) older events often arrive before the sender's member event, and then the
+   * SDK's per-event sender is a bare placeholder (the user ID, no avatar).
+   */
+  private get senderMember() {
+    const atTheTime = this.sdk.sender;
+    if (atTheTime?.events.member) return atTheTime;
+    const roomId = this.sdk.getRoomId();
+    return (roomId && lookupRoom?.(roomId)?.getMember(this.sender)) || atTheTime;
+  }
+
   get displayName(): string {
-    return this.sdk.sender?.name || this.sender;
+    return this.senderMember?.name || this.sender;
   }
 
   get avatarUrl(): string | undefined {
-    return this.sdk.sender?.getMxcAvatarUrl() ?? undefined;
+    return this.senderMember?.getMxcAvatarUrl() ?? undefined;
   }
 
   get timestamp(): number {
@@ -324,8 +343,9 @@ export class Room extends EventEmitter<{ change: undefined }> {
     return this.sdk.name || undefined;
   }
 
+  /** The room's picture, or for a room without one that's just you and one other person, theirs (like a DM). */
   get avatarUrl(): string | undefined {
-    return this.sdk.getMxcAvatarUrl() ?? undefined;
+    return this.sdk.getMxcAvatarUrl() ?? this.sdk.getAvatarFallbackMember()?.getMxcAvatarUrl() ?? undefined;
   }
 
   get avatarColorId(): string {

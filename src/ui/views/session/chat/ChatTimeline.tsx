@@ -219,6 +219,7 @@ export function sameMessage(a: { item: MessageItem }, b: { item: MessageItem }) 
     a.item.entry === b.item.entry &&
     a.item.kind === b.item.kind &&
     a.item.content === b.item.content &&
+    a.item.profile === b.item.profile &&
     a.item.continuation === b.item.continuation &&
     a.item.reply === b.item.reply &&
     a.item.isReply === b.item.isReply

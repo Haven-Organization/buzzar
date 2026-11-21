@@ -10,6 +10,7 @@ import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
 import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
 import { ISessionInfo, Platform } from "./platform";
+import { TimelineEntry } from "./room";
 import { Session } from "./session";
 import { markStartup } from "./startupTiming";
 import { getStartRooms, isSlidingSyncEnabled, setStartRooms, takeSyncStoreReset } from "./syncSettings";
@@ -362,6 +363,7 @@ export class Client {
     markStartup("encryption ready");
     encryptCallSignalling(client);
 
+    TimelineEntry.setRoomLookup((roomId) => client.getRoom(roomId));
     const session = new Session(client, this.platform, { ...info, homeserver });
     let prepared = false;
 
