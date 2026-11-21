@@ -50,10 +50,12 @@ export function TimelineScroller({ version, onReachTop, children, scrollerRef }:
       <div
         ref={ref}
         className="Timeline_scroller grow legacy-scroll legacy-scroll--vertical legacy-scroll--invisible"
-        style={{ overflowY: "auto" }}
+        // Messages sit at the bottom, next to the composer, until there are enough to fill the view (as the old
+        // timeline's bottom-aligned-scroll did).
+        style={{ overflowY: "auto", display: "flex", flexDirection: "column" }}
         onScroll={onScroll}
       >
-        <ul>{children}</ul>
+        <ul style={{ marginTop: "auto", flexShrink: 0 }}>{children}</ul>
       </div>
     </div>
   );
