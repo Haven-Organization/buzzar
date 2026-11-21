@@ -450,10 +450,15 @@ function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody)
     for (let i = 0; i < body.numColliders(); i++) {
       const c = body.collider(i);
       if (c.isSensor()) continue;
-      const hit = physicsWorld.intersectionWithShape(
+      // A zero-length sweep that stops at penetration: just as exact, but intersectionWithShape costs ~0.5 s per
+      // call against big triangle-mesh worlds whenever nothing overlaps (see plugins/posture/postureClearance.ts).
+      const hit = physicsWorld.castShape(
         c.translation(),
         c.rotation(),
+        { x: 0, y: 1, z: 0 },
         c.shape,
+        0,
+        true,
         undefined,
         undefined,
         undefined,
