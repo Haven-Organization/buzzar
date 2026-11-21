@@ -47,6 +47,7 @@ import { worldAtom } from "../../../state/world";
 import ArrowBackIC from "../../../../../res/ic/arrow-back.svg";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import "./DetailsView.css";
+import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
 
 /** An mxc:// or app path as something the browser can load. */
 function useHttp(url: string | undefined, thumbnail?: { width: number; height: number }) {
@@ -324,6 +325,7 @@ function WorldDetails({ item }: { item: Extract<DetailsItem, { kind: "world" }> 
   const { session, platform, client } = useHydrogen(true);
   const [joinedId, setJoinedId] = useState<string>();
   const room = useRoom(session, joinedId ?? item.roomId) as Room | undefined;
+  const joinedCount = useJoinedMemberCount(room);
   const [info, setInfo] = useState<WorldInfo>({});
   const [meta, setMeta] = useState<AssetMetadata>({});
   const [facts, setFacts] = useState<[string, string][]>([]);
@@ -459,7 +461,9 @@ function WorldDetails({ item }: { item: Extract<DetailsItem, { kind: "world" }> 
           {meta.description && meta.description !== info.topic && <Description text={meta.description} />}
           <div className="flex flex-column gap-xs">
             {info.alias && <Row label="Address">{info.alias}</Row>}
-            {info.members !== undefined && <Row label="Members">{String(info.members)}</Row>}
+            {(room ? joinedCount : info.members) !== undefined && (
+              <Row label="Members">{String(room ? joinedCount : info.members)}</Row>
+            )}
             <MetadataRows meta={meta} />
             {info.hasScript !== undefined && <Row label="Script">{info.hasScript ? "Yes" : "None"}</Row>}
             {facts.map(([k, v]) => (

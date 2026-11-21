@@ -24,6 +24,7 @@ import { useWorldLoader } from "../../../hooks/useWorldLoader";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
 import { setEnterWithoutScript } from "../../../utils/scriptSettings";
+import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
 
 interface InviteWorldPreviewProps {
   session: Session;
@@ -247,6 +248,7 @@ export function WorldPreview() {
   const previewWorldId = selectedWorldId || worldId;
 
   const room = useRoom(session, previewWorldId);
+  const memberCount = useJoinedMemberCount(room);
 
   const {
     loading: roomStatusLoading,
@@ -291,7 +293,7 @@ export function WorldPreview() {
             room && (
               <WorldPreviewCard
                 title={room?.name || "Unnamed Room"}
-                memberCount={room?.joinedMemberCount || 0}
+                memberCount={memberCount}
                 options={<EnterWorldButton room={room} />}
               />
             )

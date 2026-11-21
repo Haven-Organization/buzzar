@@ -66,6 +66,7 @@ import AddIC from "../../../../../res/ic/add.svg";
 import ChevronBottomIC from "../../../../../res/ic/chevron-bottom.svg";
 import "./WorldsView.css";
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
+import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
 
 const TILE_IMAGE = { width: 640, height: 360 };
 
@@ -238,6 +239,7 @@ function useReturnToWorld() {
 
 function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
   const { session, platform } = useHydrogen(true);
+  const memberCount = useJoinedMemberCount(room);
   const { preview, topic, hasScript } = useJoinedWorldPreview(room);
   const openDetails = useOpenDetails();
   const previewSrc = useThumbnail(preview);
@@ -280,7 +282,7 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
             {topic && <Text variant="b3">{topic}</Text>}
           </>
         }
-        memberCount={room.joinedMemberCount}
+        memberCount={memberCount}
         badge={isHere ? "You're here" : isHome ? "Home" : undefined}
         overlay={
           groupCall ? (
