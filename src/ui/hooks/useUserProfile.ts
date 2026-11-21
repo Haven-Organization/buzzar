@@ -55,7 +55,12 @@ export function useUserProfile(client: Client, session?: Session) {
 
   const initProfileRoom = useCallback(
     async (session: Session) => {
-      const profileRoom = getProfileRoom(session.rooms);
+      let profileRoom = getProfileRoom(session.rooms);
+      if (!profileRoom) {
+        // Not seen yet doesn't mean it doesn't exist: wait until every room has loaded before making one.
+        await session.roomsLoaded;
+        profileRoom = getProfileRoom(session.rooms);
+      }
 
       if (profileRoom) {
         listenProfileChange(session, profileRoom);

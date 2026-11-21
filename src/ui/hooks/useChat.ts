@@ -13,6 +13,8 @@ export type ChatItem =
       kind: "message" | "image" | "media" | "undecrypted";
       key: string;
       entry: TimelineEntry;
+      /** The content when the list was built: a different object means the message was edited or decrypted. */
+      content: Record<string, unknown>;
       /** Same sender as the message right above, shortly after it: drawn without avatar and name. */
       continuation: boolean;
       /** The message this one replies to, when it's loaded. */
@@ -105,6 +107,7 @@ export function buildChatItems(timeline: Timeline, options: ChatOptions): ChatIt
           kind,
           key: entry.id,
           entry,
+          content: entry.content,
           continuation,
           isReply: !!replyId,
           reply: replyId ? timeline.findEntry(replyId) : undefined,

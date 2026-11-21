@@ -254,9 +254,19 @@ export class TimelineEntries extends BaseObservableList<MatrixEvent> {
     return this.items;
   }
 
+  private pending?: ReturnType<typeof setTimeout>;
+
+  /**
+   * Re-reads the events and tells observers, once per burst: paging back delivers a page of events one at a time,
+   * and redrawing a chat for each of them froze the app.
+   */
   refresh() {
-    this.items = [...this.read()];
-    for (const handler of [...this.handlers]) handler.onReset?.();
+    if (this.pending !== undefined) return;
+    this.pending = setTimeout(() => {
+      this.pending = undefined;
+      this.items = [...this.read()];
+      for (const handler of [...this.handlers]) handler.onReset?.();
+    }, 30);
   }
 }
 

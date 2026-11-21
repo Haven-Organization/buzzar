@@ -3,7 +3,7 @@
  * offers, password / SSO-token / OIDC logins, saved sessions, sync start-up and sign-out.
  */
 import { ClientEvent, createClient, HttpApiEvent, IndexedDBStore, MatrixClient, SyncState } from "matrix-js-sdk";
-import { SlidingSync } from "matrix-js-sdk/lib/sliding-sync";
+import { SlidingSync, SlidingSyncEvent, SlidingSyncState } from "matrix-js-sdk/lib/sliding-sync";
 
 import { encryptCallSignalling } from "./callSignalling";
 import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
@@ -12,7 +12,7 @@ import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginSta
 import { ISessionInfo, Platform } from "./platform";
 import { Session } from "./session";
 import { markStartup } from "./startupTiming";
-import { isSlidingSyncEnabled, takeSyncStoreReset } from "./syncSettings";
+import { getStartRooms, isSlidingSyncEnabled, setStartRooms, takeSyncStoreReset } from "./syncSettings";
 
 export enum LoadStatus {
   NotLoading = "NotLoading",
@@ -405,24 +405,57 @@ export class Client {
     // Experimental (the "Faster sync" setting, syncSettings.ts): sliding sync (MSC4186) sends a little state for every
     // room first and the rest for rooms as they're opened, which makes the first load much faster on big accounts.
     let slidingSync: SlidingSync | undefined;
+    // Fast start: if we remember which rooms this account needs first (profile, Home World), ask for just those
+    // and a few recent rooms, be ready as soon as they arrive, and load the full list in the background.
+    const startRooms = getStartRooms(info.userId);
+    const ALL_ROOMS = [[0, 499]];
     if (isSlidingSyncEnabled()) {
-      const lists = new Map([["all", { ranges: [[0, 499]], timeline_limit: 1, required_state: SLIDING_SYNC_STATE }]]);
-      slidingSync = new SlidingSync(
+      const fastStart = startRooms.length > 0;
+      const lists = new Map([
+        ["all", { ranges: fastStart ? [[0, 9]] : ALL_ROOMS, timeline_limit: 1, required_state: SLIDING_SYNC_STATE }],
+      ]);
+      const sliding = new SlidingSync(
         homeserver,
         lists,
         { timeline_limit: 30, required_state: [["*", "*"]] },
         client,
         30000
       );
+      slidingSync = sliding;
+      if (fastStart) sliding.modifyRoomSubscriptions(new Set(startRooms));
       session.useRoom = (roomId) => {
-        const rooms = slidingSync!.getRoomSubscriptions();
+        const rooms = sliding.getRoomSubscriptions();
         if (rooms.has(roomId)) return;
-        slidingSync!.modifyRoomSubscriptions(new Set([...rooms, roomId]));
+        sliding.modifyRoomSubscriptions(new Set([...rooms, roomId]));
       };
+      // The full list is in once a response completes with the full range asked for.
+      let fullRangeRequested = !fastStart;
+      const onLifecycle = (state: SlidingSyncState) => {
+        if (state !== SlidingSyncState.Complete) return;
+        if (!fullRangeRequested) {
+          fullRangeRequested = true;
+          sliding.setListRanges("all", ALL_ROOMS);
+          return;
+        }
+        sliding.off(SlidingSyncEvent.Lifecycle, onLifecycle);
+        markStartup("all rooms loaded");
+        session.markRoomsLoaded();
+      };
+      sliding.on(SlidingSyncEvent.Lifecycle, onLifecycle);
     }
+    // Remember which rooms to fetch first next time.
+    session.roomsLoaded.then(() => {
+      const profile = [...session.rooms.values()].find((room) => room.type === "org.matrix.msc3815.profile");
+      const home = client.getAccountData("org.matrix.msc3815.world.home" as never)?.getContent() as
+        | { room_id?: string }
+        | undefined;
+      setStartRooms(info.userId, [profile?.id, typeof home?.room_id === "string" ? home.room_id : undefined]);
+    });
     // Rooms come with only their latest few events; chats page back for more when they're opened.
     await client.startClient({ lazyLoadMembers: true, initialSyncLimit: 3, slidingSync });
     await ready.catch(() => undefined);
+    // Classic sync has every room once it's ready.
+    if (!slidingSync && prepared) session.markRoomsLoaded();
     console.info(
       `[matrix] ${prepared ? "ready" : "failed"} in ${Math.round(performance.now() - started)} ms ` +
         `(encryption set-up ${cryptoMs} ms, ${slidingSync ? "sliding" : "classic"} sync, ${

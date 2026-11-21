@@ -29,6 +29,33 @@ export function setSlidingSyncEnabled(enabled: boolean) {
   }
 }
 
+/**
+ * The rooms a user needs straight after start-up (their profile room and Home World), remembered per account so
+ * sliding sync can ask for those first and everything else afterwards.
+ */
+function startRoomsKey(userId: string) {
+  return `buzzar.startRooms.${userId}`;
+}
+
+export function getStartRooms(userId: string): string[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(startRoomsKey(userId)) ?? "[]");
+    return Array.isArray(stored)
+      ? stored.filter((id): id is string => typeof id === "string" && id.startsWith("!"))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function setStartRooms(userId: string, roomIds: (string | undefined)[]) {
+  try {
+    localStorage.setItem(startRoomsKey(userId), JSON.stringify([...new Set(roomIds.filter(Boolean))]));
+  } catch {
+    // not remembered: the next start loads every room before it's ready
+  }
+}
+
 /** Whether the local sync cache has to be cleared before this start (and forgets the request). */
 export function takeSyncStoreReset(): boolean {
   const wanted = read(RESET_SYNC_STORE_KEY);

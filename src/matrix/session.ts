@@ -258,6 +258,14 @@ export class Session {
    * state and timeline; otherwise it does nothing.
    */
   useRoom: (roomId: string) => void = () => undefined;
+  /**
+   * Resolves once every joined room is known. That's at start-up, except under sliding sync's fast start, which
+   * brings in the rooms needed first (Home World, profile) and the rest in the background. Anything that concludes
+   * "there is no such room" (e.g. creating the profile room) has to wait for this.
+   */
+  readonly roomsLoaded: Promise<void>;
+  /** @internal */
+  markRoomsLoaded: () => void = () => undefined;
   private statusObservers = new Map<string, ObservableValue<RoomStatus>>();
   /** Rooms the user just left here: ignored until sync confirms they're no longer joined (or they rejoin). */
   private leftRooms = new Set<string>();
@@ -267,6 +275,7 @@ export class Session {
     this.hsApi = new HomeServerApi(client);
     this.mediaRepository = new MediaRepository(info.homeserver.replace(/\/+$/, ""));
     this.callHandler = new CallHandler(this, client);
+    this.roomsLoaded = new Promise((resolve) => (this.markRoomsLoaded = resolve));
   }
 
   get userId(): string {

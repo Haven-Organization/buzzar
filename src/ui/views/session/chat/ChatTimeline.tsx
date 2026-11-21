@@ -2,7 +2,7 @@
  * Buzzar: the chat window's messages (React, since plan 02). Text with replies,
  * images and stickers, video/audio/files, 3D-model and world-link embeds, membership notes and date headers.
  */
-import { useCallback, useRef } from "react";
+import { memo, useCallback, useRef } from "react";
 import classNames from "classnames";
 
 import { Room, TimelineEntry } from "../../../../matrix";
@@ -213,7 +213,19 @@ function MediaBody({ item }: { item: MessageItem }) {
   );
 }
 
-function Message({ item }: { item: MessageItem }) {
+/** Whether two builds of the list describe the same message the same way (so it needn't be drawn again). */
+export function sameMessage(a: { item: MessageItem }, b: { item: MessageItem }) {
+  return (
+    a.item.entry === b.item.entry &&
+    a.item.kind === b.item.kind &&
+    a.item.content === b.item.content &&
+    a.item.continuation === b.item.continuation &&
+    a.item.reply === b.item.reply &&
+    a.item.isReply === b.item.isReply
+  );
+}
+
+const Message = memo(function Message({ item }: { item: MessageItem }) {
   const { entry } = item;
   const isEmote = entry.content.msgtype === "m.emote";
   const contentOnly = item.continuation && !isEmote;
@@ -246,7 +258,7 @@ function Message({ item }: { item: MessageItem }) {
       </div>
     </li>
   );
-}
+}, sameMessage);
 
 function relativeDate(timestamp: number) {
   const date = new Date(timestamp);

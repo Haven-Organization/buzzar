@@ -2,7 +2,7 @@
  * Buzzar: the in-world chat's messages (React, since plan 02): text, images, GIFs and
  * stickers, and membership notes, in translucent bubbles over the world.
  */
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import classNames from "classnames";
 
 import { Room } from "../../../../matrix";
@@ -11,7 +11,7 @@ import { useMatrix } from "../../../hooks/useMatrix";
 import { Text } from "../../../atoms/text/Text";
 import { FormattedBody } from "../../components/formatted-body/FormattedBody";
 import { TimelineScroller } from "../../components/timeline-scroller/TimelineScroller";
-import { imageSize, useImageSource } from "../chat/ChatTimeline";
+import { imageSize, sameMessage, useImageSource } from "../chat/ChatTimeline";
 import { mediaCaption } from "../chat/tiles/messageParts";
 import "./WorldChatTimeline.css";
 import "./tiles/TextMessageView.css";
@@ -20,7 +20,7 @@ import "./tiles/WorldChatGap.css";
 
 type MessageItem = Extract<ChatItem, { continuation: boolean }>;
 
-function ImageMessage({ item }: { item: MessageItem }) {
+const ImageMessage = memo(function ImageMessage({ item }: { item: MessageItem }) {
   const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
   const content = item.entry.content;
@@ -39,9 +39,9 @@ function ImageMessage({ item }: { item: MessageItem }) {
       )}
     </li>
   );
-}
+}, sameMessage);
 
-function TextMessage({ item }: { item: MessageItem }) {
+const TextMessage = memo(function TextMessage({ item }: { item: MessageItem }) {
   const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
   const { entry } = item;
@@ -63,7 +63,7 @@ function TextMessage({ item }: { item: MessageItem }) {
       </div>
     </li>
   );
-}
+}, sameMessage);
 
 export function WorldChatTimeline({ room }: { room: Room }) {
   const { loading, error, items, loadMore, loadingMore } = useChat(room, { dates: false, media: false });
