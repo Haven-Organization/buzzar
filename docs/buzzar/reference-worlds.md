@@ -105,21 +105,24 @@ but **`#mars:thirdroom.dev` does not resolve** (the thirdroom.dev homeserver is 
 - [ ] Moderators can disable or retarget scene-baked portals without re-uploading the scene
       (state-event override keyed by node name or path).
 
-## Copies on glowers.club (2026-11-15)
+## Buzzar copies (2026-11-15)
 
-Copies of the Third Room worlds on @q:glowers.club, so they keep working if thirdroom.io goes away like
-thirdroom.dev did. Scenes and previews were downloaded from thirdroom.io (and matrix.org for Third Room Public),
-uploaded to glowers.club and kept on the NAS (`World Files/Third Room/downloads`). Invite-only, room v12.
+Copies of the Third Room worlds, so they keep working if thirdroom.io goes away like thirdroom.dev did. Scenes and
+previews were downloaded from thirdroom.io (and matrix.org for Third Room Public) and kept on the NAS
+(`World Files/Third Room/downloads`). Since 2026-11-18 the copies are public, with their files on matrix.org and a
+`-thirdroom` alias there. Room v12.
 
-| World | Room ID | Original |
-| --- | --- | --- |
-| UK City [Zone 1] | `!9gr2-kpFzlHOflp0pJ16iV3VT3YwXdzMKkLn1DMznmY` | `#uk-city-1:thirdroom.io` |
-| UK City [Zone 3] | `!gux66cCAol1SAHBZVMBLP20rAAJF5myfMPmzXhRM2k8` | `#uk-city-3:thirdroom.io` (same scene as Zone 1) |
-| Terra [Installation 2] | `!QyxR9XmoepVxRnQLtJ3hZnH-rK1RktbhB9GI3Pwhp14` | `#terra-2:thirdroom.io` |
-| Leon Cathedral Cloisters | `!HKpwtijCCFWz36n2fAMF-kd6Syj6ywyXNmn1wSl0E0E` | `#leon7.6.1:thirdroom.io` |
-| WebXR Hall | `!UhOvjM6EEWO1Hxh4pVhSOyiqZXZ7MMG70i6LZBz-tNQ` | `#webxr-hall:thirdroom.io` |
-| The Court | `!N9o2hziggDT0JUMCZNJ5yKovcVVGzmfWBu81hc-9HAc` | porkyhorse's copy of a thirdroom.io scene (Basketball Court by Stew004, CC-BY 4.0) |
-| Third Room Public | `!bk1FOsGHROP_NnCpa5zG8fX2IGS5fOrtGMBViy_7n70` | `!VLwehKMAfEmexXKEMQ:matrix.org` (archived); preview reuses its matrix.org file |
+| World | Alias | Room ID | Original |
+| --- | --- | --- | --- |
+| UK City [Zone 1] | `#uk-city-1-thirdroom:matrix.org` | `!9gr2-kpFzlHOflp0pJ16iV3VT3YwXdzMKkLn1DMznmY` | `#uk-city-1:thirdroom.io` |
+| UK City [Zone 3] | `#uk-city-3-thirdroom:matrix.org` | `!gux66cCAol1SAHBZVMBLP20rAAJF5myfMPmzXhRM2k8` | `#uk-city-3:thirdroom.io` (same scene as Zone 1) |
+| Terra [Installation 2] | `#terra-2-thirdroom:matrix.org` | `!QyxR9XmoepVxRnQLtJ3hZnH-rK1RktbhB9GI3Pwhp14` | `#terra-2:thirdroom.io` |
+| Leon Cathedral Cloisters | `#leon7.6.1-thirdroom:matrix.org` | `!HKpwtijCCFWz36n2fAMF-kd6Syj6ywyXNmn1wSl0E0E` | `#leon7.6.1:thirdroom.io` |
+| WebXR Hall | `#webxr-hall-thirdroom:matrix.org` | `!UhOvjM6EEWO1Hxh4pVhSOyiqZXZ7MMG70i6LZBz-tNQ` | `#webxr-hall:thirdroom.io` |
+| The Court | `#the-court-thirdroom:matrix.org` | `!N9o2hziggDT0JUMCZNJ5yKovcVVGzmfWBu81hc-9HAc` | A copy of a thirdroom.io scene (Basketball Court by Stew004, CC-BY 4.0) |
+| Third Room Public | `#third-room-public-thirdroom:matrix.org` | `!bk1FOsGHROP_NnCpa5zG8fX2IGS5fOrtGMBViy_7n70` | `!VLwehKMAfEmexXKEMQ:matrix.org` (archived) |
 
-Not copied: `#terra-1:thirdroom.io` (needs joining to read its scene) and `#mars:thirdroom.dev` (server gone).
-Scene-baked portals in these copies still point at the thirdroom.io originals.
+Not copied: `#terra-1:thirdroom.io` (byte-identical to Terra 2 apart from its portals) and `#mars:thirdroom.dev`
+(server gone). The copies' files are byte-identical to the originals except for their scene-baked portals, which
+now lead to the other copies' aliases (Terra 1 portals go to Terra 2); the dead Mars portal is detached. No copy
+links to thirdroom.io or thirdroom.dev any more.
