@@ -39,6 +39,7 @@ import {
   BUILTIN_AVATARS,
   builtinIdForUrl,
   fetchAvatarCollection,
+  builtinUrls,
   getBuiltinAvatarContent,
   getSessionAuth,
   MatrixAuth,
@@ -264,16 +265,15 @@ function usePreview(mxc: string | undefined) {
 // --- Your Avatars: stock, then bookmarked and uploaded ---------------------------------------------------------------
 
 function YourAvatars({ ctx, collection }: { ctx: TileContext; collection?: AvatarCollection }) {
-  const { session } = useHydrogen(true);
   return (
     <div className="flex flex-column gap-md">
       <WorldTileGrid tall>
         {STOCK.map((avatar) => {
           const builtin = BUILTIN_AVATARS.find((a) => a.id === avatar.id);
-          const uploadedUrl = builtin ? collection?.builtin[builtin.id] : undefined;
-          const wearing = builtin ? !!uploadedUrl && ctx.isWearing(uploadedUrl) : ctx.isWearing(undefined);
-          const getContent = async (auth: MatrixAuth) =>
-            builtin ? getBuiltinAvatarContent(auth, session.userId, builtin) : undefined;
+          const wearing = builtin
+            ? builtinUrls(collection, builtin).some((url) => ctx.isWearing(url))
+            : ctx.isWearing(undefined);
+          const getContent = async () => (builtin ? getBuiltinAvatarContent(builtin) : undefined);
           return (
             <StockTile
               key={avatar.id}

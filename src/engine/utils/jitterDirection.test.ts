@@ -11,7 +11,8 @@ describe("jitterDirection", () => {
       const d = jitterDirection(vec3.fromValues(0, 0, -10), max);
       expect(vec3.length(d)).toBeCloseTo(10, 5);
       const angle = vec3.angle(d, vec3.fromValues(0, 0, -1));
-      expect(angle).toBeLessThanOrEqual(max + 1e-6);
+      // vec3 is Float32Array: the measured angle can be ~3e-5 rad off.
+      expect(angle).toBeLessThanOrEqual(max + 1e-4);
       if (angle > 1e-4) tilted++;
     }
     expect(tilted).toBeGreaterThan(450);

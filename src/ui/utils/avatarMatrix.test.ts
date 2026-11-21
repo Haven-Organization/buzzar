@@ -2,7 +2,10 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   AVATAR_KEY,
+  BUILTIN_AVATARS,
   builtinIdForUrl,
+  builtinUrls,
+  getBuiltinAvatarContent,
   LEGACY_AVATAR_KEY,
   outdatedBuiltinForUrl,
   parseAvatarCollection,
@@ -182,5 +185,12 @@ describe("built-in avatar versions", () => {
     expect(builtinIdForUrl(collection, "mxc://hs/old-devil")).toBe("devil");
     expect(builtinIdForUrl(collection, "mxc://hs/new-devil")).toBe("devil");
     expect(builtinIdForUrl(collection, "mxc://hs/devil-preview")).toBeUndefined();
+  });
+
+  test("the shared copy is the built-in avatar, and wearing one uploads nothing", () => {
+    const devil = BUILTIN_AVATARS.find((a) => a.id === "devil")!;
+    expect(builtinIdForUrl(undefined, devil.mxc)).toBe("devil");
+    expect(getBuiltinAvatarContent(devil)).toEqual({ url: devil.mxc, name: "Devil", preview_url: devil.previewMxc });
+    expect(builtinUrls(collection, devil)).toEqual([devil.mxc, "mxc://hs/old-devil", "mxc://hs/new-devil"]);
   });
 });

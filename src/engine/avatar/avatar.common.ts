@@ -65,7 +65,12 @@ export function mxcToHttp(mxc: string, homeserver: string): string | undefined {
   )}/${encodeURIComponent(match[2])}`;
 }
 
-/** CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). */
+/**
+ * CC0 avatars bundled with Buzzar (public/avatars, see LICENSE.md there). `mxc`/`previewMxc` are one shared copy of
+ * the file and its preview on matrix.org (Buzzar's stock account), which everyone wears, so wearing one needs no
+ * upload (some homeservers don't let their users upload at all). When a file changes, bump `version`, upload the new
+ * file and preview, and update both.
+ */
 export const BUILTIN_AVATARS = [
   {
     id: "devil",
@@ -75,6 +80,8 @@ export const BUILTIN_AVATARS = [
     credit: "Polygonal Mind (CC0)",
     // 2: the tail got its own spring bones (2026-11-17).
     version: 2,
+    mxc: "mxc://matrix.org/jOlCjOtcnHsmMeWvQmHgeqcC",
+    previewMxc: "mxc://matrix.org/PVIElDZDoMGPTBHHUXQbbBvY",
   },
   {
     id: "rose",
@@ -83,14 +90,16 @@ export const BUILTIN_AVATARS = [
     preview: "/avatars/previews/rose.png",
     credit: "Polygonal Mind (CC0)",
     version: 1,
+    mxc: "mxc://matrix.org/YBNWjPUZPlXQjmshmuoSpdLm",
+    previewMxc: "mxc://matrix.org/XHsMKIHjDURUFHdWjHQNLnRh",
   },
 ] as const;
 
 export type BuiltinAvatar = (typeof BUILTIN_AVATARS)[number];
 
 /**
- * Wearing a built-in avatar uploads it once and reuses that upload, so a changed model needs a new upload: bump the
- * avatar's `version` when its file changes. Version 1 keeps the plain id, so existing uploads still count.
+ * Before the shared copies, wearing a built-in avatar uploaded it to the wearer's own homeserver once per version
+ * (kept in their avatar collection under this key). Those uploads are still recognised. Version 1 is the plain id.
  */
 export function builtinUploadKey(avatar: BuiltinAvatar) {
   return avatar.version > 1 ? `${avatar.id}@${avatar.version}` : avatar.id;
@@ -104,8 +113,7 @@ export function parseBuiltinUploadKey(key: string): { id: string; version: numbe
 
 /**
  * Worlds can offer a bundled avatar with `buzzar-builtin:<id>` (e.g. on a HAVEN_avatar_pedestal), so the scene
- * works on any homeserver without uploading avatars alongside it. Wearing one publishes it to the wearer's own
- * homeserver as an ordinary mxc avatar (getBuiltinAvatarContent).
+ * works on any homeserver without uploading avatars alongside it. Wearing one wears its shared mxc copy (getBuiltinAvatarContent).
  */
 export const BUILTIN_AVATAR_SCHEME = "buzzar-builtin:";
 

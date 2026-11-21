@@ -141,10 +141,10 @@ export function startAvatarSync(
     const worldBuiltin = outdatedBuiltinForUrl(collection, inWorld?.url);
     if ((!profileBuiltin && !worldBuiltin) || disposed) return;
     if (profileBuiltin) {
-      await setProfileAvatar(auth, session.userId, await getBuiltinAvatarContent(auth, session.userId, profileBuiltin));
+      await setProfileAvatar(auth, session.userId, getBuiltinAvatarContent(profileBuiltin));
     }
     if (worldBuiltin) {
-      const content = await getBuiltinAvatarContent(auth, session.userId, worldBuiltin);
+      const content = getBuiltinAvatarContent(worldBuiltin);
       await setWorldAvatar(auth, world.id, session.userId, content);
     }
     profileCache.delete(session.userId);
@@ -169,9 +169,9 @@ export function startAvatarSync(
           if (!auth || disposed) return;
           const builtin = message.uri ? getBuiltinAvatarByUri(message.uri) : undefined;
           if (message.uri === undefined || message.uri.startsWith("mxc://") || builtin) {
-            // Bundled avatars (buzzar-builtin:) are published to our own homeserver first, so everyone can load them.
+            // Bundled avatars (buzzar-builtin:) are worn as their shared mxc copy, so everyone can load them.
             const content = builtin
-              ? await getBuiltinAvatarContent(auth, session.userId, builtin)
+              ? getBuiltinAvatarContent(builtin)
               : message.uri
               ? { url: message.uri, name: message.name }
               : undefined;

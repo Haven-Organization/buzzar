@@ -31,9 +31,9 @@ import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import {
   AvatarContent,
   BUILTIN_AVATARS,
+  builtinUrls,
   getBuiltinAvatarContent,
   getSessionAuth,
-  MatrixAuth,
 } from "../../../utils/avatarMatrix";
 import { useAvatarWardrobe } from "../../../hooks/useAvatarWardrobe";
 import { Dots } from "../../../atoms/loading/Dots";
@@ -247,7 +247,6 @@ function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | 
 
 /** Wear and Bookmark for an avatar's details page (the same actions as its tile on the Avatars screen). */
 function AvatarActions({ item, name }: { item: Extract<DetailsItem, { kind: "avatar" }>; name: string }) {
-  const { session } = useHydrogen(true);
   const wardrobe = useAvatarWardrobe();
   const { collection, busy, error, inWorld, wear, bookmark, unbookmark, isBookmarked, isWearing } = wardrobe;
 
@@ -264,12 +263,11 @@ function AvatarActions({ item, name }: { item: Extract<DetailsItem, { kind: "ava
         ...(item.previewUrl?.startsWith("mxc:") ? { preview_url: item.previewUrl } : {}),
       }
     : undefined;
-  const getContent = async (auth: MatrixAuth) =>
-    builtin ? getBuiltinAvatarContent(auth, session.userId, builtin) : content;
+  const getContent = async () => (builtin ? getBuiltinAvatarContent(builtin) : content);
   const wearing = isDefaultRig
     ? isWearing(undefined)
     : builtin
-    ? !!collection?.builtin[builtin.id] && isWearing(collection.builtin[builtin.id])
+    ? builtinUrls(collection, builtin).some(isWearing)
     : isWearing(ownUrl);
   const key = `details:${item.builtinId ?? ownUrl}`;
 
