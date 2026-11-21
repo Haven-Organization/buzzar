@@ -308,7 +308,11 @@ export class Session {
     const onMembership = (room: SdkRoom) => this.place(room);
     const onDelete = (roomId: string) => this.drop(roomId);
     const touchRoom = (room?: SdkRoom | null) => room && this.touch(room.roomId);
-    const onTimeline = (_event: MatrixEvent, room?: SdkRoom) => touchRoom(room);
+    // Older history paged in (toStartOfTimeline) can't change a room's place or preview in the lists, and
+    // redrawing them for each paged-in event made scrolling back in a chat slow.
+    const onTimeline = (_event: MatrixEvent, room?: SdkRoom, toStartOfTimeline?: boolean) => {
+      if (!toStartOfTimeline) touchRoom(room);
+    };
     const onState = (event: MatrixEvent) => this.touch(event.getRoomId());
     const onName = (room: SdkRoom) => touchRoom(room);
     const onReceipt = (_event: MatrixEvent, room: SdkRoom) => touchRoom(room);

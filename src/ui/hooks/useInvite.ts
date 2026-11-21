@@ -1,7 +1,6 @@
 import { Invite, Session } from "../../matrix";
-import { useObservableMap } from "./useObservableMap";
+import { useObservableMapValue } from "./useObservableMapValue";
 
 export function useInvite(session: Session, roomId: string | undefined): Invite | undefined {
-  const invites = useObservableMap(() => session.invites, [session.invites]);
-  return roomId ? invites.get(roomId) : undefined;
+  return useObservableMapValue(session.invites, roomId);
 }
