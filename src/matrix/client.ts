@@ -11,6 +11,7 @@ import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
 import { ISessionInfo, Platform } from "./platform";
 import { Session } from "./session";
+import { isSlidingSyncEnabled, takeSyncStoreReset } from "./syncSettings";
 
 export enum LoadStatus {
   NotLoading = "NotLoading",
@@ -336,6 +337,8 @@ export class Client {
     });
     this.matrix = client;
     // (After createClient: the store has to belong to a client before it starts.)
+    // Classic and sliding sync can't continue from each other's cache: start clean after the setting changed.
+    if (takeSyncStoreReset()) await store.deleteAllData().catch(() => undefined);
     await store.startup().catch((e) => console.warn("Couldn't open the local sync store", e));
 
     this.loadStatus.set(LoadStatus.SessionSetup);
@@ -393,10 +396,10 @@ export class Client {
     this.loadStatus.set(LoadStatus.FirstSync);
     this.sync.status.set(SyncStatus.InitialSync);
     const cryptoMs = Math.round(performance.now() - started);
-    // Experimental (localStorage "buzzar.slidingSync" = "1"): sliding sync (MSC4186) sends a little state for every
+    // Experimental (the "Faster sync" setting, syncSettings.ts): sliding sync (MSC4186) sends a little state for every
     // room first and the rest for rooms as they're opened, which makes the first load much faster on big accounts.
     let slidingSync: SlidingSync | undefined;
-    if (flag("buzzar.slidingSync")) {
+    if (isSlidingSyncEnabled()) {
       const lists = new Map([["all", { ranges: [[0, 499]], timeline_limit: 1, required_state: SLIDING_SYNC_STATE }]]);
       slidingSync = new SlidingSync(
         homeserver,

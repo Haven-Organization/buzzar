@@ -19,6 +19,8 @@ import { MissingFeatureModal } from "./MissingFeatureModal";
 import "./LoginView.css";
 import { useIsMounted } from "../../hooks/useIsMounted";
 import { discoverOidcIssuer, startOidcLogin } from "../../utils/oidc";
+import { Switch } from "../../atoms/button/Switch";
+import { isSlidingSyncEnabled, setSlidingSyncEnabled } from "../../../matrix";
 
 function useQueryHomeserver(client: Client, homeserver: string) {
   const queryRef = useRef<AbortableOperation<QueryLoginResult>>();
@@ -104,6 +106,7 @@ export default function LoginView() {
   const { platform, urlRouter, login, client } = useMatrix();
   const [authenticating, setAuthenticating] = useState(false);
   const [oidcError, setOidcError] = useState<string>();
+  const [slidingSync, setSlidingSync] = useState(isSlidingSyncEnabled);
   // Why the visitor is back at the login page, when Buzzar sent them (e.g. after an update that needs a new sign-in).
   const [notice] = useState(() => {
     try {
@@ -330,6 +333,21 @@ export default function LoginView() {
               {error}
             </Text>
           )}
+          <label className="flex items-center gap-xs">
+            <span className="shrink-0 flex">
+              <Switch
+                checked={slidingSync}
+                onCheckedChange={(enabled) => {
+                  setSlidingSyncEnabled(enabled);
+                  setSlidingSync(enabled);
+                }}
+              />
+            </span>
+            <Text variant="b3" color="surface-low">
+              Faster sync (experimental): loads your rooms sooner after signing in. You can change it later in Settings
+              → Developer.
+            </Text>
+          </label>
         </form>
       </div>
     </div>

@@ -10,6 +10,7 @@ export * from "./calls";
 export * from "./client";
 export * from "./oidc";
 export * from "./crypto";
+export * from "./syncSettings";
 
 /** A transaction ID for sending events through `hsApi.send` / `redact`. */
 export function makeTxnId(): string {
