@@ -3,6 +3,7 @@ node_modules
 dist
 dist-ssr
 dist-docs-haven
+dist-spike
 lerna-debug.log
 *.local
 *.tsbuildinfo
