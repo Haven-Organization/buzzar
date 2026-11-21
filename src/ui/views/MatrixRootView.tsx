@@ -15,6 +15,7 @@ import {
 import { Text } from "../atoms/text/Text";
 import { MatrixContext, MatrixContextProvider } from "../hooks/useMatrix";
 import { useAsyncCallback } from "../hooks/useAsyncCallback";
+import { useObservableValue } from "../hooks/useObservableValue";
 import { LoadingScreen } from "./components/loading-screen/LoadingScreen";
 import { Button } from "../atoms/button/Button";
 import { useUserProfile } from "../hooks/useUserProfile";
@@ -55,6 +56,14 @@ function initMatrix() {
 
   return matrixInstance;
 }
+
+/** What the loading screen says at each step of starting a session. */
+const LOADING_MESSAGES: Partial<Record<LoadStatus, string>> = {
+  [LoadStatus.Login]: "Signing in…",
+  [LoadStatus.Loading]: "Opening your session…",
+  [LoadStatus.SessionSetup]: "Setting up encryption…",
+  [LoadStatus.FirstSync]: "Syncing your rooms… (the first time can take a minute)",
+};
 
 function getSessionInfo(): ISessionInfo | undefined {
   const sessionsJson = localStorage.getItem("buzzar_sessions_v1");
@@ -187,6 +196,7 @@ export function MatrixRootView() {
   const sessionInfo = getSessionInfo();
 
   const [{ client, platform }] = useState(initMatrix);
+  const loadStatus = useObservableValue(() => client.loadStatus, [client]);
 
   // Sessions from before plan 02 (another SDK's storage) can't be carried over: end them and say why.
   const [legacyChecked, setLegacyChecked] = useState(() => localStorage.getItem("hydrogen_sessions_v1") === null);
@@ -239,7 +249,7 @@ export function MatrixRootView() {
   }
 
   if (loading || !legacyChecked) {
-    return <LoadingScreen />;
+    return <LoadingScreen message={LOADING_MESSAGES[loadStatus]} />;
   }
 
   if (errorMsg) {

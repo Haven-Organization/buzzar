@@ -270,7 +270,13 @@ export class Room extends EventEmitter<{ change: undefined }> {
   private memberList?: ObservableMap<string, RoomMember>;
   private disposers: (() => void)[] = [];
 
-  constructor(readonly client: MatrixClient, readonly sdk: SdkRoom, readonly mediaRepository: MediaRepository) {
+  constructor(
+    readonly client: MatrixClient,
+    readonly sdk: SdkRoom,
+    readonly mediaRepository: MediaRepository,
+    /** Tells the session this room's full state is wanted (see Session.useRoom). */
+    private use: (roomId: string) => void = () => undefined
+  ) {
     super();
     const onState = (event: MatrixEvent) => this.handleStateEvent(event);
     const onMember = (_event: MatrixEvent, _state: unknown, member: SdkRoomMember) => this.handleMember(member);
@@ -366,12 +372,14 @@ export class Room extends EventEmitter<{ change: undefined }> {
   }
 
   async getStateEvent(type: string, key = ""): Promise<{ event: StateEvent; roomId: string } | undefined> {
+    this.use(this.id);
     const event = this.sdk.currentState.getStateEvents(type, key);
     return event ? { event: toStateEvent(event), roomId: this.id } : undefined;
   }
 
   /** Every state event of a type, by state key, kept up to date. */
   async observeStateType(type: string): Promise<ObservableMap<string, StateEvent>> {
+    this.use(this.id);
     let observer = this.stateObservers.get(type);
     if (!observer) {
       const events = this.sdk.currentState.getStateEvents(type) ?? [];
@@ -383,6 +391,7 @@ export class Room extends EventEmitter<{ change: undefined }> {
 
   /** One state event (type + key), kept up to date. */
   async observeStateTypeAndKey(type: string, key = ""): Promise<ObservableValue<StateEvent | undefined>> {
+    this.use(this.id);
     const id = `${type}\n${key}`;
     let observer = this.keyObservers.get(id);
     if (!observer) {
@@ -434,6 +443,7 @@ export class Room extends EventEmitter<{ change: undefined }> {
   }
 
   async loadMemberList(): Promise<MemberList> {
+    this.use(this.id);
     if (!this.memberList) {
       await this.sdk.loadMembersIfNeeded().catch((e) => console.warn("Couldn't load the member list", e));
       this.memberList = new ObservableMap(this.sdk.getMembers().map((m) => [m.userId, this.memberFor(m.userId, m)]));
@@ -442,6 +452,7 @@ export class Room extends EventEmitter<{ change: undefined }> {
   }
 
   async openTimeline(): Promise<Timeline> {
+    this.use(this.id);
     if (!this._timeline) this._timeline = new Timeline(this.client, this.sdk);
     return this._timeline;
   }

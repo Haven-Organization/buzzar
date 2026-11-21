@@ -141,14 +141,20 @@ call sites only changed their import. Hydrogen, libolm, the patch and the hand-w
 
 Known gaps and things to check:
 
-- **Old and new clients can't share a world call.** matrix-js-sdk requires a per-device `expires_ts` in call
-  membership, which Hydrogen clients don't write, so each sees the other as absent. Everyone has to be on the new
-  build (or the Matrix layer has to write/accept both forms).
-- Call signalling is sent as plain to-device messages (`useE2eForGroupCall: false`); Hydrogen encrypted it.
+- **Old and new builds in one world call: fixed in code, not yet confirmed with an old build.** The membership format
+  was the same all along; the blocker was that Hydrogen builds only accept _encrypted_ call set-up messages and
+  matrix-js-sdk can't encrypt them on Rust crypto. `src/matrix/callSignalling.ts` now Olm-encrypts them (plain only
+  as a fallback). Left to check: Hydrogen numbers its messages per connection and matrix-js-sdk expects each call to
+  start at 0, so a retried call from an old build may stall.
 - Host election orders members by their call-membership event's timestamp, which the SDK refreshes hourly.
 - A link to a world you've already joined (`/world/<id>`) lands in your Home World on start-up (may predate this).
 - The chat badge shows the homeserver's total notification count.
-- Download size: the main bundle grew to 1.36 MB plus the 7.8 MB crypto WASM (2.1 MB gzip), not yet lazy-loaded.
+- First load. The crypto engine (7.8 MB WASM, 2.1 MB gzip) is already loaded on demand by the SDK, after sign-in.
+  The loading screen now says what it's doing, and start-up logs its timing (`[matrix] ready in …`). An account in
+  100 rooms took 27 s to first-load with classic sync and **7.4 s with sliding sync** (MSC4186), which is
+  implemented but opt-in for now: `localStorage["buzzar.slidingSync"] = "1"`. Under it every room gets a fixed set
+  of state and opened rooms are subscribed for the rest (`Session.useRoom`); it needs more testing (world
+  settings, member lists, accounts over 500 rooms) before becoming the default.
 
 To try the branch next to the installed app: build, copy `dist` to `dist-next`, then
 `node scripts/buzzar/serve-dist.mjs dist-next 8091`.

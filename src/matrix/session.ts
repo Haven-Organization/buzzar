@@ -253,6 +253,11 @@ export class Session {
   readonly hsApi: HomeServerApi;
   readonly mediaRepository: MediaRepository;
   readonly callHandler: CallHandler;
+  /**
+   * Called when a room is opened or its details are read. Under sliding sync this subscribes the room for its full
+   * state and timeline; otherwise it does nothing.
+   */
+  useRoom: (roomId: string) => void = () => undefined;
   private statusObservers = new Map<string, ObservableValue<RoomStatus>>();
   private disposers: (() => void)[] = [];
 
@@ -337,7 +342,8 @@ export class Session {
     const membership = sdkRoom.getMyMembership();
     if (membership === "join") {
       if (this.invites.has(id)) this.invites.remove(id);
-      if (!this.rooms.has(id)) this.rooms.add(id, new Room(this.client, sdkRoom, this.mediaRepository));
+      if (!this.rooms.has(id))
+        this.rooms.add(id, new Room(this.client, sdkRoom, this.mediaRepository, (roomId) => this.useRoom(roomId)));
       else this.touch(id);
     } else {
       const room = this.rooms.get(id);

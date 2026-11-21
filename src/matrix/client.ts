@@ -3,6 +3,7 @@
  * offers, password / SSO-token / OIDC logins, saved sessions, sync start-up and sign-out.
  */
 import { ClientEvent, createClient, HttpApiEvent, IndexedDBStore, MatrixClient, SyncState } from "matrix-js-sdk";
+import { SlidingSync } from "matrix-js-sdk/lib/sliding-sync";
 
 import { encryptCallSignalling } from "./callSignalling";
 import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
@@ -185,6 +186,37 @@ async function resolveHomeserver(input: string, signal: AbortSignal): Promise<st
   return base;
 }
 
+/**
+ * Room state every room gets under sliding sync: enough to list rooms and worlds, show who is in a world's call,
+ * and decide what the user may do. A room that's opened is subscribed for all of its state (Session.useRoom).
+ */
+const SLIDING_SYNC_STATE = [
+  ["m.room.create", ""],
+  ["m.room.name", ""],
+  ["m.room.avatar", ""],
+  ["m.room.canonical_alias", ""],
+  ["m.room.topic", ""],
+  ["m.room.tombstone", ""],
+  ["m.room.encryption", ""],
+  ["m.room.join_rules", ""],
+  ["m.room.power_levels", ""],
+  ["m.room.member", "$ME"],
+  ["m.room.member", "$LAZY"],
+  ["m.space.child", "*"],
+  ["org.matrix.msc3815.world", ""],
+  ["software.haven.world.rules", ""],
+  ["org.matrix.msc3401.call", "*"],
+  ["org.matrix.msc3401.call.member", "*"],
+];
+
+function flag(name: string) {
+  try {
+    return localStorage.getItem(name) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export class Client {
   readonly loadStatus = new ObservableValue<LoadStatus>(LoadStatus.NotLoading);
   readonly sync = { status: new ObservableValue<SyncStatus>(SyncStatus.Stopped) };
@@ -309,12 +341,8 @@ export class Client {
     this.loadStatus.set(LoadStatus.SessionSetup);
     // Developers can skip encryption (localStorage "buzzar.devNoCrypto" = "1"), e.g. to try a build with a token that
     // belongs to another client's device without touching that device's keys.
-    let cryptoWanted = true;
-    try {
-      cryptoWanted = localStorage.getItem("buzzar.devNoCrypto") !== "1";
-    } catch {
-      // storage unavailable
-    }
+    const cryptoWanted = !flag("buzzar.devNoCrypto");
+    const started = performance.now();
     if (cryptoWanted) {
       try {
         await client.initRustCrypto({ cryptoDatabasePrefix: `buzzar-crypto-${info.id}` });
@@ -364,8 +392,34 @@ export class Client {
 
     this.loadStatus.set(LoadStatus.FirstSync);
     this.sync.status.set(SyncStatus.InitialSync);
-    await client.startClient({ lazyLoadMembers: true, initialSyncLimit: 20 });
+    const cryptoMs = Math.round(performance.now() - started);
+    // Experimental (localStorage "buzzar.slidingSync" = "1"): sliding sync (MSC4186) sends a little state for every
+    // room first and the rest for rooms as they're opened, which makes the first load much faster on big accounts.
+    let slidingSync: SlidingSync | undefined;
+    if (flag("buzzar.slidingSync")) {
+      const lists = new Map([["all", { ranges: [[0, 499]], timeline_limit: 1, required_state: SLIDING_SYNC_STATE }]]);
+      slidingSync = new SlidingSync(
+        homeserver,
+        lists,
+        { timeline_limit: 30, required_state: [["*", "*"]] },
+        client,
+        30000
+      );
+      session.useRoom = (roomId) => {
+        const rooms = slidingSync!.getRoomSubscriptions();
+        if (rooms.has(roomId)) return;
+        slidingSync!.modifyRoomSubscriptions(new Set([...rooms, roomId]));
+      };
+    }
+    // Rooms come with only their latest few events; chats page back for more when they're opened.
+    await client.startClient({ lazyLoadMembers: true, initialSyncLimit: 3, slidingSync });
     await ready.catch(() => undefined);
+    console.info(
+      `[matrix] ${prepared ? "ready" : "failed"} in ${Math.round(performance.now() - started)} ms ` +
+        `(encryption set-up ${cryptoMs} ms, ${slidingSync ? "sliding" : "classic"} sync, ${
+          client.getRooms().length
+        } rooms)`
+    );
     if (prepared) {
       sessionInfoStorage.update(info.id, { lastUsed: Date.now() });
       // A device that's already verified may hold the backup key without the backup being on yet (e.g. the key
