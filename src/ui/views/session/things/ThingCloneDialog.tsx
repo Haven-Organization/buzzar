@@ -145,7 +145,13 @@ export function ThingCloneDialog({
       />
       <form onSubmit={submit} className="ThingCloneDialog flex flex-column gap-md">
         <SettingTile label={<Label>Name</Label>}>
-          <Input value={name} maxLength={MAX_CLONE_NAME} onChange={(e) => setName(e.target.value)} required />
+          <Input
+            value={name}
+            maxLength={MAX_CLONE_NAME}
+            onChange={(e) => setName(e.target.value)}
+            required
+            aria-label="Name"
+          />
         </SettingTile>
         {defaults.size !== undefined && (
           <Row label="Size" value={metres ? `${(metres * size).toFixed(2)} m (${size.toFixed(2)}×)` : `${size.toFixed(2)}×`}>
@@ -157,13 +163,14 @@ export function ThingCloneDialog({
               value={size}
               style={fill(size, THING_VARIABLE_LIMITS.size.min, THING_VARIABLE_LIMITS.size.max)}
               onChange={(e) => set({ size: Number(e.target.value) })}
+              aria-label="Size"
             />
           </Row>
         )}
         {defaults.tint !== undefined && (
           <Row label="Colour" value={vars.tint ? "tinted" : "original"}>
             <div className="flex items-center gap-sm">
-              <input type="color" value={tintToHex(get("tint"))} onChange={(e) => set({ tint: hexToTint(e.target.value) })} />
+              <input type="color" aria-label="Colour" value={tintToHex(get("tint"))} onChange={(e) => set({ tint: hexToTint(e.target.value) })} />
               {vars.tint && (
                 <Button size="sm" fill="none" onClick={() => set({ tint: undefined })}>
                   Original Colour
@@ -182,6 +189,7 @@ export function ThingCloneDialog({
               value={get("bounciness")}
               style={fill(get("bounciness"), 0, 1)}
               onChange={(e) => set({ bounciness: Number(e.target.value) })}
+              aria-label="Bounciness"
             />
           </Row>
         )}
@@ -195,6 +203,7 @@ export function ThingCloneDialog({
               value={weightToSlider(get("weight"))}
               style={fill(weightToSlider(get("weight")), 0, 1)}
               onChange={(e) => set({ weight: Number(sliderToWeight(Number(e.target.value)).toPrecision(3)) })}
+              aria-label="Weight"
             />
           </Row>
         )}
@@ -208,6 +217,7 @@ export function ThingCloneDialog({
               value={get("glow")}
               style={fill(get("glow"), THING_VARIABLE_LIMITS.glow.min, THING_VARIABLE_LIMITS.glow.max)}
               onChange={(e) => set({ glow: Number(e.target.value) })}
+              aria-label="Glow"
             />
           </Row>
         )}
@@ -221,6 +231,7 @@ export function ThingCloneDialog({
               value={get("springiness")}
               style={fill(get("springiness"), THING_VARIABLE_LIMITS.springiness.min, THING_VARIABLE_LIMITS.springiness.max)}
               onChange={(e) => set({ springiness: Number(e.target.value) })}
+              aria-label="Surface bounce"
             />
           </Row>
         )}

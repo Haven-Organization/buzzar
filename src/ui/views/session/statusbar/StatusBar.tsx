@@ -20,13 +20,16 @@ function OverlayButton({
   style,
   children,
   onClick,
+  label,
 }: {
   style?: CSSProperties;
   children: ReactNode;
   onClick: () => void;
+  /** Buzzar (Third Room #399): the button's name for screen readers when its content isn't text. */
+  label?: string;
 }) {
   return (
-    <button className="OverlayButton" style={style} onClick={onClick} type="button">
+    <button className="OverlayButton" style={style} onClick={onClick} type="button" aria-label={label} title={label}>
       {children}
     </button>
   );
@@ -46,8 +49,8 @@ export function NotificationButton({ onClick }: { onClick: () => void }) {
   const label = count > 0 ? `${count} notification${count === 1 ? "" : "s"}` : "Notifications";
 
   return (
-    <OverlayButton onClick={onClick}>
-      <span className="StatusBar__bell" aria-label={label} title={label}>
+    <OverlayButton onClick={onClick} label={label}>
+      <span className="StatusBar__bell" aria-hidden>
         <Icon src={NotificationIC} color="world" size="sm" />
         {count > 0 && (
           <NotificationBadge className="StatusBar__bell-badge" variant="danger" content={count > 99 ? "99+" : count} />

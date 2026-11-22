@@ -170,6 +170,7 @@ function YourWorlds() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter your worlds"
+          aria-label="Filter your worlds"
         />
       </div>
       <Scroll type="hover">
