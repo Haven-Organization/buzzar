@@ -28,6 +28,8 @@ import { SelectInput } from "../../components/property-panel/SelectInput";
 import {
   LOCAL_STORAGE_RENDER_QUALITY,
   LOCAL_STORAGE_WORLD_REVEAL,
+  LOCAL_STORAGE_SHADOW_QUALITY,
+  ShadowQualitySetting,
   RenderQualityOptions,
   RenderQualitySetting,
   RenderQualityToSetting,
@@ -64,6 +66,17 @@ export function UserProfileOverview() {
   const [newDisplayName, setNewDisplayName] = useState(displayName);
   const [renderQuality, setRenderQuality] = useLocalStorage(LOCAL_STORAGE_RENDER_QUALITY, RenderQualitySetting.Auto);
   const [worldReveal, setWorldReveal] = useLocalStorage(LOCAL_STORAGE_WORLD_REVEAL, true);
+  const [shadowQuality, setShadowQuality] = useLocalStorage(LOCAL_STORAGE_SHADOW_QUALITY, ShadowQualitySetting.Auto);
+  const shadowQualityOptions = useMemo(
+    () => [
+      { value: ShadowQualitySetting.Auto, label: "Auto (from Graphics Quality)" },
+      { value: ShadowQualitySetting.Off, label: "Off (fastest)" },
+      { value: ShadowQualitySetting.Low, label: "Low" },
+      { value: ShadowQualitySetting.Medium, label: "Medium" },
+      { value: ShadowQualitySetting.High, label: "High" },
+    ],
+    []
+  );
   const [category, setCategory] = useState<SettingsCategory>("profile");
 
   const mainThread = useMainThreadContext();
@@ -154,6 +167,9 @@ export function UserProfileOverview() {
                     <div className="UserProfileOverview__section">
                       <SettingTile label={<Label>Graphics Quality (Requires Refresh)</Label>}>
                         <SelectInput options={renderQualityOptions} value={renderQuality} onChange={setRenderQuality} />
+                      </SettingTile>
+                      <SettingTile label={<Label>Shadows (Requires Refresh)</Label>}>
+                        <SelectInput options={shadowQualityOptions} value={shadowQuality} onChange={setShadowQuality} />
                       </SettingTile>
                       <SettingTile
                         label={<Label>World Reveal Effect (Requires Refresh)</Label>}

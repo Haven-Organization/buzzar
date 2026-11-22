@@ -18,6 +18,8 @@ export enum RendererMessageType {
   TogglePhysicsDebug = "toggle-physics-debug",
   PhysicsEnableDebugRender = "physics-enable-debug-render",
   PhysicsDisableDebugRender = "physics-disable-debug-render",
+  /** Buzzar (Third Room #204): the world's shadow settings (World Settings → Scene & Script). */
+  SetWorldShadows = "set-world-shadows",
   SetNodeOptimizationsEnabled = "set-node-optimizations-enabled",
   PrintRenderThreadState = "print-render-thread-state",
   UICanvasPress = "ui-canvas-press",
@@ -39,6 +41,8 @@ export interface InitializeRendererMessage {
   dynamicResolution?: boolean;
   /** Buzzar (Third Room #267): the Matrix-style reveal as a world appears. */
   worldReveal?: boolean;
+  /** Buzzar (Third Room #204): your shadow setting. */
+  shadowQuality?: ShadowQualitySetting;
   statsBuffer: RenderStatsBuffer;
   inputRingBuffer: InputRingBuffer;
 }
@@ -141,6 +145,59 @@ export const XRSessionModeToXRMode: { [key: string]: XRMode } = {
 };
 
 export const LOCAL_STORAGE_RENDER_QUALITY = "render-quality";
+/** Buzzar (Third Room #204): your shadow setting (Settings → Graphics), whatever worlds set. */
+export const LOCAL_STORAGE_SHADOW_QUALITY = "buzzar.shadowQuality";
+export enum ShadowQualitySetting {
+  /** Follow the render quality (shadows from Medium up). */
+  Auto = "auto",
+  Off = "off",
+  Low = "low",
+  Medium = "medium",
+  High = "high",
+}
+
+/**
+ * Buzzar (Third Room #204): a world's shadows, from its rules event (`shadows`). `sun`: its directional light casts
+ * shadows and everything casts and receives them (for worlds lit by a real sun). `bakedSun`: for lightmapped worlds,
+ * a shadow-only sun from this direction lets moving things (objects, avatars) cast shadows into the baked light.
+ */
+export interface WorldShadowSettings {
+  sun: boolean;
+  bakedSun?: {
+    /** Degrees clockwise from north (-Z) the light comes from. */
+    azimuth: number;
+    /** Degrees above the horizon. */
+    elevation: number;
+    /** How dark its shadows are, 0–1. */
+    strength: number;
+  };
+}
+
+export interface SetWorldShadowsMessage {
+  type: RendererMessageType.SetWorldShadows;
+  shadows: WorldShadowSettings;
+}
+
+const clampNum = (v: unknown, min: number, max: number, fallback: number) =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+
+/** Reads (untrusted) world rules' `shadows`. Off unless the world turns them on. */
+export function parseWorldShadows(value: unknown): WorldShadowSettings {
+  const raw = (typeof value === "object" && value !== null ? value : {}) as Record<string, unknown>;
+  const baked = raw.baked_sun as Record<string, unknown> | undefined;
+  return {
+    sun: raw.sun === true,
+    bakedSun:
+      typeof baked === "object" && baked !== null && baked.enabled === true
+        ? {
+            azimuth: clampNum(baked.azimuth, 0, 360, 135),
+            elevation: clampNum(baked.elevation, 5, 90, 60),
+            strength: clampNum(baked.strength, 0, 1, 0.6),
+          }
+        : undefined,
+  };
+}
+
 /** Buzzar (Third Room #267): show a world in the Matrix style for a moment as it appears (true unless turned off). */
 export const LOCAL_STORAGE_WORLD_REVEAL = "buzzar.worldReveal";
 

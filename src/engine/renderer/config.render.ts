@@ -21,6 +21,7 @@ import { UpdateNodesFromXRPosesSystem } from "./systems/UpdateNodesFromXRPosesSy
 import { RenderThreadStatsSystem } from "./systems/RenderThreadStatsSystem";
 import { DynamicResolutionSystem } from "./systems/DynamicResolutionSystem";
 import { AutoInstancingSystem } from "./systems/AutoInstancingSystem";
+import { WorldShadowsSystem } from "./systems/WorldShadowsSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
@@ -45,6 +46,9 @@ export default defineConfig({
     UpdateReflectionProbesSystem,
     UpdateNodeReflectionsSystem,
     UpdateNodesFromXRPosesSystem,
+    // Buzzar (Third Room #204): shadow settings and sun shadows following the camera; before instancing, which
+    // groups meshes by their shadow flags.
+    WorldShadowsSystem,
     // Buzzar (Third Room #128): after transforms and reflections are updated, before drawing.
     AutoInstancingSystem,
     RenderSubmitSystem,

@@ -18,6 +18,8 @@ import {
   WORLD_RULES_EVENT,
 } from "../../engine/network/spawnRules.common";
 import { useMemberDisplayName } from "./useMemberDisplayName";
+import { setWorldShadows } from "../../engine/renderer/renderer.main";
+import { parseWorldShadows } from "../../engine/renderer/renderer.common";
 
 export function useWorldRules(room: Room, notify: (text: string) => void) {
   const displayNameOf = useMemberDisplayName(room);
@@ -30,6 +32,11 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
       type: SpawnRulesMessageType.SetSpawnRules,
       rules: parseSpawnRules(latest.current.rules, latest.current.legacyCap),
     });
+    // Buzzar (Third Room #204): the world's shadows live in the same rules event.
+    setWorldShadows(
+      mainThread,
+      parseWorldShadows((latest.current.rules as { shadows?: unknown } | undefined)?.shadows)
+    );
   }, [mainThread]);
 
   const onRules = useCallback(

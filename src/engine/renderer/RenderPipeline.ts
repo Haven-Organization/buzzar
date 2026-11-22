@@ -21,7 +21,7 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
 import { GammaCorrectionShader } from "three/examples/jsm/shaders/GammaCorrectionShader";
 
 import { Layer } from "../common/Layers";
-import { RenderQuality } from "./renderer.common";
+import { ShadowQualitySetting, RenderQuality } from "./renderer.common";
 
 const QualityMSAA = {
   [RenderQuality.Low]: 1,
@@ -42,6 +42,13 @@ const QualityDirectionalShadowMapSize = {
   [RenderQuality.Medium]: new Vector2(512, 512),
   [RenderQuality.High]: new Vector2(1024, 1024),
   [RenderQuality.Ultra]: new Vector2(2048, 2048),
+};
+
+/** Buzzar: shadow map sizes (directional, point/spot) for your shadow setting. */
+const ShadowQualitySizes: Record<string, [number, number]> = {
+  [ShadowQualitySetting.Low]: [1024, 512],
+  [ShadowQualitySetting.Medium]: [2048, 1024],
+  [ShadowQualitySetting.High]: [4096, 2048],
 };
 
 const QualityShadowMapSize = {
@@ -66,7 +73,11 @@ export class RenderPipeline {
   directionalShadowMapSize?: Vector2;
   shadowMapSize?: Vector2;
 
-  constructor(private renderer: WebGLRenderer, private quality: RenderQuality) {
+  constructor(
+    private renderer: WebGLRenderer,
+    private quality: RenderQuality,
+    shadowQuality: ShadowQualitySetting = ShadowQualitySetting.Auto
+  ) {
     const rendererSize = renderer.getSize(new Vector2());
 
     const target = new WebGLRenderTarget(rendererSize.width, rendererSize.height, {
@@ -128,6 +139,18 @@ export class RenderPipeline {
     this.renderer.shadowMap.enabled = quality >= RenderQuality.Medium;
     this.directionalShadowMapSize = QualityDirectionalShadowMapSize[quality];
     this.shadowMapSize = QualityShadowMapSize[quality];
+
+    // Buzzar (Third Room #204): your shadow setting overrides the quality's (Off turns them off whatever worlds set).
+    if (shadowQuality === ShadowQualitySetting.Off) {
+      this.renderer.shadowMap.enabled = false;
+      this.directionalShadowMapSize = undefined;
+      this.shadowMapSize = undefined;
+    } else if (shadowQuality && shadowQuality !== ShadowQualitySetting.Auto) {
+      const [directional, other] = ShadowQualitySizes[shadowQuality];
+      this.renderer.shadowMap.enabled = true;
+      this.directionalShadowMapSize = new Vector2(directional, directional);
+      this.shadowMapSize = new Vector2(other, other);
+    }
   }
 
   private basePixelRatio = 1;

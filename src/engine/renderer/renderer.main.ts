@@ -4,6 +4,11 @@ import {
   InitializeRendererMessage,
   LOCAL_STORAGE_RENDER_QUALITY,
   LOCAL_STORAGE_WORLD_REVEAL,
+  LOCAL_STORAGE_SHADOW_QUALITY,
+  ShadowQualitySetting,
+  SetWorldShadowsMessage,
+  WorldShadowSettings,
+  parseWorldShadows,
   PrintRenderThreadStateMessage,
   RendererMessageType,
   rendererModuleName,
@@ -13,6 +18,7 @@ import {
   TogglePhysicsDebugMessage,
 } from "./renderer.common";
 import { createDisposables } from "../utils/createDisposables";
+import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
 
 export interface MainRendererModuleState {
   statsBuffer: RenderStatsBuffer;
@@ -36,6 +42,7 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
         quality,
         dynamicResolution: dynamicResolutionEnabled(),
         worldReveal: worldRevealEnabled(),
+        shadowQuality: shadowQualitySetting(),
         statsBuffer,
         inputRingBuffer,
       },
@@ -57,7 +64,12 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
       canvasWidth: ctx.canvas.clientWidth,
       canvasHeight: ctx.canvas.clientHeight,
     });
-    return createDisposables([registerResizeEventHandler(ctx)]);
+    return createDisposables([
+      registerResizeEventHandler(ctx),
+      // Buzzar dev convenience (Third Room #204): try a world's shadow settings live, e.g.
+      // thirdroom.setWorldShadows({ baked_sun: { enabled: true, azimuth: 135, elevation: 60, strength: 0.6 } }).
+      registerThirdroomGlobalFn("setWorldShadows", (shadows: unknown) => setWorldShadows(ctx, parseWorldShadows(shadows))),
+    ]);
   },
 });
 
@@ -123,4 +135,22 @@ function worldRevealEnabled(): boolean {
   } catch {
     return true;
   }
+}
+
+/** Buzzar (Third Room #204): your shadow setting (Settings → Graphics). */
+function shadowQualitySetting(): ShadowQualitySetting {
+  try {
+    const value = JSON.parse(localStorage.getItem(LOCAL_STORAGE_SHADOW_QUALITY) ?? '"auto"');
+    return Object.values(ShadowQualitySetting).includes(value) ? value : ShadowQualitySetting.Auto;
+  } catch {
+    return ShadowQualitySetting.Auto;
+  }
+}
+
+/** Buzzar (Third Room #204): tells the renderer the current world's shadow settings. */
+export function setWorldShadows(ctx: MainContext, shadows: WorldShadowSettings) {
+  ctx.sendMessage<SetWorldShadowsMessage>(Thread.Render, {
+    type: RendererMessageType.SetWorldShadows,
+    shadows,
+  });
 }

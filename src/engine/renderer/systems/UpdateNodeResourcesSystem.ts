@@ -619,6 +619,10 @@ function createMeshPrimitiveObject(
         meshMaterial.lightMap = lightMap.texture.texture || null;
         // Buzzar (Third Room #396): decode the light map as RGBM only if it is RGBM.
         (meshMaterial.userData.lightMapRGBM as Uniform).value = lightMap.texture.rgbm ? 1 : 0;
+        // Buzzar (Third Room #204): moving things' shadows from the world's shadow-only sun.
+        (meshMaterial.userData.shadowSunStrength as Uniform).value = rendererModule.shadowSun
+          ? rendererModule.worldShadows.bakedSun?.strength ?? 0
+          : 0;
 
         ((meshMaterial.userData.lightMapTransform as Uniform).value as Matrix3).setUvTransform(
           lightMap.offset[0],

@@ -65,7 +65,8 @@ export default function patchShaderChunks() {
   ShaderChunk.lightmap_pars_fragment = ShaderChunk.lightmap_pars_fragment.replace(
     "uniform sampler2D lightMap;",
     `uniform sampler2D lightMap;
-    uniform float lightMapRGBM;`
+    uniform float lightMapRGBM;
+    uniform float shadowSunStrength;`
   );
   ShaderChunk.lights_fragment_maps = ShaderChunk.lights_fragment_maps.replace(
     "vec4 lightMapTexel = texture2D( lightMap, vUv2 );",
@@ -75,6 +76,23 @@ export default function patchShaderChunks() {
       lightMapTexel.rgb = 34.49 * pow(lightMapTexel.a, 2.2) * lightMapTexel.rgb;
       lightMapTexel.a = 1.0;
     }
+    `
+  );
+
+  // Buzzar (Third Room #204): in a lightmapped world with a shadow-only sun (directional shadow 0, see
+  // WorldShadowsSystem), moving things' shadows darken the baked light by the world's chosen strength.
+  ShaderChunk.lights_fragment_maps = ShaderChunk.lights_fragment_maps.replace(
+    "irradiance += lightMapIrradiance;",
+    `
+    #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
+      if ( shadowSunStrength > 0.0 && receiveShadow ) {
+        DirectionalLightShadow sunShadow = directionalLightShadows[ 0 ];
+        float sunLit = getShadow( directionalShadowMap[ 0 ], sunShadow.shadowMapSize, sunShadow.shadowBias,
+          sunShadow.shadowRadius, vDirectionalShadowCoord[ 0 ] );
+        lightMapIrradiance *= mix( 1.0, sunLit, shadowSunStrength );
+      }
+    #endif
+    irradiance += lightMapIrradiance;
     `
   );
 

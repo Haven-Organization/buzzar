@@ -20,6 +20,13 @@ import { SettingsNav, SettingsNavItem } from "../user-profile/SettingsNav";
 import SettingIC from "../../../../../res/ic/setting.svg";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
+import LightingIC from "../../../../../res/ic/dark-light.svg";
+import {
+  serializeShadows,
+  shadowsDraftFromRules,
+  WorldShadowSettings,
+  WorldShadowsDraft,
+} from "./WorldShadowSettings";
 import {
   parseListedThings,
   serializeObjectRules,
@@ -45,10 +52,11 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallback";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "things";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "things";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
+  { id: "lighting", label: "Lighting", icon: LightingIC },
   { id: "things", label: "Things", icon: BoxIC },
 ];
 
@@ -100,18 +108,30 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const [savedRules, setSavedRules] = useState<ThingRulesDraft>(() => draftFromRules(undefined));
   const [thingRules, setThingRules] = useState<ThingRulesDraft>(savedRules);
   const rulesTouched = useRef(false);
+  const [savedShadows, setSavedShadows] = useState<WorldShadowsDraft>(() => shadowsDraftFromRules(undefined));
+  const [shadows, setShadows] = useState<WorldShadowsDraft>(savedShadows);
+  const shadowsTouched = useRef(false);
   const onRules = useCallback((event: StateEvent | undefined) => {
     rulesContent.current = event?.content as Record<string, unknown> | undefined;
     const draft = draftFromRules(rulesContent.current);
     setSavedRules(draft);
     if (!rulesTouched.current) setThingRules(draft);
+    const shadowsDraft = shadowsDraftFromRules(rulesContent.current);
+    setSavedShadows(shadowsDraft);
+    if (!shadowsTouched.current) setShadows(shadowsDraft);
   }, []);
   useStateEventKeyCallback(room, WORLD_RULES_EVENT, "", onRules);
   const changeThingRules = (draft: ThingRulesDraft) => {
     rulesTouched.current = true;
     setThingRules(draft);
   };
-  const rulesChanged = JSON.stringify(thingRules) !== JSON.stringify(savedRules);
+  const changeShadows = (draft: WorldShadowsDraft) => {
+    shadowsTouched.current = true;
+    setShadows(draft);
+  };
+  const rulesChanged =
+    JSON.stringify(thingRules) !== JSON.stringify(savedRules) ||
+    JSON.stringify(shadows) !== JSON.stringify(savedShadows);
   const canEditRules = canSendStateEvent(WORLD_RULES_EVENT, myPowerLevel);
 
   useEffect(() => {
@@ -193,7 +213,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       const objects = serializeObjectRules(previous, thingRules);
       // A per-person limit in the rules overrides the world's; keep the two the same.
       if (capChanged && objects.max_per_user !== undefined) objects.max_per_user = maxObjectCap;
-      session.hsApi.sendState(room.id, WORLD_RULES_EVENT, "", { ...content, objects });
+      session.hsApi.sendState(room.id, WORLD_RULES_EVENT, "", { ...content, objects, shadows: serializeShadows(shadows) });
     }
 
     setOverlayWindow({ type: OverlayWindow.None });
@@ -309,6 +329,14 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                           heading="Permission Required"
                           text="You don't have permission to change the scene or script."
                         />
+                      </div>
+                      <div className="WorldSettings__section" hidden={category !== "lighting"}>
+                        <WorldShadowSettings value={shadows} onChange={changeShadows} disabled={!canEditRules} />
+                        {!canEditRules && (
+                          <Text variant="b3" color="surface-low">
+                            You don&apos;t have permission to change the world&apos;s lighting.
+                          </Text>
+                        )}
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
                         {canEditScene && (

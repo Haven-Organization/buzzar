@@ -1,4 +1,5 @@
 import {
+  DirectionalLight,
   Scene,
   ImageBitmapLoader,
   PCFSoftShadowMap,
@@ -34,6 +35,8 @@ import {
 } from "./RenderResources";
 import { createDisposables } from "../utils/createDisposables";
 import {
+  SetWorldShadowsMessage,
+  WorldShadowSettings,
   CanvasResizeMessage,
   EnableMatrixMaterialMessage,
   EnterXRMessage,
@@ -116,6 +119,9 @@ export interface RendererModuleState {
   /** Buzzar (Third Room #267): whether a newly shown world is revealed Matrix-style, and until when (ms). */
   worldReveal: boolean;
   revealUntil: number;
+  /** Buzzar (Third Room #204): the world's shadow settings, and its shadow-only sun when it has one. */
+  worldShadows: WorldShadowSettings;
+  shadowSun?: DirectionalLight;
   scene: Scene;
   xrAvatarRoot: Object3D;
   dynamicAccessors: RenderAccessor[];
@@ -162,6 +168,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       quality,
       dynamicResolution,
       worldReveal,
+      shadowQuality,
       statsBuffer,
       inputRingBuffer,
     } = await waitForMessage<InitializeRendererMessage>(Thread.Main, RendererMessageType.InitializeRenderer);
@@ -248,7 +255,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
     return {
       needsResize: true,
       renderer,
-      renderPipeline: new RenderPipeline(renderer, quality),
+      renderPipeline: new RenderPipeline(renderer, quality, shadowQuality),
       canvasWidth: initialCanvasWidth,
       canvasHeight: initialCanvasHeight,
       scenes: [],
@@ -262,6 +269,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       enableMatrixMaterial: false,
       worldReveal: worldReveal ?? false,
       revealUntil: 0,
+      worldShadows: { sun: false },
       hologramMaterial: new HologramMaterial(new Vector2(initialCanvasWidth, initialCanvasHeight)),
       scene,
       xrAvatarRoot,
@@ -391,6 +399,9 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       registerMessageHandler(ctx, RendererMessageType.CanvasResize, onResize),
       registerMessageHandler(ctx, RendererMessageType.NotifySceneRendered, onNotifySceneRendered),
       registerMessageHandler(ctx, RendererMessageType.EnableMatrixMaterial, onEnableMatrixMaterial),
+      registerMessageHandler(ctx, RendererMessageType.SetWorldShadows, (ctx: RenderContext, m: SetWorldShadowsMessage) => {
+        getModule(ctx, RendererModule).worldShadows = m.shadows;
+      }),
       registerMessageHandler(ctx, RendererMessageType.EnterXR, onEnterXR),
       registerMessageHandler(ctx, RendererMessageType.PhysicsEnableDebugRender, onEnableDebugRender),
       registerMessageHandler(ctx, RendererMessageType.PhysicsDisableDebugRender, onDisableDebugRender),
