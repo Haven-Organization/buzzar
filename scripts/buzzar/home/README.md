@@ -18,4 +18,13 @@ python3 <repo>/scripts/buzzar/home/add-mirror-buttons.py <repo>/public/worlds/ho
 
 Then set its details with `scripts/buzzar/bake-gltf.ts` (name, description, author, and the next `--version`).
 
+Then give it its map picture (`HAVEN_map`, shown when you press O). In Home World, run
+`await thirdroom.generateWorldMap()` in the console. It returns the picture's `url` and the `area` it covers. Shrink the
+picture to 1024 px webp (about 90 KB), then:
+
+```sh
+node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- home.glb public/worlds/home/home.glb \
+  --map home-map.webp --map-min -41.6,-41.6 --map-max 41.6,41.6
+```
+
 Then bump `home.version` in `res/defaultWorlds.json` so existing Home Worlds pick up the new scene.

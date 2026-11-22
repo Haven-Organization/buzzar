@@ -28,6 +28,8 @@ The image can be embedded (`bufferView` and `mimeType`) or referenced by `uri`. 
 
 Keep the image small: up to 2048 pixels on its longer side is plenty.
 
+Buzzar's `scripts/buzzar/bake-gltf.ts` can add one to a `.glb`: `--map picture.webp --map-min x,z --map-max x,z`. A picture generated in World Settings → Map works for this.
+
 ## glTF Schema Updates
 
 ```json

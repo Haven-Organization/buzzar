@@ -8,8 +8,12 @@
  *   `face` from a JSON file (e.g. hand-tuned `eyelids.moves`), which the bake then keeps.
  * - `--name`, `--description` (or `--description-file`, for several lines), `--author`, `--source`, `--version`:
  *   write `HAVEN_metadata` (only the fields given; existing ones are kept).
+ * - `--map picture.webp --map-min x,z --map-max x,z`: embeds a world's map picture as `HAVEN_map` (docs/gltf/HAVEN_map),
+ *   covering that ground area in metres (top-left is the north-west corner). A picture from World Settings → Map →
+ *   Generate Map, or from `await thirdroom.generateWorldMap()` in the console (it gives the area too), works.
  *
- * Only the glTF JSON changes; the binary data is copied byte for byte.
+ * Only the glTF JSON changes (and, with `--map`, the picture is added to the end of the binary data); the rest of the
+ * binary data is copied byte for byte.
  *
  * Usage (from the repo root):
  *   node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- in.glb out.glb --avatar --name "Haru Urara" --version 1
@@ -39,7 +43,7 @@ for (let i = 0; i < args.length; i++) {
 const [src, dst] = positional;
 if (!src || !dst) {
   console.error(
-    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--face-json f] [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …]"
+    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--face-json f] [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …] [--map picture --map-min x,z --map-max x,z]"
   );
   process.exit(2);
 }
@@ -51,7 +55,7 @@ const gltf = JSON.parse(buf.subarray(20, 20 + jsonLength).toString("utf8")) as G
   extensions?: Record<string, unknown>;
   extensionsUsed?: string[];
 };
-const rest = buf.subarray(20 + jsonLength);
+let rest = buf.subarray(20 + jsonLength);
 const used = new Set(gltf.extensionsUsed ?? []);
 gltf.extensions ??= {};
 
@@ -72,11 +76,23 @@ if (flags.has("--avatar")) {
   const kinds = new Map<string, number>();
   for (const c of chains) kinds.set(c.kind ?? "spring", (kinds.get(c.kind ?? "spring") ?? 0) + 1);
   console.log(
-    `springs: ${Array.from(kinds).map(([k, n]) => `${n} ${k}`).join(", ") || "none"}; ear motion ${ear ? "on" : "off"}`
+    `springs: ${
+      Array.from(kinds)
+        .map(([k, n]) => `${n} ${k}`)
+        .join(", ") || "none"
+    }; ear motion ${ear ? "on" : "off"}`
   );
-  const lipSync = face.mouth ? "mouth shapes" : face.jaw !== undefined ? "jaw bone" : face.lips ? `${face.lips.length} lip bones` : "none";
+  const lipSync = face.mouth
+    ? "mouth shapes"
+    : face.jaw !== undefined
+    ? "jaw bone"
+    : face.lips
+    ? `${face.lips.length} lip bones`
+    : "none";
   console.log(
-    `face: blink ${face.blink?.length ? "shapes" : face.eyelids ? "eyelid bones" : "none"}, ${face.eyes?.length ?? 0} eyes, lip sync ${lipSync}`
+    `face: blink ${face.blink?.length ? "shapes" : face.eyelids ? "eyelid bones" : "none"}, ${
+      face.eyes?.length ?? 0
+    } eyes, lip sync ${lipSync}`
   );
 }
 
@@ -98,6 +114,45 @@ if (Object.values(given).some((v) => typeof v === "string")) {
   gltf.extensions.HAVEN_metadata = next;
   used.add("HAVEN_metadata");
   console.log("metadata:", JSON.stringify(readAssetMetadata(gltf)));
+}
+
+if (flags.has("--map")) {
+  const picture = readFileSync(String(flags.get("--map")));
+  const corner = (flag: string) => {
+    const xz = String(flags.get(flag) ?? "")
+      .split(",")
+      .map(Number);
+    if (xz.length !== 2 || !xz.every(Number.isFinite)) throw new Error(`${flag} needs x,z in metres`);
+    return xz as [number, number];
+  };
+  const min = corner("--map-min");
+  const max = corner("--map-max");
+  if (!(max[0] > min[0] && max[1] > min[1])) throw new Error("--map-max must be east and south of --map-min");
+  const mimeType = flags.get("--map")!.toString().toLowerCase().endsWith(".png")
+    ? "image/png"
+    : /\.jpe?g$/i.test(String(flags.get("--map")))
+    ? "image/jpeg"
+    : "image/webp";
+  if (gltf.extensions.HAVEN_map) console.warn("replacing HAVEN_map (the old picture's bytes stay in the file)");
+
+  // The binary chunk is the first chunk after the JSON; the picture goes on its end.
+  const binLength = rest.length >= 8 && rest.readUInt32LE(4) === 0x004e4942 ? rest.readUInt32LE(0) : -1;
+  if (binLength < 0 || !gltf.buffers?.length) throw new Error("--map needs a .glb with a binary chunk");
+  const offset = binLength;
+  const padded = Buffer.concat([picture, Buffer.alloc((4 - (picture.length % 4)) % 4)]);
+  const chunkHeader = Buffer.alloc(8);
+  chunkHeader.writeUInt32LE(binLength + padded.length, 0);
+  chunkHeader.writeUInt32LE(0x004e4942, 4);
+  rest = Buffer.concat([chunkHeader, rest.subarray(8, 8 + binLength), padded, rest.subarray(8 + binLength)]);
+  gltf.buffers[0].byteLength = binLength + padded.length;
+
+  gltf.bufferViews ??= [];
+  gltf.bufferViews.push({ buffer: 0, byteOffset: offset, byteLength: picture.length });
+  gltf.images ??= [];
+  gltf.images.push({ name: "Map", bufferView: gltf.bufferViews.length - 1, mimeType } as never);
+  gltf.extensions.HAVEN_map = { image: gltf.images.length - 1, min, max };
+  used.add("HAVEN_map");
+  console.log("map:", JSON.stringify(gltf.extensions.HAVEN_map), `${picture.length} bytes`);
 }
 
 gltf.extensionsUsed = Array.from(used);
