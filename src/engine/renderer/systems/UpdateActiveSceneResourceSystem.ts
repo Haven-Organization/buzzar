@@ -52,7 +52,7 @@ export function UpdateActiveSceneResourceSystem(ctx: RenderContext) {
 
     updateSceneReflectionProbe(ctx, activeScene);
 
-    if (rendererModule.enableMatrixMaterial) {
+    if (rendererModule.enableMatrixMaterial || performance.now() < rendererModule.revealUntil) {
       rendererModule.scene.overrideMaterial = rendererModule.matrixMaterial;
       rendererModule.scene.background = blackBackground;
     } else {

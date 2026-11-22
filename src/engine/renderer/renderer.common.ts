@@ -37,6 +37,8 @@ export interface InitializeRendererMessage {
   quality: RenderQuality;
   /** Buzzar (Third Room #211): lower the resolution while frames run long (on when render quality is Auto). */
   dynamicResolution?: boolean;
+  /** Buzzar (Third Room #267): the Matrix-style reveal as a world appears. */
+  worldReveal?: boolean;
   statsBuffer: RenderStatsBuffer;
   inputRingBuffer: InputRingBuffer;
 }
@@ -139,6 +141,8 @@ export const XRSessionModeToXRMode: { [key: string]: XRMode } = {
 };
 
 export const LOCAL_STORAGE_RENDER_QUALITY = "render-quality";
+/** Buzzar (Third Room #267): show a world in the Matrix style for a moment as it appears (true unless turned off). */
+export const LOCAL_STORAGE_WORLD_REVEAL = "buzzar.worldReveal";
 
 export function gpuTierToRenderQuality(gpuTier: number) {
   switch (gpuTier) {

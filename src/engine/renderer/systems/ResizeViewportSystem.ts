@@ -2,6 +2,9 @@ import { getModule } from "../../module/module.common";
 import { CameraType } from "../../resource/schema";
 import { RenderContext, RendererModule } from "../renderer.render";
 
+/** How long a newly shown world stays in the Matrix style. */
+const WORLD_REVEAL_MS = 1200;
+
 export function ResizeViewportSystem(ctx: RenderContext) {
   const rendererModule = getModule(ctx, RendererModule);
   const { needsResize, canvasWidth, canvasHeight, renderPipeline } = rendererModule;
@@ -12,6 +15,8 @@ export function ResizeViewportSystem(ctx: RenderContext) {
   // TODO: Remove this
   if (activeScene?.eid !== rendererModule.prevSceneResource) {
     rendererModule.enableMatrixMaterial = false;
+    // Buzzar (Third Room #267): a world appearing is shown Matrix-style for a moment, then fully shaded.
+    if (activeScene && rendererModule.worldReveal) rendererModule.revealUntil = performance.now() + WORLD_REVEAL_MS;
   }
 
   if (

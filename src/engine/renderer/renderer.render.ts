@@ -113,6 +113,9 @@ export interface RendererModuleState {
   matrixMaterial: MatrixMaterial;
   hologramMaterial: HologramMaterial;
   enableMatrixMaterial: boolean;
+  /** Buzzar (Third Room #267): whether a newly shown world is revealed Matrix-style, and until when (ms). */
+  worldReveal: boolean;
+  revealUntil: number;
   scene: Scene;
   xrAvatarRoot: Object3D;
   dynamicAccessors: RenderAccessor[];
@@ -158,6 +161,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       supportedXRSessionModes,
       quality,
       dynamicResolution,
+      worldReveal,
       statsBuffer,
       inputRingBuffer,
     } = await waitForMessage<InitializeRendererMessage>(Thread.Main, RendererMessageType.InitializeRenderer);
@@ -256,6 +260,8 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       sceneRenderedRequests: [],
       matrixMaterial,
       enableMatrixMaterial: false,
+      worldReveal: worldReveal ?? false,
+      revealUntil: 0,
       hologramMaterial: new HologramMaterial(new Vector2(initialCanvasWidth, initialCanvasHeight)),
       scene,
       xrAvatarRoot,

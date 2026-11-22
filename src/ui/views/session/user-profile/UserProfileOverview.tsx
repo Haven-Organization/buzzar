@@ -6,6 +6,7 @@ import { WindowContent } from "../../components/window/WindowContent";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
+import { Switch } from "../../../atoms/button/Switch";
 import { Input } from "../../../atoms/input/Input";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
@@ -26,6 +27,7 @@ import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import {
   LOCAL_STORAGE_RENDER_QUALITY,
+  LOCAL_STORAGE_WORLD_REVEAL,
   RenderQualityOptions,
   RenderQualitySetting,
   RenderQualityToSetting,
@@ -61,6 +63,7 @@ export function UserProfileOverview() {
 
   const [newDisplayName, setNewDisplayName] = useState(displayName);
   const [renderQuality, setRenderQuality] = useLocalStorage(LOCAL_STORAGE_RENDER_QUALITY, RenderQualitySetting.Auto);
+  const [worldReveal, setWorldReveal] = useLocalStorage(LOCAL_STORAGE_WORLD_REVEAL, true);
   const [category, setCategory] = useState<SettingsCategory>("profile");
 
   const mainThread = useMainThreadContext();
@@ -145,6 +148,12 @@ export function UserProfileOverview() {
                     <div className="UserProfileOverview__section">
                       <SettingTile label={<Label>Graphics Quality (Requires Refresh)</Label>}>
                         <SelectInput options={renderQualityOptions} value={renderQuality} onChange={setRenderQuality} />
+                      </SettingTile>
+                      <SettingTile
+                        label={<Label>World Reveal Effect (Requires Refresh)</Label>}
+                        // Third Room #267: a world appears in green Matrix code for a moment, then fully shaded.
+                      >
+                        <Switch checked={worldReveal} onCheckedChange={setWorldReveal} />
                       </SettingTile>
                     </div>
                   )}

@@ -3,6 +3,7 @@ import { MainContext } from "../MainThread";
 import {
   InitializeRendererMessage,
   LOCAL_STORAGE_RENDER_QUALITY,
+  LOCAL_STORAGE_WORLD_REVEAL,
   PrintRenderThreadStateMessage,
   RendererMessageType,
   rendererModuleName,
@@ -34,6 +35,7 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
         supportedXRSessionModes,
         quality,
         dynamicResolution: dynamicResolutionEnabled(),
+        worldReveal: worldRevealEnabled(),
         statsBuffer,
         inputRingBuffer,
       },
@@ -107,6 +109,17 @@ function dynamicResolutionEnabled(): boolean {
   try {
     const setting = localStorage.getItem(LOCAL_STORAGE_RENDER_QUALITY);
     return !setting || JSON.parse(setting) === RenderQualitySetting.Auto;
+  } catch {
+    return true;
+  }
+}
+
+/** Buzzar (Third Room #267): the world reveal, unless turned off in Settings or the system asks for reduced motion. */
+function worldRevealEnabled(): boolean {
+  try {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+    const setting = localStorage.getItem(LOCAL_STORAGE_WORLD_REVEAL);
+    return setting === null || JSON.parse(setting) !== false;
   } catch {
     return true;
   }
