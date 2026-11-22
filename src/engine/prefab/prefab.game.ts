@@ -36,6 +36,12 @@ export interface PrefabTemplate {
 
 export const Prefab: Map<number, string> = new Map();
 
+/**
+ * Buzzar: extra data an object of a stock prefab was created with (e.g. a cloned Thing's variables), sent with its
+ * create message so other peers build the same thing. Cleared when the entity goes away.
+ */
+export const PrefabCreateData: Map<number, ArrayBuffer> = new Map();
+
 export function registerPrefab(ctx: GameContext, template: PrefabTemplate) {
   const prefabModule = getModule(ctx, PrefabModule);
   if (prefabModule.prefabTemplateMap.has(template.name)) {
@@ -60,6 +66,7 @@ export function PrefabDisposalSystem(ctx: GameContext) {
   for (let i = 0; i < removed.length; i++) {
     const eid = removed[i];
     Prefab.delete(eid);
+    PrefabCreateData.delete(eid);
   }
 }
 

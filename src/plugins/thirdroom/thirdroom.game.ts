@@ -30,6 +30,7 @@ import {
   SetObjectCapMessage,
   SpawnThingMessage,
   SetThingKeysMessage,
+  SetThingClonesMessage,
   ReloadWorldMessage,
   LoadWorldOptions,
   ReloadedWorldMessage,
@@ -76,6 +77,7 @@ import {
   queueThingSpawn,
   setDefaultActionBarItems,
   setThingKeys,
+  setThingClones,
 } from "./action-bar.game";
 import { onSpawnRulesChanged } from "../../engine/network/spawnRules.game";
 import { createDisposables } from "../../engine/utils/createDisposables";
@@ -156,6 +158,11 @@ export const ThirdRoomModule = defineModule<GameContext, ThirdRoomModuleState>({
       ),
       registerMessageHandler(ctx, ThirdRoomMessageType.SetThingKeys, (ctx: GameContext, message: SetThingKeysMessage) =>
         setThingKeys(ctx, message.keys)
+      ),
+      registerMessageHandler(
+        ctx,
+        ThirdRoomMessageType.SetThingClones,
+        (ctx: GameContext, message: SetThingClonesMessage) => setThingClones(ctx, message.clones)
       ),
       // Buzzar: refresh the stock action bar when the world's object rules change (not a script's own bar).
       onSpawnRulesChanged(ctx, () => {

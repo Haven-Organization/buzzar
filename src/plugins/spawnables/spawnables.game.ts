@@ -11,6 +11,13 @@ import { defineModule, getModule, Thread } from "../../engine/module/module.comm
 import { ownedNetworkedQuery } from "../../engine/network/network.game";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
 import { CollisionGroup, dynamicObjectCollisionGroups } from "../../engine/physics/CollisionGroups";
+import { ThingPrefabOptions, thingVariablesFor, tintNodeTree, variantMaterial } from "./thingVariables.game";
+import {
+  encodeThingVariables,
+  hasThingVariables,
+  sanitizeThingVariables,
+  ThingVariables,
+} from "./thingVariables.common";
 import {
   addPhysicsBody,
   addPhysicsCollider,
@@ -21,7 +28,13 @@ import {
 } from "../../engine/physics/physics.game";
 import { markUpright } from "../../engine/physics/upright";
 import { rememberThingFile, thingPhysics, ThingPhysics } from "./thingFile";
-import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../engine/prefab/prefab.game";
+import {
+  createPrefabEntity,
+  Prefab,
+  PrefabCreateData,
+  PrefabType,
+  registerPrefab,
+} from "../../engine/prefab/prefab.game";
 import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
 import {
   addObjectToWorld,
@@ -75,27 +88,27 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "small-crate",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        const size = 1;
-        return createCrate(ctx, module, physics, size, crateAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("small-crate", options);
+        return createCrate(ctx, module, physics, 1 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
 
     registerPrefab(ctx, {
       name: "medium-crate",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        const size = 1.75;
-        return createCrate(ctx, module, physics, size, crateAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("medium-crate", options);
+        return createCrate(ctx, module, physics, 1.75 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
 
     registerPrefab(ctx, {
       name: "large-crate",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        const size = 2.5;
-        return createCrate(ctx, module, physics, size, crateAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("large-crate", options);
+        return createCrate(ctx, module, physics, 2.5 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
 
@@ -156,31 +169,38 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "mirror-ball",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        return createBall(ctx, module, physics, 1, mirrorMaterial, ballAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("mirror-ball", options);
+        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, mirrorMaterial, v.tint, v.glow) : mirrorMaterial;
+        return createBall(ctx, module, physics, 1 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
 
     registerPrefab(ctx, {
       name: "black-mirror-ball",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        return createBall(ctx, module, physics, 1, blackMirrorMaterial, ballAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("black-mirror-ball", options);
+        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, blackMirrorMaterial, v.tint, v.glow) : blackMirrorMaterial;
+        return createBall(ctx, module, physics, 1 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
 
     registerPrefab(ctx, {
       name: "emissive-ball",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => {
-        return createBall(ctx, module, physics, 2, emissiveMaterial, ballAudioData, kinematic);
+      create: (ctx, options: ThingPrefabOptions) => {
+        const v = thingVariablesFor("emissive-ball", options);
+        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, emissiveMaterial, v.tint, v.glow) : emissiveMaterial;
+        return createBall(ctx, module, physics, 2 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
 
     registerPrefab(ctx, {
       name: "trampoline",
       type: PrefabType.Object,
-      create: (ctx, { kinematic }) => createTrampoline(ctx, physics, kinematic),
+      create: (ctx, options: ThingPrefabOptions) =>
+        createTrampoline(ctx, physics, options.kinematic, thingVariablesFor("trampoline", options)),
     });
 
     // collision handlers
@@ -238,7 +258,8 @@ function createBall(
   size: number,
   material: RemoteMaterial,
   ballAudioData: RemoteAudioData,
-  kinematic = false
+  kinematic = false,
+  variables: ThingVariables = {}
 ) {
   const node = new RemoteNode(ctx.resourceManager, {
     mesh: createSphereMesh(ctx, size, material),
@@ -250,7 +271,7 @@ function createBall(
     new RemoteCollider(ctx.resourceManager, {
       type: ColliderType.Sphere,
       radius: size / 2,
-      restitution: 1,
+      restitution: variables.bounciness ?? 1,
       density: 1,
     })
   );
@@ -261,6 +282,7 @@ function createBall(
     node,
     new RemotePhysicsBody(ctx.resourceManager, {
       type: kinematic ? PhysicsBodyType.Kinematic : PhysicsBodyType.Rigid,
+      ...(variables.weight !== undefined ? { mass: variables.weight } : {}),
     })
   );
 
@@ -313,9 +335,11 @@ function createCrate(
   physics: PhysicsModuleState,
   size: number,
   crateAudioData: RemoteAudioData,
-  kinematic = false
+  kinematic = false,
+  variables: ThingVariables = {}
 ) {
-  const node = createNodeFromGLTFURI(ctx, CRATE_GLTF_URI);
+  const tint = variables.tint;
+  const node = createNodeFromGLTFURI(ctx, CRATE_GLTF_URI, tint ? (loaded) => tintNodeTree(ctx, loaded, tint) : undefined);
 
   node.scale.set([size, size, size]);
 
@@ -342,6 +366,7 @@ function createCrate(
       size: [1, 1, 1],
       activeEvents: RAPIER.ActiveEvents.COLLISION_EVENTS,
       collisionGroups: dynamicObjectCollisionGroups,
+      ...(variables.bounciness !== undefined ? { restitution: variables.bounciness } : {}),
     })
   );
 
@@ -351,6 +376,7 @@ function createCrate(
     node,
     new RemotePhysicsBody(ctx.resourceManager, {
       type: kinematic ? PhysicsBodyType.Kinematic : PhysicsBodyType.Rigid,
+      ...(variables.weight !== undefined ? { mass: variables.weight } : {}),
     })
   );
 
@@ -381,7 +407,8 @@ function addThingPhysics(
   physics: PhysicsModuleState,
   node: RemoteNode,
   settings: ThingPhysics,
-  kinematic: boolean
+  kinematic: boolean,
+  mass?: number
 ) {
   const c = settings.collider;
   addPhysicsCollider(
@@ -404,6 +431,7 @@ function addThingPhysics(
     node,
     new RemotePhysicsBody(ctx.resourceManager, {
       type: kinematic ? PhysicsBodyType.Kinematic : PhysicsBodyType.Rigid,
+      ...(mass !== undefined ? { mass } : {}),
     })
   );
   if (settings.rotation === "yaw") node.physicsBody?.body?.setEnabledRotations(false, true, false, true);
@@ -413,9 +441,26 @@ function addThingPhysics(
   addInteractableComponent(ctx, physics, node, InteractableType.Grabbable);
 }
 
-function createTrampoline(ctx: GameContext, physics: PhysicsModuleState, kinematic = false) {
-  const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI);
-  addThingPhysics(ctx, physics, node, thingPhysics(TRAMPOLINE_GLTF_URI, TRAMPOLINE_PHYSICS), kinematic);
+function createTrampoline(
+  ctx: GameContext,
+  physics: PhysicsModuleState,
+  kinematic = false,
+  variables: ThingVariables = {}
+) {
+  const tint = variables.tint;
+  const node = createNodeFromGLTFURI(
+    ctx,
+    TRAMPOLINE_GLTF_URI,
+    tint ? (loaded) => tintNodeTree(ctx, loaded, tint) : undefined
+  );
+  addThingPhysics(
+    ctx,
+    physics,
+    node,
+    thingPhysics(TRAMPOLINE_GLTF_URI, TRAMPOLINE_PHYSICS),
+    kinematic,
+    variables.weight
+  );
   return node;
 }
 
@@ -560,7 +605,13 @@ const SPAWN_TOSS_SPEED = 0.4;
 const SPAWN_TOSS_JITTER = (20 * Math.PI) / 180;
 
 // Returns false if the object exceeded the object cap
-export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: string, isXR: boolean): boolean {
+export function spawnPrefab(
+  ctx: GameContext,
+  spawnFrom: RemoteNode,
+  prefabId: string,
+  isXR: boolean,
+  variables?: ThingVariables
+): boolean {
   const { maxObjectCap } = getModule(ctx, ThirdRoomModule);
   const rules = getSpawnRules(ctx);
 
@@ -583,8 +634,11 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
     return false;
   }
 
-  const prefab = createPrefabEntity(ctx, prefabId);
+  // Buzzar: a cloned Thing's variables (size, colour…), also sent to everyone with the object's create message.
+  const checked = variables ? sanitizeThingVariables(prefabId, variables) : undefined;
+  const prefab = createPrefabEntity(ctx, prefabId, { variables: checked } satisfies ThingPrefabOptions);
   const eid = prefab.eid;
+  if (hasThingVariables(checked)) PrefabCreateData.set(eid, encodeThingVariables(checked));
 
   addComponent(ctx.world, Owned, eid);
   addComponent(ctx.world, Networked, eid, true);

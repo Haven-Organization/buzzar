@@ -28,7 +28,7 @@ import {
 import { NOOP } from "../config.common";
 import { GameContext } from "../GameTypes";
 import { getModule } from "../module/module.common";
-import { Prefab, createPrefabEntity, hasPrefabTemplate } from "../prefab/prefab.game";
+import { Prefab, PrefabCreateData, createPrefabEntity, hasPrefabTemplate } from "../prefab/prefab.game";
 import { checkBitflag } from "../utils/checkBitflag";
 import {
   ownedNetworkedQuery,
@@ -218,9 +218,11 @@ export function createRemoteNetworkedEntity(
   ctx: GameContext,
   network: GameNetworkState,
   nid: number,
-  prefab: string
+  prefab: string,
+  createData?: ArrayBuffer
 ): RemoteNode {
-  const node = createPrefabEntity(ctx, prefab);
+  const node = createPrefabEntity(ctx, prefab, createData ? { createData } : {});
+  if (createData) PrefabCreateData.set(node.eid, createData);
 
   // assign networkId
   addComponent(ctx.world, Networked, node.eid, true);
@@ -246,7 +248,10 @@ function writeCreation(network: GameNetworkState, v: CursorView, eid: number) {
 
   const replicator = getReplicator(network, prefabName);
   if (!replicator) {
-    writeDataByteLength(0);
+    // Buzzar: a stock prefab's create data (e.g. a cloned Thing's size and colour).
+    const data = PrefabCreateData.get(eid);
+    writeDataByteLength(data?.byteLength || 0);
+    if (data && data.byteLength) writeArrayBuffer(v, data);
     return;
   }
 
@@ -324,8 +329,9 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
       });
       network.deferredUpdates.set(nid, []);
     } else {
-      if (dataByteLength > 0) scrollCursorView(v, dataByteLength);
-      const node = createRemoteNetworkedEntity(ctx, network, nid, prefabName);
+      // Buzzar: a stock prefab's create data (a cloned Thing's variables); the prefab validates it.
+      const data = dataByteLength > 0 ? readArrayBuffer(v, dataByteLength) : undefined;
+      const node = createRemoteNetworkedEntity(ctx, network, nid, prefabName, data);
       if (check.taken) addComponent(ctx.world, TakenObject, node.eid);
       // Buzzar: an older client's grab: now that its copy is here, remove the original it took over.
       if (check.replacesNid !== undefined) {

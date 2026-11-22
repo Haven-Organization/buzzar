@@ -1,0 +1,18 @@
+.ThingCloneDialog {
+  padding: var(--sp-md);
+}
+
+.ThingCloneDialog input[type="range"] {
+  width: 100%;
+  accent-color: var(--bg-primary);
+}
+
+.ThingCloneDialog input[type="color"] {
+  width: 48px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--bg-surface-border);
+  border-radius: var(--br-xs);
+  background: none;
+  cursor: pointer;
+}

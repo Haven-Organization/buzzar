@@ -5,7 +5,12 @@
  */
 import { MatrixAuth } from "./avatarMatrix";
 import { getAccountData } from "./legacyAccountData";
-import { DEFAULT_THING_KEYS, THING_KEY_COUNT, ThingKeys } from "../../plugins/thirdroom/thirdroom.common";
+import {
+  DEFAULT_THING_KEYS,
+  isThingCloneId,
+  THING_KEY_COUNT,
+  ThingKeys,
+} from "../../plugins/thirdroom/thirdroom.common";
 
 export const THING_KEYS_TYPE = "software.haven.world.thing_keys";
 
@@ -16,7 +21,9 @@ export function parseThingKeys(value: unknown, known: readonly string[]): ThingK
   const keys: ThingKeys = [];
   for (let i = 0; i < THING_KEY_COUNT; i++) {
     const id = list[i];
-    keys.push(typeof id === "string" && known.includes(id) && !keys.includes(id) ? id : null);
+    // Cloned Things (clone:…) are kept even before your clones have loaded; the game ignores ones it doesn't know.
+    const valid = typeof id === "string" && (known.includes(id) || isThingCloneId(id));
+    keys.push(valid && !keys.includes(id) ? id : null);
   }
   return keys;
 }

@@ -49,6 +49,11 @@ import { mapThing, moveMapped, unmapThing } from "../../../utils/thingKeys";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
 import UploadIC from "../../../../../res/ic/upload.svg";
 import { UploadThing } from "./UploadThing";
+import { describeVariables, ThingCloneDialog } from "./ThingCloneDialog";
+import { Dialog } from "../../../atoms/dialog/Dialog";
+import { thingClonesAtom } from "../../../state/thingClones";
+import { useAllowedThings, useSetThingClones } from "../../../hooks/useThingClones";
+import { ThingClone } from "../../../../plugins/thirdroom/thirdroom.common";
 import "./ThingsView.css";
 
 export function ThingsView() {
@@ -57,6 +62,11 @@ export function ThingsView() {
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;
   const allowed = useActionBar();
+  const allowedThings = useAllowedThings();
+  const clones = useAtomValue(thingClonesAtom) ?? [];
+  const setThingClones = useSetThingClones();
+  // Cloning or editing: the stock Thing, and the clone when editing one.
+  const [cloning, setCloning] = useState<{ base: StockThing; existing?: ThingClone }>();
   const [collection, setCollection] = useState<ThingCollection>();
   const [error, setError] = useState<string>();
 
@@ -80,16 +90,59 @@ export function ThingsView() {
     setError(undefined);
     setThingKeys(next).catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
+  // Buzzar: your cloned Things show like stock ones, with their base's picture.
+  const cloneThings: StockThing[] = clones.flatMap((clone) => {
+    const base = STOCK_THINGS.find((t) => t.id === clone.base);
+    return base
+      ? [{ id: clone.id, name: clone.name, preview: base.preview, description: describeVariables(clone.base, clone.variables) }]
+      : [];
+  });
+  const allThings = [...STOCK_THINGS, ...cloneThings];
+  const cloneOf = (id: string) => clones.find((c) => c.id === id);
   // Things on keys (in key order) sit on the shelf; the rest are in My Things below.
   const mapped = (keys ?? [])
-    .map((id, slot) => ({ thing: STOCK_THINGS.find((t) => t.id === id), slot }))
+    .map((id, slot) => ({ thing: allThings.find((t) => t.id === id), slot }))
     .filter((entry): entry is { thing: StockThing; slot: number } => !!entry.thing);
-  const unmapped = STOCK_THINGS.filter((thing) => !keys?.includes(thing.id));
+  const unmapped = allThings.filter((thing) => !keys?.includes(thing.id));
+
+  const saveClone = async (clone: ThingClone) => {
+    const next = clones.some((c) => c.id === clone.id)
+      ? clones.map((c) => (c.id === clone.id ? clone : c))
+      : [...clones, clone];
+    await setThingClones(next);
+  };
+  const deleteClone = (id: string) => {
+    setError(undefined);
+    if (keys?.includes(id)) changeKeys(unmapThing(keys, id));
+    setThingClones(clones.filter((c) => c.id !== id)).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  };
+  // Menu items for cloning a stock Thing, or editing/deleting a clone.
+  const cloneMenu = (id: string) => {
+    const clone = cloneOf(id);
+    if (clone) {
+      const base = STOCK_THINGS.find((t) => t.id === clone.base);
+      return (
+        <>
+          {base && <DropdownMenuItem onSelect={() => setCloning({ base, existing: clone })}>Edit…</DropdownMenuItem>}
+          {base && (
+            <DropdownMenuItem onSelect={() => setCloning({ base, existing: { ...clone, id: "", name: `${clone.name} copy` } })}>
+              Clone…
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem variant="danger" onSelect={() => deleteClone(id)}>
+            Delete Clone
+          </DropdownMenuItem>
+        </>
+      );
+    }
+    const stock = STOCK_THINGS.find((t) => t.id === id);
+    return stock ? <DropdownMenuItem onSelect={() => setCloning({ base: stock })}>Clone…</DropdownMenuItem> : null;
+  };
   const freeKeys = (keys ?? []).flatMap((id, slot) => (id ? [] : [thingKeyName(slot)]));
 
   const spawnAction = (id: string) =>
     inWorld ? (
-      allowed.some((item) => item.id === id) ? (
+      allowed.some((item) => item.id === id) || allowedThings.includes(cloneOf(id)?.base ?? id) ? (
         <Button size="sm" onClick={() => spawn(id)}>
           Spawn
         </Button>
@@ -115,6 +168,18 @@ export function ThingsView() {
   return (
     <Window className="TileScreen">
       <UploadThing open={uploadOpen} onOpenChange={setUploadOpen} onSaved={setCollection} />
+      <Dialog open={!!cloning} onOpenChange={(open) => !open && setCloning(undefined)}>
+        {cloning && (
+          <ThingCloneDialog
+            base={cloning.base}
+            // "Clone…" on a clone starts from its values as a new clone (empty id).
+            existing={cloning.existing?.id ? cloning.existing : undefined}
+            initial={cloning.existing && !cloning.existing.id ? cloning.existing : undefined}
+            onSave={saveClone}
+            requestClose={() => setCloning(undefined)}
+          />
+        )}
+      </Dialog>
       <Content
         top={
           <Header
@@ -150,7 +215,13 @@ export function ThingsView() {
                 Things, or use their menus.{keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""}
               </Text>
               {keys && (
-                <ShortcutShelf keys={keys} mapped={mapped} spawnAction={spawnAction} onChangeKeys={changeKeys} />
+                <ShortcutShelf
+                  keys={keys}
+                  mapped={mapped}
+                  spawnAction={spawnAction}
+                  cloneMenu={cloneMenu}
+                  onChangeKeys={changeKeys}
+                />
               )}
             </div>
             <Text variant="b2" weight="semi-bold">
@@ -159,7 +230,13 @@ export function ThingsView() {
             <MyThingsDropArea keys={keys} onChangeKeys={changeKeys}>
               {unmapped.map((thing) => (
                 <DraggableThing key={thing.id} id={thing.id} onShelf={false}>
-                  <StockThingTile thing={thing} keys={keys} action={spawnAction(thing.id)} onChangeKeys={changeKeys} />
+                  <StockThingTile
+                    thing={thing}
+                    keys={keys}
+                    action={spawnAction(thing.id)}
+                    extraMenu={cloneMenu(thing.id)}
+                    onChangeKeys={changeKeys}
+                  />
                 </DraggableThing>
               ))}
               {collection?.things.map((thing) => (
@@ -237,6 +314,7 @@ function ShelfThing({
   keys,
   count,
   action,
+  extraMenu,
   onChangeKeys,
 }: {
   entry: { thing: StockThing; slot: number };
@@ -244,6 +322,7 @@ function ShelfThing({
   keys: ThingKeys;
   count: number;
   action?: ReactNode;
+  extraMenu?: ReactNode;
   onChangeKeys: (keys: ThingKeys) => void;
 }) {
   const [{ over }, drop] = useDrop(
@@ -279,6 +358,7 @@ function ShelfThing({
             <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapThing(keys, entry.thing.id))}>
               Remove from Shortcuts
             </DropdownMenuItem>
+            {extraMenu}
           </>
         }
       />
@@ -291,11 +371,13 @@ function ShortcutShelf({
   keys,
   mapped,
   spawnAction,
+  cloneMenu,
   onChangeKeys,
 }: {
   keys: ThingKeys;
   mapped: { thing: StockThing; slot: number }[];
   spawnAction: (id: string) => ReactNode;
+  cloneMenu: (id: string) => ReactNode;
   onChangeKeys: (keys: ThingKeys) => void;
 }) {
   const [{ over }, drop] = useDrop(
@@ -327,6 +409,7 @@ function ShortcutShelf({
               keys={keys}
               count={mapped.length}
               action={spawnAction(entry.thing.id)}
+              extraMenu={cloneMenu(entry.thing.id)}
               onChangeKeys={onChangeKeys}
             />
           ))}
@@ -371,6 +454,7 @@ function StockThingTile({
   keys,
   action,
   menu,
+  extraMenu,
   onChangeKeys,
 }: {
   thing: StockThing;
@@ -378,6 +462,7 @@ function StockThingTile({
   keys?: ThingKeys;
   action?: ReactNode;
   menu?: ReactNode;
+  extraMenu?: ReactNode;
   onChangeKeys?: (keys: ThingKeys) => void;
 }) {
   const free = keys ? keys.indexOf(null) : -1;
@@ -405,12 +490,16 @@ function StockThingTile({
       }
       action={action}
       menu={
-        menu ??
-        (keys && onChangeKeys && (
-          <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
-            {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
-          </DropdownMenuItem>
-        ))
+        menu ?? (
+          <>
+            {keys && onChangeKeys && (
+              <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
+                {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
+              </DropdownMenuItem>
+            )}
+            {extraMenu}
+          </>
+        )
       }
     />
   );

@@ -1,3 +1,5 @@
+import type { ThingVariables } from "../spawnables/thingVariables.common";
+
 export enum ThirdRoomMessageType {
   EnterWorld = "enter-world",
   EnteredWorld = "entered-world",
@@ -21,6 +23,8 @@ export enum ThirdRoomMessageType {
   ScriptFailed = "script-failed",
   /** Buzzar: spawn a stock Thing in front of the player (from the Things screen). */
   SpawnThing = "spawn-thing",
+  /** Buzzar: your cloned Things (from the Things screen). */
+  SetThingClones = "set-thing-clones",
   /** Buzzar: which Thing is on each number key (from the Things screen). */
   SetThingKeys = "set-thing-keys",
 }
@@ -51,9 +55,27 @@ export interface SetThingKeysMessage {
   keys: ThingKeys;
 }
 
+/**
+ * Buzzar: a cloned Thing: a stock Thing (`base`) with its own name and variables (size, colour…; see
+ * plugins/spawnables/thingVariables.common.ts). Its id (`clone:…`) can go on a number key like a stock Thing's.
+ */
+export interface ThingClone {
+  id: string;
+  base: string;
+  name: string;
+  variables: ThingVariables;
+}
+
+export const isThingCloneId = (id: string) => id.startsWith("clone:");
+
+export interface SetThingClonesMessage {
+  type: ThirdRoomMessageType.SetThingClones;
+  clones: ThingClone[];
+}
+
 export interface SpawnThingMessage {
   type: ThirdRoomMessageType.SpawnThing;
-  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"). */
+  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"), or a clone's id. */
   id: string;
 }
 
@@ -156,6 +178,8 @@ export interface ActionBarItem {
 export interface SetActionBarItemsMessage {
   type: ThirdRoomMessageType.SetActionBarItems;
   actionBarItems: ActionBarItem[];
+  /** Buzzar: the stock Things this world's rules allow (clones go by their base). */
+  allowedThings?: string[];
 }
 
 export interface ObjectCapReachedMessage {

@@ -28,6 +28,7 @@ import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 import { useThingKeysSync } from "../../hooks/useThingKeys";
+import { useThingClonesSync } from "../../hooks/useThingClones";
 import { useAutoRunSync } from "../../hooks/useAutoRun";
 import { ConfirmDialogHost } from "../components/confirm-dialog/ConfirmDialog";
 
@@ -133,6 +134,7 @@ export default function SessionView() {
 /** Buzzar: keeps the game's number-key Things in step with your account (needs the main thread context). */
 function ThingKeysSync() {
   useThingKeysSync();
+  useThingClonesSync();
   return null;
 }
 
