@@ -121,7 +121,7 @@ per-player voice override (§5 voice zones/broadcast). All are listed above.
 | ❌ | Full-body IK + trackers | XL | See §1. |
 | ❌ | Gesture → avatar expression mapping | S | |
 | ❌ | Haptics API | S | |
-| ❌ | Desktop/mobile/touch parity (#156) | M | |
+| 🟡 | Desktop/mobile/touch parity (#156) | M | **2026-11-22:** touch controls (joystick, drag to look, Jump/Crouch/Use/Throw/Straighten/Fly buttons; on by default in mobile browsers) and installing as an app (web app manifest). Still desktop-sized: the menus and world settings aren't laid out for phones yet. |
 | ❌ | Performance: LOD, foveation, fixed-foveated rendering, frame budget on Quest browser | L | |
 
 ## 3b. Controls and controller support
