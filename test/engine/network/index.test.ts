@@ -23,7 +23,12 @@ import {
 } from "../../../src/engine/allocator/CursorView";
 import { mockGameState } from "../mocks";
 import { getModule } from "../../../src/engine/module/module.common";
-import { addPrefabComponent } from "../../../src/engine/prefab/prefab.game";
+import {
+  addPrefabComponent,
+  PrefabCreateData,
+  PrefabType,
+  registerPrefab,
+} from "../../../src/engine/prefab/prefab.game";
 import {
   serializeTransformSnapshot,
   deserializeTransformSnapshot,
@@ -611,6 +616,38 @@ describe("Network Tests", () => {
     });
   });
   describe("creates serialization", () => {
+    it("carries a stock prefab's create data (a cloned Thing's variables) to the other peer", () => {
+      const state = mockGameState();
+      const network = getModule(state, NetworkModule);
+      const received: (ArrayBuffer | undefined)[] = [];
+      registerPrefab(state, {
+        name: "test-thing",
+        type: PrefabType.Object,
+        create: (ctx: GameContext, options?: { createData?: ArrayBuffer }) => {
+          received.push(options?.createData);
+          return new RemoteNode(ctx.resourceManager);
+        },
+      });
+
+      const node = new RemoteNode(state.resourceManager);
+      addComponent(state.world, Owned, node.eid);
+      addComponent(state.world, Networked, node.eid);
+      Networked.networkId[node.eid] = senderNid(node.eid);
+      addPrefabComponent(state.world, node.eid, "test-thing");
+      PrefabCreateData.set(node.eid, new Uint8Array([1, 2, 3, 4, 5]).buffer);
+
+      const writer = createCursorView();
+      serializeCreates(state, writer);
+      network.peerIdToIndex.set(SENDER, SENDER_INDEX);
+      deserializeCreates(state, createCursorView(writer.buffer), SENDER);
+
+      strictEqual(received.length, 1);
+      ok(received[0]);
+      strictEqual(Array.from(new Uint8Array(received[0] as ArrayBuffer)).join(","), "1,2,3,4,5");
+      // Kept for the receiving peer too, so it's passed on if that peer later owns the object.
+      const remote = network.networkIdToEntityId.get(senderNid(node.eid));
+      ok(remote !== undefined && PrefabCreateData.has(remote));
+    });
     it("should #serializeCreates()", () => {
       const state = mockGameState();
       const writer = createCursorView();
