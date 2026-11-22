@@ -41,6 +41,7 @@ import { thingKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
 import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
 import { useKeyBindings } from "../../../hooks/useKeyBindings";
 import { keyLabel } from "../../../../engine/input/keyBindings";
+import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
 import "./WorldControls.css";
 
 export function HotbarControls() {
@@ -116,6 +117,8 @@ export function WorldControls({
   setNameMode: setLocalStorageItem<NameMode>;
 }) {
   const keys = useKeyBindings();
+  // Buzzar (Third Room #156): no keyboard with touch controls, so the buttons go without their key labels.
+  const touchControls = useTouchControlsEnabled();
   const mainThread = useMainThreadContext();
   const { navigateExitWorld } = useWorldNavigator(session);
 
@@ -164,7 +167,7 @@ export function WorldControls({
   useDisableInput(shortcutUI);
 
   return (
-    <div className={classNames(className, "flex")}>
+    <div className={classNames(className, "flex", { "WorldControls--touch": touchControls })}>
       <div className="flex flex-column items-center">
         <Tooltip content="Menu">
           <IconButton variant="world" label="Menu" iconSrc={MenuIC} onClick={openOverlay} />

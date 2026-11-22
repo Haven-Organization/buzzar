@@ -8,3 +8,8 @@
   background-color: rgb(34 197 94 / 35%);
   box-shadow: 0 0 0 2px rgb(34 197 94), 0 0 12px 2px rgb(34 197 94 / 70%);
 }
+
+/* Buzzar (Third Room #156): with touch controls there's no keyboard, so no key labels under the buttons. */
+.WorldControls--touch > div > .Text {
+  display: none;
+}

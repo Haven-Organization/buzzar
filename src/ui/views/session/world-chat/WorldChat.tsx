@@ -1,4 +1,5 @@
 import { useCallback, useReducer, useRef } from "react";
+import { useSetAtom } from "jotai";
 
 import { Room } from "../../../../matrix";
 import "./WorldChat.css";
@@ -12,6 +13,8 @@ import { usePreviousState } from "../../../hooks/usePreviousState";
 import { useTombstone } from "../../../hooks/useTombstone";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { FormattedBody } from "../../components/formatted-body/FormattedBody";
+import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
+import { worldChatVisibilityAtom } from "../../../state/worldChatVisibility";
 
 function useRecentMessages(room?: Room, maxCount = 5) {
   const eventsRef = useRef<any[]>([]);
@@ -47,6 +50,8 @@ export function WorldChat({ room, open }: IWorldChat) {
   const events = useRecentMessages(open ? undefined : room, 5);
   // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
   const upgraded = !!useTombstone(room);
+  const touchControls = useTouchControlsEnabled();
+  const setWorldChatVisibility = useSetAtom(worldChatVisibilityAtom);
   const { session } = useMatrix(true);
   const resolveMxc = useCallback((mxc: string) => session.mediaRepository.mxcUrl(mxc), [session]);
 
@@ -99,6 +104,13 @@ export function WorldChat({ room, open }: IWorldChat) {
               Enter
             </Text>
           </>
+        ) : touchControls ? (
+          // Buzzar (Third Room #156): no Enter key on a phone; the box opens chat.
+          <button type="button" className="WorldChat__tap" onClick={() => setWorldChatVisibility(true)}>
+            <Text variant="b2" color="world">
+              Tap to chat
+            </Text>
+          </button>
         ) : (
           <Text variant="b2" color="world">
             Press <b>Enter</b> to chat

@@ -12,3 +12,12 @@
     margin-right: var(--sp-xs);
   }
 }
+
+/* Buzzar (Third Room #156): the closed chat box opens chat when tapped (touch controls). */
+.WorldChat__tap {
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
