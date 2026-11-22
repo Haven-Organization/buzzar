@@ -343,6 +343,9 @@ export function removePhysicsCollider(world: World, node: RemoteNode) {
   removeComponent(world, RemoteCollider, node.eid);
 }
 
+/** Rotational damping for dynamic bodies (per second); a spinning object loses about 18% of its spin a second. */
+export const DYNAMIC_ANGULAR_DAMPING = 0.2;
+
 export function addPhysicsBody(
   world: World,
   physics: PhysicsModuleState,
@@ -377,6 +380,9 @@ export function addPhysicsBody(
     rigidBodyDesc.setAngvel(
       new RAPIER.Vector3(physicsBody.angularVelocity[0], physicsBody.angularVelocity[1], physicsBody.angularVelocity[2])
     );
+    // Buzzar (Third Room #298): a little rotational damping, like rolling resistance. Without it nothing ever slowed
+    // a spin, so an object wedged in a gap could spin in place forever instead of settling and going to sleep.
+    rigidBodyDesc.setAngularDamping(DYNAMIC_ANGULAR_DAMPING);
   } else {
     throw new Error(`Unsupported physics body type: "${physicsBody.type}"`);
   }
