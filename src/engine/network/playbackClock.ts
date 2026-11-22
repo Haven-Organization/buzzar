@@ -7,8 +7,9 @@
  * interpolate between. The delay behind the newest data is:
  *
  * - at least about one and a half send intervals (a sample must have arrived after the playback time);
- * - plus the recent jitter: how much later than the fastest recent packet each packet arrived. Steady networks get a
- *   short delay, bursty ones (Wi-Fi, a busy peer) a longer one;
+ * - plus the recent jitter: how much later than the fastest recent packet nearly all recent packets arrived (the 95th
+ *   percentile over a few seconds, so one odd late packet doesn't count). Steady networks get a short delay, bursty
+ *   ones (Wi-Fi, a busy peer) a longer one;
  * - kept between MIN_DELAY_MS and MAX_DELAY_MS.
  *
  * The two machines' clocks needn't agree: only the difference (sender clock − our clock) is used, taking the largest
@@ -17,26 +18,30 @@
  */
 
 export const MIN_DELAY_MS = 40;
-export const MAX_DELAY_MS = 400;
-/** How far back the fastest packet is remembered (ms of our clock). */
+/**
+ * Most a peer is shown behind. Only approached by peers whose packets come in bursts (a machine that stutters: about
+ * one burst a second was seen in a two-client test), which would otherwise freeze between bursts.
+ */
+export const MAX_DELAY_MS = 1500;
+/** How far back packets are remembered for the fastest packet and the jitter (ms of our clock). */
 const OFFSET_WINDOW_MS = 3000;
-/** Jitter estimate: rises quickly with a late packet, falls slowly. */
-const JITTER_RISE = 0.3;
-const JITTER_FALL = 0.01;
+/** The share of recent packets the delay should cover. */
+const JITTER_PERCENTILE = 0.95;
 /** Most the playback clock speeds up or slows down to catch its target (0.1 = ±10%). */
 const SPEED_RANGE = 0.1;
 /** Fraction of the distance to the target closed per second. */
 const CATCH_UP_PER_SECOND = 2;
 /** Further off than this (ms), the playback clock jumps (after a pause, a stall or a first packet). */
-const SNAP_MS = 1000;
+const SNAP_MS = 2500;
 
 export interface PlaybackClock {
   /** Recent (our clock, sender clock − our clock) pairs, oldest first. */
   offsets: { local: number; offset: number }[];
   /** The largest recent offset: the least-delayed packet. */
   bestOffset: number;
-  /** Estimated extra delay of a late packet (ms). */
+  /** How much later than the fastest recent packet nearly all recent packets arrived (ms). */
   jitter: number;
+  offsetsChanged?: boolean;
   /** Estimated time between the sender's packets (ms). */
   interval: number;
   lastRemote?: number;
@@ -64,22 +69,30 @@ export function addClockSample(clock: PlaybackClock, remote: number, local: numb
   const offset = remote - local;
   clock.offsets.push({ local, offset });
   while (clock.offsets.length > 1 && local - clock.offsets[0].local > OFFSET_WINDOW_MS) clock.offsets.shift();
+  clock.offsetsChanged = true;
+}
+
+/** The fastest recent packet, and how much later than it nearly all recent packets were. */
+function updateJitter(clock: PlaybackClock) {
+  if (!clock.offsetsChanged) return;
+  clock.offsetsChanged = false;
   let best = -Infinity;
   for (const sample of clock.offsets) best = Math.max(best, sample.offset);
   clock.bestOffset = best;
-
-  const late = best - offset;
-  clock.jitter += (late - clock.jitter) * (late > clock.jitter ? JITTER_RISE : JITTER_FALL);
+  const lateness = clock.offsets.map((sample) => best - sample.offset).sort((a, b) => a - b);
+  clock.jitter = lateness[Math.min(lateness.length - 1, Math.floor(lateness.length * JITTER_PERCENTILE))] ?? 0;
 }
 
 export function targetDelay(clock: PlaybackClock) {
-  const delay = clock.interval * 1.5 + clock.jitter * 1.5;
+  // A little headroom: the estimate moves as packets come and go, and playback follows it only gradually.
+  const delay = clock.interval * 1.5 + clock.jitter * 1.25 + 10;
   return Math.min(MAX_DELAY_MS, Math.max(MIN_DELAY_MS, delay));
 }
 
 /** Advances to our time `local` and returns the playback time on the sender's clock, or undefined before any packet. */
 export function advancePlaybackClock(clock: PlaybackClock, local: number): number | undefined {
   if (clock.offsets.length === 0) return undefined;
+  updateJitter(clock);
   clock.targetDelay = targetDelay(clock);
   const target = local + clock.bestOffset - clock.targetDelay;
   if (clock.playback === undefined || clock.lastLocal === undefined || Math.abs(target - clock.playback) > SNAP_MS) {

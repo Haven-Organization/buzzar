@@ -29,16 +29,27 @@ interface Simulation {
   durationMs?: number;
   /** A period (ms of sender time) when nothing is sent. */
   pause?: [number, number];
+  /** Packets are held and delivered together this often (ms). */
+  burstEvery?: number;
 }
 
 /** Runs a sender and a receiver; returns, per receiver frame after warm-up, the delay behind the newest sample. */
-function simulate({ sendEvery, delay, skew = 0, frame = 1000 / 60, durationMs = 20000, pause }: Simulation) {
+function simulate({
+  sendEvery,
+  delay,
+  skew = 0,
+  frame = 1000 / 60,
+  durationMs = 20000,
+  pause,
+  burstEvery,
+}: Simulation) {
   const random = rng(42);
   const packets: { sent: number; arrives: number }[] = [];
   for (let t = 0; t < durationMs; t += sendEvery) {
     if (pause && t >= pause[0] && t < pause[1]) continue;
     // Reliable ordered delivery: a packet can't overtake the one before (head-of-line blocking).
-    const arrives = Math.max(t + delay(random()), packets.length ? packets[packets.length - 1].arrives : 0);
+    let arrives = Math.max(t + delay(random()), packets.length ? packets[packets.length - 1].arrives : 0);
+    if (burstEvery) arrives = Math.ceil(arrives / burstEvery) * burstEvery;
     packets.push({ sent: t + skew, arrives });
   }
   const clock = createPlaybackClock();
@@ -76,6 +87,13 @@ describe("playback clock (Third Room #237)", () => {
 
   it("copes with bursty delivery (an occasional packet held up, the next ones arriving together)", () => {
     const { frames } = simulate({ sendEvery: 1000 / 60, delay: (r) => (r < 0.03 ? 30 + r * 4000 : 30) });
+    expect(starvedShare(frames)).toBeLessThan(0.05);
+  });
+
+  it("bridges a peer whose packets arrive in bursts about a second apart (a stuttering machine)", () => {
+    // Sent every frame, but delivered once a second, all together.
+    const { frames, clock } = simulate({ sendEvery: 1000 / 60, delay: (r) => 30 + r * 5, burstEvery: 1000 });
+    expect(clock.targetDelay).toBeGreaterThan(950);
     expect(starvedShare(frames)).toBeLessThan(0.05);
   });
 
