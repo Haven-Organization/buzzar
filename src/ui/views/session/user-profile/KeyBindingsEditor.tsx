@@ -97,7 +97,7 @@ export function KeyBindingsEditor() {
                       setNotice(undefined);
                     }}
                   >
-                    Default ({keyLabel(action.defaultKey)})
+                    {`Default (${keyLabel(action.defaultKey)})`}
                   </Button>
                 )}
                 {listening === action.id ? (

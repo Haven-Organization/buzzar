@@ -16,6 +16,7 @@ import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { ControllerControlsList } from "../world/ShortcutUI";
 import { KeyBindingsEditor } from "./KeyBindingsEditor";
+import { useActionKeyLabel } from "../../../hooks/useKeyBindings";
 import {
   GamepadChoice,
   getGamepadChoice,
@@ -87,6 +88,7 @@ export function ControlsSettings() {
   const pads = useConnectedGamepads();
   const [choice, setChoice] = useGamepadChoice();
   const [autoRun, setAutoRun] = useAtom(autoRunAtom);
+  const runKey = useActionKeyLabel("run");
 
   const options = useMemo(() => {
     const list: { value: string; label: string; choice: GamepadChoice }[] = [
@@ -177,7 +179,7 @@ export function ControlsSettings() {
         <SettingTile className="ControlsSettings__autoRun" label={<Label>Auto Run</Label>}>
           <Switch checked={autoRun} onCheckedChange={setAutoRun} />
           <Text variant="b3" color="surface-low">
-            Moving with the keys runs, and holding Shift walks instead.
+            Moving with the keys runs, and holding {runKey} walks instead.
           </Text>
         </SettingTile>
         <KeyBindingsEditor />
