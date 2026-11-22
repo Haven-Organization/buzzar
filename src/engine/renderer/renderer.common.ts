@@ -207,6 +207,9 @@ export enum RenderStats {
   triangles,
   points,
   lines,
+  /** Buzzar (Third Room #365): frames in the last second that showed new game state, and the longest frame (ms). */
+  freshFps,
+  worstFrame,
 }
 
 export interface RenderStatsBuffer {

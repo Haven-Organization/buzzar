@@ -1,6 +1,9 @@
 export enum Stats {
   gameTime,
   gameDuration,
+  /** Buzzar (Third Room #365): game ticks in the last second, and the longest of them (ms). */
+  gameFps,
+  gameWorstFrame,
 }
 
 export interface StatsBuffer {

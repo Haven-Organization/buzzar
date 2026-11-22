@@ -21,9 +21,26 @@ export const StatsModule = defineModule<GameContext, StatsModuleState>({
   init() {},
 });
 
+// Ticks counted over a one-second window (Third Room #365: a per-frame rate hides stutter).
+let windowStart = 0;
+let windowTicks = 0;
+let windowWorst = 0;
+
 export function GameWorkerStatsSystem(ctx: GameContext) {
   const stats = getModule(ctx, StatsModule);
-  const frameDuration = performance.now() - ctx.elapsed;
+  const now = performance.now();
+  const frameDuration = now - ctx.elapsed;
   stats.statsBuffer.f32[Stats.gameTime] = ctx.dt;
   stats.statsBuffer.f32[Stats.gameDuration] = frameDuration;
+
+  windowTicks++;
+  windowWorst = Math.max(windowWorst, ctx.dt * 1000);
+  if (now - windowStart >= 1000) {
+    const seconds = windowStart ? (now - windowStart) / 1000 : 1;
+    stats.statsBuffer.f32[Stats.gameFps] = windowTicks / seconds;
+    stats.statsBuffer.f32[Stats.gameWorstFrame] = windowWorst;
+    windowStart = now;
+    windowTicks = 0;
+    windowWorst = 0;
+  }
 }
