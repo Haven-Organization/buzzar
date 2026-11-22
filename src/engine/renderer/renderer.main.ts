@@ -19,6 +19,7 @@ import {
 } from "./renderer.common";
 import { createDisposables } from "../utils/createDisposables";
 import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
+import { generateWorldMap } from "../../plugins/world-map/worldMap.main";
 
 export interface MainRendererModuleState {
   statsBuffer: RenderStatsBuffer;
@@ -69,6 +70,12 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
       // Buzzar dev convenience (Third Room #204): try a world's shadow settings live, e.g.
       // thirdroom.setWorldShadows({ baked_sun: { enabled: true, azimuth: 135, elevation: 60, strength: 0.6 } }).
       registerThirdroomGlobalFn("setWorldShadows", (shadows: unknown) => setWorldShadows(ctx, parseWorldShadows(shadows))),
+      // Buzzar (Third Room #461): thirdroom.generateWorldMap(2.5) draws the map; the result has a URL for the picture.
+      registerThirdroomGlobalFn("generateWorldMap", async (cutHeight?: number) => {
+        const { blob, area } = await generateWorldMap(ctx, cutHeight);
+        const url = URL.createObjectURL(blob);
+        return { area, type: blob.type, size: blob.size, url };
+      }),
     ]);
   },
 });

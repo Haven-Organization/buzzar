@@ -14,7 +14,7 @@ Written against the glTF 2.0 spec.
 
 ## Overview
 
-This extension gives a world its own map picture: a top-down image of the world that Buzzar shows when someone presses M, with a dot for everyone in the world and an arrow for themselves.
+This extension gives a world its own map picture: a top-down image of the world that Buzzar shows when someone presses O, with a dot for everyone in the world and an arrow for themselves.
 
 Use it for a hand-drawn or stylised map. Without it, a world's creator can generate a map in World Settings → Map, which draws the world from straight above. A world file's own map takes priority over a generated one.
 

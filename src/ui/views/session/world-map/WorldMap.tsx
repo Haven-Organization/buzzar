@@ -1,5 +1,5 @@
 /**
- * Buzzar (Third Room #461): the world map, on M. A top-down picture of the world (the world file's own, else the one
+ * Buzzar (Third Room #461): the world map, on O. A top-down picture of the world (the world file's own, else the one
  * its creator generated, else a plain grid) with a dot for everyone in it and an arrow for you. It doesn't take the
  * mouse: you can keep walking with it open. Positions only flow while it's open (see plugins/world-map).
  */
@@ -65,7 +65,7 @@ export function WorldMap({ room, blocked }: { room: Room; blocked: boolean }) {
 
   useKeyDown(
     (e) => {
-      if (e.code !== "KeyM" || e.repeat || e.altKey || e.ctrlKey || e.metaKey || inputFocused()) return;
+      if (e.code !== "KeyO" || e.repeat || e.altKey || e.ctrlKey || e.metaKey || inputFocused()) return;
       if (blocked && !open) return;
       setOpen((o) => !o);
     },
@@ -145,7 +145,7 @@ export function WorldMap({ room, blocked }: { room: Room; blocked: boolean }) {
             {!(src && image) && " · This world has no map picture yet"}
           </Text>
           <Text variant="b3" color="world">
-            <Kbd size="xs">M</Kbd> Close
+            <Kbd size="xs">O</Kbd> Close
           </Text>
         </div>
       </div>

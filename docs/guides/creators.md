@@ -38,7 +38,7 @@ To use your 3D creations in Buzzar, you'll need to upload them to the platform. 
 
 ## World Map
 
-People press M in a world to see a map with a dot for everyone in it. To give your world a map picture:
+People press O in a world to see a map with a dot for everyone in it. To give your world a map picture:
 
 1. Enter your world, open its settings and go to **Map**.
 1. For an indoor world, turn on **Leave Out Everything Above a Height** and set it just under the ceiling, so the rooms show instead of the roof.

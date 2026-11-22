@@ -64,7 +64,7 @@ export function KeyboardControlsList() {
       {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
       {renderItem("Climb a ladder: walk into it (S down, Space lets go)", <Kbd size="xs">W</Kbd>)}
       {renderItem("Names: banners / names only / hidden", <Kbd size="xs">N</Kbd>)}
-      {renderItem("World Map", <Kbd size="xs">M</Kbd>)}
+      {renderItem("World Map", <Kbd size="xs">O</Kbd>)}
       {renderItem("Hide / show the HUD", <Kbd size="xs">H</Kbd>)}
       {renderItem(
         "Show Statistics",

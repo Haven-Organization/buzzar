@@ -3,7 +3,7 @@
  * their own machine, while in the world) and saves the picture; everyone else just downloads it. A map in the world
  * file itself (HAVEN_map) takes priority over this one.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 
 import { BlobHandle, Room } from "../../../../matrix";
@@ -17,15 +17,8 @@ import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { worldAtom } from "../../../state/world";
 import { uploadAttachment } from "../../../utils/matrixUtils";
-import { registerMessageHandler, Thread } from "../../../../engine/module/module.common";
-import {
-  serializeMapEvent,
-  WORLD_MAP_EVENT,
-  WorldMapArea,
-  WorldMapGenerateMessage,
-  WorldMapGeneratedMessage,
-  WorldMapMessageType,
-} from "../../../../plugins/world-map/worldMap.common";
+import { serializeMapEvent, WORLD_MAP_EVENT, WorldMapArea } from "../../../../plugins/world-map/worldMap.common";
+import { generateWorldMap } from "../../../../plugins/world-map/worldMap.main";
 import { useGeneratedWorldMap, useMapImageSrc } from "../world-map/useWorldMapImage";
 
 const metres = (area: WorldMapArea) =>
@@ -51,35 +44,22 @@ export function WorldMapSettings({ room, canEdit }: { room: Room; canEdit: boole
   const [busy, setBusy] = useState<"generating" | "saving" | "removing">();
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const nextId = useRef(1);
 
   const shown = draft ?? saved;
   const src = useMapImageSrc(draft ? { ...draft.area, blob: draft.blob } : saved);
 
-  const generate = () => {
-    const id = nextId.current++;
+  const generate = async () => {
     setBusy("generating");
     setError(undefined);
     setNotice(undefined);
-    const dispose = registerMessageHandler(
-      mainThread,
-      WorldMapMessageType.Generated,
-      (_ctx, message: WorldMapGeneratedMessage) => {
-        if (message.id !== id) return;
-        dispose();
-        setBusy(undefined);
-        if (message.blob && message.area) {
-          setDraft({ blob: message.blob, area: message.area, cutHeight: cut ? cutHeight : undefined });
-        } else {
-          setError(message.error ?? "Couldn't draw the map.");
-        }
-      }
-    );
-    mainThread.sendMessage<WorldMapGenerateMessage>(Thread.Render, {
-      type: WorldMapMessageType.Generate,
-      id,
-      cutHeight: cut ? cutHeight : undefined,
-    });
+    try {
+      const { blob, area } = await generateWorldMap(mainThread, cut ? cutHeight : undefined);
+      setDraft({ blob, area, cutHeight: cut ? cutHeight : undefined });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(undefined);
+    }
   };
 
   const save = async () => {
@@ -94,7 +74,7 @@ export function WorldMapSettings({ room, canEdit }: { room: Room; canEdit: boole
         .sendState(room.id, WORLD_MAP_EVENT, "", serializeMapEvent(mxc, draft.area, draft.cutHeight))
         .response();
       setDraft(undefined);
-      setNotice("Map saved. Everyone in the world sees it on M.");
+      setNotice("Map saved. Everyone in the world sees it on O.");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -118,7 +98,7 @@ export function WorldMapSettings({ room, canEdit }: { room: Room; canEdit: boole
   return (
     <div className="flex flex-column gap-md">
       <Text variant="b3" color="surface-low">
-        People press M in the world to see a map with everyone on it. Generate the picture once here: it&apos;s drawn
+        People press O in the world to see a map with everyone on it. Generate the picture once here: it&apos;s drawn
         from straight above on your computer and saved with the world, so visitors only download a small image.
       </Text>
       {shown && src ? (
