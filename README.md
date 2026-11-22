@@ -289,6 +289,11 @@ Open http://localhost:3000
 The Buzzar client can be deployed to any static web host with the ability for wildcard routing for single page web
 apps and adding HTTP headers.
 
+The [Dockerfile](./Dockerfile) builds the app and serves it with nginx, headers included
+(`docker build -t buzzar . && docker run -p 8080:80 buzzar`); edit `config.json` first to choose the default
+homeserver. Outside localhost, put it behind TLS: browsers only allow the microphone and shared memory on secure
+origins.
+
 Third Room was deployed to Netlify via a custom GitHub actions deploy script, which this repository still contains. If you fork our repository and
 set the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` secrets in your GitHub configuration, this setup should work for you
 as well. Every PR will be built and deployed as a preview deploy and every commit / merge to `main` will be deployed to
