@@ -48,7 +48,7 @@ infrastructure and can't scale to VRChat-sized instances.
 - [ ] 🟡 **S** Network correctness:
       - peer index is a 16-bit hash, so collisions are possible;
       - unreliable channels are a TODO (`network.main.ts:240`);
-      - interpolation is off by default;
+      - ~~interpolation is off by default~~ on since 2026-11-22, with a playback delay fitted to each peer (`playbackClock.ts`, Third Room #237);
       - ~~the string/binary flag bug (`network/scripting.game.ts:48`)~~ fixed 2026-11-17.
 - [ ] ❌ **M** Instances (VRChat Public/Friends+/Invite/Group). One world room, many concurrent
       instances, each a MatrixRTC slot with a capacity and a join queue. 🅼
