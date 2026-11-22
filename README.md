@@ -146,31 +146,40 @@ Most of our rendering features will be tied to the glTF
 Currently supported:
 
 - [KHR_materials_unlit](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_unlit/README.md)
-- [EXT_mesh_gpu_instancing](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_mesh_gpu_instancing/README.md)
-- [KHR_lights_punctual](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md)
-- [KHR_texture_transform](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_transform/README.md)
-- [KHR_materials_emissive_strength](https://github.com/KhronosGroup/glTF/blob/c58e7e57184a4024dd1877dd9d219b198d6e0006/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md)
+- [KHR_materials_emissive_strength](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md)
 - [KHR_materials_ior](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_ior/README.md)
 - [KHR_materials_transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md)
 - [KHR_materials_volume](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_volume/README.md)
-- [KHR_texture_basisu](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_basisu/README.md)
-
-To Do:
-
-- [KHR_draco_mesh_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_draco_mesh_compression/README.md)
 - [KHR_materials_clearcoat](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_clearcoat/README.md)
 - [KHR_materials_sheen](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_sheen/README.md)
 - [KHR_materials_specular](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_specular/README.md)
-- [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
-- [EXT_meshopt_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md)
+- [KHR_materials_iridescence](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_iridescence/README.md)
+- [KHR_texture_transform](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_transform/README.md)
+- [KHR_texture_basisu](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_texture_basisu/README.md)
 - [EXT_texture_webp](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_texture_webp/README.md)
-- [KHR_materials_iridescence](https://github.com/KhronosGroup/glTF/blob/1ad76e411dbb4892cda68806b038b4b7c9ecfcd7/extensions/2.0/Khronos/KHR_materials_iridescence/README.md)
-- [KHR_materials_anisotropy](https://github.com/KhronosGroup/glTF/blob/f7bda8718ad8b079f9cc53d94685ab67a5e48b0c/extensions/2.0/Khronos/KHR_materials_anisotropy/README.md)
-- [KHR_materials_diffuse_transmission](https://github.com/KhronosGroup/glTF/blob/5c66d6cb639708fdbedb632264b239e08be3bbcd/extensions/2.0/Khronos/KHR_materials_diffuse_transmission/README.md)
+- [KHR_draco_mesh_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_draco_mesh_compression/README.md)
+- [EXT_meshopt_compression](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_meshopt_compression/README.md)
+- [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
+- [EXT_mesh_gpu_instancing](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Vendor/EXT_mesh_gpu_instancing/README.md)
+- [KHR_lights_punctual](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md)
+- [MOZ_lightmap](https://github.com/takahirox/MOZ_lightmap) (draft; as used by Mozilla Hubs scenes) and Third Room's
+  own `MX_lightmap`
+- [KHR_lights_shadows](https://github.com/takahirox/KHR_lights_shadows) (draft) and Third Room's own `MX_lights_shadows`
+
+To Do:
+
+- [KHR_materials_anisotropy](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_anisotropy/README.md):
+  needs Three.js r153 or later (Buzzar uses a fork of 0.148).
+
+These need custom shaders (Three.js doesn't draw them):
+
+- [KHR_materials_diffuse_transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_diffuse_transmission/README.md)
 - [KHR_materials_sss](https://github.com/KhronosGroup/glTF/blob/5784a1edc85ad3323dc0ff1fa42ad49525d3f598/extensions/2.0/Khronos/KHR_materials_sss/README.md)
-- [MOZ_lightmap](https://github.com/takahirox/MOZ_lightmap)
-- [EXT_texture_video](https://github.com/takahirox/EXT_texture_video)
-- [KHR_lights_shadows](https://github.com/takahirox/KHR_lights_shadows)
+
+Not started:
+
+- [EXT_texture_video](https://github.com/takahirox/EXT_texture_video) (draft): video textures. Wants the synced video
+  playback planned for world scripts first.
 
 Instead of the Three.js GLTFLoader, we've implemented our own glTF loader that works with our multithreaded
 architecture. However, the renderer is still using Three.js. This means as Three.js improves support for glTF
