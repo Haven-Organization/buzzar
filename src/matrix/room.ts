@@ -8,6 +8,7 @@ import {
   MatrixEvent,
   MatrixEventEvent,
   NotificationCountType,
+  ReceiptType,
   Room as SdkRoom,
   RoomEvent,
   RoomMember as SdkRoomMember,
@@ -551,9 +552,10 @@ export class Room extends EventEmitter<{ change: undefined }> {
   }
 
   /**
-   * Marks everything in the room as read: the read receipt and the "fully read" marker on its newest event, as
-   * Element's "Mark as read" does. That receipt is unthreaded; matrix-js-sdk's sendReadReceipt sends one for the
-   * main thread (`thread_id: "main"`), which the server's notification list didn't count as read.
+   * Marks everything in the room as read: the fully-read marker and every kind of read receipt (public and private,
+   * room-wide and main-thread) move to the newest event. The server's notification list compares a notification with
+   * whichever of your receipts in the room it reads first, not the newest; an older one left behind (e.g. a private
+   * receipt from another client) kept notifications "unread" after the room was read.
    */
   async clearUnread() {
     const events = this.sdk.getLiveTimeline().getEvents();
@@ -562,7 +564,14 @@ export class Room extends EventEmitter<{ change: undefined }> {
       if (!this.sdk.hasPendingEvent(events[i].getId() ?? "")) last = events[i];
     }
     const eventId = last?.getId();
-    if (last && eventId) await this.client.setRoomReadMarkers(this.id, eventId, last).catch(() => undefined);
+    if (!last || !eventId) return;
+    await Promise.all([
+      // Room-wide m.read and m.read.private, plus the fully-read marker.
+      this.client.setRoomReadMarkers(this.id, eventId, last, last),
+      // Main-thread receipts (what matrix-js-sdk sends by default).
+      this.client.sendReadReceipt(last, ReceiptType.Read),
+      this.client.sendReadReceipt(last, ReceiptType.ReadPrivate),
+    ]).catch((e) => console.warn("Couldn't mark the room read", e));
   }
 
   /** Called once the user has left this room, so lists drop it without waiting for sync to say so. */
