@@ -140,12 +140,14 @@ export function patchMaterial(ctx: RenderContext, material: PrimitiveMaterial) {
 
   if (!material.userData.beforeCompileHook) {
     const lightMapTransform = new Uniform(new Matrix3().setUvTransform(0, 0, 1, 1, 0, 0, 0));
+    const lightMapRGBM = new Uniform(0);
     const reflectionProbesMap = new Uniform(rendererModule.reflectionProbesMap);
     const reflectionProbeParams = new Uniform(new Vector3());
     const reflectionProbeSampleParams = new Uniform(new Vector3());
 
     material.onBeforeCompile = (shader) => {
       shader.uniforms.lightMapTransform = lightMapTransform;
+      shader.uniforms.lightMapRGBM = lightMapRGBM;
       shader.uniforms.reflectionProbesMap = reflectionProbesMap;
       shader.uniforms.reflectionProbeParams = reflectionProbeParams;
       shader.uniforms.reflectionProbeSampleParams = reflectionProbeSampleParams;
@@ -153,6 +155,7 @@ export function patchMaterial(ctx: RenderContext, material: PrimitiveMaterial) {
 
     material.userData.beforeCompileHook = true;
     material.userData.lightMapTransform = lightMapTransform;
+    material.userData.lightMapRGBM = lightMapRGBM;
     material.userData.reflectionProbesMap = reflectionProbesMap;
     material.userData.reflectionProbeParams = reflectionProbeParams;
     material.userData.reflectionProbeSampleParams = reflectionProbeSampleParams;

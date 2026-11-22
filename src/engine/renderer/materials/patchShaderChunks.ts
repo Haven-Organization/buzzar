@@ -60,12 +60,21 @@ export default function patchShaderChunks() {
 
   // Decode Unity's RGBM lightmaps which are encoded in non-linear space
   // https://blog.karthisoftek.com/a?ID=00700-75580c91-4379-46bf-8797-cfdad5dcbc6f
+  // Buzzar (Third Room #396): only when the light map is RGBM (MX_texture_rgbm). Decoding every light map this way
+  // made plain ones (e.g. MOZ_lightmap from Hubs scenes) come out far too bright.
+  ShaderChunk.lightmap_pars_fragment = ShaderChunk.lightmap_pars_fragment.replace(
+    "uniform sampler2D lightMap;",
+    `uniform sampler2D lightMap;
+    uniform float lightMapRGBM;`
+  );
   ShaderChunk.lights_fragment_maps = ShaderChunk.lights_fragment_maps.replace(
     "vec4 lightMapTexel = texture2D( lightMap, vUv2 );",
     `
     vec4 lightMapTexel = texture2D( lightMap, vUv2 );
-    lightMapTexel.rgb = 34.49 * pow(lightMapTexel.a, 2.2) * lightMapTexel.rgb;
-    lightMapTexel.a = 1.0;
+    if ( lightMapRGBM > 0.5 ) {
+      lightMapTexel.rgb = 34.49 * pow(lightMapTexel.a, 2.2) * lightMapTexel.rgb;
+      lightMapTexel.a = 1.0;
+    }
     `
   );
 

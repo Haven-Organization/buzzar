@@ -1,11 +1,32 @@
-import { Color } from "three";
+import { Color, Texture, Vector2, WebGLRenderTarget } from "three";
 
 import { getModule } from "../../module/module.common";
-import { RendererModule, RenderContext } from "../renderer.render";
+import { RendererModule, RendererModuleState, RenderContext } from "../renderer.render";
 import { LoadStatus } from "../../resource/resource.common";
 import { RenderScene } from "../RenderResources";
 
 const blackBackground = new Color(0x000000);
+
+/**
+ * Buzzar (Third Room #396): an RGBM skybox (MX_texture_rgbm) drawn as it is looks wrong (its brightness is in the
+ * alpha channel). It's decoded once through the PMREM generator, which three.js can draw as a background.
+ */
+const RGBM_DECODE = new Vector2(34.49, 2.2);
+let decodedBackground: { source: Texture; target: WebGLRenderTarget } | undefined;
+
+function backgroundFor(rendererModule: RendererModuleState, texture: Texture, rgbm: boolean) {
+  if (!rgbm) return texture;
+  if (decodedBackground?.source !== texture) {
+    decodedBackground?.target.dispose();
+    // The fork's PMREMGenerator takes decode parameters as a third argument (its typings leave it out).
+    const pmrem = rendererModule.pmremGenerator as unknown as {
+      fromEquirectangular(texture: Texture, target: null, decode: Vector2): WebGLRenderTarget;
+    };
+    const target = pmrem.fromEquirectangular(texture, null, RGBM_DECODE);
+    decodedBackground = { source: texture, target };
+  }
+  return decodedBackground.target.texture;
+}
 
 export function UpdateActiveSceneResourceSystem(ctx: RenderContext) {
   const rendererModule = getModule(ctx, RendererModule);
@@ -45,8 +66,9 @@ export function UpdateActiveSceneResourceSystem(ctx: RenderContext) {
         showBackground = xrSession.environmentBlendMode === "opaque";
       }
 
-      if (activeScene.backgroundTexture?.loadStatus === LoadStatus.Loaded && showBackground) {
-        rendererModule.scene.background = activeScene.backgroundTexture?.texture || null;
+      const background = activeScene.backgroundTexture;
+      if (background?.loadStatus === LoadStatus.Loaded && background.texture && showBackground) {
+        rendererModule.scene.background = backgroundFor(rendererModule, background.texture, !!background.rgbm);
       } else {
         rendererModule.scene.background = null;
       }

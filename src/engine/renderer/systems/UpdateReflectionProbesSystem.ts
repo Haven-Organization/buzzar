@@ -31,21 +31,20 @@ export function UpdateReflectionProbesSystem(ctx: RenderContext) {
 
   // Only update reflection probe texture array if the reflection probes changed
   if (needsUpdate) {
-    let useRGBM = false;
     const reflectionProbeTextures: Texture[] = [];
+    // Buzzar (Third Room #396): whether each texture is RGBM. One decode for the whole array decoded plain probes
+    // as RGBM too whenever any probe in the world was RGBM.
+    const rgbm: boolean[] = [];
 
     // Add the scene reflection probe to the texture array
     if (
       scene.reflectionProbe?.reflectionProbeTexture?.loadStatus === LoadStatus.Loaded &&
       scene.reflectionProbe.reflectionProbeTexture.texture
     ) {
-      if (scene.reflectionProbe.reflectionProbeTexture.rgbm) {
-        useRGBM = true;
-      }
-
       scene.reflectionProbe.textureArrayIndex = reflectionProbeTextures.length;
       scene.reflectionProbeNeedsUpdate = false;
       reflectionProbeTextures.push(scene.reflectionProbe.reflectionProbeTexture.texture);
+      rgbm.push(!!scene.reflectionProbe.reflectionProbeTexture.rgbm);
     }
 
     // Add each node reflection probe to the texture array array
@@ -60,10 +59,7 @@ export function UpdateReflectionProbesSystem(ctx: RenderContext) {
         reflectionProbe.resource.textureArrayIndex = reflectionProbeTextures.length;
         reflectionProbe.needsUpdate = false;
         reflectionProbeTextures.push(reflectionProbeTexture.texture);
-
-        if (reflectionProbeTexture.rgbm) {
-          useRGBM = true;
-        }
+        rgbm.push(!!reflectionProbeTexture.rgbm);
       }
     }
 
@@ -73,7 +69,7 @@ export function UpdateReflectionProbesSystem(ctx: RenderContext) {
     }
 
     if (reflectionProbeTextures.length > 0) {
-      const hdrDecodeParams = useRGBM ? new Vector2(34.49, 2.2) : null;
+      const hdrDecodeParams = perTextureDecodeParams(rgbm);
 
       const renderTarget = (rendererModule.pmremGenerator as any).fromEquirectangularArray(
         reflectionProbeTextures,
@@ -102,4 +98,25 @@ export function UpdateReflectionProbesSystem(ctx: RenderContext) {
       rendererModule.reflectionProbesMap = null;
     }
   }
+}
+
+const RGBM_DECODE = new Vector2(34.49, 2.2);
+const NO_DECODE = new Vector2(1, 1);
+
+/**
+ * Buzzar (Third Room #396): decode parameters for each texture of a reflection probe array. The PMREM generator takes
+ * one Vector2 for the whole array and copies it (`.copy()`, reading x then y) once per texture, so this object steps
+ * through the list as it's read. (1, 1) leaves a texture as it is (its alpha is 1).
+ */
+export function perTextureDecodeParams(rgbm: boolean[]): Vector2 {
+  let reads = 0;
+  const current = () => (rgbm[Math.floor(reads++ / 2)] ? RGBM_DECODE : NO_DECODE);
+  return {
+    get x() {
+      return current().x;
+    },
+    get y() {
+      return current().y;
+    },
+  } as unknown as Vector2;
 }
