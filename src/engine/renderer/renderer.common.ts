@@ -36,6 +36,8 @@ export interface InitializeRendererMessage {
   canvasTarget?: OffscreenCanvas;
   initialCanvasWidth: number;
   initialCanvasHeight: number;
+  /** Buzzar: the screen's density (window.devicePixelRatio), which the render worker can't read itself. */
+  devicePixelRatio?: number;
   quality: RenderQuality;
   /** Buzzar (Third Room #211): lower the resolution while frames run long (on when render quality is Auto). */
   dynamicResolution?: boolean;
@@ -63,6 +65,8 @@ export interface CanvasResizeMessage {
   type: RendererMessageType.CanvasResize;
   canvasWidth: number;
   canvasHeight: number;
+  /** Buzzar: the screen's density; changes with browser zoom or a move to another monitor. */
+  devicePixelRatio?: number;
 }
 
 export interface EnableMatrixMaterialMessage {
@@ -251,6 +255,23 @@ export enum RenderQuality {
   Medium,
   High,
   Ultra,
+}
+
+/**
+ * Buzzar: the most screen pixels per CSS pixel each quality draws. It was always 1 (0.75 on Low), so high-density
+ * screens (phones at 2.5-3×, many laptops at 2×) showed a stretched, blurry picture whatever the quality. Low keeps
+ * 0.75; the others use the screen's density up to this cap. Dynamic resolution still lowers it if frames run long.
+ */
+const QualityMaxPixelRatio = {
+  [RenderQuality.Low]: 0.75,
+  [RenderQuality.Medium]: 1.5,
+  [RenderQuality.High]: 2,
+  [RenderQuality.Ultra]: 3,
+};
+
+export function basePixelRatioFor(quality: RenderQuality, devicePixelRatio: number) {
+  if (quality === RenderQuality.Low) return QualityMaxPixelRatio[RenderQuality.Low];
+  return Math.max(1, Math.min(devicePixelRatio || 1, QualityMaxPixelRatio[quality]));
 }
 
 export const RenderQualityToSetting = {

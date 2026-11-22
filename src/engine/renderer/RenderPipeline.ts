@@ -21,7 +21,7 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass";
 import { GammaCorrectionShader } from "three/examples/jsm/shaders/GammaCorrectionShader";
 
 import { Layer } from "../common/Layers";
-import { ShadowQualitySetting, RenderQuality } from "./renderer.common";
+import { basePixelRatioFor, ShadowQualitySetting, RenderQuality } from "./renderer.common";
 
 const QualityMSAA = {
   [RenderQuality.Low]: 1,
@@ -76,7 +76,8 @@ export class RenderPipeline {
   constructor(
     private renderer: WebGLRenderer,
     private quality: RenderQuality,
-    shadowQuality: ShadowQualitySetting = ShadowQualitySetting.Auto
+    shadowQuality: ShadowQualitySetting = ShadowQualitySetting.Auto,
+    devicePixelRatio = 1
   ) {
     const rendererSize = renderer.getSize(new Vector2());
 
@@ -128,7 +129,7 @@ export class RenderPipeline {
     this.outlinePass.edgeStrength = 4;
     this.outlinePass.edgeThickness = 1.5;
 
-    this.basePixelRatio = this.quality === RenderQuality.Low ? 0.75 : 1;
+    this.basePixelRatio = basePixelRatioFor(this.quality, devicePixelRatio);
     this.renderer.setPixelRatio(this.basePixelRatio);
     this.effectComposer.setPixelRatio(this.basePixelRatio);
 
@@ -157,6 +158,15 @@ export class RenderPipeline {
   private basePixelRatio = 1;
   /** Buzzar (Third Room #211): the dynamic resolution scale, 1 = the quality's own resolution. */
   resolutionScale = 1;
+
+  /** Buzzar: the screen's density changed (browser zoom, another monitor). */
+  setDevicePixelRatio(devicePixelRatio: number) {
+    const base = basePixelRatioFor(this.quality, devicePixelRatio);
+    if (base === this.basePixelRatio) return;
+    this.basePixelRatio = base;
+    this.renderer.setPixelRatio(base * this.resolutionScale);
+    this.effectComposer.setPixelRatio(base * this.resolutionScale);
+  }
 
   setResolutionScale(scale: number) {
     if (scale === this.resolutionScale) return;

@@ -39,6 +39,7 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
         canvasTarget: useOffscreenCanvas ? (canvasTarget as OffscreenCanvas) : undefined,
         initialCanvasWidth: canvas.clientWidth,
         initialCanvasHeight: canvas.clientHeight,
+        devicePixelRatio: window.devicePixelRatio || 1,
         supportedXRSessionModes,
         quality,
         dynamicResolution: dynamicResolutionEnabled(),
@@ -59,6 +60,7 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
       type: RendererMessageType.CanvasResize,
       canvasWidth: ctx.canvas.clientWidth,
       canvasHeight: ctx.canvas.clientHeight,
+      devicePixelRatio: window.devicePixelRatio || 1,
     });
     ctx.sendMessage(Thread.Game, {
       type: RendererMessageType.CanvasResize,
@@ -69,7 +71,9 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
       registerResizeEventHandler(ctx),
       // Buzzar dev convenience (Third Room #204): try a world's shadow settings live, e.g.
       // thirdroom.setWorldShadows({ baked_sun: { enabled: true, azimuth: 135, elevation: 60, strength: 0.6 } }).
-      registerThirdroomGlobalFn("setWorldShadows", (shadows: unknown) => setWorldShadows(ctx, parseWorldShadows(shadows))),
+      registerThirdroomGlobalFn("setWorldShadows", (shadows: unknown) =>
+        setWorldShadows(ctx, parseWorldShadows(shadows))
+      ),
       // Buzzar (Third Room #461): thirdroom.generateWorldMap(2.5) draws the map; the result has a URL for the picture.
       registerThirdroomGlobalFn("generateWorldMap", async (cutHeight?: number) => {
         const { blob, area } = await generateWorldMap(ctx, cutHeight);
@@ -86,6 +90,7 @@ const registerResizeEventHandler = (ctx: MainContext) => {
       type: RendererMessageType.CanvasResize,
       canvasWidth: ctx.canvas.clientWidth,
       canvasHeight: ctx.canvas.clientHeight,
+      devicePixelRatio: window.devicePixelRatio || 1,
     });
     ctx.sendMessage(Thread.Game, {
       type: RendererMessageType.CanvasResize,

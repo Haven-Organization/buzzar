@@ -166,6 +166,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       canvasTarget,
       initialCanvasHeight,
       initialCanvasWidth,
+      devicePixelRatio,
       supportedXRSessionModes,
       quality,
       dynamicResolution,
@@ -257,7 +258,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
     return {
       needsResize: true,
       renderer,
-      renderPipeline: new RenderPipeline(renderer, quality, shadowQuality),
+      renderPipeline: new RenderPipeline(renderer, quality, shadowQuality, devicePixelRatio),
       canvasWidth: initialCanvasWidth,
       canvasHeight: initialCanvasHeight,
       scenes: [],
@@ -401,9 +402,13 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       registerMessageHandler(ctx, RendererMessageType.CanvasResize, onResize),
       registerMessageHandler(ctx, RendererMessageType.NotifySceneRendered, onNotifySceneRendered),
       registerMessageHandler(ctx, RendererMessageType.EnableMatrixMaterial, onEnableMatrixMaterial),
-      registerMessageHandler(ctx, RendererMessageType.SetWorldShadows, (ctx: RenderContext, m: SetWorldShadowsMessage) => {
-        getModule(ctx, RendererModule).worldShadows = m.shadows;
-      }),
+      registerMessageHandler(
+        ctx,
+        RendererMessageType.SetWorldShadows,
+        (ctx: RenderContext, m: SetWorldShadowsMessage) => {
+          getModule(ctx, RendererModule).worldShadows = m.shadows;
+        }
+      ),
       registerMessageHandler(ctx, WorldMapMessageType.Generate, onGenerateWorldMap),
       registerMessageHandler(ctx, RendererMessageType.EnterXR, onEnterXR),
       registerMessageHandler(ctx, RendererMessageType.PhysicsEnableDebugRender, onEnableDebugRender),
@@ -435,8 +440,9 @@ function onUpdate(ctx: RenderContext) {
   }
 }
 
-function onResize(ctx: RenderContext, { canvasWidth, canvasHeight }: CanvasResizeMessage) {
+function onResize(ctx: RenderContext, { canvasWidth, canvasHeight, devicePixelRatio }: CanvasResizeMessage) {
   const renderer = getModule(ctx, RendererModule);
+  if (devicePixelRatio) renderer.renderPipeline.setDevicePixelRatio(devicePixelRatio);
   renderer.needsResize = true;
   renderer.canvasWidth = canvasWidth;
   renderer.canvasHeight = canvasHeight;
