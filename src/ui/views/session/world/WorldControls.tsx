@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { useSetAtom } from "jotai";
 import classNames from "classnames";
 
@@ -14,6 +14,9 @@ import MicOffIC from "../../../../../res/ic/mic-off.svg";
 import CallCrossIC from "../../../../../res/ic/call-cross.svg";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import HelpIC from "../../../../../res/ic/help.svg";
+import FullscreenIC from "../../../../../res/ic/fullscreen.svg";
+import FullscreenExitIC from "../../../../../res/ic/fullscreen-exit.svg";
+import { fullscreenSupported, toggleFullscreen, useFullscreen } from "../../../utils/fullscreen";
 import XRIC from "../../../../../res/ic/xr.svg";
 import MenuIC from "../../../../../res/ic/menu.svg";
 import { Text } from "../../../atoms/text/Text";
@@ -119,6 +122,9 @@ export function WorldControls({
   const keys = useKeyBindings();
   // Buzzar (Third Room #156): no keyboard with touch controls, so the buttons go without their key labels.
   const touchControls = useTouchControlsEnabled();
+  // Buzzar: a fullscreen button where the browser allows it (not Safari on iPhone: add Buzzar to the home screen there).
+  const fullscreen = useFullscreen();
+  const canFullscreen = useMemo(() => fullscreenSupported(), []);
   const mainThread = useMainThreadContext();
   const { navigateExitWorld } = useWorldNavigator(session);
 
@@ -168,6 +174,21 @@ export function WorldControls({
 
   return (
     <div className={classNames(className, "flex", { "WorldControls--touch": touchControls })}>
+      {canFullscreen && (
+        <div className="flex flex-column items-center">
+          <Tooltip content={fullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+            <IconButton
+              variant="world"
+              label={fullscreen ? "Exit Fullscreen" : "Fullscreen"}
+              iconSrc={fullscreen ? FullscreenExitIC : FullscreenIC}
+              onClick={() => toggleFullscreen()}
+            />
+          </Tooltip>
+          <Text variant="b3" color="world" weight="bold">
+            {"\u00a0"}
+          </Text>
+        </div>
+      )}
       <div className="flex flex-column items-center">
         <Tooltip content="Menu">
           <IconButton variant="world" label="Menu" iconSrc={MenuIC} onClick={openOverlay} />
