@@ -87,7 +87,7 @@ export function TouchHudMenu({ actions, children }: { actions: TouchHudAction[];
                         onClick={() => spawn(item.id, key)}
                       >
                         <img src={item.thumbnail} alt="" />
-                        <Text variant="b3" color="world" className="truncate">
+                        <Text variant="b3" color="world">
                           {item.label}
                         </Text>
                       </button>

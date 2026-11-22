@@ -14,6 +14,7 @@ import MicOffIC from "../../../../../res/ic/mic-off.svg";
 import CallCrossIC from "../../../../../res/ic/call-cross.svg";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import HelpIC from "../../../../../res/ic/help.svg";
+import DeleteIC from "../../../../../res/ic/bin.svg";
 import FullscreenIC from "../../../../../res/ic/fullscreen.svg";
 import FullscreenExitIC from "../../../../../res/ic/fullscreen-exit.svg";
 import { fullscreenSupported, toggleFullscreen, useFullscreen } from "../../../utils/fullscreen";
@@ -46,6 +47,8 @@ import { useKeyBindings } from "../../../hooks/useKeyBindings";
 import { keyLabel } from "../../../../engine/input/keyBindings";
 import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
 import { TouchHudAction, TouchHudMenu } from "../touch-controls/TouchHudMenu";
+import { pressVirtualButton } from "../../../../engine/input/touchControls";
+import { PadButton } from "../../../../engine/input/gamepad.common";
 import "./WorldControls.css";
 
 export function HotbarControls() {
@@ -195,6 +198,9 @@ export function WorldControls({
       { label: "People", icon: PeopleIC, onSelect: showPeople },
       { label: NAME_MODE_LABEL[nameMode], icon: showNames ? SubtitlesIC : SubtitlesOffIC, onSelect: toggleShowNames },
       { label: "Controls", icon: HelpIC, onSelect: toggleShortcutUI },
+      // Deletes what you're aiming at (if it's yours), like X on a keyboard: a short press of the virtual pad's
+      // D-pad left, which is bound to it.
+      { label: "Delete Aimed", icon: DeleteIC, onSelect: () => pressVirtualButton(PadButton.DpadLeft) },
     ];
     if (canFullscreen) {
       actions.push({

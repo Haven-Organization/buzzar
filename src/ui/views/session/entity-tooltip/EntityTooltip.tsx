@@ -7,6 +7,7 @@ import { InteractionState } from "../../../hooks/useWorldInteraction";
 import { usePortalDestination } from "../../../hooks/usePortalDestination";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { useActionKeyLabel } from "../../../hooks/useKeyBindings";
+import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
 import "./EntityTooltip.css";
 
 export interface IPortalProcess {
@@ -20,8 +21,19 @@ interface EntityTooltipProps {
 }
 
 export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProps) {
-  const grabKey = useActionKeyLabel("grab");
+  const keyLabel = useActionKeyLabel("grab");
   const deleteKey = useActionKeyLabel("delete");
+  // Buzzar (Third Room #156): with touch controls, the on-screen Use button rather than a key or the mouse.
+  const touch = useTouchControlsEnabled();
+  const grabKey = touch ? "Use" : keyLabel;
+  const grabHint = touch ? (
+    <span className="EntityTooltip__boxedKey">Use</span>
+  ) : (
+    <>
+      <span className="EntityTooltip__boxedKey">{keyLabel}</span> /
+      <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+    </>
+  );
   return (
     <div className="EntityTooltip">
       {activeEntity.interactableType === InteractableType.Player && (
@@ -47,8 +59,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
           </Text>
           <div className="flex flex-column gap-xxs">
             <Text variant="b3" color="world">
-              <span className="EntityTooltip__boxedKey">{grabKey}</span> /
-              <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+              {grabHint}
               <span> Interact</span>
             </Text>
           </div>
@@ -61,8 +72,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
           </Text>
           <div className="flex flex-column gap-xxs">
             <Text variant="b3" color="world">
-              <span className="EntityTooltip__boxedKey">{grabKey}</span> /
-              <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+              {grabHint}
               <span> Interact</span>
             </Text>
           </div>
@@ -80,8 +90,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             {activeEntity.held ? (
               <>
                 <Text variant="b3" color="world">
-                  <span className="EntityTooltip__boxedKey">{grabKey}</span> /
-                  <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+                  {grabHint}
                   <span> Left Click: Drop</span>
                 </Text>
                 <Text variant="b3" color="world">
@@ -91,15 +100,14 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
               </>
             ) : (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">{grabKey}</span> /
-                <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+                {grabHint}
                 <span> Grab</span>
               </Text>
             )}
             {activeEntity.ownerId === activeEntity.peerId && (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">{deleteKey}</span>
-                <span> Delete</span>
+                <span className="EntityTooltip__boxedKey">{touch ? "Delete" : deleteKey}</span>
+                <span>{touch ? " in More" : " Delete"}</span>
               </Text>
             )}
           </div>
@@ -120,8 +128,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             )}
             {!portalProcess.joining && (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">{grabKey}</span> /
-                <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+                {grabHint}
                 <span> Enter World</span>
               </Text>
             )}

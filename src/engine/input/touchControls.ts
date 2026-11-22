@@ -70,6 +70,12 @@ export const virtualPad = {
   look: [0, 0] as [number, number],
 };
 
+/** A short press of a virtual pad button (long enough for the game to see it). */
+export function pressVirtualButton(button: number, ms = 150) {
+  virtualPad.buttons.set(button, 1);
+  setTimeout(() => virtualPad.buttons.delete(button), ms);
+}
+
 export function resetVirtualPad() {
   virtualPad.stick = [0, 0];
   virtualPad.buttons.clear();

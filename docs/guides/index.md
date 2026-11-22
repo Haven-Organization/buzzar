@@ -73,6 +73,7 @@ sees it:
 | Mute                      | Y (Triangle)     |
 | Names / hide the HUD      | D-pad up / down  |
 | Fly mode                  | D-pad right      |
+| Delete your object        | D-pad left       |
 | Menu / controls           | Start / Back     |
 
 On a phone or tablet, Buzzar shows touch controls:
@@ -80,7 +81,10 @@ On a phone or tablet, Buzzar shows touch controls:
 - **Move** with the joystick in the lower left. Push it all the way to run.
 - **Look around** by dragging anywhere else on the world.
 - **Jump, crouch, use, throw, straighten and fly** with the round buttons on the right.
+- **Flick** to keep the view turning for a moment; touch the world again to stop it.
 - **Chat** by tapping the chat box.
+- **More** (the ⋯ button, bottom right) holds your Things to spawn, and Menu, People, Names, Controls, Fullscreen,
+  Delete Aimed (removes your object at the centre of the screen) and Leave World.
 
 You can turn touch controls on or off in **Settings → Controls**, for example to use them on a touch-screen laptop.
 

@@ -218,6 +218,8 @@ const InteractionActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/KeyX",
         },
+        // Buzzar: D-pad left on a controller, and Delete in the touch controls' More panel.
+        { type: BindingType.Button, path: padButton(PadButton.DpadLeft) },
       ],
     },
     {

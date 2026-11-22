@@ -9,12 +9,13 @@
   position: absolute;
   right: 0;
   bottom: calc(100% + var(--sp-xs));
-  width: min(360px, calc(100vw - 2 * var(--sp-md)));
+  width: min(620px, calc(100vw - 2 * var(--sp-md)));
   max-height: calc(100vh - 120px);
   overflow-y: auto;
   padding: var(--sp-sm);
   border-radius: var(--br-md);
-  background-color: rgb(0 0 0 / 70%);
+  background-color: rgb(20 20 24 / 92%);
+  backdrop-filter: blur(6px);
   display: flex;
   flex-direction: column;
   gap: var(--sp-xs);
@@ -24,7 +25,7 @@
 .TouchHudMenu__things,
 .TouchHudMenu__actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
   gap: var(--sp-xs);
 }
 
@@ -49,13 +50,22 @@
 }
 
 .TouchHudMenu__thing img {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
 }
 
-.TouchHudMenu__thing .Text {
+/* Names wrap onto two lines rather than being cut short. */
+.TouchHudMenu__thing .Text,
+.TouchHudMenu__action .Text {
   max-width: 100%;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .TouchHudMenu__action--danger {
