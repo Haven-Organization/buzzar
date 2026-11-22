@@ -70,6 +70,39 @@ function swapToPlayerRig(ctx: GameContext, physics: PhysicsModuleState, node: Re
   addComponent(ctx.world, KinematicControls, node.eid);
 }
 
+/**
+ * Buzzar (Third Room #615): a world script's choice of character controller for your player (world.
+ * setCharacterController): walk, fly, or none (you stay where you are; you can still look around). While set, the
+ * fly toggle (B) doesn't change it. Cleared (undefined) when the script goes away.
+ */
+export type ScriptCharacterController = "walk" | "fly" | "none";
+let scriptCharacterController: ScriptCharacterController | undefined;
+
+export function setScriptCharacterController(ctx: GameContext, type: ScriptCharacterController | undefined) {
+  scriptCharacterController = type;
+  if (type) return; // applied by EnableCharacterControllerSystem, also after a respawn
+  // Back to the world's own choice.
+  const eid = ourPlayerQuery(ctx.world)[0];
+  const player = eid ? tryGetRemoteResource<RemoteNode>(ctx, eid) : undefined;
+  if (!player) return;
+  const sceneType = ctx.worldResource.environment?.publicScene
+    ? SceneCharacterControllerComponent.get(ctx.worldResource.environment.publicScene.eid)?.type
+    : undefined;
+  if (sceneType === CharacterControllerType.Fly) swapToFlyPlayerRig(ctx, getModule(ctx, PhysicsModule), player);
+  else swapToPlayerRig(ctx, getModule(ctx, PhysicsModule), player);
+}
+
+function applyScriptCharacterController(ctx: GameContext, physics: PhysicsModuleState, player: RemoteNode) {
+  const flying = hasComponent(ctx.world, FlyControls, player.eid);
+  const walking = hasComponent(ctx.world, KinematicControls, player.eid);
+  if (scriptCharacterController === "walk" && !walking) swapToPlayerRig(ctx, physics, player);
+  else if (scriptCharacterController === "fly" && !flying) swapToFlyPlayerRig(ctx, physics, player);
+  else if (scriptCharacterController === "none" && (flying || walking)) {
+    removeComponent(ctx.world, FlyControls, player.eid);
+    removeComponent(ctx.world, KinematicControls, player.eid);
+  }
+}
+
 export const ThirdPersonComponent = defineComponent();
 
 function swapToThirdPerson(ctx: GameContext, node: RemoteNode) {
@@ -108,7 +141,9 @@ export function EnableCharacterControllerSystem(ctx: GameContext) {
       return;
     }
 
-    if (toggleFlyMode.pressed) {
+    if (scriptCharacterController) {
+      applyScriptCharacterController(ctx, physics, player);
+    } else if (toggleFlyMode.pressed) {
       if (hasComponent(ctx.world, FlyControls, player.eid)) {
         swapToPlayerRig(ctx, physics, player);
       } else {

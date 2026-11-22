@@ -820,4 +820,13 @@ import_websg(ui_text_set_color_element) int32_t websg_ui_text_set_color_element(
 import_websg(get_primary_input_source_origin_element) float_t websg_get_primary_input_source_origin_element(uint32_t index);
 import_websg(get_primary_input_source_direction_element) float_t websg_get_primary_input_source_direction_element(uint32_t index);
 
+// Buzzar (Third Room #615): 0 walk, 1 fly, 2 none.
+import_websg(world_set_character_controller) int32_t websg_world_set_character_controller(uint32_t type);
+// Buzzar (Third Room #600): an input action's state. Type: 0 unknown, 1 button, 2 vector2, 3 vector3.
+import_websg(world_get_input_type) int32_t websg_world_get_input_type(const char *path, size_t length);
+// Button: bit 1 pressed, 2 held, 4 released.
+import_websg(world_get_input_button) int32_t websg_world_get_input_button(const char *path, size_t length);
+// Vector: writes up to 3 floats to `out`, returns how many.
+import_websg(world_get_input_vector) int32_t websg_world_get_input_vector(const char *path, size_t length, float_t *out);
+
 #endif

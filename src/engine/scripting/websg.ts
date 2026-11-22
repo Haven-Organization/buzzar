@@ -95,6 +95,9 @@ import { createMesh } from "../mesh/mesh.game";
 import { addInteractableComponent } from "../../plugins/interaction/interaction.game";
 import { addUIElementChild, initNodeUICanvas, removeUIElementChild } from "../ui/ui.game";
 import { startOrbit, stopOrbit } from "../player/CameraRig";
+import { setScriptCharacterController } from "../player/CharacterController";
+import { InputModule } from "../input/input.game";
+import { ButtonActionState } from "../input/ActionMap";
 import { GLTFComponentPropertyStorageTypeToEnum, setComponentStore } from "../resource/ComponentStore";
 import { getRemoteResource } from "../resource/resource.game";
 import { getPrimaryInputSourceNode } from "../input/input.game";
@@ -382,6 +385,7 @@ const tempQuat = quat.create();
 
 export function createWebSGModule(ctx: GameContext, wasmCtx: WASMModuleContext) {
   const physics = getModule(ctx, PhysicsModule);
+  let setCharacterControllerFromScript = false;
 
   const disposeCollisionHandler = registerCollisionHandler(
     ctx,
@@ -3623,9 +3627,42 @@ export function createWebSGModule(ctx: GameContext, wasmCtx: WASMModuleContext) 
       vec3.transformQuat(tempVec3, tempVec3, tempQuat);
       return tempVec3[index] || 0;
     },
+    // Buzzar (Third Room #615)
+    world_set_character_controller(type: number) {
+      const kind = (["walk", "fly", "none"] as const)[type];
+      if (!kind) return -1;
+      setScriptCharacterController(ctx, kind);
+      setCharacterControllerFromScript = true;
+      return 0;
+    },
+    // Buzzar (Third Room #600): the game's named input actions (not raw keys).
+    world_get_input_type(pathPtr: number, byteLength: number) {
+      const state = getModule(ctx, InputModule).actionStates.get(readString(wasmCtx, pathPtr, byteLength));
+      if (state === undefined) return 0;
+      if (typeof state === "object" && "pressed" in state) return 1;
+      if (ArrayBuffer.isView(state) || Array.isArray(state)) return (state as ArrayLike<number>).length >= 3 ? 3 : 2;
+      return 0;
+    },
+    world_get_input_button(pathPtr: number, byteLength: number) {
+      const state = getModule(ctx, InputModule).actionStates.get(readString(wasmCtx, pathPtr, byteLength)) as
+        | ButtonActionState
+        | undefined;
+      if (!state || typeof state !== "object" || !("pressed" in state)) return -1;
+      return (state.pressed ? 1 : 0) | (state.held ? 2 : 0) | (state.released ? 4 : 0);
+    },
+    world_get_input_vector(pathPtr: number, byteLength: number, outPtr: number) {
+      const state = getModule(ctx, InputModule).actionStates.get(readString(wasmCtx, pathPtr, byteLength));
+      if (!state || !(ArrayBuffer.isView(state) || Array.isArray(state))) return 0;
+      const values = Array.from(state as ArrayLike<number>).slice(0, 3);
+      writeFloat32Array(wasmCtx, outPtr, new Float32Array(values));
+      return values.length;
+    },
   };
 
   const disposeWebSGWASMModule = () => {
+    // Buzzar: hand the player's character controller back to the world when the script that set it goes away.
+    if (setCharacterControllerFromScript) setScriptCharacterController(ctx, undefined);
+
     for (const query of wasmCtx.resourceManager.registeredQueries.values()) {
       removeQuery(ctx.world, query);
     }

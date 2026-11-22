@@ -67,6 +67,76 @@ static JSValue js_websg_world_stop_orbit(JSContext *ctx, JSValueConst this_val, 
   return JS_UNDEFINED;
 }
 
+// Buzzar (Third Room #615): world.setCharacterController("walk" | "fly" | "none").
+static JSValue js_websg_world_set_character_controller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+  const char *type = JS_ToCString(ctx, argv[0]);
+
+  if (type == NULL) {
+    return JS_EXCEPTION;
+  }
+
+  uint32_t type_id;
+
+  if (strcmp(type, "walk") == 0) {
+    type_id = 0;
+  } else if (strcmp(type, "fly") == 0) {
+    type_id = 1;
+  } else if (strcmp(type, "none") == 0) {
+    type_id = 2;
+  } else {
+    JS_FreeCString(ctx, type);
+    JS_ThrowTypeError(ctx, "WebSG: character controller must be \"walk\", \"fly\" or \"none\".");
+    return JS_EXCEPTION;
+  }
+
+  JS_FreeCString(ctx, type);
+
+  if (websg_world_set_character_controller(type_id) == -1) {
+    JS_ThrowInternalError(ctx, "WebSG: Couldn't set the character controller.");
+    return JS_EXCEPTION;
+  }
+
+  return JS_UNDEFINED;
+}
+
+// Buzzar (Third Room #600): world.input.get(action): { pressed, held, released } for a button, [x, y(, z)] for a
+// vector, undefined for an unknown action.
+static JSValue js_websg_input_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+  size_t length;
+  const char *path = JS_ToCStringLen(ctx, &length, argv[0]);
+
+  if (path == NULL) {
+    return JS_EXCEPTION;
+  }
+
+  int32_t type = websg_world_get_input_type(path, length);
+  JSValue result = JS_UNDEFINED;
+
+  if (type == 1) {
+    int32_t flags = websg_world_get_input_button(path, length);
+    result = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, result, "pressed", JS_NewBool(ctx, (flags & 1) != 0));
+    JS_SetPropertyStr(ctx, result, "held", JS_NewBool(ctx, (flags & 2) != 0));
+    JS_SetPropertyStr(ctx, result, "released", JS_NewBool(ctx, (flags & 4) != 0));
+  } else if (type == 2 || type == 3) {
+    float_t values[3] = {0, 0, 0};
+    int32_t count = websg_world_get_input_vector(path, length, values);
+    result = JS_NewArray(ctx);
+    for (int32_t i = 0; i < count && i < 3; i++) {
+      JS_SetPropertyUint32(ctx, result, i, JS_NewFloat64(ctx, values[i]));
+    }
+  }
+
+  JS_FreeCString(ctx, path);
+  return result;
+}
+
+static JSValue js_websg_world_get_input(JSContext *ctx, JSValueConst this_val) {
+  JSValue input = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, input, "get", JS_NewCFunction(ctx, js_websg_input_get, "get", 1));
+  return input;
+}
+
 static JSValue js_websg_world_get_component_store_size(JSContext *ctx, JSValueConst this_val) {
   uint32_t component_store_size = websg_world_get_component_store_size();
   return JS_NewUint32(ctx, component_store_size);
@@ -121,6 +191,8 @@ static const JSCFunctionListEntry js_websg_world_proto_funcs[] = {
   ),
   JS_CFUNC_DEF("createCollisionListener", 0, js_websg_world_create_collision_listener),
   JS_CFUNC_DEF("stopOrbit", 0, js_websg_world_stop_orbit),
+  JS_CFUNC_DEF("setCharacterController", 1, js_websg_world_set_character_controller),
+  JS_CGETSET_DEF("input", js_websg_world_get_input, NULL),
   JS_CFUNC_DEF("createQuery", 1, js_websg_world_create_query),
   JS_PROP_STRING_DEF("[Symbol.toStringTag]", "World", JS_PROP_CONFIGURABLE),
 };

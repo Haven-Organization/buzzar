@@ -47,18 +47,25 @@ export default function GLTFViewer() {
 
   const [params] = useSearchParams();
 
-  // Buzzar dev convenience: /viewer?src=/gltf/test/mirror-room.glb loads a same-origin file, no login needed.
+  // Buzzar dev convenience: /viewer?src=/gltf/test/mirror-room.glb loads a same-origin file, no login needed;
+  // &script=/path/to/script.js also runs a same-origin world script.
   useEffect(() => {
     const src = params.get("src");
     if (!src || !mainThread) return;
 
-    let environmentUrl: string;
-    try {
-      const url = new URL(src, location.origin);
+    const sameOrigin = (path: string) => {
+      const url = new URL(path, location.origin);
       if (url.origin !== location.origin) throw new Error("cross-origin");
-      environmentUrl = url.href;
+      return url.href;
+    };
+    let environmentUrl: string;
+    let environmentScriptUrl: string | undefined;
+    try {
+      environmentUrl = sameOrigin(src);
+      const script = params.get("script");
+      if (script) environmentScriptUrl = sameOrigin(script);
     } catch {
-      setLoadState({ loading: false, loaded: false, error: "src must be a same-origin path" });
+      setLoadState({ loading: false, loaded: false, error: "src and script must be same-origin paths" });
       return;
     }
 
@@ -67,6 +74,7 @@ export default function GLTFViewer() {
       type: ThirdRoomMessageType.LoadWorld,
       environmentUrl,
       id: 1,
+      ...(environmentScriptUrl ? { options: { environmentScriptUrl } } : {}),
     });
   }, [mainThread, params]);
 

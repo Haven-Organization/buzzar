@@ -2265,6 +2265,26 @@ declare namespace WebSG {
    * Overall, world is the main interface for creating new resources. See the individual factory functions
    * for more details.
    */
+  /**
+   * The local player's input actions (see {@link WebSG.World.input | world.input}).
+   */
+  interface Input {
+    /**
+     * The state of an input action this frame: `{ pressed, held, released }` for a button action, `[x, y]` (or
+     * `[x, y, z]`) for a vector action, or undefined for an action the game doesn't have. Only the game's named
+     * actions are available, never raw keys. Actions include `"KinematicCharacterController/Move"` (a vector),
+     * `"KinematicCharacterController/Jump"`, `"KinematicCharacterController/Crouch"`,
+     * `"KinematicCharacterController/Sprint"`, `"Grab"` and `"Throw"`.
+     * @example
+     * ```js
+     * const jump = world.input.get("KinematicCharacterController/Jump");
+     * if (jump?.pressed) console.log("jumped");
+     * const [x, y] = world.input.get("KinematicCharacterController/Move");
+     * ```
+     */
+    get(action: string): { pressed: boolean; held: boolean; released: boolean } | number[] | undefined;
+  }
+
   class World {
     /**
      * Gets the environment of the world.
@@ -2453,6 +2473,22 @@ declare namespace WebSG {
      * Stops any ongoing orbiting operation.
      */
     stopOrbit(): undefined;
+
+    /**
+     * Sets how the local player moves: `"walk"` (the default), `"fly"`, or `"none"` (they stay where they are but can
+     * still look around, e.g. while a cutscene or a game round starts). While set, the player's fly toggle doesn't
+     * change it; when the script unloads, the world's own setting comes back.
+     * @example
+     * ```js
+     * world.setCharacterController("none"); // hold everyone in place for the countdown
+     * ```
+     */
+    setCharacterController(type: "walk" | "fly" | "none"): undefined;
+
+    /**
+     * The local player's input, by the game's action names (not raw keys).
+     */
+    get input(): Input;
 
     /**
      * Get the primary input source's origin in world space.
