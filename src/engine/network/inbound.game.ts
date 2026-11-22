@@ -7,6 +7,7 @@ import { GameNetworkState, NetworkModule, ownedPlayerQuery } from "./network.gam
 import { NetworkAction } from "./NetworkAction";
 import { dequeueNetworkRingBuffer } from "./RingBuffer";
 import { readMetadata } from "./serialization.game";
+import { addClockSample } from "./playbackClock";
 
 const processNetworkMessage = (ctx: GameContext, peerId: string, msg: ArrayBuffer) => {
   const network = getModule(ctx, NetworkModule);
@@ -21,7 +22,8 @@ const processNetworkMessage = (ctx: GameContext, peerId: string, msg: ArrayBuffe
     // this value is written onto outgoing packet headers
     historian.latestTick = inputTick;
     historian.latestTime = elapsed;
-    historian.localTime = elapsed;
+    // Buzzar (Third Room #237): every packet tells the playback clock how late it arrived.
+    addClockSample(historian.clock, elapsed, Date.now());
     historian.needsUpdate = true;
   }
 

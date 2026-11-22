@@ -7,18 +7,12 @@ import { GameContext } from "../GameTypes";
 import { GameNetworkState, getPeerIndexFromNetworkId, NetworkModule, ownedPlayerQuery } from "./network.game";
 import { Networked, Owned } from "./NetworkComponents";
 import { getModule } from "../module/module.common";
-import {
-  INTERP_BUFFER_MS,
-  INTERP_AMOUNT_MS,
-  addEntityToHistorian,
-  getEntityHistory,
-  removeEntityFromHistorian,
-} from "./Historian";
+import { SPARE_SAMPLES, addEntityToHistorian, getEntityHistory, removeEntityFromHistorian } from "./Historian";
+import { advancePlaybackClock, findSamples } from "./playbackClock";
 import { addEntityHistory, syncWithHistorian } from "./InterpolationBuffer";
 import { getRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { OurPlayer } from "../player/Player";
-import { clamp } from "../common/math";
 
 export const remoteEntityQuery = defineQuery([Networked, Not(Owned), Not(OurPlayer)]);
 
@@ -107,12 +101,18 @@ export function NetworkInterpolationSystem(ctx: GameContext) {
 
     const position = node.position;
     const quaternion = node.quaternion;
-    const velocity = node.physicsBody!.velocity;
+    const velocity = node.physicsBody?.velocity;
 
     const netPosition = Networked.position[eid];
     const netVelocity = Networked.velocity[eid];
     const netQuaternion = Networked.quaternion[eid];
 
+    // Buzzar: an object that changed hands mid-flight may not be in its new owner's history yet.
+    if (!historian.entities.has(eid)) {
+      addEntityToHistorian(historian, eid);
+      applyNetworkedToEntity(node, body);
+      continue;
+    }
     const history = getEntityHistory(historian, eid);
 
     if (historian.needsUpdate) {
@@ -123,38 +123,37 @@ export function NetworkInterpolationSystem(ctx: GameContext) {
     // drop old history
     syncWithHistorian(history, historian);
 
-    if (historian.index === -1) {
+    if (historian.fromIndex === -1) {
       continue;
     }
 
-    // TODO: optional hermite interpolation
-
-    const from = historian.index || 0;
-    const to = (historian.index || 0) - 1;
-
-    const pFrom = history.position.at(from);
-    const pTo = history.position.at(to);
-    if (pFrom && pTo) {
-      vec3.lerp(_v3, pFrom, pTo, historian.fractionOfTimePassed);
-      if (body) body.setTranslation(_vec.fromArray(_v3), true);
-      else vec3.copy(position, _v3);
+    // Buzzar (Third Room #237): between the two samples around this peer's playback time (see playbackClock.ts). An
+    // object that arrived since those samples has no history that far back yet: it's shown as it is now.
+    const from = historian.fromIndex;
+    const to = historian.toIndex;
+    const t = historian.fractionOfTimePassed;
+    const pFrom = history.position[from];
+    const pTo = history.position[to];
+    const vFrom = history.velocity[from];
+    const vTo = history.velocity[to];
+    const qFrom = history.quaternion[from];
+    const qTo = history.quaternion[to];
+    if (!pFrom || !pTo || !vFrom || !vTo || !qFrom || !qTo) {
+      applyNetworkedToEntity(node, body);
+      continue;
     }
 
-    const vFrom = history.velocity.at(from);
-    const vTo = history.velocity.at(to);
-    if (vFrom && vTo) {
-      vec3.lerp(_v3, vFrom, vTo, historian.fractionOfTimePassed);
-      if (body && body.isDynamic()) body.setLinvel(_vec.fromArray(_v3), true);
-      else vec3.copy(velocity, _v3);
-    }
+    vec3.lerp(_v3, pFrom, pTo, t);
+    if (body) body.setTranslation(_vec.fromArray(_v3), true);
+    vec3.copy(position, _v3);
 
-    const qFrom = history.quaternion.at(from);
-    const qTo = history.quaternion.at(to);
-    if (qFrom && qTo) {
-      quat.slerp(_q, qFrom, qTo, historian.fractionOfTimePassed);
-      if (body) body.setRotation(_quat.fromArray(_q), true);
-      else quat.copy(quaternion, _q);
-    }
+    vec3.lerp(_v3, vFrom, vTo, t);
+    if (body && body.isDynamic()) body.setLinvel(_vec.fromArray(_v3), true);
+    if (velocity) vec3.copy(velocity, _v3);
+
+    quat.slerp(_q, qFrom, qTo, t);
+    if (body) body.setRotation(_quat.fromArray(_q), true);
+    quat.copy(quaternion, _q);
   }
 
   const exited = exitedRemoteEntityQuery(ctx.world);
@@ -173,51 +172,32 @@ export function NetworkInterpolationSystem(ctx: GameContext) {
 }
 
 function preprocessHistorians(ctx: GameContext, network: GameNetworkState) {
+  const now = Date.now();
   for (const [, historian] of network.peerIdToHistorian) {
     if (historian.needsUpdate) {
-      historian.latency = Date.now() - historian.latestTime;
       // add timestamp to historian
       historian.timestamps.unshift(historian.latestTime);
     }
 
-    const trimTime = historian.localTime - INTERP_BUFFER_MS;
-
-    const targetTime = (historian.targetTime = historian.localTime - INTERP_AMOUNT_MS);
-
-    // step forward local time
-    historian.localTime += ctx.dt * 1000;
-
-    let index = -1;
-    if (historian.timestamps.length > 2) {
-      for (let i = historian.timestamps.length - 1; i >= 0; i--) {
-        const t = historian.timestamps[i];
-        const tt = historian.timestamps[i - 1];
-
-        if (t < trimTime) {
-          historian.timestamps.splice(i);
-          continue;
-        }
-
-        index = i;
-
-        if (t < targetTime && tt > targetTime) {
-          break;
-        }
-      }
-      if (index === -1) {
-        console.warn("interpolation buffer full");
-        continue;
-      }
+    // Buzzar (Third Room #237): show this peer's state at their playback time, which trails their newest data by a
+    // delay fitted to how steadily their packets arrive (see playbackClock.ts). It replaces a fixed 100 ms delay whose
+    // clock was reset by every packet, so any jitter made objects jump.
+    const playback = advancePlaybackClock(historian.clock, now);
+    historian.playbackTime = playback;
+    const samples = playback === undefined ? undefined : findSamples(historian.timestamps, playback);
+    if (!samples) {
+      historian.fromIndex = historian.toIndex = -1;
+      continue;
     }
+    historian.fromIndex = samples.from;
+    historian.toIndex = samples.to;
+    historian.fractionOfTimePassed = samples.fraction;
+    historian.latency = historian.timestamps[0] - (playback ?? historian.timestamps[0]);
 
-    historian.index = index;
-
-    const fromTime = historian.timestamps.at(index) || 0;
-    const toTime = historian.timestamps.at(index - 1) || 0;
-
-    const ratio = (targetTime - fromTime) / (toTime - fromTime);
-
-    historian.fractionOfTimePassed = clamp(ratio, 0, 1);
+    // Older samples aren't needed again (playback only moves forward).
+    if (historian.timestamps.length > samples.from + 1 + SPARE_SAMPLES) {
+      historian.timestamps.splice(samples.from + 1 + SPARE_SAMPLES);
+    }
   }
 }
 

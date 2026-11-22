@@ -1,8 +1,8 @@
 import { createInterpolationBuffer, InterpolationBuffer } from "./InterpolationBuffer";
+import { createPlaybackClock, PlaybackClock } from "./playbackClock";
 
-// should be greater than tickRate in millis
-export const INTERP_AMOUNT_MS = 100;
-export const INTERP_BUFFER_MS = INTERP_AMOUNT_MS * 5;
+/** Samples kept beyond the two being interpolated between (spare, for a playback clock slowing down). */
+export const SPARE_SAMPLES = 2;
 
 export interface Historian {
   entities: Map<number, InterpolationBuffer>;
@@ -10,17 +10,19 @@ export interface Historian {
   latestTick: number;
   // latest timestamp value continuously set by packets received from the peer
   latestTime: number;
-  // incremented each frame with our local delta time
-  localTime: number;
-  // target elapsed to lerp towards
-  targetTime: number;
+  // Buzzar (Third Room #237): when to show this peer's state, on their clock (see playbackClock.ts)
+  clock: PlaybackClock;
+  // the playback time this frame (sender's clock), or undefined before any packet
+  playbackTime?: number;
+  // the two samples to interpolate between this frame (indexes into timestamps, newest first) and how far between
+  fromIndex: number;
+  toIndex: number;
   fractionOfTimePassed: number;
-  // holds a history of elapsed timestamps
+  // holds a history of elapsed timestamps (the sender's clock), newest first
   timestamps: number[];
   // flag for indicating that a new packet has arrived and the historian needs updated
   needsUpdate: boolean;
-  index?: number;
-  // latency to the associated data source
+  // how far behind this peer's newest data playback is (ms)
   latency: number;
 }
 
@@ -28,8 +30,9 @@ export const createHistorian = (): Historian => ({
   entities: new Map(),
   latestTick: 0,
   latestTime: 0,
-  localTime: 0,
-  targetTime: 0,
+  clock: createPlaybackClock(),
+  fromIndex: -1,
+  toIndex: -1,
   fractionOfTimePassed: 0,
   timestamps: [],
   needsUpdate: false,

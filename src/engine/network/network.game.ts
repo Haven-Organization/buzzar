@@ -125,7 +125,8 @@ export const NetworkModule = defineModule<GameContext, GameNetworkState>({
       prefabToReplicator: new Map(),
       deferredUpdates: new Map(),
       tickRate: 10,
-      interpolate: false,
+      // Buzzar (Third Room #237): on, with a playback delay fitted to each peer (see playbackClock.ts).
+      interpolate: true,
     };
   },
   init(ctx: GameContext) {
