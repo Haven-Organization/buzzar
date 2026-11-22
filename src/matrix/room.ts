@@ -550,11 +550,19 @@ export class Room extends EventEmitter<{ change: undefined }> {
     return res.event_id;
   }
 
-  /** Marks everything in the room as read. */
+  /**
+   * Marks everything in the room as read: the read receipt and the "fully read" marker on its newest event, as
+   * Element's "Mark as read" does. That receipt is unthreaded; matrix-js-sdk's sendReadReceipt sends one for the
+   * main thread (`thread_id: "main"`), which the server's notification list didn't count as read.
+   */
   async clearUnread() {
     const events = this.sdk.getLiveTimeline().getEvents();
-    const last = events[events.length - 1];
-    if (last) await this.client.sendReadReceipt(last).catch(() => undefined);
+    let last: MatrixEvent | undefined;
+    for (let i = events.length - 1; i >= 0 && !last; i--) {
+      if (!this.sdk.hasPendingEvent(events[i].getId() ?? "")) last = events[i];
+    }
+    const eventId = last?.getId();
+    if (last && eventId) await this.client.setRoomReadMarkers(this.id, eventId, last).catch(() => undefined);
   }
 
   /** Called once the user has left this room, so lists drop it without waiting for sync to say so. */
