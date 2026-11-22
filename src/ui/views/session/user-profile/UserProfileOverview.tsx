@@ -65,7 +65,7 @@ export function UserProfileOverview() {
 
   const [newDisplayName, setNewDisplayName] = useState(displayName);
   const [renderQuality, setRenderQuality] = useLocalStorage(LOCAL_STORAGE_RENDER_QUALITY, RenderQualitySetting.Auto);
-  const [worldReveal, setWorldReveal] = useLocalStorage(LOCAL_STORAGE_WORLD_REVEAL, true);
+  const [worldReveal, setWorldReveal] = useLocalStorage(LOCAL_STORAGE_WORLD_REVEAL, false);
   const [shadowQuality, setShadowQuality] = useLocalStorage(LOCAL_STORAGE_SHADOW_QUALITY, ShadowQualitySetting.Auto);
   const shadowQualityOptions = useMemo(
     () => [

@@ -198,7 +198,7 @@ export function parseWorldShadows(value: unknown): WorldShadowSettings {
   };
 }
 
-/** Buzzar (Third Room #267): show a world in the Matrix style for a moment as it appears (true unless turned off). */
+/** Buzzar (Third Room #267): show a world in the Matrix style for a moment as it appears (off unless turned on). */
 export const LOCAL_STORAGE_WORLD_REVEAL = "buzzar.worldReveal";
 
 export function gpuTierToRenderQuality(gpuTier: number) {

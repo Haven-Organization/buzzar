@@ -126,12 +126,12 @@ function dynamicResolutionEnabled(): boolean {
   }
 }
 
-/** Buzzar (Third Room #267): the world reveal, unless turned off in Settings or the system asks for reduced motion. */
+/** Buzzar (Third Room #267): the world reveal, when turned on in Settings (off by default, and with reduced motion). */
 function worldRevealEnabled(): boolean {
   try {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
     const setting = localStorage.getItem(LOCAL_STORAGE_WORLD_REVEAL);
-    return setting === null || JSON.parse(setting) !== false;
+    return setting !== null && JSON.parse(setting) === true;
   } catch {
     return true;
   }
