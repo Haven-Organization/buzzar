@@ -2,9 +2,61 @@
   padding: var(--sp-md);
 }
 
+/* Sliders: a visible track, filled in the primary colour up to the value (--fill is set on each slider). */
 .ThingCloneDialog input[type="range"] {
   width: 100%;
-  accent-color: var(--bg-primary);
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.ThingCloneDialog input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--bg-primary) 0 var(--fill, 0%),
+    color-mix(in srgb, var(--tc-surface-low) 35%, transparent) var(--fill, 0%) 100%
+  );
+}
+
+.ThingCloneDialog input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--tc-surface-low) 35%, transparent);
+}
+
+.ThingCloneDialog input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+}
+
+.ThingCloneDialog input[type="range"]::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+  appearance: none;
+}
+
+.ThingCloneDialog input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+}
+
+.ThingCloneDialog input[type="range"]:focus-visible {
+  outline: 2px solid var(--bg-primary);
+  outline-offset: 2px;
 }
 
 .ThingCloneDialog input[type="color"] {
