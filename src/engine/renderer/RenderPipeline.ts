@@ -130,6 +130,7 @@ export class RenderPipeline {
 
     this.basePixelRatio = this.quality === RenderQuality.Low ? 0.75 : 1;
     this.renderer.setPixelRatio(this.basePixelRatio);
+    this.effectComposer.setPixelRatio(this.basePixelRatio);
 
     // Set the texture anisotropy which improves rendering at extreme angles.
     // Note this uses the GPU's maximum anisotropy with an upper limit of 8. We may want to bump this cap up to 16
@@ -170,22 +171,28 @@ export class RenderPipeline {
   }
 
   render(scene: Scene, camera: PerspectiveCamera | OrthographicCamera, dt: number) {
-    if (this.renderer.xr.isPresenting || this.quality === RenderQuality.Low) {
+    if (this.renderer.xr.isPresenting) {
+      this.renderer.render(scene, camera);
+      return;
+    }
+
+    this.outlinePass.selectedObjects.length = 0;
+
+    scene.traverse((child) => {
+      if (child.layers.test(this.outlineLayers)) {
+        this.outlinePass.selectedObjects.push(child);
+      }
+    });
+
+    // Buzzar (Third Room #589): Low quality skips post-processing, which also skipped the outline, so nothing selected
+    // in the editor (or pointed at) was highlighted. It now takes the outline path only while something is outlined.
+    if (this.quality === RenderQuality.Low && this.outlinePass.selectedObjects.length === 0) {
       this.renderer.render(scene, camera);
     } else {
       this.renderPass.scene = scene;
       this.renderPass.camera = camera;
       this.outlinePass.renderScene = scene;
       this.outlinePass.renderCamera = camera;
-
-      this.outlinePass.selectedObjects.length = 0;
-
-      scene.traverse((child) => {
-        if (child.layers.test(this.outlineLayers)) {
-          this.outlinePass.selectedObjects.push(child);
-        }
-      });
-
       this.effectComposer.render(dt);
     }
   }
