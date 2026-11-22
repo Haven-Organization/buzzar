@@ -10,7 +10,7 @@ import { createSphereMesh } from "../../engine/mesh/mesh.game";
 import { defineModule, getModule, Thread } from "../../engine/module/module.common";
 import { ownedNetworkedQuery } from "../../engine/network/network.game";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
-import { dynamicObjectCollisionGroups } from "../../engine/physics/CollisionGroups";
+import { CollisionGroup, dynamicObjectCollisionGroups } from "../../engine/physics/CollisionGroups";
 import {
   addPhysicsBody,
   addPhysicsCollider,
@@ -25,6 +25,7 @@ import { createPrefabEntity, Prefab, PrefabType, registerPrefab } from "../../en
 import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
 import {
   addObjectToWorld,
+  removeObjectFromWorld,
   RemoteAudioData,
   RemoteAudioEmitter,
   RemoteAudioSource,
@@ -479,6 +480,78 @@ function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody)
   return false;
 }
 
+/**
+ * Buzzar (Third Room #300): sweeps the object's shape from where you are toward its spawn point; if something solid
+ * is in the way (a window, a wall), the object is placed against it on your side instead of beyond it. Your own
+ * player isn't counted. Returns "clear" (nothing in the way), "moved", or "no-room" when, placed there, it would
+ * overlap a player (too close to the obstacle for it to fit on your side).
+ */
+function stopAtObstacle(
+  physicsWorld: RAPIER.World,
+  body: RAPIER.RigidBody,
+  origin: vec3,
+  direction: vec3,
+  distance: number
+): "clear" | "moved" | "no-room" {
+  let nearest = distance;
+  // The body was just moved to the spawn point; its colliders follow only once positions are propagated.
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+  for (let i = 0; i < body.numColliders(); i++) {
+    const c = body.collider(i);
+    if (c.isSensor()) continue;
+    // The collider's offset from the body, so the sweep starts with the shape centred on the origin like the body.
+    const bt = body.translation();
+    const ct = c.translation();
+    const start = { x: origin[0] + ct.x - bt.x, y: origin[1] + ct.y - bt.y, z: origin[2] + ct.z - bt.z };
+    const hit = physicsWorld.castShape(
+      start,
+      c.rotation(),
+      { x: direction[0], y: direction[1], z: direction[2] },
+      c.shape,
+      distance,
+      // Ignore what the shape already overlaps at your position (your own avatar's parts, the floor under a big
+      // crate): only surfaces it moves into on the way out count.
+      false,
+      undefined,
+      undefined,
+      undefined,
+      body,
+      notPlayer
+    );
+    if (hit && hit.toi < nearest) nearest = hit.toi;
+  }
+  if (nearest >= distance) return "clear";
+  const at = Math.max(0, nearest - 0.02);
+  body.setTranslation({ x: origin[0] + direction[0] * at, y: origin[1] + direction[1] * at, z: origin[2] + direction[2] * at }, true);
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+  for (let i = 0; i < body.numColliders(); i++) {
+    const c = body.collider(i);
+    if (c.isSensor()) continue;
+    const zero = { x: 0, y: 1, z: 0 };
+    const hit = physicsWorld.castShape(
+      c.translation(),
+      c.rotation(),
+      zero,
+      c.shape,
+      0,
+      true,
+      undefined,
+      undefined,
+      undefined,
+      body,
+      isPlayer
+    );
+    if (hit) return "no-room";
+  }
+  return "moved";
+}
+
+const isPlayer = (collider: RAPIER.Collider) => ((collider.collisionGroups() >>> 16) & CollisionGroup.Player) !== 0;
+
+const notPlayer = (collider: RAPIER.Collider) =>
+  pushesObjects(collider) && ((collider.collisionGroups() >>> 16) & CollisionGroup.Player) === 0;
+
+const _spawnOrigin = vec3.create();
 const _direction = vec3.create();
 const _spawnWorldQuat = quat.create();
 const _spawnVelocity = new RAPIER.Vector3(0, 0, 0);
@@ -531,6 +604,8 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
     vec3.normalize(direction, direction);
     quat.setAxisAngle(_spawnWorldQuat, [0, 1, 0], Math.atan2(-direction[0], -direction[2]));
   }
+  const spawnDistance = placement ? placement.distance : vec3.length(direction);
+  vec3.copy(_spawnOrigin, prefab.position);
   if (placement) vec3.scale(direction, direction, placement.distance);
   vec3.add(prefab.position, prefab.position, direction);
   prefab.quaternion.set(_spawnWorldQuat);
@@ -544,6 +619,17 @@ export function spawnPrefab(ctx: GameContext, spawnFrom: RemoteNode, prefabId: s
   }
 
   applyTransformToRigidBody(body, prefab);
+  // Third Room #300: don't spawn on the far side of a window or wall you can't throw through. Right up against
+  // one, there's no room on your side: spawn nothing rather than inside you.
+  const blocked = stopAtObstacle(getModule(ctx, PhysicsModule).physicsWorld, body, _spawnOrigin, direction, spawnDistance);
+  if (blocked === "no-room") {
+    removeObjectFromWorld(ctx, prefab);
+    return true;
+  }
+  if (blocked === "moved") {
+    const t = body.translation();
+    vec3.set(prefab.position, t.x, t.y, t.z);
+  }
   if (liftClearOfOverlaps(getModule(ctx, PhysicsModule).physicsWorld, body)) {
     const t = body.translation();
     vec3.set(prefab.position, t.x, t.y, t.z);
