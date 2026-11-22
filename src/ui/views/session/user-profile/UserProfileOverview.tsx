@@ -135,7 +135,13 @@ export function UserProfileOverview() {
                       <AvatarPicker url={httpAvatarUrl} onAvatarPick={pickAvatar} onAvatarDrop={dropAvatar} />
                     </SettingTile>
                     <SettingTile label={<Label>Default Display Name</Label>}>
-                      <Input name="displayName" onChange={onDisplayNameChange} defaultValue={displayName} required />
+                      <Input
+                        name="displayName"
+                        onChange={onDisplayNameChange}
+                        defaultValue={displayName}
+                        required
+                        aria-label="Default display name"
+                      />
                     </SettingTile>
                     <ProfileExtrasSettings />
                   </div>

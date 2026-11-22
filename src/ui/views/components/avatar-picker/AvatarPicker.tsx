@@ -23,7 +23,7 @@ export function AvatarPicker({ url, onAvatarPick, onAvatarDrop }: AvatarPickerPr
     >
       <Thumbnail size="sm" className="flex flex-column">
         {url ? (
-          <ThumbnailImg src={url} />
+          <ThumbnailImg src={url} alt="Profile picture" />
         ) : (
           <>
             <IconButton variant="surface-low" onClick={onAvatarPick} size="xl" iconSrc={AddIC} label="Add avatar" />

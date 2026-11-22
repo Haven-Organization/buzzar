@@ -101,6 +101,7 @@ export function ProfileExtrasSettings() {
         <div className="flex items-center gap-xs">
           <Input
             placeholder="Pronouns (e.g. she/her)"
+            aria-label="Pronouns"
             value={pronouns}
             maxLength={40}
             onChange={(e) => setPronouns(e.currentTarget.value)}
@@ -126,7 +127,7 @@ export function ProfileExtrasSettings() {
           )}
         </div>
         <div className="flex items-center gap-xs">
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickBanner} />
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickBanner} aria-label="Banner image" />
           <Button size="sm" fill="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
             {banner ? "Change Banner" : "Upload Banner"}
           </Button>
