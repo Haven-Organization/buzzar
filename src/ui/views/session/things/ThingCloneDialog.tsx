@@ -2,7 +2,7 @@
  * Buzzar: clone a stock Thing with your own name and variables (Third Room #383), or edit a clone. Only the variables
  * the Thing has are offered (see plugins/spawnables/thingVariables.common.ts).
  */
-import { FormEvent, ReactNode, useState } from "react";
+import { CSSProperties, FormEvent, ReactNode, useState } from "react";
 
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -65,8 +65,13 @@ export function describeVariables(base: string, variables: ThingVariables): stri
   if (variables.bounciness !== undefined) parts.push(`bounce ${Math.round(variables.bounciness * 100)}%`);
   if (variables.weight !== undefined) parts.push(`${formatKg(variables.weight)} kg`);
   if (variables.glow !== undefined) parts.push(`glow ${variables.glow.toFixed(1)}`);
+  if (variables.springiness !== undefined) parts.push(`surface bounce ${Math.round(variables.springiness * 100)}%`);
   return parts.length ? parts.join(" · ") : "Same as the original";
 }
+
+/** The slider's filled share, for its track (see ThingCloneDialog.css). */
+const fill = (value: number, min: number, max: number) =>
+  ({ "--fill": `${(Math.min(1, Math.max(0, (value - min) / (max - min))) * 100).toFixed(1)}%` } as CSSProperties);
 
 function Row({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }) {
   return (
@@ -150,6 +155,7 @@ export function ThingCloneDialog({
               max={THING_VARIABLE_LIMITS.size.max}
               step={0.05}
               value={size}
+              style={fill(size, THING_VARIABLE_LIMITS.size.min, THING_VARIABLE_LIMITS.size.max)}
               onChange={(e) => set({ size: Number(e.target.value) })}
             />
           </Row>
@@ -174,6 +180,7 @@ export function ThingCloneDialog({
               max={1}
               step={0.05}
               value={get("bounciness")}
+              style={fill(get("bounciness"), 0, 1)}
               onChange={(e) => set({ bounciness: Number(e.target.value) })}
             />
           </Row>
@@ -186,6 +193,7 @@ export function ThingCloneDialog({
               max={1}
               step={0.005}
               value={weightToSlider(get("weight"))}
+              style={fill(weightToSlider(get("weight")), 0, 1)}
               onChange={(e) => set({ weight: Number(sliderToWeight(Number(e.target.value)).toPrecision(3)) })}
             />
           </Row>
@@ -198,7 +206,21 @@ export function ThingCloneDialog({
               max={THING_VARIABLE_LIMITS.glow.max}
               step={0.1}
               value={get("glow")}
+              style={fill(get("glow"), THING_VARIABLE_LIMITS.glow.min, THING_VARIABLE_LIMITS.glow.max)}
               onChange={(e) => set({ glow: Number(e.target.value) })}
+            />
+          </Row>
+        )}
+        {defaults.springiness !== undefined && (
+          <Row label="Surface Bounce" value={`${Math.round(get("springiness") * 100)}%`}>
+            <input
+              type="range"
+              min={THING_VARIABLE_LIMITS.springiness.min}
+              max={THING_VARIABLE_LIMITS.springiness.max}
+              step={0.05}
+              value={get("springiness")}
+              style={fill(get("springiness"), THING_VARIABLE_LIMITS.springiness.min, THING_VARIABLE_LIMITS.springiness.max)}
+              onChange={(e) => set({ springiness: Number(e.target.value) })}
             />
           </Row>
         )}

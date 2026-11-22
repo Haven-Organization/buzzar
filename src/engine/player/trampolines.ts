@@ -88,6 +88,25 @@ export function addTrampoline(node: RemoteNode, width: number, depth: number, ex
   });
 }
 
+/**
+ * Buzzar: makes the trampolines at or under `root` (a spawned Trampoline Thing) bouncier or softer by `factor`: their
+ * bounce heights and jump boost, and how much of a fall they give back (up to the usual limit).
+ */
+export function scaleTrampolineBounce(root: RemoteNode, factor: number): Trampoline[] {
+  const scaled: Trampoline[] = [];
+  for (const trampoline of trampolines) {
+    let node: RemoteNode | undefined = trampoline.node;
+    while (node && node !== root) node = node.parent;
+    if (!node) continue;
+    scaled.push(trampoline);
+    trampoline.minBounceHeight *= factor;
+    trampoline.jumpBoost *= factor;
+    trampoline.objectMinBounceHeight *= factor;
+    trampoline.bounciness = Math.min(1.2, trampoline.bounciness * factor);
+  }
+  return scaled;
+}
+
 /** Trampolines in loaded worlds (forgets ones whose node is gone). */
 export function liveTrampolines(ctx: GameContext): readonly Trampoline[] {
   for (let i = trampolines.length - 1; i >= 0; i--) {

@@ -16,6 +16,8 @@ export interface ThingVariables {
   weight?: number;
   /** Emissive strength of a glowing Thing: 1 is the stock glow. */
   glow?: number;
+  /** A trampoline's surface: how high it bounces you, × the stock bounce. */
+  springiness?: number;
 }
 
 export type ThingVariableName = keyof ThingVariables;
@@ -26,6 +28,7 @@ export const THING_VARIABLE_LIMITS = {
   bounciness: { min: 0, max: 1 },
   weight: { min: 0.1, max: 500 },
   glow: { min: 0, max: 10 },
+  springiness: { min: 0.25, max: 3 },
 } as const;
 
 type Defaults = { [K in ThingVariableName]?: NonNullable<ThingVariables[K]> };
@@ -45,7 +48,7 @@ export const THING_VARIABLE_DEFAULTS: Record<string, Defaults> = {
   // Tint multiplies the colour, which is black here.
   "black-mirror-ball": { size: 1, bounciness: 1, weight: 1 },
   "emissive-ball": { ...BALL, glow: 1 },
-  trampoline: { tint: [1, 1, 1], weight: 1 },
+  trampoline: { tint: [1, 1, 1], weight: 1, springiness: 1 },
 };
 
 export function thingVariableNames(thingId: string): ThingVariableName[] {
@@ -64,7 +67,7 @@ export function sanitizeThingVariables(thingId: string, value: unknown): ThingVa
   const out: ThingVariables = {};
   if (!defaults || typeof value !== "object" || value === null) return out;
   const raw = value as Record<string, unknown>;
-  for (const name of ["size", "bounciness", "weight", "glow"] as const) {
+  for (const name of ["size", "bounciness", "weight", "glow", "springiness"] as const) {
     if (defaults[name] === undefined || !isNumber(raw[name])) continue;
     const v = clamp(raw[name] as number, THING_VARIABLE_LIMITS[name]);
     if (Math.abs(v - (defaults[name] as number)) > 1e-4) out[name] = v;
@@ -90,8 +93,9 @@ export function thingVariable<K extends ThingVariableName>(
   return (variables?.[name] ?? THING_VARIABLE_DEFAULTS[thingId]?.[name]) as NonNullable<ThingVariables[K]> | undefined;
 }
 
-/* On the wire: [version u8 = 1][flags u8][size f32][tint 3×f32][bounciness f32][weight f32][glow f32], each value
- * only if its flag is set. Little-endian. */
+/* On the wire: [version u8 = 1][flags u8][size f32][tint 3×f32][bounciness f32][weight f32][glow f32]
+ * [springiness f32], each value only if its flag is set. Little-endian. Newer values go at the end, so older readers
+ * just stop before them. */
 const VERSION = 1;
 const FLAGS: [ThingVariableName, number][] = [
   ["size", 1],
@@ -99,6 +103,7 @@ const FLAGS: [ThingVariableName, number][] = [
   ["bounciness", 4],
   ["weight", 8],
   ["glow", 16],
+  ["springiness", 32],
 ];
 
 export function encodeThingVariables(variables: ThingVariables): ArrayBuffer {
@@ -123,6 +128,7 @@ export function encodeThingVariables(variables: ThingVariables): ArrayBuffer {
   if (variables.bounciness !== undefined) put(variables.bounciness);
   if (variables.weight !== undefined) put(variables.weight);
   if (variables.glow !== undefined) put(variables.glow);
+  if (variables.springiness !== undefined) put(variables.springiness);
   return buffer;
 }
 
@@ -145,5 +151,6 @@ export function decodeThingVariables(buffer: ArrayBuffer | undefined): Record<st
   if (flags & 4) out.bounciness = take();
   if (flags & 8) out.weight = take();
   if (flags & 16) out.glow = take();
+  if (flags & 32) out.springiness = take();
   return out;
 }

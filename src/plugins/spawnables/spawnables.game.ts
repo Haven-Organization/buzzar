@@ -11,6 +11,7 @@ import { defineModule, getModule, Thread } from "../../engine/module/module.comm
 import { ownedNetworkedQuery } from "../../engine/network/network.game";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
 import { CollisionGroup, dynamicObjectCollisionGroups } from "../../engine/physics/CollisionGroups";
+import { scaleTrampolineBounce } from "../../engine/player/trampolines";
 import { ThingPrefabOptions, thingVariablesFor, tintNodeTree, variantMaterial } from "./thingVariables.game";
 import {
   encodeThingVariables,
@@ -447,12 +448,12 @@ function createTrampoline(
   kinematic = false,
   variables: ThingVariables = {}
 ) {
-  const tint = variables.tint;
-  const node = createNodeFromGLTFURI(
-    ctx,
-    TRAMPOLINE_GLTF_URI,
-    tint ? (loaded) => tintNodeTree(ctx, loaded, tint) : undefined
-  );
+  const { tint, springiness } = variables;
+  const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI, (loaded) => {
+    if (tint) tintNodeTree(ctx, loaded, tint);
+    // The mat's HAVEN_trampoline settings are registered as the file loads, just before this.
+    if (springiness !== undefined) scaleTrampolineBounce(loaded, springiness);
+  });
   addThingPhysics(
     ctx,
     physics,

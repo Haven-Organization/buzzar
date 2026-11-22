@@ -17,11 +17,13 @@ describe("Thing variables", () => {
     expect(sanitizeThingVariables("black-mirror-ball", { tint: [0.5, 0.5, 0.5] })).toEqual({});
     expect(sanitizeThingVariables("not-a-thing", { size: 2 })).toEqual({});
     expect(sanitizeThingVariables("small-crate", { size: NaN, tint: [1, 1, 1] })).toEqual({});
-    expect(thingVariableNames("trampoline")).toEqual(["tint", "weight"]);
+    expect(thingVariableNames("trampoline")).toEqual(["tint", "weight", "springiness"]);
+    expect(sanitizeThingVariables("trampoline", { springiness: 9 })).toEqual({ springiness: 3 });
+    expect(sanitizeThingVariables("small-crate", { springiness: 2 })).toEqual({});
   });
 
   it("round-trips through the wire format", () => {
-    const v = { size: 0.5, tint: [0.25, 0.5, 1] as [number, number, number], weight: 20, glow: 2 };
+    const v = { size: 0.5, tint: [0.25, 0.5, 1] as [number, number, number], weight: 20, glow: 2, springiness: 1.5 };
     expect(decodeThingVariables(encodeThingVariables(v))).toEqual(v);
     expect(decodeThingVariables(encodeThingVariables({}))).toEqual({});
   });

@@ -84,3 +84,20 @@ describe("trampoline bounces", () => {
     expect(objectBounceVelocity(DEFAULT_TRAMPOLINE, [2, -0.5, 0], [0, 1, 0], 9.81)).toBeUndefined();
   });
 });
+
+describe("scaleTrampolineBounce", () => {
+  it("scales only the trampolines under the given node, keeping bounciness within its limit", async () => {
+    const { addTrampoline, scaleTrampolineBounce, DEFAULT_TRAMPOLINE } = await import("./trampolines");
+    const root = { eid: 101, parent: undefined } as never;
+    const mat = { eid: 102, parent: root } as never;
+    const other = { eid: 103, parent: undefined } as never;
+    addTrampoline(mat, 3, 3);
+    addTrampoline(other, 3, 3);
+    const scaled = scaleTrampolineBounce(root, 2);
+    expect(scaled.length).toBe(1);
+    expect(scaled[0].node).toBe(mat);
+    expect(scaled[0].minBounceHeight).toBe(DEFAULT_TRAMPOLINE.minBounceHeight * 2);
+    expect(scaled[0].jumpBoost).toBe(DEFAULT_TRAMPOLINE.jumpBoost * 2);
+    expect(scaled[0].bounciness).toBe(1.2);
+  });
+});
