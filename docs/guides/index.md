@@ -80,11 +80,11 @@ On a phone or tablet, Buzzar shows touch controls:
 
 - **Move** with the joystick in the lower left. Push it all the way to run.
 - **Look around** by dragging anywhere else on the world.
-- **Jump, crouch, use, throw, straighten and fly** with the round buttons on the right.
+- **Jump, crouch, use and throw** with the round buttons on the right.
 - **Flick** to keep the view turning for a moment; touch the world again to stop it.
 - **Chat** by tapping the chat box.
-- **More** (the ⋯ button, bottom right) holds your Things to spawn, and Menu, People, Names, Controls, Fullscreen,
-  Delete Aimed (removes your object at the centre of the screen) and Leave World.
+- **More** (the ⋯ button, bottom right) holds your Things to spawn, and Menu, People, Names, Controls, Delete Aimed
+  (removes your object at the centre of the screen), Fly, Straighten Held, Fullscreen and Leave World.
 
 You can turn touch controls on or off in **Settings → Controls**, for example to use them on a touch-screen laptop.
 

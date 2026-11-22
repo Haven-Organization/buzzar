@@ -145,8 +145,8 @@ export function ControlsSettings() {
           onChange={(value) => setTouchControlsSetting(value as TouchControlsSetting)}
         />
         <Text variant="b3" color="surface-low">
-          A joystick to move and buttons to jump, crouch, use, throw and fly. Drag anywhere else on the world to look
-          around.
+          A joystick to move and buttons to jump, crouch, use and throw (fly and more are under ⋯). Drag anywhere else
+          to look around.
         </Text>
       </SettingTile>
 

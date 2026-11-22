@@ -4,7 +4,8 @@
  * - The joystick in the lower left moves you. Pushing it all the way runs, like a controller's stick.
  * - Dragging anywhere else on the world (not on a button or the joystick) turns the view. A flick keeps it turning
  *   for a moment after the finger lifts, slowing to a stop; touching the world again stops it.
- * - The buttons on the right jump, crouch, grab or use, throw, straighten what you hold and fly.
+ * - The buttons on the right jump, crouch, grab or use, and throw. Straightening what you hold and flying are in the
+ *   HUD's More panel (TouchHudMenu).
  *
  * Touches on the world never become mouse clicks, so looking around doesn't grab things. The menu, chat, people and
  * the other on-screen buttons still work by tapping them.
@@ -46,8 +47,6 @@ const BUTTONS: { button: number; label: string; className: string }[] = [
   { button: PadButton.L3, label: "Crouch", className: "TouchControls__button--crouch" },
   { button: PadButton.RB, label: "Use", className: "TouchControls__button--use" },
   { button: PadButton.X, label: "Throw", className: "TouchControls__button--throw" },
-  { button: PadButton.B, label: "Straighten", className: "TouchControls__button--straighten" },
-  { button: PadButton.DpadRight, label: "Fly", className: "TouchControls__button--fly" },
 ];
 
 function TouchButton({ button, label, className }: { button: number; label: string; className: string }) {

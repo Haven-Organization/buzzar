@@ -35,23 +35,24 @@
   pointer-events: none;
 }
 
+/* Built around the right thumb: a big Jump in the corner, and the others on an arc around it (Crouch to the left, Use
+   diagonally up-left, Throw above), each the same reach from Jump's centre. */
 .TouchControls__buttons {
+  --jump-size: 88px;
+  --button-size: 58px;
+  --reach: 84px;
   position: absolute;
   right: var(--sp-md);
-  bottom: 96px;
-  display: grid;
-  grid-template-columns: repeat(2, 64px);
-  grid-template-areas:
-    "fly straighten"
-    "throw use"
-    "crouch jump";
-  gap: var(--sp-sm);
+  bottom: 84px;
+  width: 200px;
+  height: 200px;
   pointer-events: none;
 }
 
 .TouchControls__button {
-  width: 64px;
-  height: 64px;
+  position: absolute;
+  width: var(--button-size);
+  height: var(--button-size);
   border: 2px solid rgb(255 255 255 / 55%);
   border-radius: 50%;
   background-color: rgb(0 0 0 / 35%);
@@ -75,22 +76,26 @@
   color: black;
 }
 
+/* Jump's centre is (jump/2) in from the corner; each other button's centre is --reach from it. */
 .TouchControls__button--jump {
-  grid-area: jump;
+  right: 0;
+  bottom: 0;
+  width: var(--jump-size);
+  height: var(--jump-size);
+  font-size: 14px;
 }
+
 .TouchControls__button--crouch {
-  grid-area: crouch;
+  right: calc(var(--jump-size) / 2 + var(--reach) - var(--button-size) / 2);
+  bottom: calc(var(--jump-size) / 2 - var(--button-size) / 2);
 }
+
 .TouchControls__button--use {
-  grid-area: use;
+  right: calc(var(--jump-size) / 2 + var(--reach) * 0.7071 - var(--button-size) / 2);
+  bottom: calc(var(--jump-size) / 2 + var(--reach) * 0.7071 - var(--button-size) / 2);
 }
+
 .TouchControls__button--throw {
-  grid-area: throw;
-}
-.TouchControls__button--straighten {
-  grid-area: straighten;
-  font-size: 9px;
-}
-.TouchControls__button--fly {
-  grid-area: fly;
+  right: calc(var(--jump-size) / 2 - var(--button-size) / 2);
+  bottom: calc(var(--jump-size) / 2 + var(--reach) - var(--button-size) / 2);
 }

@@ -15,6 +15,8 @@ import CallCrossIC from "../../../../../res/ic/call-cross.svg";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import HelpIC from "../../../../../res/ic/help.svg";
 import DeleteIC from "../../../../../res/ic/bin.svg";
+import FlyIC from "../../../../../res/ic/fly.svg";
+import StraightenIC from "../../../../../res/ic/straighten.svg";
 import FullscreenIC from "../../../../../res/ic/fullscreen.svg";
 import FullscreenExitIC from "../../../../../res/ic/fullscreen-exit.svg";
 import { fullscreenSupported, toggleFullscreen, useFullscreen } from "../../../utils/fullscreen";
@@ -201,6 +203,9 @@ export function WorldControls({
       // Deletes what you're aiming at (if it's yours), like X on a keyboard: a short press of the virtual pad's
       // D-pad left, which is bound to it.
       { label: "Delete Aimed", icon: DeleteIC, onSelect: () => pressVirtualButton(PadButton.DpadLeft) },
+      // Moved off the screen to keep the touch buttons few: fly mode (D-pad right) and straightening what you hold (B).
+      { label: "Fly", icon: FlyIC, onSelect: () => pressVirtualButton(PadButton.DpadRight) },
+      { label: "Straighten Held", icon: StraightenIC, onSelect: () => pressVirtualButton(PadButton.B) },
     ];
     if (canFullscreen) {
       actions.push({
