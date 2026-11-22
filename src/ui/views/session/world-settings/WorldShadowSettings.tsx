@@ -27,10 +27,16 @@ export function shadowsDraftFromRules(content: Record<string, unknown> | undefin
   return { sun: parsed.sun, bakedSun: !!parsed.bakedSun, ...baked };
 }
 
+/** For the rules event: whole numbers only (Matrix events reject fractions), so strength is a percentage. */
 export function serializeShadows(draft: WorldShadowsDraft) {
   return {
     sun: draft.sun,
-    baked_sun: { enabled: draft.bakedSun, azimuth: draft.azimuth, elevation: draft.elevation, strength: draft.strength },
+    baked_sun: {
+      enabled: draft.bakedSun,
+      azimuth: Math.round(draft.azimuth),
+      elevation: Math.round(draft.elevation),
+      strength: Math.round(draft.strength * 100),
+    },
   };
 }
 

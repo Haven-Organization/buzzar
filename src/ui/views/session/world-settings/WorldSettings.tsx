@@ -50,6 +50,7 @@ import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallback";
+import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
 type WorldSettingsCategory = "general" | "scene" | "lighting" | "things";
@@ -213,7 +214,17 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       const objects = serializeObjectRules(previous, thingRules);
       // A per-person limit in the rules overrides the world's; keep the two the same.
       if (capChanged && objects.max_per_user !== undefined) objects.max_per_user = maxObjectCap;
-      session.hsApi.sendState(room.id, WORLD_RULES_EVENT, "", { ...content, objects, shadows: serializeShadows(shadows) });
+      session.hsApi
+        .sendState(room.id, WORLD_RULES_EVENT, "", { ...content, objects, shadows: serializeShadows(shadows) })
+        .response()
+        .catch((e: unknown) =>
+          // Buzzar: say so when the homeserver refuses (it used to fail silently and the settings snapped back).
+          confirmDialog({
+            title: "Couldn't Save the World's Rules",
+            message: e instanceof Error ? e.message : String(e),
+            confirmLabel: "OK",
+          })
+        );
     }
 
     setOverlayWindow({ type: OverlayWindow.None });

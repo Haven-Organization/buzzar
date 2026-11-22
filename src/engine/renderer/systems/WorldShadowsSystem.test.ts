@@ -12,6 +12,8 @@ describe("shadows (Third Room #204)", () => {
     expect(parseWorldShadows({ baked_sun: { enabled: true, azimuth: 400, elevation: 0, strength: "x" } }).bakedSun).toEqual(
       { azimuth: 360, elevation: 5, strength: 0.6 }
     );
+    // Strength is a whole percentage in the event (Matrix events allow only whole numbers).
+    expect(parseWorldShadows({ baked_sun: { enabled: true, strength: 75 } }).bakedSun?.strength).toBe(0.75);
   });
 
   it("points the sun from the compass direction and height", () => {
@@ -39,5 +41,18 @@ describe("shadows (Third Room #204)", () => {
     expect(Math.abs(ndc.y)).toBeLessThan(0.01);
     expect(Math.abs(ndc.z)).toBeLessThan(0.01);
     expect(camera.right - camera.left).toBeCloseTo(50);
+  });
+});
+
+describe("world shadow settings in the rules event", () => {
+  it("are whole numbers only, as Matrix events require", async () => {
+    const { serializeShadows, shadowsDraftFromRules } = await import(
+      "../../../ui/views/session/world-settings/WorldShadowSettings"
+    );
+    const saved = serializeShadows({ sun: false, bakedSun: true, azimuth: 137.4, elevation: 61.6, strength: 0.65 });
+    const numbers = JSON.stringify(saved).match(/-?\d+(\.\d+)?/g) ?? [];
+    expect(numbers.every((n) => Number.isInteger(Number(n)))).toBe(true);
+    const back = shadowsDraftFromRules({ shadows: saved });
+    expect(back).toMatchObject({ bakedSun: true, azimuth: 137, elevation: 62, strength: 0.65 });
   });
 });

@@ -181,7 +181,10 @@ export interface SetWorldShadowsMessage {
 const clampNum = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 
-/** Reads (untrusted) world rules' `shadows`. Off unless the world turns them on. */
+/**
+ * Reads (untrusted) world rules' `shadows`. Off unless the world turns them on. In the event, angles are whole degrees
+ * and strength a whole percentage: Matrix events only allow whole numbers (homeservers reject 0.6 with a 400).
+ */
 export function parseWorldShadows(value: unknown): WorldShadowSettings {
   const raw = (typeof value === "object" && value !== null ? value : {}) as Record<string, unknown>;
   const baked = raw.baked_sun as Record<string, unknown> | undefined;
@@ -192,7 +195,7 @@ export function parseWorldShadows(value: unknown): WorldShadowSettings {
         ? {
             azimuth: clampNum(baked.azimuth, 0, 360, 135),
             elevation: clampNum(baked.elevation, 5, 90, 60),
-            strength: clampNum(baked.strength, 0, 1, 0.6),
+            strength: clampNum(baked.strength, 0, 100, 60) / 100,
           }
         : undefined,
   };
