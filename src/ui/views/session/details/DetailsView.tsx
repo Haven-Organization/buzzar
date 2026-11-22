@@ -227,9 +227,17 @@ function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | 
                 </Row>
               ))}
             {!fileUrl && (
-              <Text variant="b3" color="surface-low">
-                This one is made by Buzzar itself, so there's no file to show.
-              </Text>
+              <>
+                {/* The stock balls are generated in code that Buzzar inherited from Third Room. */}
+                <Row label="Credit">
+                  <a href="https://github.com/matrix-org/thirdroom" target="_blank" rel="noreferrer">
+                    Third Room
+                  </a>
+                </Row>
+                <Text variant="b3" color="surface-low">
+                  Made in code by Third Room, the project Buzzar is built on, so there&apos;s no file to show.
+                </Text>
+              </>
             )}
           </div>
           {item.kind === "avatar" && <AvatarActions item={item} name={name} />}
