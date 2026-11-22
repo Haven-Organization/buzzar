@@ -32,6 +32,8 @@ export default defineConfig({
     UpdateRendererMeshPrimitivesSystem,
     PhysicsDebugRenderSystem,
     ResizeViewportSystem,
+    // Buzzar: before drawing: changing the pixel ratio clears the canvas, so after drawing it showed a black frame.
+    DynamicResolutionSystem,
     LoadImageResourcesSystem,
     LoadTextureResourcesSystem,
     UpdateDynamicAccessorsSystem,
@@ -44,7 +46,6 @@ export default defineConfig({
     UpdateNodesFromXRPosesSystem,
     RenderSubmitSystem,
     RenderThreadStatsSystem,
-    DynamicResolutionSystem,
     RendererOutgoingTripleBufferSystem, // Swap outgoing triplebuffers
     ReturnRecycledResourcesSystem, // Actually enqueue into recycle ringbuffer
   ],
