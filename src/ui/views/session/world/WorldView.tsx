@@ -374,7 +374,7 @@ export function WorldView({ world }: WorldViewProps) {
       </div>
       {world && !editorEnabled && (
         <>
-          {!worldChatVisible && !hudHidden && <HotbarControls />}
+          {!worldChatVisible && !hudHidden && !touchControls && <HotbarControls />}
           <WorldControls
             className={classNames("WorldView__controls", { "WorldView__controls--hidden": hudHidden })}
             session={session}

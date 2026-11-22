@@ -45,6 +45,7 @@ import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
 import { useKeyBindings } from "../../../hooks/useKeyBindings";
 import { keyLabel } from "../../../../engine/input/keyBindings";
 import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
+import { TouchHudAction, TouchHudMenu } from "../touch-controls/TouchHudMenu";
 import "./WorldControls.css";
 
 export function HotbarControls() {
@@ -172,8 +173,50 @@ export function WorldControls({
 
   useDisableInput(shortcutUI);
 
+  const helpDialog = (
+    <Dialog open={shortcutUI} onOpenChange={setShortcutUI}>
+      <Header
+        left={<HeaderTitle size="lg">Controls</HeaderTitle>}
+        right={<IconButton iconSrc={CrossIC} onClick={toggleShortcutUI} label="Close" />}
+      />
+      <div className="flex" style={{ height: "600px" }}>
+        <Scroll type="hover">
+          <ShortcutUI />
+        </Scroll>
+      </div>
+    </Dialog>
+  );
+
+  // Buzzar (Third Room #156): with touch controls, only the mic and a "More" button; the rest (and your Things, in
+  // place of the numbered bar) are in its panel.
+  if (touchControls) {
+    const actions: TouchHudAction[] = [
+      { label: "Menu", icon: MenuIC, onSelect: openOverlay },
+      { label: "People", icon: PeopleIC, onSelect: showPeople },
+      { label: NAME_MODE_LABEL[nameMode], icon: showNames ? SubtitlesIC : SubtitlesOffIC, onSelect: toggleShowNames },
+      { label: "Controls", icon: HelpIC, onSelect: toggleShortcutUI },
+    ];
+    if (canFullscreen) {
+      actions.push({
+        label: fullscreen ? "Exit Fullscreen" : "Fullscreen",
+        icon: fullscreen ? FullscreenExitIC : FullscreenIC,
+        onSelect: () => toggleFullscreen(),
+      });
+    }
+    if (isWebXRSupported) actions.push({ label: "Enter XR", icon: XRIC, onSelect: enterXR });
+    actions.push({ label: "Leave World", icon: CallCrossIC, onSelect: navigateExitWorld, danger: true });
+    return (
+      <div className={classNames(className, "flex items-end gap-xs WorldControls--touch")}>
+        {helpDialog}
+        <TouchHudMenu actions={actions}>
+          {activeCall && <MuteButton showToast={showToast} activeCall={activeCall} />}
+        </TouchHudMenu>
+      </div>
+    );
+  }
+
   return (
-    <div className={classNames(className, "flex", { "WorldControls--touch": touchControls })}>
+    <div className={classNames(className, "flex")}>
       {canFullscreen && (
         <div className="flex flex-column items-center">
           <Tooltip content={fullscreen ? "Exit Fullscreen" : "Fullscreen"}>
@@ -208,17 +251,7 @@ export function WorldControls({
         <Text variant="b3" color="world" weight="bold">
           {keyLabel(keys.controls)}
         </Text>
-        <Dialog open={shortcutUI} onOpenChange={setShortcutUI}>
-          <Header
-            left={<HeaderTitle size="lg">Controls</HeaderTitle>}
-            right={<IconButton iconSrc={CrossIC} onClick={toggleShortcutUI} label="Close" />}
-          />
-          <div className="flex" style={{ height: "600px" }}>
-            <Scroll type="hover">
-              <ShortcutUI />
-            </Scroll>
-          </div>
-        </Dialog>
+        {helpDialog}
       </div>
       {isWebXRSupported && (
         <div className="flex flex-column items-center">

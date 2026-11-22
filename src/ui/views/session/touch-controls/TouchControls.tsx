@@ -2,7 +2,8 @@
  * Buzzar (Third Room #156): on-screen controls for phones and tablets (see engine/input/touchControls.ts).
  *
  * - The joystick in the lower left moves you. Pushing it all the way runs, like a controller's stick.
- * - Dragging anywhere else on the world (not on a button or the joystick) turns the view.
+ * - Dragging anywhere else on the world (not on a button or the joystick) turns the view. A flick keeps it turning
+ *   for a moment after the finger lifts, slowing to a stop; touching the world again stops it.
  * - The buttons on the right jump, crouch, grab or use, throw, straighten what you hold and fly.
  *
  * Touches on the world never become mouse clicks, so looking around doesn't grab things. The menu, chat, people and
@@ -23,7 +24,15 @@ import "./TouchControls.css";
 /** Joystick radius (CSS px): pushing this far is full tilt. */
 const STICK_RADIUS = 56;
 /** View turn per CSS px dragged, in mouse units (about 600 units turn 90°). */
-const LOOK_PER_PX = 1.5;
+const LOOK_PER_PX = 2;
+/**
+ * Momentum: after a flick the view keeps turning at the finger's speed and slows down, losing about two thirds of its
+ * speed every COAST_TAU_MS. A finger that stopped before lifting (no recent movement) doesn't coast.
+ */
+const COAST_TAU_MS = 280;
+const COAST_MIN_SPEED = 0.15; // px/ms: slower flicks just stop
+const COAST_STOP_SPEED = 0.02; // px/ms
+const COAST_RECENT_MS = 60;
 
 /** Whether touch controls are on (the setting, or automatically on phones and tablets). */
 export function useTouchControlsEnabled(): boolean {
@@ -128,7 +137,27 @@ export function TouchControls({ canvas }: { canvas: HTMLCanvasElement }) {
     const previousTouchAction = canvas.style.touchAction;
     // The page mustn't scroll, zoom or go back while you play.
     canvas.style.touchAction = "none";
-    const looks = new Map<number, { x: number; y: number }>();
+    // Each finger's last position and time, and its recent speed (px/ms).
+    const looks = new Map<number, { x: number; y: number; t: number; vx: number; vy: number }>();
+    let coast: { vx: number; vy: number; last: number; frame: number } | undefined;
+    const stopCoasting = () => {
+      if (coast) cancelAnimationFrame(coast.frame);
+      coast = undefined;
+    };
+    const coastStep = (now: number) => {
+      if (!coast) return;
+      const dt = Math.min(50, now - coast.last);
+      coast.last = now;
+      virtualPad.look = [
+        virtualPad.look[0] + coast.vx * dt * LOOK_PER_PX,
+        virtualPad.look[1] + coast.vy * dt * LOOK_PER_PX,
+      ];
+      const decay = Math.exp(-dt / COAST_TAU_MS);
+      coast.vx *= decay;
+      coast.vy *= decay;
+      if (Math.hypot(coast.vx, coast.vy) < COAST_STOP_SPEED) coast = undefined;
+      else coast.frame = requestAnimationFrame(coastStep);
+    };
 
     // Any touch on the world (the canvas: buttons, the joystick and the HUD sit above it) turns the view.
     const onDown = (e: PointerEvent) => {
@@ -136,19 +165,31 @@ export function TouchControls({ canvas }: { canvas: HTMLCanvasElement }) {
       // No mouse events follow (they'd grab things).
       e.preventDefault();
       canvas.setPointerCapture?.(e.pointerId);
-      looks.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Touching the world again catches the view.
+      stopCoasting();
+      looks.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.timeStamp, vx: 0, vy: 0 });
     };
     const onMove = (e: PointerEvent) => {
       const last = looks.get(e.pointerId);
       if (!last) return;
-      virtualPad.look = [
-        virtualPad.look[0] + (e.clientX - last.x) * LOOK_PER_PX,
-        virtualPad.look[1] + (e.clientY - last.y) * LOOK_PER_PX,
-      ];
-      looks.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const dx = e.clientX - last.x;
+      const dy = e.clientY - last.y;
+      virtualPad.look = [virtualPad.look[0] + dx * LOOK_PER_PX, virtualPad.look[1] + dy * LOOK_PER_PX];
+      const dt = e.timeStamp - last.t;
+      // Recent speed, smoothed over the last few moves.
+      const vx = dt > 0 ? last.vx * 0.4 + (dx / dt) * 0.6 : last.vx;
+      const vy = dt > 0 ? last.vy * 0.4 + (dy / dt) * 0.6 : last.vy;
+      looks.set(e.pointerId, { x: e.clientX, y: e.clientY, t: e.timeStamp, vx, vy });
     };
     const onUp = (e: PointerEvent) => {
+      const last = looks.get(e.pointerId);
       looks.delete(e.pointerId);
+      if (!last || looks.size > 0 || e.type === "pointercancel") return;
+      if (e.timeStamp - last.t > COAST_RECENT_MS) return;
+      if (Math.hypot(last.vx, last.vy) < COAST_MIN_SPEED) return;
+      stopCoasting();
+      coast = { vx: last.vx, vy: last.vy, last: performance.now(), frame: 0 };
+      coast.frame = requestAnimationFrame(coastStep);
     };
 
     canvas.addEventListener("pointerdown", onDown);
@@ -161,6 +202,7 @@ export function TouchControls({ canvas }: { canvas: HTMLCanvasElement }) {
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       canvas.style.touchAction = previousTouchAction;
+      stopCoasting();
       resetVirtualPad();
     };
   }, [canvas]);
