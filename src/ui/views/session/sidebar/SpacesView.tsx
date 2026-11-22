@@ -11,6 +11,7 @@ import { useMatrix } from "../../../hooks/useMatrix";
 import { BadgeWrapper } from "../../../atoms/badge/BadgeWrapper";
 import { NotificationBadge } from "../../../atoms/badge/NotificationBadge";
 import { useInviteList } from "../../../hooks/useInviteList";
+import { useUnreadNotificationCount } from "../../../hooks/useMatrixNotifications";
 import { UserMenu } from "../menus/UserMenu";
 import "./SpacesView.css";
 import { RoomTypes, useRoomsOfType } from "../../../hooks/useRoomsOfType";
@@ -25,7 +26,10 @@ export function SpacesView() {
   const [sidebarTab, setSidebarTab] = useAtom(sidebarTabAtom);
   const [overlayWindow, setOverlayWindow] = useAtom(overlayWindowAtom);
 
-  const chatNotifCount = [...rooms, ...directs].reduce((total, room) => total + room.notificationCount, 0);
+  // Invites wait at the top of Chat, so they count toward its badge; the bell counts unread notifications.
+  const chatNotifCount =
+    [...rooms, ...directs].reduce((total, room) => total + room.notificationCount, 0) + invites.length;
+  const unreadNotifications = useUnreadNotificationCount(session);
 
   return (
     <div className="SpacesView flex flex-column">
@@ -67,7 +71,9 @@ export function SpacesView() {
             variant="surface-low"
           />
         </BadgeWrapper>
-        <BadgeWrapper badge={invites.length > 0 ? <NotificationBadge content={invites.length} /> : undefined}>
+        <BadgeWrapper
+          badge={unreadNotifications > 0 ? <NotificationBadge content={unreadNotifications} /> : undefined}
+        >
           <SidebarTab
             onClick={() => setSidebarTab(SidebarTabEnum.Notifications)}
             isActive={sidebarTab === SidebarTabEnum.Notifications && overlayWindow.type === OverlayWindow.None}

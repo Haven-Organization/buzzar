@@ -1,0 +1,35 @@
+.MatrixNotifications__item {
+  display: flex;
+  gap: var(--sp-sm);
+  width: 100%;
+  padding: var(--sp-sm) var(--sp-md);
+  border: none;
+  border-bottom: 1px solid var(--bg-surface-border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.MatrixNotifications__item:hover {
+  background-color: var(--bg-surface-hover);
+}
+.MatrixNotifications__item--unread {
+  background-color: var(--bg-surface-low);
+}
+.MatrixNotifications__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xxs);
+  min-width: 0;
+}
+.MatrixNotifications__body {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.MatrixNotifications__more {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-sm);
+}

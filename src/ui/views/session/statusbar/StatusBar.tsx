@@ -13,8 +13,7 @@ import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
 import { Icon } from "../../../atoms/icon/Icon";
 import { NotificationBadge } from "../../../atoms/badge/NotificationBadge";
-import { useInvitesOfType } from "../../../hooks/useInvitesOfType";
-import { RoomTypes } from "../../../hooks/useRoomsOfType";
+import { useUnreadNotificationCount } from "../../../hooks/useMatrixNotifications";
 import NotificationIC from "../../../../../res/ic/notification.svg";
 
 function OverlayButton({
@@ -34,14 +33,11 @@ function OverlayButton({
 }
 
 /**
- * Buzzar: the bell counts what the Notifications panel lists (pending world/room/DM invites), not the total
- * unread messages across every Matrix chat room (which showed e.g. "17719 Notifications").
+ * Buzzar: the bell counts the Notifications panel's unread notifications (mentions and other messages your push
+ * rules notify for), not the total unread messages across every chat room (which showed e.g. "17719").
  */
 function useNotificationCount(session: Session) {
-  const [worldInvites] = useInvitesOfType(session, RoomTypes.World);
-  const [roomInvites] = useInvitesOfType(session, RoomTypes.Room);
-  const [dmInvites] = useInvitesOfType(session, RoomTypes.Direct);
-  return worldInvites.length + roomInvites.length + dmInvites.length;
+  return useUnreadNotificationCount(session);
 }
 
 export function NotificationButton({ onClick }: { onClick: () => void }) {
