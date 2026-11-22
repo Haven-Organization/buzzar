@@ -31,7 +31,7 @@ function formatTime(ts: number) {
 export function RoomListNotifications() {
   const { session, platform } = useMatrix(true);
   useRefreshNotificationsOnOpen(session);
-  const { items, loading, error, nextToken, loadMore, refresh } = useMatrixNotifications(session);
+  const { items, loading, error, nextToken, loadMore, refresh, markRoomRead } = useMatrixNotifications(session);
   const setActiveChat = useSetAtom(activeChatsAtom);
 
   if (items.length === 0) {
@@ -51,7 +51,10 @@ export function RoomListNotifications() {
       key={n.id}
       type="button"
       className={classNames("MatrixNotifications__item", { "MatrixNotifications__item--unread": !n.read })}
-      onClick={() => setActiveChat({ type: "OPEN", roomId: n.roomId, eventId: n.id })}
+      onClick={() => {
+        setActiveChat({ type: "OPEN", roomId: n.roomId, eventId: n.id });
+        markRoomRead(n.roomId);
+      }}
     >
       <Avatar
         name={n.senderName}

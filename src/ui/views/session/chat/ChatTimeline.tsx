@@ -323,6 +323,8 @@ export function ChatTimeline({ room }: { room: Room }) {
       // After the scroller has laid out the page it just added.
       requestAnimationFrame(() => {
         el.scrollIntoView({ block: "center" });
+        // Tell the scroller right away that it's no longer at the bottom, or it snaps back down as images load.
+        el.closest(".Timeline_scroller")?.dispatchEvent(new Event("scroll"));
         el.classList.add("ChatBaseMessage--jumped");
         setTimeout(() => el.classList.remove("ChatBaseMessage--jumped"), 2500);
       });

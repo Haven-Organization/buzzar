@@ -163,6 +163,15 @@ class NotificationStore {
     }
   }
 
+  /**
+   * Opening a chat marks the room read (ChatViewContent sends the receipt); show its notifications as read now and
+   * fetch the server's view shortly after.
+   */
+  markRoomRead = (roomId: string) => {
+    this.set({ items: this.state.items.map((n) => (n.read || n.roomId !== roomId ? n : { ...n, read: true })) });
+    setTimeout(() => this.refresh(), 3000);
+  };
+
   /** Marks every room with unread notifications as read (a read receipt on its newest message). */
   markAllRead = async () => {
     const roomIds = new Set(this.state.items.filter((n) => !n.read).map((n) => n.roomId));
@@ -249,7 +258,7 @@ export function useMatrixNotifications(session: Session) {
     setState(store.getState());
     return store.subscribe(() => setState(store.getState()));
   }, [store]);
-  return { ...state, refresh: store.refresh, loadMore: store.loadMore, markAllRead: store.markAllRead };
+  return { ...state, refresh: store.refresh, loadMore: store.loadMore, markAllRead: store.markAllRead, markRoomRead: store.markRoomRead };
 }
 
 /** How many notifications you haven't read yet (of the most recent page). */
