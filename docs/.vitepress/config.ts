@@ -108,6 +108,7 @@ export default defineConfig({
             { text: "HAVEN_trampoline", link: "/gltf/HAVEN_trampoline/README" },
             { text: "HAVEN_avatar_motion", link: "/gltf/HAVEN_avatar_motion/README" },
             { text: "HAVEN_metadata", link: "/gltf/HAVEN_metadata/README" },
+            { text: "HAVEN_map", link: "/gltf/HAVEN_map/README" },
           ],
         },
         {

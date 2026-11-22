@@ -21,6 +21,9 @@ import SettingIC from "../../../../../res/ic/setting.svg";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
 import LightingIC from "../../../../../res/ic/dark-light.svg";
+import MapIC from "../../../../../res/ic/my-location.svg";
+import { WorldMapSettings } from "./WorldMapSettings";
+import { WORLD_MAP_EVENT } from "../../../../plugins/world-map/worldMap.common";
 import {
   serializeShadows,
   shadowsDraftFromRules,
@@ -53,11 +56,12 @@ import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallbac
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "lighting" | "things";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
   { id: "lighting", label: "Lighting", icon: LightingIC },
+  { id: "map", label: "Map", icon: MapIC },
   { id: "things", label: "Things", icon: BoxIC },
 ];
 
@@ -348,6 +352,12 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                             You don&apos;t have permission to change the world&apos;s lighting.
                           </Text>
                         )}
+                      </div>
+                      <div className="WorldSettings__section" hidden={category !== "map"}>
+                        <WorldMapSettings
+                          room={room}
+                          canEdit={canSendStateEvent(WORLD_MAP_EVENT, myPowerLevel)}
+                        />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
                         {canEditScene && (

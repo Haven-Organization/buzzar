@@ -66,6 +66,8 @@ import {
   XRSessionModeToXRMode,
 } from "./renderer.common";
 import { ResourceId } from "../resource/resource.common";
+import { onGenerateWorldMap } from "./systems/WorldMapCaptureSystem";
+import { WorldMapMessageType } from "../../plugins/world-map/worldMap.common";
 import { RenderPipeline } from "./RenderPipeline";
 import patchShaderChunks from "./materials/patchShaderChunks";
 import { MatrixMaterial } from "./materials/MatrixMaterial";
@@ -402,6 +404,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       registerMessageHandler(ctx, RendererMessageType.SetWorldShadows, (ctx: RenderContext, m: SetWorldShadowsMessage) => {
         getModule(ctx, RendererModule).worldShadows = m.shadows;
       }),
+      registerMessageHandler(ctx, WorldMapMessageType.Generate, onGenerateWorldMap),
       registerMessageHandler(ctx, RendererMessageType.EnterXR, onEnterXR),
       registerMessageHandler(ctx, RendererMessageType.PhysicsEnableDebugRender, onEnableDebugRender),
       registerMessageHandler(ctx, RendererMessageType.PhysicsDisableDebugRender, onDisableDebugRender),

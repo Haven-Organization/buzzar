@@ -32,6 +32,7 @@ import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { worldNoticeAtom } from "../../../state/worldNotice";
 import { useNameMode } from "../../../utils/nameDisplay";
 import { useWorldRules } from "../../../hooks/useWorldRules";
+import { WorldMap } from "../world-map/WorldMap";
 import { worldAtom } from "../../../state/world";
 import { PlayerModule } from "../../../../engine/player/Player.main";
 import { HotbarControls, WorldControls } from "./WorldControls";
@@ -383,6 +384,7 @@ export function WorldView({ world }: WorldViewProps) {
       )}
 
       {!overlayVisible && !editorEnabled && <WorldInteraction session={session} world={world} />}
+      {isWorldEntered && <WorldMap room={world} blocked={overlayVisible || worldChatVisible || editorEnabled} />}
 
       <div className="WorldView__toast-container">
         <div className={classNames("WorldView__toast", { "WorldView__toast--shown": toastShown })}>

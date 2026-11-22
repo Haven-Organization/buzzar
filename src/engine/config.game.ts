@@ -38,6 +38,7 @@ import {
   ResetInteractablesSystem,
 } from "../plugins/interaction/interaction.game";
 import { NametagModule, NametagSystem } from "./player/nametags.game";
+import { WorldMapModule, WorldMapSystem } from "../plugins/world-map/worldMap.game";
 import { ScriptingSystem } from "./scripting/scripting.game";
 import { GameResourceSystem } from "./resource/GameResourceSystem";
 import { RemoteCameraSystem } from "./camera/camera.game";
@@ -88,6 +89,7 @@ export default defineConfig<GameContext>({
     InteractionModule,
     SpawnablesModule,
     NametagModule,
+    WorldMapModule,
     AvatarModule,
     AvatarPedestalModule,
     SeatModule,
@@ -143,6 +145,7 @@ export default defineConfig<GameContext>({
     UpdateMatrixWorldSystem,
 
     NametagSystem,
+    WorldMapSystem,
     EditorStateSystem,
     //EditorSelectionSystem,
 

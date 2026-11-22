@@ -35,3 +35,15 @@ To use your 3D creations in Buzzar, you'll need to upload them to the platform. 
 1. Log in to Buzzar and click the plus (+) sign at the top of the left panel and click "Create World" or edit an existing world's settings.
 1. Select and upload the scene, script, and thumbnail image for the world. Your scene should be a binary glTF file or (.glb) ideally less than 50mb in size. Your script can either be a Javascript file or .wasm file (see the [developer guide for more info](/guides/developers)). Your thumbnail should be a square image in .jpg or .png format.
 1. Click the "Create World" button to finalize the process and make your world available to other people.
+
+## World Map
+
+People press M in a world to see a map with a dot for everyone in it. To give your world a map picture:
+
+1. Enter your world, open its settings and go to **Map**.
+1. For an indoor world, turn on **Leave Out Everything Above a Height** and set it just under the ceiling, so the rooms show instead of the roof.
+1. Click **Generate Map**. Buzzar draws the world from straight above on your computer (only the world itself: not people or spawned Things). Check the picture, then click **Save Map**.
+
+Visitors only download the saved picture, so a map costs them nothing to draw. Generate it again whenever you change the world.
+
+To use your own hand-drawn or stylised map instead, put it in the world file with [HAVEN_map](/gltf/HAVEN_map/README). A map in the file takes priority over a generated one.

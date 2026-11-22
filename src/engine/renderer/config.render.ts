@@ -22,6 +22,7 @@ import { RenderThreadStatsSystem } from "./systems/RenderThreadStatsSystem";
 import { DynamicResolutionSystem } from "./systems/DynamicResolutionSystem";
 import { AutoInstancingSystem } from "./systems/AutoInstancingSystem";
 import { WorldShadowsSystem } from "./systems/WorldShadowsSystem";
+import { WorldMapCaptureSystem } from "./systems/WorldMapCaptureSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
@@ -49,6 +50,9 @@ export default defineConfig({
     // Buzzar (Third Room #204): shadow settings and sun shadows following the camera; before instancing, which
     // groups meshes by their shadow flags.
     WorldShadowsSystem,
+    // Buzzar (Third Room #461): a generated map, when asked for; before instancing, so the world's own meshes can be
+    // shown one by one and last frame's instanced copies hidden.
+    WorldMapCaptureSystem,
     // Buzzar (Third Room #128): after transforms and reflections are updated, before drawing.
     AutoInstancingSystem,
     RenderSubmitSystem,

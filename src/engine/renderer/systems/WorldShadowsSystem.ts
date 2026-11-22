@@ -54,7 +54,7 @@ export function sunDirection(azimuth: number, elevation: number, out = new Vecto
   return out.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
 }
 
-function collectSceneNodes(scene: RenderScene | undefined, into: Set<RenderNode>) {
+export function collectSceneNodes(scene: RenderScene | undefined, into: Set<RenderNode>) {
   const visit = (node: RenderNode | undefined) => {
     for (let n = node; n; n = n.nextSibling) {
       into.add(n);
