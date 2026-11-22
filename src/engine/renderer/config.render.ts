@@ -20,6 +20,7 @@ import { UpdateNodeReflectionsSystem } from "./systems/UpdateNodeReflectionsSyst
 import { UpdateNodesFromXRPosesSystem } from "./systems/UpdateNodesFromXRPosesSystem";
 import { RenderThreadStatsSystem } from "./systems/RenderThreadStatsSystem";
 import { DynamicResolutionSystem } from "./systems/DynamicResolutionSystem";
+import { AutoInstancingSystem } from "./systems/AutoInstancingSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
@@ -44,6 +45,8 @@ export default defineConfig({
     UpdateReflectionProbesSystem,
     UpdateNodeReflectionsSystem,
     UpdateNodesFromXRPosesSystem,
+    // Buzzar (Third Room #128): after transforms and reflections are updated, before drawing.
+    AutoInstancingSystem,
     RenderSubmitSystem,
     RenderThreadStatsSystem,
     RendererOutgoingTripleBufferSystem, // Swap outgoing triplebuffers
