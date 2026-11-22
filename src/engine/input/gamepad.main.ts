@@ -8,12 +8,15 @@
  * - The right stick turns the view by sending mouse movement, so look sensitivity and smoothing are shared.
  * - Buttons for things the page handles (menu, mute, names, HUD, controls help) press those keyboard shortcuts.
  *
+ * - The on-screen touch controls are read as one more pad (touchControls.ts `virtualPad`), plus their drag-to-look.
+ *
  * Browsers only list a pad after one of its buttons is pressed while the page has focus. Settings → Controls picks which
  * pads are read (gamepadPreference.ts).
  */
 import { applyDeadzone, LOOK_SPEED, lookCurve, PadButton, SPRINT_THRESHOLD } from "./gamepad.common";
 import { getGamepadChoice, pickGamepads } from "./gamepadPreference";
 import { InputComponentId, InputSourceId } from "./input.common";
+import { virtualPad } from "./touchControls";
 
 export type Enqueue = (
   inputSourceId: number,
@@ -81,9 +84,15 @@ export function startGamepadPolling(enqueue: Enqueue, active: () => boolean): ()
     // Buttons: the strongest press across pads. Buttons held when a pad stops being read (unplugged, or another
     // controller picked) are released too.
     const held = [...buttons.keys()].filter((index) => index !== PadButton.Sprint);
-    const count = Math.max(0, ...pads.map((pad) => pad.buttons.length), ...held.map((index) => index + 1));
+    const touched = [...virtualPad.buttons.keys()];
+    const count = Math.max(
+      0,
+      ...pads.map((pad) => pad.buttons.length),
+      ...held.map((index) => index + 1),
+      ...touched.map((index) => index + 1)
+    );
     for (let i = 0; i < count; i++) {
-      let value = 0;
+      let value = virtualPad.buttons.get(i) ?? 0;
       for (const pad of pads) {
         const b = pad.buttons[i];
         if (b) value = Math.max(value, b.pressed ? Math.max(b.value, 1) : b.value);
@@ -102,8 +111,7 @@ export function startGamepadPolling(enqueue: Enqueue, active: () => boolean): ()
     }
 
     // Sticks: the pad pushed furthest.
-    let lx = 0;
-    let ly = 0;
+    let [lx, ly] = virtualPad.stick;
     let rx = 0;
     let ry = 0;
     for (const pad of pads) {
@@ -122,6 +130,13 @@ export function startGamepadPolling(enqueue: Enqueue, active: () => boolean): ()
       }
     }
     sendButton(PadButton.Sprint, Math.hypot(mx, my) >= SPRINT_THRESHOLD ? 1 : 0);
+
+    // Touch: drag-to-look, sent as it is (it's already movement, not a rate).
+    const [touchX, touchY] = virtualPad.look;
+    if (touchX !== 0 || touchY !== 0) {
+      virtualPad.look = [0, 0];
+      if (active()) enqueue(InputSourceId.Mouse, InputComponentId.MouseMovement, 0, touchX, touchY, 0, 0, 0);
+    }
 
     const [lookX, lookY] = applyDeadzone(rx, ry);
     if ((lookX !== 0 || lookY !== 0) && active()) {

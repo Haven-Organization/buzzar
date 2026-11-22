@@ -1,6 +1,6 @@
 /**
  * Buzzar: Settings → Controls: which controller to play with, the controllers connected right now, and the keyboard,
- * mouse and controller layouts. Keys can be rebound here (KeyBindingsEditor).
+ * mouse and controller layouts, and the touch controls (Third Room #156). Keys can be rebound here (KeyBindingsEditor).
  */
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
@@ -16,6 +16,13 @@ import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { ControllerControlsList } from "../world/ShortcutUI";
 import { KeyBindingsEditor } from "./KeyBindingsEditor";
+import {
+  getTouchControlsSetting,
+  isMobileBrowser,
+  onTouchControlsSetting,
+  setTouchControlsSetting,
+  TouchControlsSetting,
+} from "../../../../engine/input/touchControls";
 import { useActionKeyLabel } from "../../../hooks/useKeyBindings";
 import {
   GamepadChoice,
@@ -88,6 +95,9 @@ export function ControlsSettings() {
   const pads = useConnectedGamepads();
   const [choice, setChoice] = useGamepadChoice();
   const [autoRun, setAutoRun] = useAtom(autoRunAtom);
+  const [touchSetting, setTouchSetting] = useState(getTouchControlsSetting);
+  useEffect(() => onTouchControlsSetting(() => setTouchSetting(getTouchControlsSetting())), []);
+  const mobile = isMobileBrowser();
   const runKey = useActionKeyLabel("run");
 
   const options = useMemo(() => {
@@ -121,6 +131,25 @@ export function ControlsSettings() {
 
   return (
     <div className="ControlsSettings flex flex-column gap-lg">
+      <SettingTile label={<Label>Touch Controls</Label>}>
+        <SelectInput
+          options={[
+            {
+              value: "auto",
+              label: mobile ? "Automatic (on: this is a phone or tablet)" : "Automatic (off: not a phone or tablet)",
+            },
+            { value: "on", label: "On" },
+            { value: "off", label: "Off" },
+          ]}
+          value={touchSetting}
+          onChange={(value) => setTouchControlsSetting(value as TouchControlsSetting)}
+        />
+        <Text variant="b3" color="surface-low">
+          A joystick to move and buttons to jump, crouch, use, throw and fly. Drag anywhere else on the world to look
+          around.
+        </Text>
+      </SettingTile>
+
       <SettingTile label={<Label>Controller</Label>}>
         <SelectInput
           options={options.map(({ value, label }) => ({ value, label }))}

@@ -3,6 +3,8 @@
  * and never delivers to the page) from Buzzar's own code calling document.exitPointerLock() (opening chat, menus…).
  * One Escape then both frees the mouse and opens the overlay.
  */
+import { touchControlsEnabled } from "../../engine/input/touchControls";
+
 let lastCodeExit = -Infinity;
 let lastResume = -Infinity;
 let installed = false;
@@ -47,6 +49,8 @@ export function wasReleasedByCode(withinMs = 500) {
  */
 export function requestGamePointerLock(canvas: HTMLCanvasElement | null | undefined) {
   if (!canvas || document.pointerLockElement === canvas) return;
+  // Buzzar (Third Room #156): with touch controls you look by dragging; there's no pointer to lock.
+  if (touchControlsEnabled()) return;
   // Buzzar: browsers refuse the lock without a user gesture (Escape, which closes the overlay, doesn't count as one)
   // and for a moment after the user released it with Escape. Remember the request until it succeeds, so the desktop
   // app can retry it as a gesture (see buzzarResumePointerLock below).

@@ -17,6 +17,7 @@ import { useKeyDown } from "../../../hooks/useKeyDown";
 import { useEvent } from "../../../hooks/useEvent";
 import "./WorldView.css";
 import { EditorView } from "../editor/EditorView";
+import { TouchControls, useTouchControlsEnabled } from "../touch-controls/TouchControls";
 import { Nametags } from "../nametags/Nametags";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { getModule, registerMessageHandler } from "../../../../engine/module/module.common";
@@ -182,6 +183,8 @@ export function WorldView({ world }: WorldViewProps) {
   // Buzzar: say when a controller is picked up (browsers only list one after a button press on it), and remember
   // whether one is connected: then closing the menu needs no click to play, since the pad doesn't use the mouse.
   const [padConnected, setPadConnected] = useState(false);
+  // Buzzar (Third Room #156): on-screen controls on phones and tablets (or when turned on in Settings → Controls).
+  const touchControls = useTouchControlsEnabled();
   useEffect(() => {
     const anyPad = () => Array.from(navigator.getGamepads?.() ?? []).some((pad) => !!pad && pad.connected);
     setPadConnected(anyPad());
@@ -336,6 +339,13 @@ export function WorldView({ world }: WorldViewProps) {
   return (
     <div className="WorldView">
       {isWorldEntered &&
+        touchControls &&
+        !overlayVisible &&
+        !worldChatVisible &&
+        !editorEnabled &&
+        mainThread.canvas && <TouchControls canvas={mainThread.canvas} />}
+      {isWorldEntered &&
+        !touchControls &&
         (mouseFreed || (awaitingLock && !padConnected)) &&
         !pointerLocked &&
         !overlayVisible &&

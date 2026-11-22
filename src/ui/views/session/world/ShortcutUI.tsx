@@ -99,6 +99,7 @@ export function ControllerControlsList() {
       {renderItem("Mute", <Kbd size="xs">Y</Kbd>)}
       {renderItem("Names", <Kbd size="xs">D-pad Up</Kbd>)}
       {renderItem("Hide / show the HUD", <Kbd size="xs">D-pad Down</Kbd>)}
+      {renderItem("Fly Mode", <Kbd size="xs">D-pad Right</Kbd>)}
       {renderItem("Menu", <Kbd size="xs">Start</Kbd>)}
       {renderItem("Controls", <Kbd size="xs">Back</Kbd>)}
     </div>

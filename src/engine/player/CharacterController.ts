@@ -14,6 +14,7 @@ import { getAvatar } from "./getAvatar";
 import { getCamera } from "./getCamera";
 import { KinematicControls } from "./KinematicCharacterController";
 import { setAvatarHiddenFromMainCamera } from "./avatarLayers";
+import { padButton, PadButton } from "../input/gamepad.common";
 
 export enum CharacterControllerType {
   FirstPerson = "first-person",
@@ -37,6 +38,8 @@ export const CharacterControllerActionMap: ActionMap = {
           type: BindingType.Button,
           path: "Keyboard/KeyB",
         },
+        // Buzzar: D-pad right on a controller, and the touch controls' Fly button (touchControls.ts).
+        { type: BindingType.Button, path: padButton(PadButton.DpadRight) },
       ],
     },
     {
