@@ -15,6 +15,8 @@ import { Dots } from "../../../atoms/loading/Dots";
 import { useAsyncCallback } from "../../../hooks/useAsyncCallback";
 import { saveData } from "../../../utils/common";
 import { Textarea } from "../../../atoms/input/Textarea";
+import { useMainThreadContext } from "../../../hooks/useMainThread";
+import { getPerfReport } from "../../../../engine/stats/stats.main";
 
 const getLogs = async (platform: Platform): Promise<IBlobHandle> => {
   const exportReporter = platform.logger.reporters.find((r) => typeof r.export === "function");
@@ -33,6 +35,15 @@ interface RageshakeDialogProps {
 
 export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
   const { platform, session } = useMatrix(true);
+  const mainThread = useMainThreadContext();
+  // Buzzar (Third Room #476): frame rates and render counts, so "it's slow" reports show what was slow.
+  const perfReport = () => {
+    try {
+      return getPerfReport(mainThread);
+    } catch (e) {
+      return `Couldn't collect performance data: ${e}`;
+    }
+  };
 
   const {
     callback: submitLogs,
@@ -53,7 +64,9 @@ export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
         text: `Buzzar user ${session.userId} on device ${session.deviceId}: ${text ?? "No description provided."}`,
       },
       logs,
-      bugReportEndpointUrl
+      bugReportEndpointUrl,
+      undefined,
+      [{ name: "perf.txt", text: perfReport() }]
     );
   }, []);
 
@@ -67,8 +80,9 @@ export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
   };
 
   const downloadLogs = async () => {
-    getLogs(platform).then((outputBlob) => {
-      saveData(outputBlob.nativeBlob, `thirdroom-logs-${new Date()}.json`);
+    getLogs(platform).then(async (outputBlob) => {
+      const text = `${await outputBlob.nativeBlob.text()}\n\n=== Performance ===\n${perfReport()}\n`;
+      saveData(new Blob([text], { type: "text/plain" }), `buzzar-logs-${new Date().toISOString()}.txt`);
     });
   };
 
@@ -85,11 +99,11 @@ export function RageshakeDialog({ open, requestClose }: RageshakeDialogProps) {
       >
         <Text variant="b3">
           {"Please "}
-          <a href="https://github.com/matrix-org/thirdroom/issues" target="_blank">
+          <a href="https://github.com/Haven-Organization/buzzar/issues" target="_blank">
             view existing bugs on Github
           </a>
           {" first. No match? "}
-          <a href="https://github.com/matrix-org/thirdroom/issues/new" target="_blank">
+          <a href="https://github.com/Haven-Organization/buzzar/issues/new" target="_blank">
             Start a new one
           </a>
           .

@@ -302,7 +302,9 @@ export async function submitLogsToRageshakeServer(
   data: { app: string; userAgent: string; version: string; text: string },
   logs: IBlobHandle,
   endpointUrl: string,
-  _request?: unknown
+  _request?: unknown,
+  /** Buzzar: more text files to attach (e.g. perf.txt). */
+  extraFiles: { name: string; text: string }[] = []
 ): Promise<void> {
   const form = new FormData();
   form.append("text", data.text);
@@ -310,6 +312,7 @@ export async function submitLogsToRageshakeServer(
   form.append("user_agent", data.userAgent);
   form.append("version", data.version);
   form.append("file", logs.nativeBlob, "logs.txt");
+  for (const file of extraFiles) form.append("file", new Blob([file.text], { type: "text/plain" }), file.name);
   const res = await fetch(endpointUrl, { method: "POST", body: form });
   if (!res.ok) throw new Error(`Couldn't send the report (${res.status})`);
 }
