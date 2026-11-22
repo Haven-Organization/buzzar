@@ -2,8 +2,9 @@ import { useAtom, useAtomValue } from "jotai";
 
 import AddIC from "../../../../../res/ic/add.svg";
 import FilterIC from "../../../../../res/ic/filter.svg";
-import { chatFilterAtom } from "../../../state/chatFilter";
-import { Button } from "../../../atoms/button/Button";
+import DoneAllIC from "../../../../../res/ic/done-all.svg";
+import { chatFilterAtom, ListFilter, notificationsFilterAtom } from "../../../state/chatFilter";
+import { Tooltip } from "../../../atoms/tooltip/Tooltip";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { useMatrixNotifications } from "../../../hooks/useMatrixNotifications";
 import { Text } from "../../../atoms/text/Text";
@@ -23,9 +24,40 @@ function MarkAllReadButton() {
   const { items, markAllRead } = useMatrixNotifications(session);
   const unread = items.some((n) => !n.read);
   return (
-    <Button size="sm" variant="secondary" fill="none" onClick={markAllRead} disabled={!unread}>
-      Mark All Read
-    </Button>
+    <Tooltip content="Mark All Read">
+      <IconButton label="Mark All Read" iconSrc={DoneAllIC} onClick={markAllRead} disabled={!unread} />
+    </Tooltip>
+  );
+}
+
+/** A filter button: everything, or only what's unread (`allLabel` names "everything"). */
+function FilterButton({
+  filter,
+  setFilter,
+  allLabel,
+}: {
+  filter: ListFilter;
+  setFilter: (filter: ListFilter) => void;
+  allLabel: string;
+}) {
+  return (
+    <Tooltip content={filter === "unread" ? "Filter: Unread Only" : "Filter"}>
+      <DropdownMenu
+        content={
+          <>
+            <DropdownMenuItem onSelect={() => setFilter("all")}>
+              {filter === "all" ? "✓ " : ""}
+              {allLabel}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setFilter("unread")}>
+              {filter === "unread" ? "✓ " : ""}Unread Only
+            </DropdownMenuItem>
+          </>
+        }
+      >
+        <IconButton label="Filter" iconSrc={FilterIC} variant={filter === "unread" ? "primary" : undefined} />
+      </DropdownMenu>
+    </Tooltip>
   );
 }
 
@@ -40,6 +72,7 @@ export function RoomListHeader() {
   } = useDialog(false);
   const create = useDialog(false);
   const [chatFilter, setChatFilter] = useAtom(chatFilterAtom);
+  const [notificationsFilter, setNotificationsFilter] = useAtom(notificationsFilterAtom);
 
   return (
     <header className="RoomListHeader shrink-0 flex items-center gap-xs">
@@ -49,20 +82,7 @@ export function RoomListHeader() {
             {chatFilter === "unread" ? "Chat · Unread" : "Chat"}
           </Text>
           {/* Third Room #456: filter the list to chats with unread messages. */}
-          <DropdownMenu
-            content={
-              <>
-                <DropdownMenuItem onSelect={() => setChatFilter("all")}>
-                  {chatFilter === "all" ? "✓ " : ""}All Chats
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setChatFilter("unread")}>
-                  {chatFilter === "unread" ? "✓ " : ""}Unread Only
-                </DropdownMenuItem>
-              </>
-            }
-          >
-            <IconButton label="Filter" iconSrc={FilterIC} variant={chatFilter === "unread" ? "primary" : undefined} />
-          </DropdownMenu>
+          <FilterButton filter={chatFilter} setFilter={setChatFilter} allLabel="All Chats" />
           <Dialog open={openJoin} onOpenChange={setJoinOpen}>
             <JoinWithAliasDialog requestClose={closeJoinDialog} />
           </Dialog>
@@ -72,24 +92,27 @@ export function RoomListHeader() {
           <Dialog open={create.open} onOpenChange={create.setOpen}>
             <CreateRoomDialog requestClose={create.closeDialog} />
           </Dialog>
-          <DropdownMenu
-            content={
-              <>
-                <DropdownMenuItem onSelect={openDialog}>Direct Message</DropdownMenuItem>
-                <DropdownMenuItem onSelect={create.openDialog}>Create Room</DropdownMenuItem>
-                <DropdownMenuItem onSelect={openJoinDialog}>Join with Alias</DropdownMenuItem>
-              </>
-            }
-          >
-            <IconButton label="Add" iconSrc={AddIC} />
-          </DropdownMenu>
+          <Tooltip content="New Chat or Room">
+            <DropdownMenu
+              content={
+                <>
+                  <DropdownMenuItem onSelect={openDialog}>Direct Message</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={create.openDialog}>Create Room</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={openJoinDialog}>Join with Alias</DropdownMenuItem>
+                </>
+              }
+            >
+              <IconButton label="Add" iconSrc={AddIC} />
+            </DropdownMenu>
+          </Tooltip>
         </>
       )}
       {sidebarTab === SidebarTab.Notifications && (
         <>
           <Text className="grow truncate" variant="s2" weight="semi-bold">
-            Notifications
+            {notificationsFilter === "unread" ? "Notifications · Unread" : "Notifications"}
           </Text>
+          <FilterButton filter={notificationsFilter} setFilter={setNotificationsFilter} allLabel="All Notifications" />
           <MarkAllReadButton />
         </>
       )}

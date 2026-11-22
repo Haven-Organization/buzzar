@@ -1,6 +1,10 @@
 import { atomWithStorage } from "jotai/utils";
 
-/** Buzzar: the Chat list's filter (third room #456): every chat, or only those with unread messages. Per device. */
-export type ChatFilter = "all" | "unread";
+/** Buzzar: the Chat and Notifications lists' filters: everything, or only what's unread. Per device. */
+export type ListFilter = "all" | "unread";
+export type ChatFilter = ListFilter;
 
-export const chatFilterAtom = atomWithStorage<ChatFilter>("buzzar.chatFilter", "all");
+/** Third Room #456: Chat can show only chats with unread messages. */
+export const chatFilterAtom = atomWithStorage<ListFilter>("buzzar.chatFilter", "all");
+
+export const notificationsFilterAtom = atomWithStorage<ListFilter>("buzzar.notificationsFilter", "all");

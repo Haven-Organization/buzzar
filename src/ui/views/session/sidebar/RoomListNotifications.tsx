@@ -1,4 +1,4 @@
-import { useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import classNames from "classnames";
 
 import { useMatrix } from "../../../hooks/useMatrix";
@@ -8,6 +8,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Button } from "../../../atoms/button/Button";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { activeChatsAtom } from "../../../state/overlayChat";
+import { notificationsFilterAtom } from "../../../state/chatFilter";
 import {
   MatrixNotification,
   useMatrixNotifications,
@@ -31,8 +32,22 @@ function formatTime(ts: number) {
 export function RoomListNotifications() {
   const { session, platform } = useMatrix(true);
   useRefreshNotificationsOnOpen(session);
-  const { items, loading, error, nextToken, loadMore, refresh, markRoomRead } = useMatrixNotifications(session);
+  const { items: allItems, loading, error, nextToken, loadMore, refresh, markRoomRead } =
+    useMatrixNotifications(session);
   const setActiveChat = useSetAtom(activeChatsAtom);
+  const [filter, setFilter] = useAtom(notificationsFilterAtom);
+  const items = filter === "unread" ? allItems.filter((n) => !n.read) : allItems;
+
+  if (filter === "unread" && items.length === 0 && allItems.length > 0) {
+    return (
+      <EmptyState
+        style={{ minHeight: "400px" }}
+        heading="All Caught Up"
+        text="No unread notifications."
+        actions={<Button onClick={() => setFilter("all")}>Show All Notifications</Button>}
+      />
+    );
+  }
 
   if (items.length === 0) {
     if (loading) return <EmptyState style={{ minHeight: "400px" }} heading="Loading…" text="" />;
