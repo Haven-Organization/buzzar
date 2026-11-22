@@ -2,7 +2,7 @@
 
 ![The Buzzar Home world: a campfire clearing with log seats and avatar pedestals](/images/BuzzarHome.jpg)
 
-Welcome to Buzzar, an open-source platform for shared virtual worlds built on the Matrix protocol. You can visit 3D worlds together on desktop or in VR, talk with spatial voice, and chat with anyone on Matrix. This guide covers the basics.
+Welcome to Buzzar, an open-source platform for shared virtual worlds built on the Matrix protocol. You can visit 3D worlds together on desktop, phone, tablet or in VR, talk with spatial voice, and chat with anyone on Matrix. This guide covers the basics.
 
 ## What is Buzzar?
 
@@ -57,6 +57,8 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Menu                          | Tab (or Escape)                              |
 | Hide / show the HUD           | H                                            |
 
+You can change any of these keys in **Settings → Controls**: click an action's key, then press the new one.
+
 With a game controller (Xbox, PlayStation, Switch Pro, Steam Deck…), press any button on it once so the browser
 sees it:
 
@@ -70,7 +72,25 @@ sees it:
 | Throw what you're holding | X (Square)       |
 | Mute                      | Y (Triangle)     |
 | Names / hide the HUD      | D-pad up / down  |
+| Fly mode                  | D-pad right      |
 | Menu / controls           | Start / Back     |
+
+On a phone or tablet, Buzzar shows touch controls:
+
+- **Move** with the joystick in the lower left. Push it all the way to run.
+- **Look around** by dragging anywhere else on the world.
+- **Jump, crouch, use, throw, straighten and fly** with the round buttons on the right.
+- **Chat** by tapping the chat box.
+
+You can turn touch controls on or off in **Settings → Controls**, for example to use them on a touch-screen laptop.
+
+#### Install Buzzar as an app
+
+On a phone or tablet you can put Buzzar on your home screen, where it opens on its own like any other app:
+
+- **Android (Chrome):** open the browser menu and choose **Add to Home screen** or **Install app**.
+- **iPhone and iPad (Safari):** tap **Share**, then **Add to Home Screen**.
+- **Desktop (Chrome, Edge, Brave):** click the install button in the address bar.
 
 ### 4. Invite people and manage your world
 
