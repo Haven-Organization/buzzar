@@ -118,6 +118,8 @@ export interface RendererModuleState {
   dynamicAccessors: RenderAccessor[];
   xrMode: Uint8Array;
   quality: RenderQuality;
+  /** Buzzar (Third Room #211): see DynamicResolutionSystem. */
+  dynamicResolution: boolean;
   debugRender: boolean;
   debugRenderTripleBuffer?: PhysicsDebugRenderTripleBuffer;
   debugLines?: LineSegments;
@@ -155,6 +157,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       initialCanvasWidth,
       supportedXRSessionModes,
       quality,
+      dynamicResolution,
       statsBuffer,
       inputRingBuffer,
     } = await waitForMessage<InitializeRendererMessage>(Thread.Main, RendererMessageType.InitializeRenderer);
@@ -259,6 +262,7 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
       dynamicAccessors: [],
       xrMode,
       quality,
+      dynamicResolution: dynamicResolution ?? false,
       debugRender: false,
       nodeOptimizationsEnabled: true,
       yoga,

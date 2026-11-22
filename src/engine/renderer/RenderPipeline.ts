@@ -117,11 +117,8 @@ export class RenderPipeline {
     this.outlinePass.edgeStrength = 4;
     this.outlinePass.edgeThickness = 1.5;
 
-    if (this.quality === RenderQuality.Low) {
-      this.renderer.setPixelRatio(0.75);
-    } else if (this.quality >= RenderQuality.Medium) {
-      this.renderer.setPixelRatio(1);
-    }
+    this.basePixelRatio = this.quality === RenderQuality.Low ? 0.75 : 1;
+    this.renderer.setPixelRatio(this.basePixelRatio);
 
     // Set the texture anisotropy which improves rendering at extreme angles.
     // Note this uses the GPU's maximum anisotropy with an upper limit of 8. We may want to bump this cap up to 16
@@ -131,6 +128,17 @@ export class RenderPipeline {
     this.renderer.shadowMap.enabled = quality >= RenderQuality.Medium;
     this.directionalShadowMapSize = QualityDirectionalShadowMapSize[quality];
     this.shadowMapSize = QualityShadowMapSize[quality];
+  }
+
+  private basePixelRatio = 1;
+  /** Buzzar (Third Room #211): the dynamic resolution scale, 1 = the quality's own resolution. */
+  resolutionScale = 1;
+
+  setResolutionScale(scale: number) {
+    if (scale === this.resolutionScale) return;
+    this.resolutionScale = scale;
+    this.renderer.setPixelRatio(this.basePixelRatio * scale);
+    this.effectComposer.setPixelRatio(this.basePixelRatio * scale);
   }
 
   setSize(width: number, height: number) {

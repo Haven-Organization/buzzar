@@ -2,11 +2,13 @@ import { defineModule, Thread } from "../module/module.common";
 import { MainContext } from "../MainThread";
 import {
   InitializeRendererMessage,
+  LOCAL_STORAGE_RENDER_QUALITY,
   PrintRenderThreadStateMessage,
   RendererMessageType,
   rendererModuleName,
   RenderStatNames,
   RenderStatsBuffer,
+  RenderQualitySetting,
   TogglePhysicsDebugMessage,
 } from "./renderer.common";
 import { createDisposables } from "../utils/createDisposables";
@@ -31,6 +33,7 @@ export const RendererModule = defineModule<MainContext, MainRendererModuleState>
         initialCanvasHeight: canvas.clientHeight,
         supportedXRSessionModes,
         quality,
+        dynamicResolution: dynamicResolutionEnabled(),
         statsBuffer,
         inputRingBuffer,
       },
@@ -97,4 +100,14 @@ function createRenderStatsBuffer(): RenderStatsBuffer {
     f32: new Float32Array(buffer),
     u32: new Uint32Array(buffer),
   };
+}
+
+/** Buzzar: dynamic resolution is on with the Auto render quality; a quality you chose stays at a fixed resolution. */
+function dynamicResolutionEnabled(): boolean {
+  try {
+    const setting = localStorage.getItem(LOCAL_STORAGE_RENDER_QUALITY);
+    return !setting || JSON.parse(setting) === RenderQualitySetting.Auto;
+  } catch {
+    return true;
+  }
 }

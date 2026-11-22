@@ -19,6 +19,7 @@ import { UpdateReflectionProbesSystem } from "./systems/UpdateReflectionProbesSy
 import { UpdateNodeReflectionsSystem } from "./systems/UpdateNodeReflectionsSystem";
 import { UpdateNodesFromXRPosesSystem } from "./systems/UpdateNodesFromXRPosesSystem";
 import { RenderThreadStatsSystem } from "./systems/RenderThreadStatsSystem";
+import { DynamicResolutionSystem } from "./systems/DynamicResolutionSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
@@ -43,6 +44,7 @@ export default defineConfig({
     UpdateNodesFromXRPosesSystem,
     RenderSubmitSystem,
     RenderThreadStatsSystem,
+    DynamicResolutionSystem,
     RendererOutgoingTripleBufferSystem, // Swap outgoing triplebuffers
     ReturnRecycledResourcesSystem, // Actually enqueue into recycle ringbuffer
   ],

@@ -35,6 +35,8 @@ export interface InitializeRendererMessage {
   initialCanvasWidth: number;
   initialCanvasHeight: number;
   quality: RenderQuality;
+  /** Buzzar (Third Room #211): lower the resolution while frames run long (on when render quality is Auto). */
+  dynamicResolution?: boolean;
   statsBuffer: RenderStatsBuffer;
   inputRingBuffer: InputRingBuffer;
 }
@@ -210,6 +212,8 @@ export enum RenderStats {
   /** Buzzar (Third Room #365): frames in the last second that showed new game state, and the longest frame (ms). */
   freshFps,
   worstFrame,
+  /** Buzzar (Third Room #211): the dynamic resolution scale (1 = full). */
+  resolutionScale,
 }
 
 export interface RenderStatsBuffer {

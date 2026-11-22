@@ -88,6 +88,7 @@ export function getStats(ctx: MainContext): StatsObject {
   stats.fps = renderStatsBuffer.f32[RenderStats.fps].toFixed(1);
   stats.freshFps = renderStatsBuffer.f32[RenderStats.freshFps].toFixed(1);
   stats.worstFrame = renderStatsBuffer.f32[RenderStats.worstFrame].toFixed(1);
+  stats.resolutionScale = renderStatsBuffer.f32[RenderStats.resolutionScale].toFixed(2);
   stats.gameFps = buffer.f32[Stats.gameFps].toFixed(1);
   stats.gameWorstFrame = buffer.f32[Stats.gameWorstFrame].toFixed(1);
   stats.frameTime = renderStatsBuffer.f32[RenderStats.frameTime].toFixed(2);
