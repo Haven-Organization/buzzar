@@ -181,7 +181,11 @@ export function WorldControls({
               variant="world"
               label={fullscreen ? "Exit Fullscreen" : "Fullscreen"}
               iconSrc={fullscreen ? FullscreenExitIC : FullscreenIC}
-              onClick={() => toggleFullscreen()}
+              onClick={(e) => {
+                // Don't keep focus: keys and touch go to the world again straight away.
+                e.currentTarget.blur();
+                toggleFullscreen();
+              }}
             />
           </Tooltip>
           <Text variant="b3" color="world" weight="bold">

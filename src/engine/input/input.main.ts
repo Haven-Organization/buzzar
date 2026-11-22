@@ -11,6 +11,15 @@ import { enqueueInputRingBuffer, InputRingBuffer } from "../common/InputRingBuff
 import { EditorModule } from "../editor/editor.main";
 import { startGamepadPolling } from "./gamepad.main";
 
+/** A focused element that takes typing (where pad and touch input must not act). */
+function isTextEntry(element: Element | null): boolean {
+  if (!(element instanceof HTMLElement)) return false;
+  if (element.isContentEditable || element.tagName === "TEXTAREA" || element.tagName === "SELECT") return true;
+  if (element.tagName !== "INPUT") return false;
+  const type = (element as HTMLInputElement).type;
+  return !["button", "checkbox", "radio", "range", "color", "submit", "reset", "image", "file"].includes(type);
+}
+
 /*********
  * Types *
  ********/
@@ -408,15 +417,16 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
 
     document.addEventListener("pointerlockchange", onPointerLockChange);
 
-    // Buzzar: gamepads (gamepad.main.ts). Like the keyboard without pointer lock, they drive the game only while no
-    // menu, dialog or text field is in the way; releases always get through.
+    // Buzzar: gamepads and the touch controls (gamepad.main.ts). They drive the game only while no menu or dialog is
+    // open and nothing is being typed; releases always get through. A focused button doesn't count: the touch controls
+    // stopped working after tapping the HUD's fullscreen button, which kept focus.
     const stopGamepads = startGamepadPolling(
       forceEnqueue,
       () =>
         inputModule.disableInputStack.length === 0 &&
         !camRigModule.orbiting &&
         document.hasFocus() &&
-        (document.activeElement === document.body || document.activeElement === canvas)
+        !isTextEntry(document.activeElement)
     );
 
     if (debugMovement) {
