@@ -15,6 +15,10 @@ import { Icon } from "../../../atoms/icon/Icon";
 import { NotificationBadge } from "../../../atoms/badge/NotificationBadge";
 import { useUnreadNotificationCount } from "../../../hooks/useMatrixNotifications";
 import NotificationIC from "../../../../../res/ic/notification.svg";
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
+
+/** Buzzar: whether the world's name shows at the top (Settings → Graphics). Off by default. */
+export const LOCAL_STORAGE_SHOW_WORLD_NAME = "buzzar.showWorldName";
 
 function OverlayButton({
   style,
@@ -70,6 +74,7 @@ export function StatusBar() {
   const isHome = homeMatch !== null;
   const [knownWorldId] = useWorldPath();
   const world = knownWorldId ? session.rooms.get(knownWorldId) : undefined;
+  const [showWorldName] = useLocalStorage(LOCAL_STORAGE_SHOW_WORLD_NAME, false);
 
   // Buzzar: clicking "Close Overlay" is a user gesture, so it takes the mouse back for play too.
   const resumePlay = useResumePlay();
@@ -123,9 +128,11 @@ export function StatusBar() {
         )}
       </div>
       <div className="StatusBar__center">
-        <Text color="world" weight="semi-bold">
-          {isHome ? "Home" : world?.name ?? world?.canonicalAlias ?? "Unknown"}
-        </Text>
+        {showWorldName && (
+          <Text color="world" weight="semi-bold">
+            {isHome ? "Home" : world?.name ?? world?.canonicalAlias ?? "Unknown"}
+          </Text>
+        )}
       </div>
       <div className="StatusBar__right grow basis-0 flex justify-end gap-xxs">
         {knownWorldId && <NotificationButton onClick={openNotifications} />}

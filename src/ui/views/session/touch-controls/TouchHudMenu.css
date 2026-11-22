@@ -7,11 +7,12 @@
 
 .TouchHudMenu {
   position: absolute;
-  right: 0;
-  bottom: calc(100% + var(--sp-xs));
-  width: min(620px, calc(100vw - 2 * var(--sp-md)));
-  /* The HUD row is below; everything above it is free (landscape phones are about 390px tall). */
-  max-height: calc(100vh - 72px);
+  /* Opens to the left of the HUD column on the right edge, from its top down (landscape phones are about 390px
+     tall, and the column starts 52px down, under the notifications). */
+  top: 0;
+  right: calc(100% + var(--sp-xs));
+  width: min(620px, calc(100vw - 2 * var(--sp-md) - 48px));
+  max-height: calc(100vh - 52px - var(--sp-md));
   overflow-y: auto;
   padding: var(--sp-sm);
   border-radius: var(--br-md);

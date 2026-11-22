@@ -109,3 +109,20 @@
     bottom: calc(var(--sp-md) + 56px);
   }
 }
+
+/* Buzzar (Third Room #156): with touch controls the joystick takes the lower left corner and the chat (its button and
+   its messages) sits above it; the mic and More run down the right edge under the notifications, leaving the lower
+   right corner to the jump/crouch/use/throw buttons. */
+.WorldView--touch {
+  --touch-stick-size: 128px;
+}
+
+.WorldView--touch .WorldView__chat {
+  bottom: calc(var(--sp-md) + var(--touch-stick-size) + var(--sp-sm));
+  height: calc(100% - 70px - var(--touch-stick-size) - var(--sp-sm));
+}
+
+.WorldView--touch .WorldView__controls {
+  top: 52px;
+  bottom: auto;
+}

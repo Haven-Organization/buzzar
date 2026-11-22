@@ -6,13 +6,13 @@
   pointer-events: none;
 }
 
-/* Lower left, above the chat box. */
+/* Lower left corner; the chat sits above it (WorldView.css). */
 .TouchControls__stick {
   position: absolute;
   left: var(--sp-lg);
-  bottom: 88px;
-  width: 128px;
-  height: 128px;
+  bottom: var(--sp-md);
+  width: var(--touch-stick-size, 128px);
+  height: var(--touch-stick-size, 128px);
   border: 2px solid rgb(255 255 255 / 45%);
   border-radius: 50%;
   background-color: rgb(0 0 0 / 25%);
@@ -43,7 +43,7 @@
   --reach: 84px;
   position: absolute;
   right: var(--sp-md);
-  bottom: 84px;
+  bottom: var(--sp-md);
   width: 200px;
   height: 200px;
   pointer-events: none;

@@ -24,6 +24,7 @@ import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
 import { uploadAttachment } from "../../../utils/matrixUtils";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import { LOCAL_STORAGE_SHOW_WORLD_NAME } from "../statusbar/StatusBar";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import {
   LOCAL_STORAGE_RENDER_QUALITY,
@@ -66,6 +67,7 @@ export function UserProfileOverview() {
   const [newDisplayName, setNewDisplayName] = useState(displayName);
   const [renderQuality, setRenderQuality] = useLocalStorage(LOCAL_STORAGE_RENDER_QUALITY, RenderQualitySetting.Auto);
   const [worldReveal, setWorldReveal] = useLocalStorage(LOCAL_STORAGE_WORLD_REVEAL, false);
+  const [showWorldName, setShowWorldName] = useLocalStorage(LOCAL_STORAGE_SHOW_WORLD_NAME, false);
   const [shadowQuality, setShadowQuality] = useLocalStorage(LOCAL_STORAGE_SHADOW_QUALITY, ShadowQualitySetting.Auto);
   const shadowQualityOptions = useMemo(
     () => [
@@ -176,6 +178,13 @@ export function UserProfileOverview() {
                         // Third Room #267: a world appears in green Matrix code for a moment, then fully shaded.
                       >
                         <Switch checked={worldReveal} onCheckedChange={setWorldReveal} />
+                      </SettingTile>
+                      <SettingTile label={<Label>Show World Name</Label>}>
+                        <Switch checked={showWorldName} onCheckedChange={setShowWorldName} />
+                        <Text variant="b3" color="surface-low">
+                          The world&apos;s name at the top of the screen. Off by default, to keep the view clear. Saved
+                          in this browser.
+                        </Text>
                       </SettingTile>
                     </div>
                   )}

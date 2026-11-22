@@ -217,7 +217,7 @@ export function WorldControls({
     if (isWebXRSupported) actions.push({ label: "Enter XR", icon: XRIC, onSelect: enterXR });
     actions.push({ label: "Leave World", icon: CallCrossIC, onSelect: navigateExitWorld, danger: true });
     return (
-      <div className={classNames(className, "flex items-end gap-xs WorldControls--touch")}>
+      <div className={classNames(className, "flex flex-column items-end gap-xs WorldControls--touch")}>
         {helpDialog}
         <TouchHudMenu actions={actions}>
           {activeCall && <MuteButton showToast={showToast} activeCall={activeCall} />}

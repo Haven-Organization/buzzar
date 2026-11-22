@@ -337,7 +337,7 @@ export function WorldView({ world }: WorldViewProps) {
   if (isPresenting) return null;
 
   return (
-    <div className="WorldView">
+    <div className={classNames("WorldView", { "WorldView--touch": touchControls })}>
       {isWorldEntered &&
         touchControls &&
         !overlayVisible &&
