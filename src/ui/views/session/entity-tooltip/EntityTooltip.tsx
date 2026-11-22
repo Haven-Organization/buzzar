@@ -6,6 +6,7 @@ import { Text } from "../../../atoms/text/Text";
 import { InteractionState } from "../../../hooks/useWorldInteraction";
 import { usePortalDestination } from "../../../hooks/usePortalDestination";
 import { useMatrix } from "../../../hooks/useMatrix";
+import { useActionKeyLabel } from "../../../hooks/useKeyBindings";
 import "./EntityTooltip.css";
 
 export interface IPortalProcess {
@@ -19,6 +20,8 @@ interface EntityTooltipProps {
 }
 
 export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProps) {
+  const grabKey = useActionKeyLabel("grab");
+  const deleteKey = useActionKeyLabel("delete");
   return (
     <div className="EntityTooltip">
       {activeEntity.interactableType === InteractableType.Player && (
@@ -31,7 +34,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
               {activeEntity.peerId}
             </Text>
             <Text variant="b3" color="world">
-              <span className="EntityTooltip__boxedKey">E</span>
+              <span className="EntityTooltip__boxedKey">{grabKey}</span>
               <span> More Info</span>
             </Text>
           </div>
@@ -44,7 +47,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
           </Text>
           <div className="flex flex-column gap-xxs">
             <Text variant="b3" color="world">
-              <span className="EntityTooltip__boxedKey">E</span> /
+              <span className="EntityTooltip__boxedKey">{grabKey}</span> /
               <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
               <span> Interact</span>
             </Text>
@@ -58,7 +61,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
           </Text>
           <div className="flex flex-column gap-xxs">
             <Text variant="b3" color="world">
-              <span className="EntityTooltip__boxedKey">E</span> /
+              <span className="EntityTooltip__boxedKey">{grabKey}</span> /
               <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
               <span> Interact</span>
             </Text>
@@ -77,7 +80,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             {activeEntity.held ? (
               <>
                 <Text variant="b3" color="world">
-                  <span className="EntityTooltip__boxedKey">E</span> /
+                  <span className="EntityTooltip__boxedKey">{grabKey}</span> /
                   <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
                   <span> Left Click: Drop</span>
                 </Text>
@@ -88,14 +91,14 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
               </>
             ) : (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">E</span> /
+                <span className="EntityTooltip__boxedKey">{grabKey}</span> /
                 <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
                 <span> Grab</span>
               </Text>
             )}
             {activeEntity.ownerId === activeEntity.peerId && (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">X</span>
+                <span className="EntityTooltip__boxedKey">{deleteKey}</span>
                 <span> Delete</span>
               </Text>
             )}
@@ -117,7 +120,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
             )}
             {!portalProcess.joining && (
               <Text variant="b3" color="world">
-                <span className="EntityTooltip__boxedKey">E</span> /
+                <span className="EntityTooltip__boxedKey">{grabKey}</span> /
                 <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
                 <span> Enter World</span>
               </Text>

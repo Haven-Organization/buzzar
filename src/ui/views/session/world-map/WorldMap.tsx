@@ -22,6 +22,8 @@ import {
   WorldMapMessageType,
   WorldMapPositionsMessage,
 } from "../../../../plugins/world-map/worldMap.common";
+import { isActionKey } from "../../../../engine/input/keyBindings";
+import { useActionKeyLabel } from "../../../hooks/useKeyBindings";
 import { useGeneratedWorldMap, useMapImageSrc } from "./useWorldMapImage";
 import "./WorldMap.css";
 
@@ -62,10 +64,11 @@ export function WorldMap({ room, blocked }: { room: Room; blocked: boolean }) {
   const generated = useGeneratedWorldMap(room);
   const image = fileMap ?? generated;
   const src = useMapImageSrc(image);
+  const mapKey = useActionKeyLabel("map");
 
   useKeyDown(
     (e) => {
-      if (e.code !== "KeyO" || e.repeat || e.altKey || e.ctrlKey || e.metaKey || inputFocused()) return;
+      if (!isActionKey(e, "map") || e.repeat || inputFocused()) return;
       if (blocked && !open) return;
       setOpen((o) => !o);
     },
@@ -145,7 +148,7 @@ export function WorldMap({ room, blocked }: { room: Room; blocked: boolean }) {
             {!(src && image) && " · This world has no map picture yet"}
           </Text>
           <Text variant="b3" color="world">
-            <Kbd size="xs">O</Kbd> Close
+            <Kbd size="xs">{mapKey}</Kbd> Close
           </Text>
         </div>
       </div>

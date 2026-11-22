@@ -182,8 +182,12 @@ The "Buzzar" column is the proposed default. Where a VRChat default exists, Buzz
       **Buzzar (2026-11-18):** Settings → Controls lists the connected controllers (a light shows which one you're
       pressing) and picks which to use: any (merged), one in particular, or none; plus the keyboard/mouse and
       controller layouts (`gamepadPreference.ts`, `ControlsSettings.tsx`).
-- [ ] ❌ **M** **Centralized, rebindable action registry**, with a rebinding UI per device and saved
+- [ ] 🟡 **M** **Centralized, rebindable action registry**, with a rebinding UI per device and saved
       bindings in Matrix account data (`software.haven.input_bindings`) so they follow the user across devices.
+      **Buzzar (2026-11-22, Third Room #382):** keyboard keys can be rebound in Settings → Controls
+      (`keyBindings.ts`, `KeyBindingsEditor.tsx`), saved in this browser. Game actions are remapped where keys enter
+      the engine; interface shortcuts, the HUD, tooltips and the controls help read the same bindings. Still to do:
+      controller rebinding and syncing the bindings through account data.
 - [ ] ❌ **M** **Gamepad UI navigation:** every 2D menu (React overlays) and in-world UI panel can be
       driven by D-pad/stick with a visible focus, plus A to confirm and B to go back. No action may require a mouse.
 - [ ] ❌ **S** Center-screen reticle and aim assist (snap the reticle to nearby interactables) for interacting with a gamepad.

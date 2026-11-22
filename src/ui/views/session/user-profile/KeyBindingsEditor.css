@@ -1,0 +1,39 @@
+.KeyBindingsEditor__row {
+  min-height: 32px;
+}
+
+.KeyBindingsEditor__key,
+.KeyBindingsEditor__capture {
+  min-width: 96px;
+  height: 28px;
+  padding: 0 var(--sp-sm);
+  border: 1px solid var(--bg-surface-border);
+  border-radius: var(--br-xs);
+  background-color: var(--bg-surface-low);
+  color: var(--tc-surface);
+  font: inherit;
+  font-size: var(--fs-b2);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.KeyBindingsEditor__key:hover,
+.KeyBindingsEditor__key:focus-visible {
+  border-color: var(--bg-primary);
+  outline: none;
+}
+
+.KeyBindingsEditor__key--custom {
+  border-color: var(--bg-primary);
+  color: var(--tc-primary);
+}
+
+.KeyBindingsEditor__capture {
+  border-color: var(--bg-primary);
+  outline: 2px solid var(--bg-primary);
+  outline-offset: 1px;
+  color: var(--tc-surface-low);
+  cursor: default;
+  caret-color: transparent;
+}

@@ -1,10 +1,12 @@
-import { ReactNode } from "react";
+import { Fragment, ReactNode } from "react";
 
 import { Kbd } from "../../../atoms/keyboard/Kbd";
 import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
+import { useKeyBindings } from "../../../hooks/useKeyBindings";
+import { KEY_ACTIONS, keyLabel } from "../../../../engine/input/keyBindings";
 import "./ShortcutUI.css";
 
 function renderItem(name: string, kbd: ReactNode) {
@@ -18,64 +20,62 @@ function renderItem(name: string, kbd: ReactNode) {
   );
 }
 
-/** Buzzar: the keyboard and mouse controls (also shown in Settings → Controls). */
-export function KeyboardControlsList() {
+const key = (label: string) => (
+  <Kbd key={label} size="xs">
+    {label}
+  </Kbd>
+);
+const combo = (...labels: string[]) =>
+  labels.map((label, i) => (
+    <span key={label} className="inline-flex items-center gap-xs">
+      {i > 0 && <span>+</span>}
+      {key(label)}
+    </span>
+  ));
+
+/** Buzzar: keys that can't be rebound (see RESERVED_KEYS), shown with the rebindable ones. */
+export function FixedControlsList() {
   return (
-    <div className="ShortcutUI__list">
+    <>
       {renderItem(
         "Open/Close Overlay",
         <>
-          <Kbd size="xs">Tab</Kbd> / <Kbd size="xs">Esc</Kbd>
+          {key("Tab")} / {key("Esc")}
         </>
       )}
-      {renderItem(
-        "Free/Capture Mouse",
-        <>
-          <Kbd size="xs">Shift</Kbd>
-          <span>+</span>
-          <Kbd size="xs">Tab</Kbd>
-        </>
-      )}
-      {renderItem("Run (walk with Auto Run on)", <Kbd size="xs">Shift</Kbd>)}
-      {renderItem("Jump", <Kbd size="xs">Space</Kbd>)}
-      {renderItem(
-        "Crouch (hold to go prone)",
-        <>
-          <Kbd size="xs">C</Kbd>
-        </>
-      )}
-      {renderItem("Prone", <Kbd size="xs">Z</Kbd>)}
+      {renderItem("Free/Capture Mouse", combo("Shift", "Tab"))}
+      {renderItem("Chat", key("Enter"))}
       {renderItem(
         "Spawn Your Shortcut Things",
         <>
-          <Kbd size="xs">1</Kbd> - <Kbd size="xs">0</Kbd>
+          {key("1")} - {key("0")}
         </>
       )}
+      {renderItem("Grab/Drop Object", key("Left Click"))}
+      {renderItem("Throw Held Object", key("Right Click"))}
+      {renderItem("Leave the World", combo("Alt", "L"))}
+      {renderItem("Show Statistics", combo("Ctrl", "Shift", "S"))}
+    </>
+  );
+}
+
+/**
+ * Buzzar: the keyboard and mouse controls, with your own keys (Third Room #382; rebind them in Settings → Controls,
+ * which also shows this list).
+ */
+export function KeyboardControlsList() {
+  const keys = useKeyBindings();
+  const label = (id: string) => keyLabel(keys[id] ?? "");
+  return (
+    <div className="ShortcutUI__list">
+      {KEY_ACTIONS.map((action) => (
+        <Fragment key={action.id}>{renderItem(action.label, key(label(action.id)))}</Fragment>
+      ))}
       {renderItem(
-        "Grab/Drop Object",
-        <>
-          <Kbd size="xs">E</Kbd> / <Kbd size="xs">Left Click</Kbd>
-        </>
+        `Climb a ladder: walk into it (${label("back")} down, ${label("jump")} lets go)`,
+        key(label("forward"))
       )}
-      {renderItem("Throw Held Object", <Kbd size="xs">Right Click</Kbd>)}
-      {renderItem("Straighten Held Object", <Kbd size="xs">R</Kbd>)}
-      {renderItem("Delete Object", <Kbd size="xs">X</Kbd>)}
-      {renderItem("Fly Mode", <Kbd size="xs">B</Kbd>)}
-      {renderItem("Third Person Camera Toggle", <Kbd size="xs">V</Kbd>)}
-      {renderItem("Climb a ladder: walk into it (S down, Space lets go)", <Kbd size="xs">W</Kbd>)}
-      {renderItem("Names: banners / names only / hidden", <Kbd size="xs">N</Kbd>)}
-      {renderItem("World Map", <Kbd size="xs">O</Kbd>)}
-      {renderItem("Hide / show the HUD", <Kbd size="xs">H</Kbd>)}
-      {renderItem(
-        "Show Statistics",
-        <>
-          <Kbd size="xs">Ctrl</Kbd>
-          <span>+</span>
-          <Kbd size="xs">Shift</Kbd>
-          <span>+</span>
-          <Kbd size="xs">S</Kbd>
-        </>
-      )}
+      <FixedControlsList />
     </div>
   );
 }
@@ -106,19 +106,24 @@ export function ControllerControlsList() {
 }
 
 export function ShortcutUI() {
+  const keys = useKeyBindings();
+  const [w, a, d, sk] = ["forward", "left", "right", "back"].map((id) => keyLabel(keys[id] ?? ""));
   return (
     <div className="ShortcutUI">
       <div className="ShortcutUI__main">
         <Text className="flex flex-column items-center gap-xs">
-          <Kbd size="lg">W</Kbd>
+          <Kbd size="lg">{w}</Kbd>
           <span className="flex items-center gap-xs">
-            <Kbd size="lg">A</Kbd>
-            <Kbd size="lg">S</Kbd>
-            <Kbd size="lg">D</Kbd>
+            <Kbd size="lg">{a}</Kbd>
+            <Kbd size="lg">{sk}</Kbd>
+            <Kbd size="lg">{d}</Kbd>
           </span>
         </Text>
         <Text className="text-center" style={{ marginTop: "var(--sp-lg)" }}>
-          Use the WASD keys and mouse to move around and explore worlds.
+          Use the {w}
+          {a}
+          {sk}
+          {d} keys and mouse to move around and explore worlds.
         </Text>
       </div>
       <Category header={<CategoryHeader title="Action" options={<Label>Key</Label>} />}>

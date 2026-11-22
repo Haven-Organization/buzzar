@@ -6,6 +6,7 @@ import "./SearchResults.css";
 import { Text } from "../../../atoms/text/Text";
 import { Label } from "../../../atoms/text/Label";
 import { Kbd } from "../../../atoms/keyboard/Kbd";
+import { keyLabel } from "../../../../engine/input/keyBindings";
 
 const SearchResultCategory = forwardRef<HTMLDivElement, { children: string }>(({ children }, ref) => {
   return (
@@ -34,7 +35,8 @@ const SearchResultItem = forwardRef<
         <div className="flex items-center gap-xxs">
           {shortcuts.map((shortcut, index) => (
             <Kbd key={shortcut} size="xs">
-              {shortcut}
+              {/* Buzzar: shortcuts are key codes (e.g. "KeyM"), shown as their key. */}
+              {shortcut.split("+").map(keyLabel).join("+")}
             </Kbd>
           ))}
         </div>

@@ -3,6 +3,7 @@ import { setLipSyncDebug } from "../audio/lipsync.main";
 import { MainContext } from "../MainThread";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { codeToKeyCode } from "./KeyCodes";
+import { engineKey } from "./keyBindings";
 import { getStats } from "../stats/stats.main";
 import { PlayerModule } from "../player/Player.main";
 import { InitializeInputStateMessage, InputComponentId, InputMessageType, InputSourceId } from "./input.common";
@@ -45,6 +46,9 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     const { canvas } = ctx;
 
     const lastKeyMap: { [key: string]: boolean } = {};
+    // Buzzar (Third Room #382): the key each held physical key was passed to the engine as (rebound keys, see
+    // keyBindings.ts), so its release matches even if the bindings change while it's held.
+    const sentAs: { [key: string]: string } = {};
     const debugCounts: {
       keyDown: number;
       keyEnqueued: number;
@@ -274,8 +278,18 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
     function resetAllInputs() {
       for (const code in lastKeyMap) {
         if (!lastKeyMap[code]) continue;
-        forceEnqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(code));
+        forceEnqueue(
+          InputSourceId.Keyboard,
+          InputComponentId.KeyboardButton,
+          0,
+          0,
+          0,
+          0,
+          0,
+          codeToKeyCode(sentAs[code] ?? code)
+        );
         lastKeyMap[code] = false;
+        delete sentAs[code];
       }
       forceEnqueue(InputSourceId.Mouse, InputComponentId.MouseMovement, 0, 0, 0, 0, 0, 0);
       forceEnqueue(InputSourceId.Mouse, InputComponentId.MouseButtons, 0, 0, 0, 0, 0, 0);
@@ -299,12 +313,21 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       if (lastKeyMap[code]) return;
       lastKeyMap[code] = true;
 
-      enqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 1, 0, 0, 0, 0, codeToKeyCode(code));
+      const sent = engineKey(code);
+      if (sent === null) {
+        delete sentAs[code];
+        return;
+      }
+      sentAs[code] = sent;
+      enqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 1, 0, 0, 0, 0, codeToKeyCode(sent));
     }
 
     function onKeyUp({ code }: KeyboardEvent) {
       lastKeyMap[code] = false;
-      enqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(code));
+      const sent = sentAs[code] ?? engineKey(code);
+      delete sentAs[code];
+      if (sent === null) return;
+      enqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(sent));
     }
 
     // Buzzar: Chromium on Linux/X11 keeps the locked cursor centred by warping it; while a mouse button is held those
@@ -350,7 +373,17 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
         // Alt-Tab or a navigation). Keys physically held now just need pressing again.
         for (const code in lastKeyMap) {
           lastKeyMap[code] = false;
-          forceEnqueue(InputSourceId.Keyboard, InputComponentId.KeyboardButton, 0, 0, 0, 0, 0, codeToKeyCode(code));
+          forceEnqueue(
+            InputSourceId.Keyboard,
+            InputComponentId.KeyboardButton,
+            0,
+            0,
+            0,
+            0,
+            0,
+            codeToKeyCode(sentAs[code] ?? code)
+          );
+          delete sentAs[code];
         }
         forceEnqueue(InputSourceId.Mouse, InputComponentId.MouseButtons, 0, 0, 0, 0, 0, 0);
       }

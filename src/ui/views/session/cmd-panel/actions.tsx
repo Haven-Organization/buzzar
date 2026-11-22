@@ -22,6 +22,8 @@ import { ShortcutUI } from "../world/ShortcutUI";
 import CrossIC from "../../../../../res/ic/cross.svg";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { togglePhysicsDebug } from "../../../../engine/renderer/renderer.main";
+import { useKeyBindings } from "../../../hooks/useKeyBindings";
+import { keyLabel } from "../../../../engine/input/keyBindings";
 
 enum ActionSection {
   Global = "Global",
@@ -84,12 +86,13 @@ export const MuteButtonAction = ({
 }) => {
   const { mute, requestStream, handleMute, micException, setMicException } = useMuteButton(activeCall);
 
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "toggle-mute",
         name: "Toggle Mute",
-        shortcut: ["M"],
+        shortcut: [keys.mute],
         keywords: "mute",
         section: ActionSection.World,
         icon: undefined,
@@ -101,7 +104,7 @@ export const MuteButtonAction = ({
         parent: undefined,
       },
     ],
-    [requestStream, showToast, mute]
+    [requestStream, showToast, mute, keys.mute]
   );
 
   return <MicExceptionDialog micException={micException} setMicException={setMicException} />;
@@ -125,12 +128,13 @@ export const useToggleNamesAction = (
     showToast?.(NAME_MODE_LABEL[next]);
   }, [mainThread, nameMode, showToast, setNameMode]);
 
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "toggle-names",
         name: "Toggle Names",
-        shortcut: ["N"],
+        shortcut: [keys.names],
         keywords: "preview",
         section: ActionSection.World,
         icon: undefined,
@@ -139,7 +143,7 @@ export const useToggleNamesAction = (
         parent: undefined,
       },
     ],
-    [toggleShowNames]
+    [toggleShowNames, keys.names]
   );
 };
 
@@ -150,12 +154,13 @@ export const MembersDialogAction = () => {
   const overlayWindow = useAtomValue(overlayWindowAtom);
   const showingPeople = overlayVisible && overlayWindow.type === OverlayWindow.People;
 
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "members-dialog",
         name: "People",
-        shortcut: ["P"],
+        shortcut: [keys.people],
         keywords: "members people",
         section: ActionSection.World,
         icon: undefined,
@@ -165,7 +170,7 @@ export const MembersDialogAction = () => {
         parent: undefined,
       },
     ],
-    [showingPeople, openOverlayWindow, setOverlayVisibility]
+    [showingPeople, openOverlayWindow, setOverlayVisibility, keys.people]
   );
 
   return null;
@@ -175,36 +180,38 @@ export const MembersDialogAction = () => {
 export const useToggleHudAction = (showToast?: (text: string) => void) => {
   const [hudHidden, setHudHidden] = useAtom(hudHiddenAtom);
 
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "toggle-hud",
         name: "Toggle HUD",
-        shortcut: ["H"],
+        shortcut: [keys.hud],
         keywords: "hide interface ui screenshot",
         section: ActionSection.World,
         icon: undefined,
         subtitle: undefined,
         perform: () => {
-          showToast?.(hudHidden ? "HUD shown" : "HUD hidden. Press H to show it.");
+          showToast?.(hudHidden ? "HUD shown" : `HUD hidden. Press ${keyLabel(keys.hud)} to show it.`);
           setHudHidden(!hudHidden);
         },
         parent: undefined,
       },
     ],
-    [hudHidden, setHudHidden, showToast]
+    [hudHidden, setHudHidden, showToast, keys.hud]
   );
 };
 
 export const ShortcutDialogAction = () => {
   const [shortcutUI, setShortcutUI] = useState(false);
 
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "shortcuts-dialog",
         name: "Shortcuts",
-        shortcut: ["/"],
+        shortcut: [keys.controls],
         keywords: "shortcuts",
         section: ActionSection.World,
         icon: undefined,
@@ -213,7 +220,7 @@ export const ShortcutDialogAction = () => {
         parent: undefined,
       },
     ],
-    []
+    [keys.controls]
   );
 
   useDisableInput(shortcutUI);
@@ -238,12 +245,13 @@ export const useToggleEditorAction = (
   havePermission: boolean,
   showToast?: (text: string) => void
 ) => {
+  const keys = useKeyBindings();
   useRegisterActions(
     [
       {
         id: "editor",
         name: "Toggle Editor",
-        shortcut: ["`"],
+        shortcut: [keys.editor],
         keywords: "editor",
         section: ActionSection.World,
         icon: undefined,
@@ -258,7 +266,7 @@ export const useToggleEditorAction = (
         parent: undefined,
       },
     ],
-    [havePermission]
+    [havePermission, keys.editor]
   );
 };
 

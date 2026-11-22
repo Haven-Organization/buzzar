@@ -39,6 +39,8 @@ import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useActionBar } from "../../../hooks/useActionBar";
 import { thingKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
 import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
+import { useKeyBindings } from "../../../hooks/useKeyBindings";
+import { keyLabel } from "../../../../engine/input/keyBindings";
 import "./WorldControls.css";
 
 export function HotbarControls() {
@@ -113,6 +115,7 @@ export function WorldControls({
   nameMode: NameMode;
   setNameMode: setLocalStorageItem<NameMode>;
 }) {
+  const keys = useKeyBindings();
   const mainThread = useMainThreadContext();
   const { navigateExitWorld } = useWorldNavigator(session);
 
@@ -175,7 +178,7 @@ export function WorldControls({
           <IconButton variant="world" label="help" iconSrc={HelpIC} onClick={toggleShortcutUI} />
         </Tooltip>
         <Text variant="b3" color="world" weight="bold">
-          /
+          {keyLabel(keys.controls)}
         </Text>
         <Dialog open={shortcutUI} onOpenChange={setShortcutUI}>
           <Header
@@ -204,11 +207,11 @@ export function WorldControls({
           <IconButton variant="world" label="People" iconSrc={PeopleIC} onClick={showPeople} />
         </Tooltip>
         <Text variant="b3" color="world" weight="bold">
-          P
+          {keyLabel(keys.people)}
         </Text>
       </div>
       <div className="flex flex-column items-center">
-        <Tooltip content={`${NAME_MODE_LABEL[nameMode]} (N to change)`}>
+        <Tooltip content={`${NAME_MODE_LABEL[nameMode]} (${keyLabel(keys.names)} to change)`}>
           <IconButton
             variant="world"
             label="Toggle Names"
@@ -217,14 +220,14 @@ export function WorldControls({
           />
         </Tooltip>
         <Text variant="b3" color="world" weight="bold">
-          N
+          {keyLabel(keys.names)}
         </Text>
       </div>
       {activeCall && (
         <div className="flex flex-column items-center">
           <MuteButton showToast={showToast} activeCall={activeCall} />
           <Text variant="b3" color="world" weight="bold">
-            M
+            {keyLabel(keys.mute)}
           </Text>
         </div>
       )}

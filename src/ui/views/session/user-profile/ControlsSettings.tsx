@@ -1,6 +1,6 @@
 /**
  * Buzzar: Settings → Controls: which controller to play with, the controllers connected right now, and the keyboard,
- * mouse and controller layouts.
+ * mouse and controller layouts. Keys can be rebound here (KeyBindingsEditor).
  */
 import { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
@@ -14,7 +14,8 @@ import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import { Category } from "../../components/category/Category";
 import { CategoryHeader } from "../../components/category/CategoryHeader";
-import { ControllerControlsList, KeyboardControlsList } from "../world/ShortcutUI";
+import { ControllerControlsList } from "../world/ShortcutUI";
+import { KeyBindingsEditor } from "./KeyBindingsEditor";
 import {
   GamepadChoice,
   getGamepadChoice,
@@ -179,7 +180,7 @@ export function ControlsSettings() {
             Moving with the keys runs, and holding Shift walks instead.
           </Text>
         </SettingTile>
-        <KeyboardControlsList />
+        <KeyBindingsEditor />
       </Category>
       <Category header={<CategoryHeader title="Controller" options={<Label>Button</Label>} />}>
         <ControllerControlsList />
