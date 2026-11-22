@@ -102,3 +102,10 @@
 .WorldView__controls--hidden {
   visibility: hidden;
 }
+
+/* Buzzar: on narrow screens (phones) the hotbar and the HUD buttons don't fit side by side; the hotbar goes above. */
+@media (max-width: 1100px) {
+  .WorldView .Hotbar {
+    bottom: calc(var(--sp-md) + 56px);
+  }
+}
