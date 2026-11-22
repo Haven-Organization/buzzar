@@ -60,8 +60,18 @@ function describe(event: MatrixEvent): string {
   }
 }
 
+interface Profile {
+  name?: string;
+  avatarUrl?: string;
+}
+
 class NotificationStore {
   private state: State = { items: [], loading: false };
+  /**
+   * Senders' profiles, kept for the session. A room's member list is loaded lazily, so a sender is often unknown in
+   * the room they wrote in; their global profile is fetched once and shared by all their notifications.
+   */
+  private profiles = new Map<string, Promise<Profile>>();
   private listeners = new Set<() => void>();
   private lastRefresh = 0;
   private refreshTimer?: ReturnType<typeof setTimeout>;
@@ -142,6 +152,7 @@ class NotificationStore {
         query
       );
       const items = await Promise.all(res.notifications.map((n) => this.toItem(n)));
+      await this.fillProfiles(items);
       this.set({
         items: from ? [...this.state.items, ...items] : items,
         nextToken: res.next_token,
@@ -150,6 +161,47 @@ class NotificationStore {
     } catch (e) {
       this.set({ loading: false, error: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  /** Marks every room with unread notifications as read (a read receipt on its newest message). */
+  markAllRead = async () => {
+    const roomIds = new Set(this.state.items.filter((n) => !n.read).map((n) => n.roomId));
+    for (const room of this.session.rooms.values()) if (room.notificationCount > 0) roomIds.add(room.id);
+    this.set({ items: this.state.items.map((n) => (n.read ? n : { ...n, read: true })) });
+    await Promise.all([...roomIds].map((id) => this.session.rooms.get(id)?.clearUnread()));
+    // The server applies the receipts to /notifications shortly after.
+    setTimeout(() => this.refresh(), 2000);
+  };
+
+  private profileOf(userId: string): Promise<Profile> {
+    let profile = this.profiles.get(userId);
+    if (!profile) {
+      // A member of any room we have loaded first (no request), then the user's global profile.
+      for (const room of this.session.client.getRooms()) {
+        const member = room.getMember(userId);
+        if (member && member.name !== userId) {
+          profile = Promise.resolve({ name: member.name, avatarUrl: member.getMxcAvatarUrl() ?? undefined });
+          break;
+        }
+      }
+      profile ??= this.session.client
+        .getProfileInfo(userId)
+        .then((p) => ({ name: p.displayname || undefined, avatarUrl: p.avatar_url || undefined }))
+        .catch(() => ({}));
+      this.profiles.set(userId, profile);
+    }
+    return profile;
+  }
+
+  private async fillProfiles(items: MatrixNotification[]) {
+    await Promise.all(
+      items.map(async (item) => {
+        if (item.senderName !== item.senderId && item.senderAvatarUrl) return;
+        const profile = await this.profileOf(item.senderId);
+        if (item.senderName === item.senderId && profile.name) item.senderName = profile.name;
+        item.senderAvatarUrl ??= profile.avatarUrl;
+      })
+    );
   }
 
   private async toItem(n: RawNotification): Promise<MatrixNotification> {
@@ -197,7 +249,7 @@ export function useMatrixNotifications(session: Session) {
     setState(store.getState());
     return store.subscribe(() => setState(store.getState()));
   }, [store]);
-  return { ...state, refresh: store.refresh, loadMore: store.loadMore };
+  return { ...state, refresh: store.refresh, loadMore: store.loadMore, markAllRead: store.markAllRead };
 }
 
 /** How many notifications you haven't read yet (of the most recent page). */

@@ -3,6 +3,9 @@ import { useAtom, useAtomValue } from "jotai";
 import AddIC from "../../../../../res/ic/add.svg";
 import FilterIC from "../../../../../res/ic/filter.svg";
 import { chatFilterAtom } from "../../../state/chatFilter";
+import { Button } from "../../../atoms/button/Button";
+import { useMatrix } from "../../../hooks/useMatrix";
+import { useMatrixNotifications } from "../../../hooks/useMatrixNotifications";
 import { Text } from "../../../atoms/text/Text";
 import "./RoomListHeader.css";
 import { IconButton } from "../../../atoms/button/IconButton";
@@ -14,6 +17,17 @@ import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { useDialog } from "../../../hooks/useDialog";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
+
+function MarkAllReadButton() {
+  const { session } = useMatrix(true);
+  const { items, markAllRead } = useMatrixNotifications(session);
+  const unread = items.some((n) => !n.read);
+  return (
+    <Button size="sm" variant="secondary" fill="none" onClick={markAllRead} disabled={!unread}>
+      Mark All Read
+    </Button>
+  );
+}
 
 export function RoomListHeader() {
   const sidebarTab = useAtomValue(sidebarTabAtom);
@@ -76,6 +90,7 @@ export function RoomListHeader() {
           <Text className="grow truncate" variant="s2" weight="semi-bold">
             Notifications
           </Text>
+          <MarkAllReadButton />
         </>
       )}
     </header>

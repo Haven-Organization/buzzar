@@ -61,3 +61,10 @@
 .ChatBaseMessage__avatar-8 {
   background-color: var(--usercolor8);
 }
+
+/* Buzzar: the message a notification pointed to, briefly highlighted when the chat scrolls to it. */
+.ChatBaseMessage--jumped {
+  background-color: var(--bg-surface-active);
+  transition: background-color 0.4s ease-out;
+  border-radius: var(--br-xs);
+}

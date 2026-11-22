@@ -51,7 +51,7 @@ export function RoomListNotifications() {
       key={n.id}
       type="button"
       className={classNames("MatrixNotifications__item", { "MatrixNotifications__item--unread": !n.read })}
-      onClick={() => setActiveChat({ type: "OPEN", roomId: n.roomId })}
+      onClick={() => setActiveChat({ type: "OPEN", roomId: n.roomId, eventId: n.id })}
     >
       <Avatar
         name={n.senderName}

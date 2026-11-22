@@ -2,7 +2,8 @@
  * Buzzar: the chat window's messages (React, since plan 02). Text with replies,
  * images and stickers, video/audio/files, 3D-model and world-link embeds, membership notes and date headers.
  */
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
+import { useAtom } from "jotai";
 import classNames from "classnames";
 
 import { Room, TimelineEntry } from "../../../../matrix";
@@ -16,6 +17,7 @@ import { Dots } from "../../../atoms/loading/Dots";
 import { FormattedBody } from "../../components/formatted-body/FormattedBody";
 import { TimelineScroller } from "../../components/timeline-scroller/TimelineScroller";
 import { useChatEmbedPortals } from "./ChatEmbeds";
+import { chatJumpAtom } from "../../../state/overlayChat";
 import { mediaCaption } from "./tiles/messageParts";
 import "./ChatTimeline.css";
 import "./tiles/ChatBaseMessage.css";
@@ -232,6 +234,7 @@ const Message = memo(function Message({ item }: { item: MessageItem }) {
   const contentOnly = item.continuation && !isEmote;
   return (
     <li
+      data-event-id={entry.eventId}
       className={classNames(
         "ChatBaseMessage",
         { "ChatBaseMessage--contentOnly": contentOnly, "ChatBaseMessage--emote": isEmote },
@@ -299,9 +302,40 @@ function renderItem(item: ChatItem) {
   return <Message key={item.key} item={item} />;
 }
 
+/** How far back opening a notification's message may page (30 messages a page) before giving up. */
+const MAX_JUMP_PAGES = 20;
+
 export function ChatTimeline({ room }: { room: Room }) {
-  const { loading, error, items, loadMore, loadingMore } = useChat(room, { dates: true, media: true });
+  const { loading, error, items, loadMore, loadingMore, canLoadMore } = useChat(room, { dates: true, media: true });
   const chatTimelineRef = useRef<HTMLDivElement>(null);
+
+  // Buzzar: opened from a notification: page back until its message is loaded, then scroll to it and highlight it.
+  const [jump, setJump] = useAtom(chatJumpAtom);
+  const jumpPages = useRef(0);
+  useEffect(() => {
+    jumpPages.current = 0;
+  }, [jump]);
+  useEffect(() => {
+    if (!jump || jump.roomId !== room.id || loading) return;
+    const el = chatTimelineRef.current?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(jump.eventId)}"]`);
+    if (el) {
+      setJump(undefined);
+      // After the scroller has laid out the page it just added.
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ block: "center" });
+        el.classList.add("ChatBaseMessage--jumped");
+        setTimeout(() => el.classList.remove("ChatBaseMessage--jumped"), 2500);
+      });
+      return;
+    }
+    if (loadingMore) return;
+    if (!canLoadMore || jumpPages.current >= MAX_JUMP_PAGES) {
+      setJump(undefined);
+      return;
+    }
+    jumpPages.current++;
+    loadMore();
+  }, [jump, items, loading, loadingMore, canLoadMore, loadMore, room.id, setJump]);
   // Tiles for 3D models and world links in messages.
   const embeds = useChatEmbedPortals(chatTimelineRef);
 
