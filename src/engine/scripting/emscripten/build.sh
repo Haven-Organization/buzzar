@@ -5,9 +5,11 @@ cd $(dirname $0)
 QUICKJS_ROOT=src/js-runtime/quickjs
 QUICKJS_CONFIG_VERSION=$(cat $QUICKJS_ROOT/VERSION)
 
+# Debug info records source paths as /src/… wherever this is built (as the Docker build does).
 emcc \
   -O2 \
   -g \
+  -ffile-prefix-map=$(pwd)=/src \
   --no-entry \
   --emit-symbol-map \
   -s ALLOW_MEMORY_GROWTH=0 \
