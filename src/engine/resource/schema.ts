@@ -315,6 +315,28 @@ export const MaterialResource = defineResource("material", ResourceType.Material
   // default +Infinity (represented as 0)
   attenuationDistance: PropType.f32({ default: 0, script: true }),
   attenuationColor: PropType.rgb({ default: [1, 1, 1], script: true }),
+  // Buzzar: KHR_materials_clearcoat, _sheen, _specular and _iridescence. Their maps ignore KHR_texture_transform.
+  clearcoatFactor: PropType.f32({ default: 0 }),
+  clearcoatTexture: PropType.ref(TextureResource),
+  clearcoatRoughnessFactor: PropType.f32({ default: 0 }),
+  clearcoatRoughnessTexture: PropType.ref(TextureResource),
+  clearcoatNormalTexture: PropType.ref(TextureResource),
+  clearcoatNormalScale: PropType.f32({ default: 1 }),
+  /** Sheen is on when the material has KHR_materials_sheen (sheenColorFactor defaults to black = no sheen). */
+  sheenColorFactor: PropType.rgb({ default: [0, 0, 0] }),
+  sheenColorTexture: PropType.ref(TextureResource),
+  sheenRoughnessFactor: PropType.f32({ default: 0 }),
+  sheenRoughnessTexture: PropType.ref(TextureResource),
+  specularFactor: PropType.f32({ default: 1 }),
+  specularTexture: PropType.ref(TextureResource),
+  specularColorFactor: PropType.rgb({ default: [1, 1, 1] }),
+  specularColorTexture: PropType.ref(TextureResource),
+  iridescenceFactor: PropType.f32({ default: 0 }),
+  iridescenceTexture: PropType.ref(TextureResource),
+  iridescenceIor: PropType.f32({ default: 1.3 }),
+  iridescenceThicknessMinimum: PropType.f32({ default: 100 }),
+  iridescenceThicknessMaximum: PropType.f32({ default: 400 }),
+  iridescenceThicknessTexture: PropType.ref(TextureResource),
 });
 
 export enum LightType {

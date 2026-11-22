@@ -430,6 +430,10 @@ export interface GLTFMaterial extends GLTFChildOfRootProperty {
     KHR_materials_ior?: GLTFMaterialIOR;
     KHR_materials_transmission?: GLTFMaterialTransmission;
     KHR_materials_volume?: GLTFMaterialVolume;
+    KHR_materials_clearcoat?: GLTFMaterialClearcoat;
+    KHR_materials_sheen?: GLTFMaterialSheen;
+    KHR_materials_specular?: GLTFMaterialSpecular;
+    KHR_materials_iridescence?: GLTFMaterialIridescence;
     KHR_materials_unlit?: {};
   };
 }
@@ -445,6 +449,37 @@ export interface GLTFMaterialIOR extends GLTFProperty {
 export interface GLTFMaterialTransmission extends GLTFProperty {
   transmissionFactor?: number;
   transmissionTexture?: GLTFTextureInfo;
+}
+
+export interface GLTFMaterialClearcoat extends GLTFProperty {
+  clearcoatFactor?: number;
+  clearcoatTexture?: GLTFTextureInfo;
+  clearcoatRoughnessFactor?: number;
+  clearcoatRoughnessTexture?: GLTFTextureInfo;
+  clearcoatNormalTexture?: GLTFMaterialNormalTextureInfo;
+}
+
+export interface GLTFMaterialSheen extends GLTFProperty {
+  sheenColorFactor?: number[];
+  sheenColorTexture?: GLTFTextureInfo;
+  sheenRoughnessFactor?: number;
+  sheenRoughnessTexture?: GLTFTextureInfo;
+}
+
+export interface GLTFMaterialSpecular extends GLTFProperty {
+  specularFactor?: number;
+  specularTexture?: GLTFTextureInfo;
+  specularColorFactor?: number[];
+  specularColorTexture?: GLTFTextureInfo;
+}
+
+export interface GLTFMaterialIridescence extends GLTFProperty {
+  iridescenceFactor?: number;
+  iridescenceTexture?: GLTFTextureInfo;
+  iridescenceIor?: number;
+  iridescenceThicknessMinimum?: number;
+  iridescenceThicknessMaximum?: number;
+  iridescenceThicknessTexture?: GLTFTextureInfo;
 }
 
 export interface GLTFMaterialVolume extends GLTFProperty {

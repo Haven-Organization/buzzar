@@ -162,6 +162,7 @@ export function patchMaterial(ctx: RenderContext, material: PrimitiveMaterial) {
 }
 
 const defaultAttenuationColor = vec3.fromValues(1, 1, 1);
+const noSheen = vec3.fromValues(0, 0, 0);
 
 export function isPhysicalMaterial(renderMaterial: RenderMaterial) {
   if (
@@ -171,7 +172,15 @@ export function isPhysicalMaterial(renderMaterial: RenderMaterial) {
     renderMaterial.transmissionFactor !== 0 ||
     renderMaterial.thicknessFactor !== 0 ||
     renderMaterial.attenuationDistance !== 0 ||
-    !vec3.equals(renderMaterial.attenuationColor as ReadonlyVec3, defaultAttenuationColor)
+    !vec3.equals(renderMaterial.attenuationColor as ReadonlyVec3, defaultAttenuationColor) ||
+    // Buzzar: clearcoat, sheen, specular, iridescence
+    renderMaterial.clearcoatFactor !== 0 ||
+    !vec3.equals(renderMaterial.sheenColorFactor as ReadonlyVec3, noSheen) ||
+    renderMaterial.specularFactor !== 1 ||
+    !!renderMaterial.specularTexture ||
+    !!renderMaterial.specularColorTexture ||
+    !vec3.equals(renderMaterial.specularColorFactor as ReadonlyVec3, defaultAttenuationColor) ||
+    renderMaterial.iridescenceFactor !== 0
   ) {
     return true;
   }

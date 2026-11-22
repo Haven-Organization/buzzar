@@ -96,6 +96,15 @@ export class RemoteMaterial extends defineRemoteResourceClass(MaterialResource) 
   declare emissiveTexture: RemoteTexture | undefined;
   declare transmissionTexture: RemoteTexture | undefined;
   declare thicknessTexture: RemoteTexture | undefined;
+  declare clearcoatTexture: RemoteTexture | undefined;
+  declare clearcoatRoughnessTexture: RemoteTexture | undefined;
+  declare clearcoatNormalTexture: RemoteTexture | undefined;
+  declare sheenColorTexture: RemoteTexture | undefined;
+  declare sheenRoughnessTexture: RemoteTexture | undefined;
+  declare specularTexture: RemoteTexture | undefined;
+  declare specularColorTexture: RemoteTexture | undefined;
+  declare iridescenceTexture: RemoteTexture | undefined;
+  declare iridescenceThicknessTexture: RemoteTexture | undefined;
 }
 
 export class RemoteLight extends defineRemoteResourceClass(LightResource) {}

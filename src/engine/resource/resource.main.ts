@@ -189,6 +189,15 @@ export class MainMaterial extends defineLocalResourceClass(MaterialResource) {
   declare emissiveTexture: MainTexture | undefined;
   declare transmissionTexture: MainTexture | undefined;
   declare thicknessTexture: MainTexture | undefined;
+  declare clearcoatTexture: MainTexture | undefined;
+  declare clearcoatRoughnessTexture: MainTexture | undefined;
+  declare clearcoatNormalTexture: MainTexture | undefined;
+  declare sheenColorTexture: MainTexture | undefined;
+  declare sheenRoughnessTexture: MainTexture | undefined;
+  declare specularTexture: MainTexture | undefined;
+  declare specularColorTexture: MainTexture | undefined;
+  declare iridescenceTexture: MainTexture | undefined;
+  declare iridescenceThicknessTexture: MainTexture | undefined;
 }
 
 export class MainLight extends defineLocalResourceClass(LightResource) {}

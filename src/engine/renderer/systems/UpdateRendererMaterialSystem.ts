@@ -30,6 +30,12 @@ function updateMaterialTexture<Mat extends PrimitiveMaterial>(
   }
 }
 
+/** Sets a map without touching the texture's transform (it may be shared with a map that has one). */
+function setMaterialMap(material: MeshPhysicalMaterial, key: TextureKeys<MeshPhysicalMaterial>, texture?: Texture) {
+  if (!!material[key] !== !!texture) material.needsUpdate = true;
+  (material[key] as Texture | null) = texture ?? null;
+}
+
 export function UpdateRendererMaterialSystem(ctx: RenderContext) {
   const localMaterials = getLocalResources(ctx, RenderMaterial);
 
@@ -137,6 +143,30 @@ export function UpdateRendererMaterialSystem(ctx: RenderContext) {
           localMaterial.thicknessTextureRotation,
           localMaterial.thicknessTextureScale
         );
+
+        // Buzzar: clearcoat, sheen, specular, iridescence (maps are set as-is: they ignore KHR_texture_transform).
+        const m = localMaterial;
+        physicalMaterial.clearcoat = m.clearcoatFactor;
+        physicalMaterial.clearcoatRoughness = m.clearcoatRoughnessFactor;
+        physicalMaterial.clearcoatNormalScale.set(m.clearcoatNormalScale, m.clearcoatNormalScale);
+        physicalMaterial.sheen = m.sheenColorFactor[0] + m.sheenColorFactor[1] + m.sheenColorFactor[2] > 0 ? 1 : 0;
+        physicalMaterial.sheenColor.fromArray(m.sheenColorFactor);
+        physicalMaterial.sheenRoughness = m.sheenRoughnessFactor;
+        physicalMaterial.specularIntensity = m.specularFactor;
+        physicalMaterial.specularColor.fromArray(m.specularColorFactor);
+        physicalMaterial.iridescence = m.iridescenceFactor;
+        physicalMaterial.iridescenceIOR = m.iridescenceIor;
+        physicalMaterial.iridescenceThicknessRange[0] = m.iridescenceThicknessMinimum;
+        physicalMaterial.iridescenceThicknessRange[1] = m.iridescenceThicknessMaximum;
+        setMaterialMap(physicalMaterial, "clearcoatMap", m.clearcoatTexture?.texture);
+        setMaterialMap(physicalMaterial, "clearcoatRoughnessMap", m.clearcoatRoughnessTexture?.texture);
+        setMaterialMap(physicalMaterial, "clearcoatNormalMap", m.clearcoatNormalTexture?.texture);
+        setMaterialMap(physicalMaterial, "sheenColorMap", m.sheenColorTexture?.texture);
+        setMaterialMap(physicalMaterial, "sheenRoughnessMap", m.sheenRoughnessTexture?.texture);
+        setMaterialMap(physicalMaterial, "specularIntensityMap", m.specularTexture?.texture);
+        setMaterialMap(physicalMaterial, "specularColorMap", m.specularColorTexture?.texture);
+        setMaterialMap(physicalMaterial, "iridescenceMap", m.iridescenceTexture?.texture);
+        setMaterialMap(physicalMaterial, "iridescenceThicknessMap", m.iridescenceThicknessTexture?.texture);
       }
     }
   }

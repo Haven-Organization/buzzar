@@ -892,6 +892,51 @@ function loadGLTFInstancedMesh(resource: GLTFResource, extension: GLTFInstancedM
   return new RemoteInstancedMesh(resource.manager, { attributes });
 }
 
+/**
+ * Buzzar: MOZ_lightmap (Mozilla Hubs; draft): a light map on a material, sampled with the second UV set. The engine
+ * keeps light maps on nodes (MX_lightmap), so a node whose mesh uses such a material gets that light map.
+ */
+function mozLightmap(resource: GLTFResource, meshIndex: number | undefined): RemoteLightMap | undefined {
+  if (meshIndex === undefined) return undefined;
+  for (const primitive of resource.root.meshes?.[meshIndex]?.primitives ?? []) {
+    const material = primitive.material !== undefined ? resource.root.materials?.[primitive.material] : undefined;
+    const moz = (material?.extensions as { MOZ_lightmap?: { index: number; intensity?: number } } | undefined)
+      ?.MOZ_lightmap;
+    if (moz) {
+      return loadGLTFLightMap(resource, { lightMapTexture: { index: moz.index, texCoord: 1 }, intensity: moz.intensity });
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Buzzar: KHR_lights_shadows (draft): shadows per mesh primitive (castShadows/receiveShadows) and per light
+ * (castShadows). The engine sets them per node: a mesh casts or receives if any of its primitives does.
+ * Undefined when the node's mesh or light doesn't use the extension.
+ */
+function khrLightsShadows(
+  root: GLTFRoot,
+  nodeDef: { mesh?: number; extensions?: { KHR_lights_punctual?: { light?: number } } }
+): { castShadow: boolean; receiveShadow: boolean } | undefined {
+  type Shadows = { castShadows?: boolean; receiveShadows?: boolean };
+  const lightIndex = nodeDef.extensions?.KHR_lights_punctual?.light;
+  if (lightIndex !== undefined) {
+    const lights = (root.extensions as { KHR_lights_punctual?: { lights?: { extensions?: object }[] } } | undefined)
+      ?.KHR_lights_punctual?.lights;
+    const ext = (lights?.[lightIndex]?.extensions as { KHR_lights_shadows?: Shadows } | undefined)?.KHR_lights_shadows;
+    if (ext) return { castShadow: ext.castShadows ?? true, receiveShadow: false };
+  }
+  if (nodeDef.mesh === undefined) return undefined;
+  const flags = (root.meshes?.[nodeDef.mesh]?.primitives ?? [])
+    .map((p) => (p.extensions as { KHR_lights_shadows?: Shadows } | undefined)?.KHR_lights_shadows)
+    .filter((e): e is Shadows => !!e);
+  if (flags.length === 0) return undefined;
+  return {
+    castShadow: flags.some((f) => f.castShadows ?? true),
+    receiveShadow: flags.some((f) => f.receiveShadows ?? true),
+  };
+}
+
 function loadGLTFLightMap(resource: GLTFResource, extension: GLTFLightmap): RemoteLightMap {
   const texture = loadGLTFTexture(resource, extension.lightMapTexture.index, {
     encoding: TextureEncoding.Linear,
@@ -1308,7 +1353,9 @@ const loadGLTFNode = createInstancedSubresourceLoader(
             ? loadGLTFInstancedMesh(resource, extensions?.EXT_mesh_gpu_instancing)
             : undefined,
         lightMap:
-          extensions?.MX_lightmap !== undefined ? loadGLTFLightMap(resource, extensions.MX_lightmap) : undefined,
+          extensions?.MX_lightmap !== undefined
+            ? loadGLTFLightMap(resource, extensions.MX_lightmap)
+            : mozLightmap(resource, meshIndex),
         camera: cameraIndex !== undefined ? loadGLTFCamera(resource, cameraIndex) : undefined,
         light:
           extensions?.KHR_lights_punctual?.light !== undefined
@@ -1437,10 +1484,14 @@ const loadGLTFNode = createInstancedSubresourceLoader(
         node.isStatic = loaderCtx.useMXStatic;
       }
 
+      const khrShadows = extensions?.MX_lights_shadows ? undefined : khrLightsShadows(resource.root, nodeDef);
       if (extensions?.MX_lights_shadows) {
         const { castShadow, receiveShadow } = extensions.MX_lights_shadows;
         node.castShadow = castShadow;
         node.receiveShadow = receiveShadow;
+      } else if (khrShadows) {
+        node.castShadow = khrShadows.castShadow;
+        node.receiveShadow = khrShadows.receiveShadow;
       } else {
         node.castShadow = false;
         node.receiveShadow = false;
@@ -1692,6 +1743,14 @@ const loadGLTFMaterial = createCachedSubresourceLoader(
       const normalTransform = normalTexture?.extensions?.KHR_texture_transform;
       const occlusionTransform = occlusionTexture?.extensions?.KHR_texture_transform;
       const emissiveTransform = emissiveTexture?.extensions?.KHR_texture_transform;
+      // Buzzar: clearcoat, sheen, specular and iridescence (three.js MeshPhysicalMaterial draws all four).
+      const clearcoat = extensions?.KHR_materials_clearcoat;
+      const sheen = extensions?.KHR_materials_sheen;
+      const specular = extensions?.KHR_materials_specular;
+      const iridescence = extensions?.KHR_materials_iridescence;
+      const tex = (info: { index: number } | undefined, encoding?: TextureEncoding) =>
+        info ? loadGLTFTexture(resource, info.index, encoding !== undefined ? { encoding } : undefined) : undefined;
+
       const transmissionTransform = transmissionTextureInfo?.extensions?.KHR_texture_transform;
       const thicknessTransform = thicknessTextureInfo?.extensions?.KHR_texture_transform;
 
@@ -1741,6 +1800,27 @@ const loadGLTFMaterial = createCachedSubresourceLoader(
         thicknessFactor,
         attenuationDistance,
         attenuationColor,
+        clearcoatFactor: clearcoat?.clearcoatFactor,
+        clearcoatTexture: tex(clearcoat?.clearcoatTexture),
+        clearcoatRoughnessFactor: clearcoat?.clearcoatRoughnessFactor,
+        clearcoatRoughnessTexture: tex(clearcoat?.clearcoatRoughnessTexture),
+        clearcoatNormalTexture: tex(clearcoat?.clearcoatNormalTexture),
+        clearcoatNormalScale: clearcoat?.clearcoatNormalTexture?.scale,
+        // A material with the extension but no colour factor has no visible sheen, as the spec's default says.
+        sheenColorFactor: sheen?.sheenColorFactor,
+        sheenColorTexture: tex(sheen?.sheenColorTexture, TextureEncoding.sRGB),
+        sheenRoughnessFactor: sheen?.sheenRoughnessFactor,
+        sheenRoughnessTexture: tex(sheen?.sheenRoughnessTexture),
+        specularFactor: specular?.specularFactor,
+        specularTexture: tex(specular?.specularTexture),
+        specularColorFactor: specular?.specularColorFactor,
+        specularColorTexture: tex(specular?.specularColorTexture, TextureEncoding.sRGB),
+        iridescenceFactor: iridescence?.iridescenceFactor,
+        iridescenceTexture: tex(iridescence?.iridescenceTexture),
+        iridescenceIor: iridescence?.iridescenceIor,
+        iridescenceThicknessMinimum: iridescence?.iridescenceThicknessMinimum,
+        iridescenceThicknessMaximum: iridescence?.iridescenceThicknessMaximum,
+        iridescenceThicknessTexture: tex(iridescence?.iridescenceThicknessTexture),
       });
     }
   }

@@ -27,6 +27,7 @@ import {
   Texture,
   Mesh,
   Material,
+  Vector2,
 } from "three";
 
 import { AccessorComponentTypeToTypedArray, AccessorTypeToElementSize, getAccessorArrayView } from "../common/accessor";
@@ -166,6 +167,34 @@ export class RenderMirror extends defineLocalResourceClass(MirrorResource) {}
 
 export class RenderMorphWeights extends defineLocalResourceClass(MorphWeightsResource) {}
 
+/** Buzzar: KHR_materials_clearcoat, _sheen, _specular and _iridescence as MeshPhysicalMaterial parameters. */
+export function physicalExtensionParameters(m: RenderMaterial) {
+  const clearcoatNormalScale = m.clearcoatNormalScale;
+  return {
+    clearcoat: m.clearcoatFactor,
+    clearcoatMap: m.clearcoatTexture?.texture,
+    clearcoatRoughness: m.clearcoatRoughnessFactor,
+    clearcoatRoughnessMap: m.clearcoatRoughnessTexture?.texture,
+    clearcoatNormalMap: m.clearcoatNormalTexture?.texture,
+    clearcoatNormalScale: new Vector2(clearcoatNormalScale, clearcoatNormalScale),
+    // three.js scales the sheen colour by `sheen`; glTF has no such factor, so it's 1 whenever there's a colour.
+    sheen: m.sheenColorFactor[0] + m.sheenColorFactor[1] + m.sheenColorFactor[2] > 0 ? 1 : 0,
+    sheenColor: new Color().fromArray(m.sheenColorFactor),
+    sheenColorMap: m.sheenColorTexture?.texture,
+    sheenRoughness: m.sheenRoughnessFactor,
+    sheenRoughnessMap: m.sheenRoughnessTexture?.texture,
+    specularIntensity: m.specularFactor,
+    specularIntensityMap: m.specularTexture?.texture,
+    specularColor: new Color().fromArray(m.specularColorFactor),
+    specularColorMap: m.specularColorTexture?.texture,
+    iridescence: m.iridescenceFactor,
+    iridescenceMap: m.iridescenceTexture?.texture,
+    iridescenceIOR: m.iridescenceIor,
+    iridescenceThicknessRange: [m.iridescenceThicknessMinimum, m.iridescenceThicknessMaximum] as [number, number],
+    iridescenceThicknessMap: m.iridescenceThicknessTexture?.texture,
+  };
+}
+
 export class RenderMaterial extends defineLocalResourceClass(MaterialResource) {
   declare baseColorTexture: RenderTexture | undefined;
   declare metallicRoughnessTexture: RenderTexture | undefined;
@@ -174,6 +203,15 @@ export class RenderMaterial extends defineLocalResourceClass(MaterialResource) {
   declare emissiveTexture: RenderTexture | undefined;
   declare transmissionTexture: RenderTexture | undefined;
   declare thicknessTexture: RenderTexture | undefined;
+  declare clearcoatTexture: RenderTexture | undefined;
+  declare clearcoatRoughnessTexture: RenderTexture | undefined;
+  declare clearcoatNormalTexture: RenderTexture | undefined;
+  declare sheenColorTexture: RenderTexture | undefined;
+  declare sheenRoughnessTexture: RenderTexture | undefined;
+  declare specularTexture: RenderTexture | undefined;
+  declare specularColorTexture: RenderTexture | undefined;
+  declare iridescenceTexture: RenderTexture | undefined;
+  declare iridescenceThicknessTexture: RenderTexture | undefined;
 
   materialCache: MaterialCacheEntry[] = [];
 
@@ -290,6 +328,7 @@ export class RenderMaterial extends defineLocalResourceClass(MaterialResource) {
               attenuationColor: new Color().fromArray(this.attenuationColor),
               transmission: this.transmissionFactor,
               transmissionMap: this.transmissionTexture?.texture,
+              ...physicalExtensionParameters(this),
             })
           );
 

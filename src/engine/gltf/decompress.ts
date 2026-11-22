@@ -34,6 +34,12 @@ export const SUPPORTED_REQUIRED_EXTENSIONS = new Set([
   "KHR_materials_ior",
   "KHR_materials_transmission",
   "KHR_materials_volume",
+  "KHR_materials_clearcoat",
+  "KHR_materials_sheen",
+  "KHR_materials_specular",
+  "KHR_materials_iridescence",
+  "MOZ_lightmap",
+  "KHR_lights_shadows",
   "KHR_lights_punctual",
   "EXT_mesh_gpu_instancing",
 ]);
