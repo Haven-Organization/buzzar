@@ -10,7 +10,8 @@
   right: 0;
   bottom: calc(100% + var(--sp-xs));
   width: min(620px, calc(100vw - 2 * var(--sp-md)));
-  max-height: calc(100vh - 120px);
+  /* The HUD row is below; everything above it is free (landscape phones are about 390px tall). */
+  max-height: calc(100vh - 72px);
   overflow-y: auto;
   padding: var(--sp-sm);
   border-radius: var(--br-md);
@@ -50,8 +51,8 @@
 }
 
 .TouchHudMenu__thing img {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
