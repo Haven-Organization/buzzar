@@ -312,10 +312,19 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
       liveKit.off(RoomEvent.DataReceived, onData);
     });
 
-    await liveKit.connect(url, jwt, { autoSubscribe: true });
-    const track = localMedia.userMedia?.getAudioTracks()[0];
-    if (track)
-      this.microphone = await liveKit.localParticipant.publishTrack(track, { source: Track.Source.Microphone });
+    try {
+      await liveKit.connect(url, jwt, { autoSubscribe: true });
+      const track = localMedia.userMedia?.getAudioTracks()[0];
+      if (track) {
+        this.microphone = await liveKit.localParticipant.publishTrack(track, { source: Track.Source.Microphone });
+      }
+    } catch (error) {
+      // Nothing joined yet: undo the connection so a fallback (or a retry) starts clean.
+      await liveKit.disconnect().catch(() => undefined);
+      this.liveKit = undefined;
+      this.microphone = undefined;
+      throw new Error(`The LiveKit server couldn't be reached (${error instanceof Error ? error.message : error}).`);
+    }
 
     this.rtc.join(
       {

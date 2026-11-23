@@ -22,6 +22,7 @@ import { reconcilePeerDevices } from "./peerDevices";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
 import { liveKitMembershipKey } from "../../ui/utils/callCleanup";
+import { confirmDialog } from "../../ui/views/components/confirm-dialog/ConfirmDialog";
 
 export interface MatrixNetworkInterface {
   dispose: () => void;
@@ -137,7 +138,7 @@ export async function createMatrixNetworkInterface(
     throw new Error("You must initialize the client session before creating the network interface");
   }
 
-  const groupCall = await chooseWorldCall(session, world);
+  let groupCall = await chooseWorldCall(session, world);
 
   let stream;
   try {
@@ -157,7 +158,29 @@ export async function createMatrixNetworkInterface(
     ? new LocalMedia().withUserMedia(stream).withDataChannel({})
     : new LocalMedia().withDataChannel({});
 
-  await groupCall.join(localMedia);
+  try {
+    await groupCall.join(localMedia);
+  } catch (error) {
+    if (groupCall.method !== "livekit") throw error;
+    // Buzzar: LiveKit couldn't connect (no LiveKit service, refused, unreachable). Say why, and offer a peer-to-peer
+    // call instead, which the LiveKit call's players can't see or hear.
+    console.error("Couldn't join the LiveKit call", error);
+    await groupCall.leave().catch(() => undefined);
+    const reason = error instanceof Error ? error.message : String(error);
+    const fallback = await confirmDialog({
+      title: "Couldn't Connect to the LiveKit Call",
+      message:
+        `${reason}\n\nYou can join a peer-to-peer call instead, but players in the LiveKit call won't see or hear ` +
+        "you, and you won't see or hear them.",
+      confirmLabel: "Join Peer-to-Peer Instead",
+      cancelLabel: "Back to Menu",
+    });
+    if (!fallback) throw new CallChoiceCancelled();
+    groupCall =
+      (await session.callHandler.getCallForRoom(world.id)) ??
+      (await session.callHandler.createCall(world.id, "m.voice", "World Call", CallIntent.Room));
+    await groupCall.join(localMedia);
+  }
   // Buzzar: this device may still be listed in the world's call of the other kind (an app closed without leaving,
   // before switching kinds): drop that, or others are offered a call with a ghost of us in it.
   removeOwnMembership(session, world, groupCall.method === "livekit" ? "mesh" : "livekit");
