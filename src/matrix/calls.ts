@@ -14,6 +14,7 @@ import {
   GroupCallState,
   GroupCallType,
   MatrixClient,
+  MatrixEvent,
   RoomStateEvent,
 } from "matrix-js-sdk";
 import { CallEvent, CallState, MatrixCall } from "matrix-js-sdk/lib/webrtc/call";
@@ -22,7 +23,7 @@ import { GroupCallEventHandlerEvent } from "matrix-js-sdk/lib/webrtc/groupCallEv
 import { EventEmitter, ObservableMap } from "./observable";
 import { recommendedCallMethod, WORLD_CALL_EVENT } from "./callMethod";
 import type { CallMethod, OpenWorldCalls } from "./callMethod";
-import { LiveKitCall, liveKitCallId, liveKitMemberships } from "./livekitCall";
+import { LiveKitCall, liveKitCallId, liveKitMemberships, WORLD_RTC_SLOT } from "./livekitCall";
 import { Stream, toStream } from "./platform";
 import type { Room, RoomMember } from "./room";
 import type { Session } from "./session";
@@ -349,6 +350,12 @@ export class MeshCall extends EventEmitter<{ change: undefined }> implements Gro
   }
 }
 
+/** Whether a call.member state event is someone's (non-empty) membership in a world's LiveKit call. */
+function isWorldLiveKitMembership(event: MatrixEvent): boolean {
+  if (event.getType() !== CALL_MEMBER_EVENT || !event.getStateKey()?.startsWith("_")) return false;
+  return event.getContent()?.application === WORLD_RTC_SLOT.application;
+}
+
 /** The calls in the user's rooms, by call ID (mesh calls by their call ID, LiveKit calls by their slot). */
 export class CallHandler {
   readonly calls = new ObservableMap<string, GroupCall>();
@@ -365,9 +372,19 @@ export class CallHandler {
     client.on(GroupCallEventHandlerEvent.Incoming, add);
     client.on(GroupCallEventHandlerEvent.Outgoing, add);
     client.on(GroupCallEventHandlerEvent.Ended, ended);
-    // Member state arriving for a call we wrap refreshes timestamps used for host election.
-    const onState = () => undefined;
+    // Buzzar: a world's LiveKit call is picked up as soon as anyone's membership in it arrives, so world tiles and the
+    // overlay show who's there before you join (mesh calls come from the group call handler above).
+    const onState = (event: MatrixEvent) => {
+      if (isWorldLiveKitMembership(event)) this.adoptLiveKit(event.getRoomId());
+    };
     client.on(RoomStateEvent.Events, onState);
+    // Rooms arrive after their state (sliding sync loads them in batches): pick up any that were waiting.
+    const unsubscribeRooms = session.rooms.subscribe({
+      onAdd: (roomId) => {
+        if (this.waitingForRoom.delete(roomId)) this.adoptLiveKit(roomId);
+      },
+    });
+    this.disposers.push(unsubscribeRooms);
     this.disposers.push(() => {
       client.off(GroupCallEventHandlerEvent.Incoming, add);
       client.off(GroupCallEventHandlerEvent.Outgoing, add);
@@ -389,8 +406,23 @@ export class CallHandler {
   /** Picks up calls that already exist in joined rooms. */
   async loadCalls(_intent?: CallIntent): Promise<void> {
     const handler = this.client.groupCallEventHandler;
-    if (!handler) return;
-    for (const sdk of handler.groupCalls.values()) this.adopt(sdk);
+    if (handler) for (const sdk of handler.groupCalls.values()) this.adopt(sdk);
+    for (const room of this.client.getRooms()) {
+      const events = room.currentState.getStateEvents(CALL_MEMBER_EVENT);
+      if (events.some(isWorldLiveKitMembership)) this.adoptLiveKit(room.roomId);
+    }
+  }
+
+  private waitingForRoom = new Set<string>();
+
+  /** Tracks a world's LiveKit call (not joined) once someone has a membership in it. */
+  private adoptLiveKit(roomId: string | undefined) {
+    if (!roomId || this.calls.has(liveKitCallId(roomId))) return;
+    if (!this.session.rooms.get(roomId)) {
+      this.waitingForRoom.add(roomId);
+      return;
+    }
+    this.liveKitCall(roomId);
   }
 
   /** The room's mesh call, once the room's state is loaded. */
