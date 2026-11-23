@@ -21,6 +21,7 @@ import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
+import { liveKitMembershipKey } from "../../ui/utils/callCleanup";
 
 export interface MatrixNetworkInterface {
   dispose: () => void;
@@ -51,6 +52,34 @@ function getReliableHost(groupCall: GroupCall): Member | undefined {
   if (isOlderThanLocalHost(groupCall, sortedMembers[0])) return undefined;
 
   return sortedMembers[0];
+}
+
+/** Removes this device from the world call with a request that outlives the page (see leaveOnPageHide). */
+function leaveCallOnUnload(session: Session, world: Room, call: GroupCall) {
+  const client = session.client;
+  const token = client.getAccessToken();
+  if (!token || !call.hasJoined) return;
+  const base = `${client.baseUrl.replace(/\/+$/, "")}/_matrix/client/v3/rooms/${encodeURIComponent(world.id)}/state/`;
+  const put = (path: string, body: unknown) =>
+    fetch(base + path, {
+      method: "PUT",
+      keepalive: true,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => undefined);
+  const memberEvent = "org.matrix.msc3401.call.member";
+  if (call.method === "livekit") {
+    put(`${memberEvent}/${encodeURIComponent(liveKitMembershipKey(session.userId, session.deviceId))}`, {});
+    return;
+  }
+  const content = world.sdk.currentState.getStateEvents(memberEvent, session.userId)?.getContent() as
+    | { "m.calls"?: { "m.devices"?: { device_id?: string }[] }[] }
+    | undefined;
+  if (!content?.["m.calls"]) return;
+  const calls = content["m.calls"]
+    .map((c) => ({ ...c, "m.devices": (c["m.devices"] ?? []).filter((d) => d.device_id !== session.deviceId) }))
+    .filter((c) => c["m.devices"].length > 0);
+  put(`${memberEvent}/${encodeURIComponent(session.userId)}`, { ...content, "m.calls": calls });
 }
 
 /** Thrown when the player cancels the "which call?" question: the world isn't entered. */
@@ -291,8 +320,18 @@ export async function createMatrixNetworkInterface(
     }
   }
 
+  // Buzzar: closing the page or app can't wait for a normal leave, so the membership stayed behind (an hour for mesh
+  // calls) and others saw a player who wasn't there. On page hide, send the leave as a keepalive request, which the
+  // browser finishes after the page is gone.
+  const leaveOnPageHide = (event: PageTransitionEvent) => {
+    if (event.persisted) return; // kept in the back/forward cache: the page may come back
+    leaveCallOnUnload(session, world, call);
+  };
+  window.addEventListener("pagehide", leaveOnPageHide);
+
   return {
     dispose: () => {
+      window.removeEventListener("pagehide", leaveOnPageHide);
       avatarSync.dispose();
       registerMicrophoneSwitcher(undefined);
       disconnect(ctx);
