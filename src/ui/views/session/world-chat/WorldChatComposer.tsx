@@ -32,6 +32,8 @@ export function WorldChatComposer({ room }: IWorldChatComposer) {
         type="text"
         placeholder=""
         autoComplete="off"
+        // Buzzar: phone keyboards show "Send" on their Enter key.
+        enterKeyHint="send"
         onInput={(e) => typing?.typed(!!e.currentTarget.value.trim())}
         onBlur={() => typing?.stopped()}
         autoFocus

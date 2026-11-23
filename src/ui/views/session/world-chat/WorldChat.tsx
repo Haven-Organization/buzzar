@@ -8,6 +8,8 @@ import { WorldChatComposer } from "./WorldChatComposer";
 import { Text } from "../../../atoms/text/Text";
 import { Icon } from "../../../atoms/icon/Icon";
 import MessageIC from "../../../../../res/ic/message.svg";
+import CrossIC from "../../../../../res/ic/cross.svg";
+import { IconButton } from "../../../atoms/button/IconButton";
 import { useRecentMessage } from "../../../hooks/useRecentMessage";
 import { usePreviousState } from "../../../hooks/usePreviousState";
 import { useTombstone } from "../../../hooks/useTombstone";
@@ -44,9 +46,11 @@ function useRecentMessages(room?: Room, maxCount = 5) {
 interface IWorldChat {
   open: boolean;
   room: Room;
+  /** Closes the open chat (the close button shown with touch controls). */
+  onClose?: () => void;
 }
 
-export function WorldChat({ room, open }: IWorldChat) {
+export function WorldChat({ room, open, onClose }: IWorldChat) {
   const events = useRecentMessages(open ? undefined : room, 5);
   // Buzzar: no chatting in a world that has been upgraded (WorldUpgradedDialog offers the new one).
   const upgraded = !!useTombstone(room);
@@ -100,9 +104,14 @@ export function WorldChat({ room, open }: IWorldChat) {
         ) : open ? (
           <>
             <WorldChatComposer room={room} />
-            <Text variant="b3" color="world" weight="bold" className="uppercase">
-              Enter
-            </Text>
+            {touchControls ? (
+              // Buzzar (Third Room #156): no Escape key on a phone; this closes chat (so does tapping outside it).
+              <IconButton variant="world" size="sm" label="Close chat" iconSrc={CrossIC} onClick={onClose} />
+            ) : (
+              <Text variant="b3" color="world" weight="bold" className="uppercase">
+                Enter
+              </Text>
+            )}
           </>
         ) : touchControls ? (
           // Buzzar (Third Room #156): no Enter key on a phone; the box opens chat.

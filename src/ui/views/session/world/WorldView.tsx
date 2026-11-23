@@ -185,6 +185,34 @@ export function WorldView({ world }: WorldViewProps) {
   const [padConnected, setPadConnected] = useState(false);
   // Buzzar (Third Room #156): on-screen controls on phones and tablets (or when turned on in Settings → Controls).
   const touchControls = useTouchControlsEnabled();
+  const worldViewRef = useRef<HTMLDivElement>(null);
+
+  // Buzzar (Third Room #156): with touch controls, the open chat sits just above the on-screen keyboard. Browsers that
+  // shrink the page for the keyboard (Chrome/Brave with interactive-widget=resizes-content, index.html) need nothing;
+  // others (Safari) only shrink the visual viewport, so the keyboard's height is measured and lifts the chat.
+  useEffect(() => {
+    const view = window.visualViewport;
+    const element = worldViewRef.current;
+    if (!touchControls || !view || !element) return;
+    const update = () => {
+      const inset = Math.max(0, Math.round(window.innerHeight - view.height - view.offsetTop));
+      element.style.setProperty("--keyboard-inset", `${inset}px`);
+    };
+    update();
+    view.addEventListener("resize", update);
+    view.addEventListener("scroll", update);
+    return () => {
+      view.removeEventListener("resize", update);
+      view.removeEventListener("scroll", update);
+      element.style.removeProperty("--keyboard-inset");
+    };
+  }, [touchControls]);
+
+  /** Closes chat from a tap (touch controls have no Escape key): the keyboard goes away too. */
+  const closeChat = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setWorldChatVisibility(false);
+  }, [setWorldChatVisibility]);
   useEffect(() => {
     const anyPad = () => Array.from(navigator.getGamepads?.() ?? []).some((pad) => !!pad && pad.connected);
     setPadConnected(anyPad());
@@ -337,7 +365,11 @@ export function WorldView({ world }: WorldViewProps) {
   if (isPresenting) return null;
 
   return (
-    <div className={classNames("WorldView", { "WorldView--touch": touchControls })}>
+    <div ref={worldViewRef} className={classNames("WorldView", { "WorldView--touch": touchControls })}>
+      {touchControls && worldChatVisible && (
+        // Buzzar: with touch controls, tapping anywhere outside the open chat closes it.
+        <div className="WorldView__chat-backdrop" onPointerDown={closeChat} />
+      )}
       {isWorldEntered &&
         touchControls &&
         !overlayVisible &&
@@ -369,7 +401,7 @@ export function WorldView({ world }: WorldViewProps) {
       <Stats statsEnabled={statsEnabled} />
       <div className={classNames("WorldView__chat flex", { "WorldView__chat--open": worldChatVisible })}>
         {!("isBeingCreated" in world) && !editorEnabled && (!hudHidden || worldChatVisible) && (
-          <WorldChat open={worldChatVisible} room={world} />
+          <WorldChat open={worldChatVisible} room={world} onClose={closeChat} />
         )}
       </div>
       {world && !editorEnabled && (

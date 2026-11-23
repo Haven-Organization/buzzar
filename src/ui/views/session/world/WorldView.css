@@ -122,6 +122,19 @@
   height: calc(100% - 70px - var(--touch-stick-size) - var(--sp-sm));
 }
 
+/* Open chat hides the joystick, so it goes to the bottom, just above the on-screen keyboard (--keyboard-inset is set
+   where the browser doesn't shrink the page for the keyboard: WorldView.tsx), and as wide as a phone allows. */
+.WorldView--touch .WorldView__chat--open {
+  --chat-width: min(520px, calc(100% - 2 * var(--sp-md) - 56px));
+  bottom: calc(var(--sp-md) + var(--keyboard-inset, 0px));
+  height: calc(100% - 70px - var(--keyboard-inset, 0px));
+}
+
+.WorldView__chat-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
 /* 16px from the edge: the mic's speaking glow (a 2px ring and a 12px blur, WorldControls.css) still fades out before
    the edge. The bell above is lined up on the same centre (StatusBar.css). */
 .WorldView--touch .WorldView__controls {
