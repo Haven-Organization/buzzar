@@ -72,8 +72,20 @@ export function WorldMovementSettings({
   };
   const running = value.runSpeed > value.walkSpeed;
   const jumping = value.jump > 0;
-  const isDefault = (Object.keys(DEFAULT_MOVEMENT) as (keyof MovementRules)[]).every(
-    (key) => value[key] === DEFAULT_MOVEMENT[key]
+  const reset = (note: string, keys: (keyof MovementRules)[]) => (
+    <div className="flex items-center gap-sm">
+      <Text variant="b3" color="surface-low" className="grow">
+        {note}
+      </Text>
+      <Button
+        size="sm"
+        fill="outline"
+        disabled={disabled || keys.every((key) => value[key] === DEFAULT_MOVEMENT[key])}
+        onClick={() => set(Object.fromEntries(keys.map((key) => [key, DEFAULT_MOVEMENT[key]])))}
+      >
+        Reset
+      </Button>
+    </div>
   );
 
   return (
@@ -135,6 +147,7 @@ export function WorldMovementSettings({
           </Text>
         </div>
       </SettingTile>
+      {reset("Normal: walk 2 m/s, run 5 m/s, players may choose up to 10 m/s.", ["walkSpeed", "runSpeed", "maxSpeed"])}
       <SettingTile label={<Label>Jumping</Label>}>
         <Switch
           checked={jumping}
@@ -155,6 +168,7 @@ export function WorldMovementSettings({
           onChange={(jump) => set({ jump })}
         />
       )}
+      {reset("Normal: jumping on, 100% height.", ["jump"])}
       <SettingTile label={<Label>Flying</Label>}>
         <div className="flex flex-column gap-xxs">
           <Switch checked={value.fly} disabled={disabled} onCheckedChange={(fly) => set({ fly })} aria-label="Flying" />
@@ -188,20 +202,7 @@ export function WorldMovementSettings({
           />
         </>
       )}
-      <div className="flex items-center gap-sm">
-        <Text variant="b3" color="surface-low" className="grow">
-          Buzzar&apos;s normal speeds: walk 2 m/s, run 5 m/s, players may choose up to 10 m/s, normal jumps, flying at
-          10 m/s with 200% boost.
-        </Text>
-        <Button
-          size="sm"
-          fill="outline"
-          disabled={disabled || isDefault}
-          onClick={() => onChange({ ...DEFAULT_MOVEMENT })}
-        >
-          Reset to Normal
-        </Button>
-      </div>
+      {reset("Normal: flying on, 10 m/s with 200% boost.", ["fly", "flySpeed", "flyBoost"])}
     </div>
   );
 }
