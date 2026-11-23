@@ -1,3 +1,4 @@
+import { MovementModule } from "./player/movement.game";
 import { VoiceSystem } from "./audio/voice.game";
 import { defineConfig } from "./module/module.common";
 import { AudioModule } from "./audio/audio.game";
@@ -79,6 +80,7 @@ export default defineConfig<GameContext>({
     AudioModule,
     NetworkModule,
     SpawnRulesModule,
+    MovementModule,
     StatsModule,
     EditorModule,
     RendererModule,

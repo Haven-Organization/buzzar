@@ -17,6 +17,7 @@ import { RemoteNode } from "../resource/RemoteResources";
 import { playOneShotAudio } from "../audio/audio.game";
 import randomRange from "../utils/randomRange";
 import { padButton, PadButton, PAD_LEFT_X, PAD_LEFT_Y } from "../input/gamepad.common";
+import { jumpScale, ourSpeeds } from "./movement.game";
 import { CLIMB_REGRAB_DELAY, CLIMB_SIDE_SPEED, decideClimb, findLadder, ladderGrab } from "./climbing";
 import { bounceSpeed, findTrampoline } from "./trampolines";
 import { OurPlayer } from "./Player";
@@ -167,8 +168,8 @@ export const _q = new Quaternion();
 
 export const walkAccel = 100;
 export const drag = 10;
-export const maxWalkSpeed = 20;
-export const maxSprintSpeed = 50;
+/** Buzzar: a controller stick nudged less than this counts as the keyboard (no stick). */
+const STICK_DEADZONE = 0.15;
 export const sprintModifier = 2.5;
 export const jumpForce = 7;
 export const inAirModifier = 0.5;
@@ -283,31 +284,30 @@ export function updateKinematicControls(
 
   const speed = Math.sqrt(_linearVelocity.x * _linearVelocity.x + _linearVelocity.z * _linearVelocity.z);
 
-  // Buzzar: a gamepad stick only part-way over walks slower (keys, and diagonals of two keys, are full speed).
+  // Buzzar (Third Room #295): the world's speeds, with this player's own choices (movement.common.ts). Keys walk, or
+  // run while the run key is held; a controller stick moves at its share of the controller top speed (pushed all the
+  // way: the top speed, as in VRChat), or the run speed with sprint held. Crouching and prone (plugins/posture) are
+  // slower; only standing players run. The speed the player settles at is the force cap over the drag.
+  const speeds = ourSpeeds(ctx);
+  const stick = Math.min(1, Math.hypot(raw[PAD_LEFT_X] ?? 0, raw[PAD_LEFT_Y] ?? 0));
+  const usingStick = stick > STICK_DEADZONE;
   const moveAmount = Math.min(1, Math.hypot(moveVec[0], moveVec[1]));
+  const standing = localPosture.value === Posture.Standing;
+  let targetSpeed = usingStick
+    ? (sprint.held && standing ? Math.max(speeds.controller, speeds.run) : speeds.controller) * stick
+    : sprint.held && standing
+    ? speeds.run
+    : speeds.walk * moveAmount;
+  if (!standing) targetSpeed *= POSTURE_SPEED[localPosture.value];
+
   _acceleration
     .set(moveVec[0], 0, -moveVec[1])
     .normalize()
     .applyQuaternion(_q)
-    .multiplyScalar(walkAccel * moveAmount);
+    .multiplyScalar(Math.max(walkAccel, targetSpeed * drag * sprintModifier));
 
-  // Buzzar: crouching and prone (plugins/posture) are slower; only standing players sprint.
-  const standing = localPosture.value === Posture.Standing;
-  if (!isGrounded) {
-    _acceleration.multiplyScalar(inAirModifier);
-  } else if (!isSliding) {
-    if (!standing) {
-      _acceleration.multiplyScalar(POSTURE_SPEED[localPosture.value]);
-    } else if (sprint.held) {
-      _acceleration.multiplyScalar(sprintModifier);
-    }
-  }
-
-  if (isSprinting) {
-    _acceleration.clampLength(0, maxSprintSpeed);
-  } else {
-    _acceleration.clampLength(0, maxWalkSpeed);
-  }
+  if (!isGrounded) _acceleration.multiplyScalar(inAirModifier);
+  _acceleration.clampLength(0, targetSpeed * drag);
 
   _acceleration.y = physicsWorld.gravity.y * 1.5;
 
@@ -332,7 +332,8 @@ export function updateKinematicControls(
 
   // Jumping while crouched or prone stands you up instead (plugins/posture).
   if (jump.pressed && isGrounded && standing) {
-    _linearVelocity.y += jumpForce;
+    // Buzzar: a world can make jumps stronger or weaker (movement rules).
+    _linearVelocity.y += jumpForce * Math.sqrt(jumpScale(ctx));
   }
 
   if (speed !== 0) {

@@ -10,6 +10,7 @@ import { PhysicsModuleState, PhysicsModule } from "../physics/physics.game";
 import { RemoteNode } from "../resource/RemoteResources";
 import { tryGetRemoteResource } from "../resource/resource.game";
 import { addFlyControls, FLY_TAKEOFF_HEIGHT, FlyControls } from "./FlyCharacterController";
+import { mayFly } from "./movement.game";
 import { getAvatar } from "./getAvatar";
 import { getCamera } from "./getCamera";
 import { KinematicControls } from "./KinematicCharacterController";
@@ -144,14 +145,21 @@ export function EnableCharacterControllerSystem(ctx: GameContext) {
       return;
     }
 
+    const sceneFlies =
+      ctx.worldResource.environment?.publicScene &&
+      SceneCharacterControllerComponent.get(ctx.worldResource.environment.publicScene.eid)?.type ===
+        CharacterControllerType.Fly;
     if (scriptCharacterController) {
       applyScriptCharacterController(ctx, physics, player);
     } else if (toggleFlyMode.pressed) {
       if (hasComponent(ctx.world, FlyControls, player.eid)) {
         swapToPlayerRig(ctx, physics, player);
-      } else {
+      } else if (mayFly(ctx)) {
         swapToFlyPlayerRig(ctx, physics, player);
       }
+    } else if (!sceneFlies && !mayFly(ctx) && hasComponent(ctx.world, FlyControls, player.eid)) {
+      // Buzzar (Third Room #295): the world turned flying off while we were flying: back on our feet.
+      swapToPlayerRig(ctx, physics, player);
     }
 
     const toggleCameraMode = input.actionStates.get(CharacterControllerAction.ToggleThirdPerson) as ButtonActionState;

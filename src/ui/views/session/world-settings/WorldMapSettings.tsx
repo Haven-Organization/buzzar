@@ -21,8 +21,7 @@ import { serializeMapEvent, WORLD_MAP_EVENT, WorldMapArea } from "../../../../pl
 import { generateWorldMap } from "../../../../plugins/world-map/worldMap.main";
 import { useGeneratedWorldMap, useMapImageSrc } from "../world-map/useWorldMapImage";
 
-const metres = (area: WorldMapArea) =>
-  `${Math.round(area.maxX - area.minX)} × ${Math.round(area.maxZ - area.minZ)} m`;
+const metres = (area: WorldMapArea) => `${Math.round(area.maxX - area.minX)} × ${Math.round(area.maxZ - area.minZ)} m`;
 
 export function WorldMapSettings({ room, canEdit }: { room: Room; canEdit: boolean }) {
   const mainThread = useMainThreadContext();
@@ -141,8 +140,8 @@ export function WorldMapSettings({ room, canEdit }: { room: Room; canEdit: boole
           )}
         </div>
         <Text variant="b3" color="surface-low">
-          For indoor worlds: roofs and upper floors are left out so the rooms show. Heights are the world&apos;s own (the
-          floor is usually 0).
+          For indoor worlds: roofs and upper floors are left out so the rooms show. Heights are the world&apos;s own
+          (the floor is usually 0).
         </Text>
       </SettingTile>
       {canEdit && (

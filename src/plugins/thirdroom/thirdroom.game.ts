@@ -81,6 +81,7 @@ import {
   setThingClones,
 } from "./action-bar.game";
 import { onSpawnRulesChanged } from "../../engine/network/spawnRules.game";
+import { onMovementRulesChanged } from "../../engine/player/movement.game";
 import { createDisposables } from "../../engine/utils/createDisposables";
 import {
   registerPlayerPrefabs,
@@ -166,11 +167,9 @@ export const ThirdRoomModule = defineModule<GameContext, ThirdRoomModuleState>({
         (ctx: GameContext, message: SetThingClonesMessage) => setThingClones(ctx, message.clones)
       ),
       // Buzzar: refresh the stock action bar when the world's object rules change (not a script's own bar).
-      onSpawnRulesChanged(ctx, () => {
-        const { actionBarItems } = getModule(ctx, ThirdRoomModule);
-        const isDefault = actionBarItems.every((item) => defaultActionBarItems.some((d) => d.id === item.id));
-        if (isDefault) setDefaultActionBarItems(ctx);
-      }),
+      onSpawnRulesChanged(ctx, () => refreshStockActionBar(ctx)),
+      // …and when "Ignore world limits for my actions" changes (Developer settings).
+      onMovementRulesChanged(ctx, () => refreshStockActionBar(ctx)),
     ]);
 
     loadGLTF(ctx, "/gltf/full-animation-rig.glb").catch((error) => {
@@ -288,6 +287,13 @@ function disposeWorld(ctx: GameContext) {
 }
 
 export const spawnPointQuery = defineQuery([SpawnPoint]);
+
+/** Buzzar: rebuilds the stock action bar (not a script's own bar) after the rules or limit overrides change. */
+function refreshStockActionBar(ctx: GameContext) {
+  const { actionBarItems } = getModule(ctx, ThirdRoomModule);
+  const isDefault = actionBarItems.every((item) => defaultActionBarItems.some((d) => d.id === item.id));
+  if (isDefault) setDefaultActionBarItems(ctx);
+}
 
 export function WorldLoaderSystem(ctx: GameContext) {
   const thirdroom = getModule(ctx, ThirdRoomModule);

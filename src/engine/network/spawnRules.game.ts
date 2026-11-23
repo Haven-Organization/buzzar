@@ -8,6 +8,7 @@
  */
 import { defineComponent, hasComponent } from "bitecs";
 
+import { getLimitOverrides } from "../player/movement.game";
 import { GameContext } from "../GameTypes";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { Prefab } from "../prefab/prefab.game";
@@ -148,6 +149,8 @@ export function checkCreate(
   if (!peerOwnsNetworkId(network, peerId, nid)) return { reject: "created an object under someone else's ID" };
   if (!knownPrefab) return { reject: `spawned an unknown object type "${prefab.slice(0, 60)}"` };
   if (!isThingId(prefab)) return {};
+  // "Don't enforce world limits on others for me" (Developer settings): show what they spawn. Ownership above stays.
+  if (getLimitOverrides(ctx).ignoreOthers) return {};
   const rules = getSpawnRules(ctx);
   if (!isSpawnAllowed(rules, prefab)) return { reject: `spawned "${prefab}", which this world doesn't allow` };
   const credit = consumeTakeCredit(ctx, peerId, prefab);

@@ -3,6 +3,8 @@ import { quat, vec3 } from "gl-matrix";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { Quaternion, Vector3 } from "three";
 
+import { FLY_SPEED } from "./movement.common";
+import { ourFlySpeed } from "./movement.game";
 import { getCamera } from "./getCamera";
 import { updateMatrixWorld } from "../component/transform";
 import { GameContext } from "../GameTypes";
@@ -85,7 +87,7 @@ const cameraWorldRotation = quat.create();
 export function addFlyControls(ctx: GameContext, eid: number) {
   addComponent(ctx.world, FlyControls, eid);
   FlyControls.set(eid, {
-    speed: 10,
+    speed: FLY_SPEED,
   });
   return eid;
 }
@@ -100,12 +102,13 @@ function applyFlyControls(
   playerRig: RemoteNode,
   camera: RemoteNode
 ) {
-  const { speed } = FlyControls.get(playerRig.eid)!;
+  // Buzzar (Third Room #295): the world's flying speed and boost (movement rules).
+  const { speed, boost: boostFactor } = ourFlySpeed(ctx);
   const actionStates = input.actionStates;
   const moveVec = actionStates.get(FlyCharacterControllerActions.Move) as Float32Array;
   const boost = actionStates.get(FlyCharacterControllerActions.Boost) as ButtonActionState;
 
-  const boostModifier = boost.held ? 2 : 1;
+  const boostModifier = boost.held ? boostFactor : 1;
 
   vec3.set(velocityVec, moveVec[0], 0, -moveVec[1]);
 

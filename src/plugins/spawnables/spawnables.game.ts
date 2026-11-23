@@ -2,6 +2,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { addComponent, hasComponent } from "bitecs";
 import { mat4, vec3, quat } from "gl-matrix";
 
+import { getLimitOverrides } from "../../engine/player/movement.game";
 import { playOneShotAudio } from "../../engine/audio/audio.game";
 import { Player } from "../../engine/player/Player";
 import { GameContext } from "../../engine/GameTypes";
@@ -616,9 +617,11 @@ export function spawnPrefab(
   const { maxObjectCap } = getModule(ctx, ThirdRoomModule);
   const rules = getSpawnRules(ctx);
 
-  // Buzzar: the world's object rules (other clients enforce them too, so spawning past them is pointless).
-  if (!isSpawnAllowed(rules, prefabId)) return false;
-  const limit = rules.maxPerUser ?? maxObjectCap;
+  // Buzzar: the world's object rules (other clients enforce them too, so spawning past them is pointless), unless
+  // "Ignore world limits for my actions" is on (Developer settings): others still won't see what breaks them.
+  const ignoreLimits = getLimitOverrides(ctx).ignoreOwn;
+  if (!ignoreLimits && !isSpawnAllowed(rules, prefabId)) return false;
+  const limit = ignoreLimits ? Infinity : rules.maxPerUser ?? maxObjectCap;
   const ownedEnts = ownedNetworkedQuery(ctx.world);
   let ownedStock = 0;
   for (let i = 0; i < ownedEnts.length; i++) {

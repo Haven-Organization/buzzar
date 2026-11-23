@@ -40,7 +40,11 @@ export function isThingId(id: string) {
   return (STOCK_SPAWNABLES as readonly string[]).includes(id) || MXC_THING.test(id);
 }
 
-/** The behaviours a Thing is known to have. Custom Things: read from their file once those can be spawned. */
+/**
+ * The behaviours a Thing is known to have. Custom Thing files can't be spawned yet (checkCreate rejects unknown
+ * object types), so stock Things are all there is. When custom files become spawnable, read their glTF extensions on
+ * every receiving client as the file loads, and drop the object if it has a blocked behaviour.
+ */
 export function thingBehaviours(id: string): readonly string[] {
   return STOCK_BEHAVIOURS[id] ?? [];
 }

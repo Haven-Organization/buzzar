@@ -1,3 +1,4 @@
+import { getLimitOverrides } from "../../engine/player/movement.game";
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { GameContext } from "../../engine/GameTypes";
 import { ActionMap, ActionDefinition, ActionType, BindingType, ButtonActionState } from "../../engine/input/ActionMap";
@@ -150,15 +151,17 @@ export function setDefaultActionBarItems(ctx: GameContext) {
   thirdroom.actionBarItems.length = 0;
   // Buzzar: the Things on your number keys, leaving out ones this world doesn't allow.
   const rules = getSpawnRules(ctx);
+  // "Ignore world limits for my actions" (Developer settings) shows them all.
+  const allowed = (id: string) => getLimitOverrides(ctx).ignoreOwn || isSpawnAllowed(rules, id);
   thingKeys.forEach((id, slot) => {
     const thing = id ? resolveThing(id) : undefined;
-    if (thing && isSpawnAllowed(rules, thing.prefab)) thirdroom.actionBarItems.push({ ...thing.item, slot });
+    if (thing && allowed(thing.prefab)) thirdroom.actionBarItems.push({ ...thing.item, slot });
   });
 
   ctx.sendMessage<SetActionBarItemsMessage>(Thread.Main, {
     type: ThirdRoomMessageType.SetActionBarItems,
     actionBarItems: thirdroom.actionBarItems,
-    allowedThings: defaultActionBarItems.filter((d) => isSpawnAllowed(rules, d.id)).map((d) => d.id),
+    allowedThings: defaultActionBarItems.filter((d) => allowed(d.id)).map((d) => d.id),
   });
 }
 

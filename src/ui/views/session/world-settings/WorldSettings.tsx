@@ -31,6 +31,9 @@ import LightingIC from "../../../../../res/ic/dark-light.svg";
 import MapIC from "../../../../../res/ic/my-location.svg";
 import { WorldMapSettings } from "./WorldMapSettings";
 import { WorldCallSettings } from "./WorldCallSettings";
+import { WorldMovementSettings } from "./WorldMovementSettings";
+import RunIC from "../../../../../res/ic/run.svg";
+import { MovementRules, parseMovementRules, serializeMovementRules } from "../../../../engine/player/movement.common";
 import CallIC from "../../../../../res/ic/call.svg";
 import { WORLD_MAP_EVENT } from "../../../../plugins/world-map/worldMap.common";
 import { serializeShadows, shadowsDraftFromRules, WorldShadowSettings, WorldShadowsDraft } from "./WorldShadowSettings";
@@ -60,13 +63,14 @@ import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallbac
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "calls";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "movement" | "calls";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
   { id: "lighting", label: "Lighting", icon: LightingIC },
   { id: "map", label: "Map", icon: MapIC },
   { id: "things", label: "Things", icon: BoxIC },
+  { id: "movement", label: "Movement", icon: RunIC },
   { id: "calls", label: "Calls", icon: CallIC },
 ];
 
@@ -121,6 +125,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const [savedShadows, setSavedShadows] = useState<WorldShadowsDraft>(() => shadowsDraftFromRules(undefined));
   const [shadows, setShadows] = useState<WorldShadowsDraft>(savedShadows);
   const shadowsTouched = useRef(false);
+  // Buzzar (Third Room #295): the world's movement rules, also in the rules event.
+  const [savedMovement, setSavedMovement] = useState<MovementRules>(() => parseMovementRules(undefined));
+  const [movement, setMovement] = useState<MovementRules>(savedMovement);
+  const movementTouched = useRef(false);
   const onRules = useCallback((event: StateEvent | undefined) => {
     rulesContent.current = event?.content as Record<string, unknown> | undefined;
     const draft = draftFromRules(rulesContent.current);
@@ -129,11 +137,18 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     const shadowsDraft = shadowsDraftFromRules(rulesContent.current);
     setSavedShadows(shadowsDraft);
     if (!shadowsTouched.current) setShadows(shadowsDraft);
+    const movementDraft = parseMovementRules(rulesContent.current);
+    setSavedMovement(movementDraft);
+    if (!movementTouched.current) setMovement(movementDraft);
   }, []);
   useStateEventKeyCallback(room, WORLD_RULES_EVENT, "", onRules);
   const changeThingRules = (draft: ThingRulesDraft) => {
     rulesTouched.current = true;
     setThingRules(draft);
+  };
+  const changeMovement = (draft: MovementRules) => {
+    movementTouched.current = true;
+    setMovement(draft);
   };
   const changeShadows = (draft: WorldShadowsDraft) => {
     shadowsTouched.current = true;
@@ -171,7 +186,8 @@ export function WorldSettings({ room }: WorldSettingsProps) {
 
   const rulesChanged =
     JSON.stringify(thingRules) !== JSON.stringify(savedRules) ||
-    JSON.stringify(shadows) !== JSON.stringify(savedShadows);
+    JSON.stringify(shadows) !== JSON.stringify(savedShadows) ||
+    JSON.stringify(serializeMovementRules(movement)) !== JSON.stringify(serializeMovementRules(savedMovement));
   const canEditRules = canSendStateEvent(WORLD_RULES_EVENT, myPowerLevel);
 
   useEffect(() => {
@@ -254,7 +270,12 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       // A per-person limit in the rules overrides the world's; keep the two the same.
       if (capChanged && objects.max_per_user !== undefined) objects.max_per_user = maxObjectCap;
       session.hsApi
-        .sendState(room.id, WORLD_RULES_EVENT, "", { ...content, objects, shadows: serializeShadows(shadows) })
+        .sendState(room.id, WORLD_RULES_EVENT, "", {
+          ...content,
+          objects,
+          shadows: serializeShadows(shadows),
+          movement: serializeMovementRules(movement),
+        })
         .response()
         .catch((e: unknown) =>
           // Buzzar: say so when the homeserver refuses (it used to fail silently and the settings snapped back).
@@ -403,6 +424,14 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "map"}>
                         <WorldMapSettings room={room} canEdit={canSendStateEvent(WORLD_MAP_EVENT, myPowerLevel)} />
+                      </div>
+                      <div className="WorldSettings__section" hidden={category !== "movement"}>
+                        <WorldMovementSettings value={movement} onChange={changeMovement} disabled={!canEditRules} />
+                        {!canEditRules && (
+                          <Text variant="b3" color="surface-low">
+                            Only people allowed to change this world&apos;s rules can change this.
+                          </Text>
+                        )}
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "calls"}>
                         <WorldCallSettings value={callMethod} onChange={changeCallMethod} canEdit={canEditCalls} />

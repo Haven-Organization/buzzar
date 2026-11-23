@@ -31,6 +31,7 @@ import {
   pickGamepads,
   setGamepadChoice,
 } from "../../../../engine/input/gamepadPreference";
+import { MovementSpeedSetting } from "./MovementSpeedSetting";
 import "./ControlsSettings.css";
 
 interface PadInfo {
@@ -211,9 +212,12 @@ export function ControlsSettings() {
             Moving with the keys runs, and holding {runKey} walks instead.
           </Text>
         </SettingTile>
+        <MovementSpeedSetting which="walk" />
+        <MovementSpeedSetting which="run" />
         <KeyBindingsEditor />
       </Category>
       <Category header={<CategoryHeader title="Controller" options={<Label>Button</Label>} />}>
+        <MovementSpeedSetting which="controller" />
         <ControllerControlsList />
       </Category>
     </div>

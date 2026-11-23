@@ -1,5 +1,5 @@
 import { RigidBody as RapierRigidBody } from "@dimforge/rapier3d-compat";
-import { defineQuery, enterQuery, exitQuery, Not } from "bitecs";
+import { defineQuery, enterQuery, exitQuery, hasComponent, Not } from "bitecs";
 import { Vector3, Quaternion } from "three";
 import { quat, vec3 } from "gl-matrix";
 
@@ -12,7 +12,8 @@ import { advancePlaybackClock, findSamples } from "./playbackClock";
 import { addEntityHistory, syncWithHistorian } from "./InterpolationBuffer";
 import { getRemoteResource } from "../resource/resource.game";
 import { RemoteNode } from "../resource/RemoteResources";
-import { OurPlayer } from "../player/Player";
+import { OurPlayer, Player } from "../player/Player";
+import { checkRemotePlayerMove, forgetRemotePlayer } from "./movementCheck.game";
 
 export const remoteEntityQuery = defineQuery([Networked, Not(Owned), Not(OurPlayer)]);
 
@@ -144,6 +145,8 @@ export function NetworkInterpolationSystem(ctx: GameContext) {
     }
 
     vec3.lerp(_v3, pFrom, pTo, t);
+    // Buzzar (Third Room #295): players are held to the world's speed limit (movementCheck.game.ts).
+    if (hasComponent(ctx.world, Player, eid)) checkRemotePlayerMove(ctx, eid, peerId, _v3);
     if (body) body.setTranslation(_vec.fromArray(_v3), true);
     vec3.copy(position, _v3);
 
@@ -159,6 +162,7 @@ export function NetworkInterpolationSystem(ctx: GameContext) {
   const exited = exitedRemoteEntityQuery(ctx.world);
   for (let i = 0; i < exited.length; i++) {
     const eid = exited[i];
+    forgetRemotePlayer(eid);
     // remove from historian
     const pidx = getPeerIndexFromNetworkId(Networked.networkId[eid]);
     const peerId = network.indexToPeerId.get(pidx);
