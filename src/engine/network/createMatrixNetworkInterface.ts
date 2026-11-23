@@ -54,32 +54,39 @@ function getReliableHost(groupCall: GroupCall): Member | undefined {
   return sortedMembers[0];
 }
 
-/** Removes this device from the world call with a request that outlives the page (see leaveOnPageHide). */
-function leaveCallOnUnload(session: Session, world: Room, call: GroupCall) {
+/**
+ * Removes this device's membership of one kind of world call, if the room state still lists it. `keepalive` lets the
+ * request outlive the page (see leaveOnPageHide).
+ */
+function removeOwnMembership(session: Session, world: Room, method: CallMethod, keepalive = false) {
   const client = session.client;
   const token = client.getAccessToken();
-  if (!token || !call.hasJoined) return;
+  if (!token) return;
+  const memberEvent = "org.matrix.msc3401.call.member";
   const base = `${client.baseUrl.replace(/\/+$/, "")}/_matrix/client/v3/rooms/${encodeURIComponent(world.id)}/state/`;
-  const put = (path: string, body: unknown) =>
-    fetch(base + path, {
+  const put = (stateKey: string, body: unknown) =>
+    fetch(`${base}${memberEvent}/${encodeURIComponent(stateKey)}`, {
       method: "PUT",
-      keepalive: true,
+      keepalive,
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => undefined);
-  const memberEvent = "org.matrix.msc3401.call.member";
-  if (call.method === "livekit") {
-    put(`${memberEvent}/${encodeURIComponent(liveKitMembershipKey(session.userId, session.deviceId))}`, {});
+
+  if (method === "livekit") {
+    const key = liveKitMembershipKey(session.userId, session.deviceId);
+    const content = world.sdk.currentState.getStateEvents(memberEvent, key)?.getContent();
+    if (content && Object.keys(content).length > 0) put(key, {});
     return;
   }
   const content = world.sdk.currentState.getStateEvents(memberEvent, session.userId)?.getContent() as
     | { "m.calls"?: { "m.devices"?: { device_id?: string }[] }[] }
     | undefined;
-  if (!content?.["m.calls"]) return;
-  const calls = content["m.calls"]
+  const calls = content?.["m.calls"];
+  if (!calls?.some((c) => c["m.devices"]?.some((d) => d.device_id === session.deviceId))) return;
+  const remaining = calls
     .map((c) => ({ ...c, "m.devices": (c["m.devices"] ?? []).filter((d) => d.device_id !== session.deviceId) }))
     .filter((c) => c["m.devices"].length > 0);
-  put(`${memberEvent}/${encodeURIComponent(session.userId)}`, { ...content, "m.calls": calls });
+  put(session.userId, { ...content, "m.calls": remaining });
 }
 
 /** Thrown when the player cancels the "which call?" question: the world isn't entered. */
@@ -151,6 +158,9 @@ export async function createMatrixNetworkInterface(
     : new LocalMedia().withDataChannel({});
 
   await groupCall.join(localMedia);
+  // Buzzar: this device may still be listed in the world's call of the other kind (an app closed without leaving,
+  // before switching kinds): drop that, or others are offered a call with a ghost of us in it.
+  removeOwnMembership(session, world, groupCall.method === "livekit" ? "mesh" : "livekit");
 
   // Mute after connecting based on user preference
   if (groupCall.muteSettings?.microphone === false && localStorage.getItem("microphone") !== "true") {
@@ -325,7 +335,7 @@ export async function createMatrixNetworkInterface(
   // browser finishes after the page is gone.
   const leaveOnPageHide = (event: PageTransitionEvent) => {
     if (event.persisted) return; // kept in the back/forward cache: the page may come back
-    leaveCallOnUnload(session, world, call);
+    if (call.hasJoined) removeOwnMembership(session, world, call.method, true);
   };
   window.addEventListener("pagehide", leaveOnPageHide);
 
