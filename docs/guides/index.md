@@ -102,6 +102,12 @@ On a phone or tablet you can put Buzzar on your home screen, where it opens on i
 
 Invite people to a world, or share its link. As the creator you can change the world's name, scene and privacy settings, and give others roles to help moderate.
 
+#### Movement
+
+Each world sets how fast you walk and run, how high you jump and whether you can fly, in **World Settings → Movement**. A world can turn off running, jumping or flying, for example one meant to be walked through. You can choose your own walk speed, run speed and controller top speed in **Settings → Controls**, up to the world's top speed. With a controller, pushing the stick all the way moves at your controller top speed.
+
+Everyone's Buzzar holds other players to the world's limits: someone using a modified app to move faster than the world allows is held back on everyone else's screen, and the world's moderators are told.
+
 #### World calls
 
 Everyone in a world is in its call: that's how you see each other move and hear each other talk. A world's call can work two ways, chosen in **World Settings → Calls**:
