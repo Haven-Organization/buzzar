@@ -159,14 +159,19 @@ export class ScreenShare {
       if (track.source !== Track.Source.ScreenShare) return;
       this.unwatch(participant.identity);
     };
-    const onData = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
-      if (topic !== SCREEN_TOPIC || !participant) return;
+    const heard = (identity: string, payload: Uint8Array) => {
       const announcement = parseScreenAnnouncement(payload);
       if (!announcement) return;
-      if (announcement.placement) this.placements.set(participant.identity, announcement.placement);
-      else this.placements.delete(participant.identity);
+      if (announcement.placement) this.placements.set(identity, announcement.placement);
+      else this.placements.delete(identity);
+    };
+    const onData = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
+      if (topic !== SCREEN_TOPIC || !participant) return;
+      heard(participant.identity, payload);
       void this.refresh();
     };
+    // Placements sent before we were set up (on arriving, each sharer tells us where their screen is).
+    for (const [identity, payload] of call.screenAnnouncements) heard(identity, payload);
     const onJoined = (participant: Participant) => {
       // Newcomers need to know where our screen is.
       if (this.ourPlacement) void this.announce(this.ourPlacement, [participant.identity]);

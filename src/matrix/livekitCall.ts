@@ -34,7 +34,7 @@ import type { Session } from "./session";
 import type { GroupCall, Member } from "./calls";
 import { CallIntent, LocalMedia, MuteSettings } from "./calls";
 import { LiveKitDataChannel } from "./livekitDataChannel";
-
+import { SCREEN_TOPIC } from "../engine/screenshare/screenShare.common";
 export const WORLD_RTC_SLOT = { application: "software.haven.world", id: "main" };
 const DATA_TOPIC = "buzzar";
 /** Most packets kept from one player before we know them (a world snapshot is a few hundred at most). */
@@ -281,6 +281,9 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     });
   };
 
+  /** The latest screen placement each participant sent (SCREEN_TOPIC), by LiveKit identity. */
+  readonly screenAnnouncements = new Map<string, Uint8Array>();
+
   /** The LiveKit room while we're connected (screen sharing uses it: engine/screenshare/screenShare.main.ts). */
   get liveKitRoom(): LiveKitRoom | undefined {
     return this.liveKit;
@@ -316,6 +319,11 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
       this.members.update(this.keyOf(member.userId, member.deviceId));
     };
     const onData = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
+      // Screen placements (engine/screenshare) can arrive before screen sharing is set up: keep each one's latest.
+      if (topic === SCREEN_TOPIC && participant) {
+        this.screenAnnouncements.set(participant.identity, payload.slice());
+        return;
+      }
       if (topic !== DATA_TOPIC || !participant) return;
       const member = this.memberFor(participant.identity);
       if (member && member.isConnected) {
@@ -329,6 +337,9 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     };
     liveKit.on(RoomEvent.ParticipantConnected, refresh);
     liveKit.on(RoomEvent.ParticipantDisconnected, refresh);
+    const forgetScreen = (participant: RemoteParticipant) => this.screenAnnouncements.delete(participant.identity);
+    liveKit.on(RoomEvent.ParticipantDisconnected, forgetScreen);
+    this.disposers.push(() => liveKit.off(RoomEvent.ParticipantDisconnected, forgetScreen));
     liveKit.on(RoomEvent.ConnectionStateChanged, refresh);
     liveKit.on(RoomEvent.TrackSubscribed, onTrack);
     liveKit.on(RoomEvent.TrackUnsubscribed, onTrackGone);
@@ -409,6 +420,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     this.microphone = undefined;
     this._localMedia = undefined;
     this.early.clear();
+    this.screenAnnouncements.clear();
     this.syncMembers();
     this.emit("change");
   }

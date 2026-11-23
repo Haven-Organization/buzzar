@@ -75,6 +75,10 @@ export const ScreenShareRenderModule = defineModule<RenderContext, { screens: Ma
           texture.encoding = sRGBEncoding;
           texture.minFilter = LinearFilter;
           texture.generateMipmaps = false;
+          // WebGL ignores flipY for ImageBitmaps, so the picture came out upside down: flip it in the UVs instead.
+          texture.flipY = false;
+          texture.repeat.set(1, -1);
+          texture.offset.set(0, 1);
           const material = new MeshBasicMaterial({ color: waitingColor, side: FrontSide, toneMapped: false });
           const picture = new Mesh(plane, material);
           const back = new Mesh(plane, backMaterial);
