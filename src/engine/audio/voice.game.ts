@@ -1,8 +1,8 @@
 /**
- * Buzzar: who you can hear, worked out on the game thread (see voice.common.ts): each other player's voice fades with
- * distance and stops at the world's voice range, unless they stand in a stage area (HAVEN_voice_zone "broadcast"),
- * where everyone hears them at full volume. The people you can hear are reported to the main thread, so a LiveKit
- * call only receives those voices.
+ * Buzzar: who you can hear, worked out on the game thread (see voice.common.ts): each other player's voice follows
+ * the world's voice settings (HAVEN_voice), or those of the voice zone they stand in (HAVEN_voice_zone; a stage is
+ * heard by everyone). Volume and muffling go to their voice's audio emitter; the people you can hear are reported to
+ * the main thread, so a LiveKit call only receives those voices.
  */
 import { defineQuery } from "bitecs";
 import { mat4, vec3 } from "gl-matrix";
@@ -13,40 +13,49 @@ import { OurPlayer, Player } from "../player/Player";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import {
-  clampVoiceRange,
+  GLTFVoiceExtension,
   GLTFVoiceZoneExtension,
+  isVoiceAudible,
   VOICE_REF_DISTANCE,
   VOICE_ROLLOFF,
-  VOICE_SUBSCRIBE_MARGIN,
   VoiceAudibilityMessage,
   VoiceAudibilityMessageType,
-  voiceRangeGain,
+  voiceGain,
+  voiceLowpass,
+  VoiceSettings,
+  worldVoiceSettings,
+  zoneVoiceSettings,
 } from "./voice.common";
 
 interface VoiceZone {
   node: RemoteNode;
   min: vec3;
   max: vec3;
+  ext: GLTFVoiceZoneExtension;
 }
 
 const zones: VoiceZone[] = [];
 const peerVoices = new Map<string, RemoteNode>();
-let voiceRange = clampVoiceRange(undefined);
+let worldVoice: VoiceSettings = worldVoiceSettings(undefined);
 
-/** The world's voice range (HAVEN_voice.range on its scene; the default when it has none). */
-export function setWorldVoiceRange(range: unknown) {
-  voiceRange = clampVoiceRange(range);
+/** The world's voice defaults (HAVEN_voice on its scene; the defaults when it has none). */
+export function setWorldVoice(ext: GLTFVoiceExtension | undefined) {
+  worldVoice = worldVoiceSettings(ext);
 }
 
-/** A stage area: a box in `node`'s space whose occupants everyone hears. */
+/** A voice zone: a box in `node`'s space whose occupants get the zone's voice settings (a stage, by default). */
 export function addVoiceZone(
   node: RemoteNode,
   min: ArrayLike<number>,
   max: ArrayLike<number>,
   ext: GLTFVoiceZoneExtension
 ) {
-  if ((ext.mode ?? "broadcast") !== "broadcast") return;
-  zones.push({ node, min: vec3.fromValues(min[0], min[1], min[2]), max: vec3.fromValues(max[0], max[1], max[2]) });
+  zones.push({
+    node,
+    min: vec3.fromValues(min[0], min[1], min[2]),
+    max: vec3.fromValues(max[0], max[1], max[2]),
+    ext,
+  });
 }
 
 /** The node carrying a player's voice (their avatar's root, with the voice audio emitter). */
@@ -66,8 +75,8 @@ function liveZones(ctx: GameContext) {
   return zones;
 }
 
-/** Whether a point (world space) is inside a stage area. */
-export function isInBroadcastZone(ctx: GameContext, point: vec3): boolean {
+/** The voice zone a point (world space) is in, if any (the first listed, where zones overlap). */
+export function voiceZoneAt(ctx: GameContext, point: vec3): VoiceZone | undefined {
   for (const zone of liveZones(ctx)) {
     if (!mat4.invert(_inverse, zone.node.worldMatrix as unknown as mat4)) continue;
     vec3.transformMat4(_local, point, _inverse);
@@ -79,10 +88,10 @@ export function isInBroadcastZone(ctx: GameContext, point: vec3): boolean {
       _local[2] >= zone.min[2] &&
       _local[2] <= zone.max[2]
     ) {
-      return true;
+      return zone;
     }
   }
-  return false;
+  return undefined;
 }
 
 const ourPlayerQuery = defineQuery([OurPlayer, Player]);
@@ -111,17 +120,14 @@ export function VoiceSystem(ctx: GameContext) {
     mat4.getTranslation(_position, node.worldMatrix as unknown as mat4);
     const distance = vec3.distance(_position, _ours);
 
-    if (isInBroadcastZone(ctx, _position)) {
-      // On stage: heard by everyone, at full volume, still from where they stand.
-      emitter.gain = 1;
-      emitter.rolloffFactor = 0;
-      audible.push(peerId);
-    } else {
-      emitter.gain = voiceRangeGain(distance, voiceRange);
-      emitter.refDistance = VOICE_REF_DISTANCE;
-      emitter.rolloffFactor = VOICE_ROLLOFF;
-      if (distance <= voiceRange + VOICE_SUBSCRIBE_MARGIN) audible.push(peerId);
-    }
+    // Their voice settings: the world's, or those of the zone they stand in (a stage: everyone hears them).
+    const zone = voiceZoneAt(ctx, _position);
+    const settings = zone ? zoneVoiceSettings(worldVoice, zone.ext) : worldVoice;
+    emitter.gain = voiceGain(distance, settings);
+    emitter.lowpassFrequency = voiceLowpass(distance, settings);
+    emitter.refDistance = VOICE_REF_DISTANCE;
+    emitter.rolloffFactor = VOICE_ROLLOFF;
+    if (isVoiceAudible(distance, settings)) audible.push(peerId);
   }
 
   audible.sort();
@@ -135,5 +141,5 @@ export function VoiceSystem(ctx: GameContext) {
 export function resetVoice() {
   zones.length = 0;
   lastAudible = "";
-  voiceRange = clampVoiceRange(undefined);
+  worldVoice = worldVoiceSettings(undefined);
 }

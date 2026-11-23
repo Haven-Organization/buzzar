@@ -305,9 +305,12 @@ export class MainNode extends defineLocalResourceClass(NodeResource) {
   currentAudioEmitterResourceId = 0;
   emitterInputNode?: GainNode;
   emitterPannerNode?: PannerNode;
+  /** Buzzar: between the panner and the emitter's output, once the emitter asks for muffling. */
+  emitterLowpassNode?: BiquadFilterNode;
   emitterOutput?: AudioEmitterOutput;
 
   dispose() {
+    this.emitterLowpassNode?.disconnect();
     if (this.emitterPannerNode) {
       if (this.emitterInputNode) {
         try {

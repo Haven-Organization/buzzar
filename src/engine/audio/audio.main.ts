@@ -742,8 +742,10 @@ export function updateNodeAudioEmitter(ctx: MainContext, audioModule: MainAudioM
         node.emitterInputNode.disconnect(node.emitterPannerNode);
       } catch {}
       node.emitterPannerNode.disconnect();
+      node.emitterLowpassNode?.disconnect();
       node.emitterInputNode = undefined;
       node.emitterPannerNode = undefined;
+      node.emitterLowpassNode = undefined;
     }
   }
 
@@ -796,6 +798,23 @@ export function updateNodeAudioEmitter(ctx: MainContext, audioModule: MainAudioM
   pannerNode.maxDistance = audioEmitter.maxDistance;
   pannerNode.refDistance = audioEmitter.refDistance;
   pannerNode.rolloffFactor = audioEmitter.rolloffFactor;
+
+  // Buzzar: muffling (distant voices: engine/audio/voice.game.ts). The filter goes in the first time it's asked for
+  // and stays, opened right up (inaudible) when not wanted.
+  const lowpass = audioEmitter.lowpassFrequency;
+  if (lowpass > 0 && !node.emitterLowpassNode) {
+    const filter = audioModule.context.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.Q.value = 0.7;
+    pannerNode.disconnect();
+    pannerNode.connect(filter);
+    filter.connect(audioEmitter.outputGain!);
+    node.emitterLowpassNode = filter;
+  }
+  if (node.emitterLowpassNode) {
+    const frequency = lowpass > 0 ? Math.min(20000, lowpass) : 20000;
+    node.emitterLowpassNode.frequency.setTargetAtTime(frequency, audioModule.context.currentTime, 0.1);
+  }
 }
 
 /*********

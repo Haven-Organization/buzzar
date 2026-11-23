@@ -197,6 +197,8 @@ export const AudioEmitterResource = defineResource("audio-emitter", ResourceType
   refDistance: PropType.f32({ default: 1, min: 0, script: true }),
   rolloffFactor: PropType.f32({ default: 1, min: 0, script: true }),
   output: PropType.enum(AudioEmitterOutput, { default: AudioEmitterOutput.Environment }),
+  // Buzzar: muffles a positional emitter (Hz cut-off of a low-pass filter; 0 = none). Distant voices (voice.game.ts).
+  lowpassFrequency: PropType.f32({ default: 0, min: 0 }),
 });
 
 export const ImageResource = defineResource("image", ResourceType.Image, {

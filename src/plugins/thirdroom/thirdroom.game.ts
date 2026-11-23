@@ -1,7 +1,7 @@
 import { defineQuery, hasComponent } from "bitecs";
 import RAPIER from "@dimforge/rapier3d-compat";
 
-import { resetVoice, setWorldVoiceRange } from "../../engine/audio/voice.game";
+import { resetVoice, setWorldVoice } from "../../engine/audio/voice.game";
 import { SpawnPoint } from "../../engine/component/SpawnPoint";
 import { addChild } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
@@ -428,7 +428,7 @@ function enterWorld(ctx: GameContext, localPeerId?: string) {
     rootIsStatic: true,
   }) as RemoteScene;
   const defaultScene = environmentGLTFResource.root.scenes?.[environmentGLTFResource.root.scene ?? 0];
-  setWorldVoiceRange(defaultScene?.extensions?.HAVEN_voice?.range);
+  setWorldVoice(defaultScene?.extensions?.HAVEN_voice);
 
   if (!environmentScene.reflectionProbe || !environmentScene.backgroundTexture) {
     const defaultEnvironmentMapTexture = new RemoteTexture(ctx.resourceManager, {
