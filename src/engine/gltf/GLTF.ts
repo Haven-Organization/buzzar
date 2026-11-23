@@ -1,3 +1,4 @@
+import type { GLTFVoiceExtension, GLTFVoiceZoneExtension } from "../audio/voice.common";
 import type { GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
 import type { GLTFAvatarPedestalExtension } from "../../plugins/avatar-pedestals/pedestals.game";
 import type { GLTFSeatExtension } from "../../plugins/seats/seats.game";
@@ -592,6 +593,8 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     HAVEN_climbable?: GLTFClimbableExtension;
     /** Buzzar: a trampoline (engine/player/trampolines.ts, docs/gltf/HAVEN_trampoline). */
     HAVEN_trampoline?: GLTFTrampolineExtension;
+    /** Buzzar: a stage area: everyone hears whoever stands in it (engine/audio/voice.game.ts). */
+    HAVEN_voice_zone?: GLTFVoiceZoneExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;
@@ -725,6 +728,8 @@ export interface GLTFScene extends GLTFChildOfRootProperty {
     MX_background?: GLTFBackground;
     MX_character_controller?: GLTFCharacterController;
     MX_scene_ar?: GLTFSceneAR;
+    /** Buzzar: the world's voice settings (engine/audio/voice.common.ts). */
+    HAVEN_voice?: GLTFVoiceExtension;
   };
 }
 

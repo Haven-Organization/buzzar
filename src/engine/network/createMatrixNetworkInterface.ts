@@ -5,6 +5,7 @@ import {
   Client,
   decideCallMethod,
   getCallMethodChooser,
+  LiveKitCall,
   GroupCall,
   LocalMedia,
   Member,
@@ -16,7 +17,8 @@ import {
 import { exitWorld } from "../../plugins/thirdroom/thirdroom.main";
 import { AudioModule, setLocalMediaStream, setPeerMediaStream } from "../audio/audio.main";
 import { MainContext } from "../MainThread";
-import { getModule } from "../module/module.common";
+import { getModule, registerMessageHandler } from "../module/module.common";
+import { VoiceAudibilityMessage, VoiceAudibilityMessageType } from "../audio/voice.common";
 import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
 import { startAvatarSync } from "../avatar/avatar.main";
@@ -353,6 +355,15 @@ export async function createMatrixNetworkInterface(
     }
   }
 
+  // Buzzar: only receive the voices you can hear (voice range, stage areas: engine/audio/voice.game.ts).
+  const stopVoiceAudibility = registerMessageHandler(
+    ctx,
+    VoiceAudibilityMessage,
+    (_ctx: MainContext, message: VoiceAudibilityMessageType) => {
+      if (groupCall instanceof LiveKitCall) groupCall.setAudibleUsers(message.audible);
+    }
+  );
+
   // Buzzar: closing the page or app can't wait for a normal leave, so the membership stayed behind (an hour for mesh
   // calls) and others saw a player who wasn't there. On page hide, send the leave as a keepalive request, which the
   // browser finishes after the page is gone.
@@ -365,6 +376,7 @@ export async function createMatrixNetworkInterface(
   return {
     dispose: () => {
       window.removeEventListener("pagehide", leaveOnPageHide);
+      stopVoiceAudibility();
       avatarSync.dispose();
       registerMicrophoneSwitcher(undefined);
       disconnect(ctx);

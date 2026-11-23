@@ -312,6 +312,9 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     liveKit.on(RoomEvent.TrackSubscribed, onTrack);
     liveKit.on(RoomEvent.TrackUnsubscribed, onTrackGone);
     liveKit.on(RoomEvent.DataReceived, onData);
+    const onPublished = () => this.applyAudioSubscriptions();
+    liveKit.on(RoomEvent.TrackPublished, onPublished);
+    this.disposers.push(() => liveKit.off(RoomEvent.TrackPublished, onPublished));
     this.disposers.push(() => {
       liveKit.off(RoomEvent.ParticipantConnected, refresh);
       liveKit.off(RoomEvent.ParticipantDisconnected, refresh);
@@ -395,6 +398,30 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     void this.rtc.stop();
   }
 
+  /**
+   * Only receive the voices of these people (user IDs): the ones within earshot or on a stage (voice.game.ts).
+   * Undefined: everyone's. Data (movement) is still received from everyone.
+   */
+  setAudibleUsers(userIds: string[] | undefined) {
+    this.audibleUsers = userIds ? new Set(userIds) : undefined;
+    this.applyAudioSubscriptions();
+  }
+
+  private audibleUsers?: Set<string>;
+
+  private applyAudioSubscriptions() {
+    const liveKit = this.liveKit;
+    if (!liveKit) return;
+    for (const [, member] of this.members) {
+      const participant = liveKit.remoteParticipants.get(member.identity);
+      if (!participant) continue;
+      const wanted = !this.audibleUsers || this.audibleUsers.has(member.userId);
+      for (const publication of participant.audioTrackPublications.values()) {
+        if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
+      }
+    }
+  }
+
   private keyOf(userId: string, deviceId: string) {
     return `${userId}|${deviceId}`;
   }
@@ -434,6 +461,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     for (const [key, member] of this.members) {
       if (member.setParticipant(participants?.get(member.identity))) this.members.update(key);
     }
+    this.applyAudioSubscriptions();
     this.emit("change");
   }
 }

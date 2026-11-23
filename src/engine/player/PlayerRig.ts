@@ -2,6 +2,8 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { addComponent, defineComponent } from "bitecs";
 import { quat, vec3 } from "gl-matrix";
 
+import { VOICE_REF_DISTANCE, VOICE_ROLLOFF } from "../audio/voice.common";
+import { registerPeerVoice } from "../audio/voice.game";
 import { addInteractableComponent, GRAB_DISTANCE } from "../../plugins/interaction/interaction.game";
 import { getSpawnPoints, spawnPointQuery } from "../../plugins/thirdroom/thirdroom.game";
 import { addChild } from "../component/transform";
@@ -217,10 +219,12 @@ export function addPlayerFromPeer(ctx: GameContext, eid: number, peerId: string)
       }),
     ],
     // Buzzar: voices carry across a room (Third Room #358: the default 1 m / rolloff 1 made speech a tenth as loud
-    // by 10 m). About a third at 10 m and a fifth at 20 m.
-    refDistance: 2,
-    rolloffFactor: 0.5,
+    // by 10 m). About a third at 10 m and a fifth at 20 m. The world's voice range and stage areas adjust this
+    // (engine/audio/voice.game.ts).
+    refDistance: VOICE_REF_DISTANCE,
+    rolloffFactor: VOICE_ROLLOFF,
   });
+  registerPeerVoice(peerId, peerNode);
 
   peerNode.name = peerId;
 

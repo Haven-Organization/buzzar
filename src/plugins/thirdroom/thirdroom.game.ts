@@ -1,6 +1,7 @@
 import { defineQuery, hasComponent } from "bitecs";
 import RAPIER from "@dimforge/rapier3d-compat";
 
+import { resetVoice, setWorldVoiceRange } from "../../engine/audio/voice.game";
 import { SpawnPoint } from "../../engine/component/SpawnPoint";
 import { addChild } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
@@ -420,10 +421,14 @@ function enterWorld(ctx: GameContext, localPeerId?: string) {
     throw new Error("Cannot enter world: environment glTF resource not yet loaded.");
   }
 
+  // Buzzar: voices (engine/audio/voice.game.ts): a new world's stage areas and voice range.
+  resetVoice();
   const environmentScene = loadDefaultGLTFScene(ctx, environmentGLTFResource, {
     createDefaultMeshColliders: true,
     rootIsStatic: true,
   }) as RemoteScene;
+  const defaultScene = environmentGLTFResource.root.scenes?.[environmentGLTFResource.root.scene ?? 0];
+  setWorldVoiceRange(defaultScene?.extensions?.HAVEN_voice?.range);
 
   if (!environmentScene.reflectionProbe || !environmentScene.backgroundTexture) {
     const defaultEnvironmentMapTexture = new RemoteTexture(ctx.resourceManager, {

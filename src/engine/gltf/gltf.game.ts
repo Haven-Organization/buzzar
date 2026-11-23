@@ -3,6 +3,7 @@ import { glMatrix, mat4, quat, vec3 } from "gl-matrix";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, SkinnedMesh } from "three";
 
+import { addVoiceZone } from "../audio/voice.game";
 import {
   addMirror,
   addMirrorButtonNode,
@@ -1472,6 +1473,19 @@ const loadGLTFNode = createInstancedSubresourceLoader(
         const depth = size ? size[1] : bounds ? bounds.max[2] - bounds.min[2] : 0;
         if (width > 0 && depth > 0) addTrampoline(node, width, depth, trampoline);
         else console.warn(`HAVEN_trampoline on "${name}": needs a size or a mesh`);
+      }
+
+      // Buzzar: a stage area (a box: its `size`, or its mesh's bounds) whose occupants everyone hears.
+      const voiceZone = extensions?.HAVEN_voice_zone;
+      if (voiceZone) {
+        const size = Array.isArray(voiceZone.size) ? voiceZone.size : undefined;
+        const box = size
+          ? { min: [-size[0] / 2, -size[1] / 2, -size[2] / 2], max: [size[0] / 2, size[1] / 2, size[2] / 2] }
+          : meshIndex !== undefined
+          ? gltfMeshBounds(resource.root, meshIndex)
+          : undefined;
+        if (box) addVoiceZone(node, box.min, box.max, voiceZone);
+        else console.warn(`HAVEN_voice_zone on "${name}": needs a size or a mesh`);
       }
 
       if (extensions?.HAVEN_mirror) {

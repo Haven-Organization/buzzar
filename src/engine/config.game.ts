@@ -1,3 +1,4 @@
+import { VoiceSystem } from "./audio/voice.game";
 import { defineConfig } from "./module/module.common";
 import { AudioModule } from "./audio/audio.game";
 import { InputModule } from "./input/input.game";
@@ -145,6 +146,8 @@ export default defineConfig<GameContext>({
     UpdateMatrixWorldSystem,
 
     NametagSystem,
+    // Buzzar: who you can hear (voice range, stage areas): after positions are final for the frame.
+    VoiceSystem,
     WorldMapSystem,
     EditorStateSystem,
     //EditorSelectionSystem,
