@@ -93,7 +93,20 @@ export function WorldChat({ room, open, onClose }: IWorldChat) {
     );
 
   return (
-    <div className="WorldChat flex flex-column justify-end" id="WorldChat">
+    <div
+      className="WorldChat flex flex-column justify-end"
+      id="WorldChat"
+      onClick={
+        open && touchControls
+          ? (e) => {
+              // Buzzar (Third Room #156): on a phone the open chat covers much of the screen, so a tap on its empty
+              // space (not a message, link or the input row) closes it, like a tap outside. Scrolling isn't a tap.
+              const target = e.target as HTMLElement;
+              if (!target.closest("li, a, button, input, img, form, .WorldChat__input")) onClose?.();
+            }
+          : undefined
+      }
+    >
       {open ? renderTimeline() : renderTimelinePreview()}
       <div className="WorldChat__input flex items-center">
         <Icon color="world" src={MessageIC} size="sm" />
