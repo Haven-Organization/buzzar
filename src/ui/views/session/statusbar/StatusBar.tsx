@@ -57,7 +57,7 @@ export function NotificationButton({ onClick }: { onClick: () => void }) {
   return (
     <OverlayButton onClick={onClick} label={label}>
       <span className="StatusBar__bell" aria-hidden>
-        <Icon src={NotificationIC} color="world" size="sm" />
+        <Icon src={NotificationIC} color="world" size="md" />
         {count > 0 && (
           <NotificationBadge className="StatusBar__bell-badge" variant="danger" content={count > 99 ? "99+" : count} />
         )}
