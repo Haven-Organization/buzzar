@@ -31,6 +31,7 @@ import { useThingKeysSync } from "../../hooks/useThingKeys";
 import { useThingClonesSync } from "../../hooks/useThingClones";
 import { useAutoRunSync } from "../../hooks/useAutoRun";
 import { ConfirmDialogHost } from "../components/confirm-dialog/ConfirmDialog";
+import { CallMethodDialogHost } from "../components/call-method-dialog/CallMethodDialog";
 
 function RegisterKBarActions() {
   useUserProfileAction();
@@ -120,6 +121,8 @@ export default function SessionView() {
               <DeviceVerificationDialog />
               {/* Buzzar: the app's own confirm dialogs (confirmDialog), instead of the browser's. */}
               <ConfirmDialogHost />
+              {/* Buzzar: "Which call?" when a world's open call isn't its recommended kind (callMethod.ts). */}
+              <CallMethodDialogHost />
               {/* Buzzar: Third Room's "What's new" modal removed. It reopened on every world entry and held keyboard focus, so movement didn't work until dismissed. */}
             </MainThreadContextProvider>
           ) : (

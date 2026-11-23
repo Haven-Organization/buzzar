@@ -256,7 +256,8 @@ export function parsedMatrixUriToString(uri: ParsedMatrixURI | URL) {
 export function getRoomCall(calls: Map<string, GroupCall> | BaseObservableMap<string, GroupCall>, roomId?: string) {
   if (!roomId) return undefined;
   const roomCalls = Array.from(calls).flatMap(([_callId, call]) => (call.roomId === roomId ? call : []));
-  return roomCalls.length ? roomCalls[0] : undefined;
+  // Buzzar: a world can have a mesh call and a LiveKit call (callMethod.ts): the one we're in, else one with people.
+  return roomCalls.find((call) => call.hasJoined) ?? roomCalls.find((call) => call.members.size > 0) ?? roomCalls[0];
 }
 
 export function eventByOrderKey(ev1: StateEvent, ev2: StateEvent) {

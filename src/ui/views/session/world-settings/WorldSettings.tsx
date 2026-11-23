@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState, useRef } from "react";
 import { useSetAtom } from "jotai";
 
-import { Room, StateEvent } from "../../../../matrix";
+import { Room, StateEvent, WORLD_CALL_EVENT } from "../../../../matrix";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
@@ -23,13 +23,10 @@ import BoxIC from "../../../../../res/ic/box-3d.svg";
 import LightingIC from "../../../../../res/ic/dark-light.svg";
 import MapIC from "../../../../../res/ic/my-location.svg";
 import { WorldMapSettings } from "./WorldMapSettings";
+import { WorldCallSettings } from "./WorldCallSettings";
+import CallIC from "../../../../../res/ic/call.svg";
 import { WORLD_MAP_EVENT } from "../../../../plugins/world-map/worldMap.common";
-import {
-  serializeShadows,
-  shadowsDraftFromRules,
-  WorldShadowSettings,
-  WorldShadowsDraft,
-} from "./WorldShadowSettings";
+import { serializeShadows, shadowsDraftFromRules, WorldShadowSettings, WorldShadowsDraft } from "./WorldShadowSettings";
 import {
   parseListedThings,
   serializeObjectRules,
@@ -56,13 +53,14 @@ import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallbac
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "calls";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
   { id: "lighting", label: "Lighting", icon: LightingIC },
   { id: "map", label: "Map", icon: MapIC },
   { id: "things", label: "Things", icon: BoxIC },
+  { id: "calls", label: "Calls", icon: CallIC },
 ];
 
 function draftFromRules(content: Record<string, unknown> | undefined): ThingRulesDraft {
@@ -354,10 +352,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         )}
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "map"}>
-                        <WorldMapSettings
-                          room={room}
-                          canEdit={canSendStateEvent(WORLD_MAP_EVENT, myPowerLevel)}
-                        />
+                        <WorldMapSettings room={room} canEdit={canSendStateEvent(WORLD_MAP_EVENT, myPowerLevel)} />
+                      </div>
+                      <div className="WorldSettings__section" hidden={category !== "calls"}>
+                        <WorldCallSettings room={room} canEdit={canSendStateEvent(WORLD_CALL_EVENT, myPowerLevel)} />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
                         {canEditScene && (

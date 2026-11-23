@@ -64,6 +64,7 @@
     "jotai": "^2.0.2",
     "kbar": "^0.1.0-beta.40",
     "ktx-parse": "^0.4.5",
+    "livekit-client": "2.23.0",
     "matrix-js-sdk": "45.1.0",
     "meshoptimizer": "^0.18.1",
     "monaco-editor": "^0.36.1",

@@ -3,7 +3,9 @@
  * group calls (full mesh), wrapped in the shapes the engine and UI were written against: a call with an observable
  * map of members, each with a connection state, a data channel and a remote audio stream.
  *
- * MatrixRTC + LiveKit replaces this later (parity checklist §0).
+ * A world can also use a MatrixRTC + LiveKit call instead (livekitCall.ts, chosen per world: callMethod.ts). Both
+ * kinds of call have the same shape (the GroupCall and Member interfaces below), so the engine and UI don't care
+ * which one they have.
  */
 import {
   GroupCall as SdkGroupCall,
@@ -18,6 +20,8 @@ import { CallEvent, CallState, MatrixCall } from "matrix-js-sdk/lib/webrtc/call"
 import { GroupCallEventHandlerEvent } from "matrix-js-sdk/lib/webrtc/groupCallEventHandler";
 
 import { EventEmitter, ObservableMap } from "./observable";
+import type { CallMethod, OpenWorldCalls } from "./callMethod";
+import { LiveKitCall, liveKitCallId, liveKitMemberships } from "./livekitCall";
 import { Stream, toStream } from "./platform";
 import type { Room, RoomMember } from "./room";
 import type { Session } from "./session";
@@ -73,8 +77,41 @@ export class MuteSettings {
   }
 }
 
-/** One device of one user in a call (not us). */
-export class Member {
+/** One device of one user in a world call (not us), whichever kind of call it is. */
+export interface Member {
+  readonly userId: string;
+  readonly deviceId: string;
+  readonly member: RoomMember;
+  readonly isConnected: boolean;
+  readonly dataChannel: RTCDataChannel | undefined;
+  readonly remoteMedia: { userMedia?: Stream } | undefined;
+  /** When this member joined the call (older = earlier; used to pick the host). */
+  readonly eventTimestamp: number;
+  readonly deviceIndex: number;
+}
+
+/** A world call, whichever method carries it (callMethod.ts). */
+export interface GroupCall extends EventEmitter<{ change: undefined }> {
+  readonly method: CallMethod;
+  readonly members: ObservableMap<string, Member>;
+  readonly id: string;
+  readonly roomId: string;
+  readonly name: string;
+  readonly intent: CallIntent;
+  readonly hasJoined: boolean;
+  readonly localMedia: LocalMedia | undefined;
+  readonly muteSettings: MuteSettings | undefined;
+  readonly eventTimestamp: number | undefined;
+  readonly deviceIndex: number | undefined;
+  join(localMedia: LocalMedia): Promise<void>;
+  setMedia(localMedia: LocalMedia): Promise<void>;
+  setMuted(settings: MuteSettings): Promise<void>;
+  leave(): Promise<void>;
+  dispose(): void;
+}
+
+/** One device of one user in a mesh call (not us). */
+export class MeshMember implements Member {
   /** @internal */
   call?: MatrixCall;
   private channel?: RTCDataChannel;
@@ -82,7 +119,7 @@ export class Member {
   private detach?: () => void;
 
   constructor(
-    private groupCall: GroupCall,
+    private groupCall: MeshCall,
     readonly member: RoomMember,
     readonly deviceId: string,
     private onChange: () => void
@@ -150,8 +187,10 @@ export class Member {
   }
 }
 
-export class GroupCall extends EventEmitter<{ change: undefined }> {
-  readonly members = new ObservableMap<string, Member>();
+/** An MSC3401 group call: every player connected to every other. */
+export class MeshCall extends EventEmitter<{ change: undefined }> implements GroupCall {
+  readonly method = "mesh" as const;
+  readonly members = new ObservableMap<string, MeshMember>();
   private _localMedia?: LocalMedia;
   private disposers: (() => void)[] = [];
 
@@ -242,7 +281,7 @@ export class GroupCall extends EventEmitter<{ change: undefined }> {
         if (!member) {
           const roomMember = this.room.getMember(sdkMember.userId);
           if (!roomMember) continue;
-          member = new Member(this, roomMember, deviceId, () => this.members.update(key));
+          member = new MeshMember(this, roomMember, deviceId, () => this.members.update(key));
           this.members.add(key, member);
         }
         member.setCall(this.callFor(sdkMember.userId, deviceId));
@@ -309,7 +348,7 @@ export class GroupCall extends EventEmitter<{ change: undefined }> {
   }
 }
 
-/** The calls in the user's rooms, by call ID. */
+/** The calls in the user's rooms, by call ID (mesh calls by their call ID, LiveKit calls by their slot). */
 export class CallHandler {
   readonly calls = new ObservableMap<string, GroupCall>();
   private disposers: (() => void)[] = [];
@@ -336,12 +375,12 @@ export class CallHandler {
     });
   }
 
-  private adopt(sdk: SdkGroupCall): GroupCall | undefined {
+  private adopt(sdk: SdkGroupCall): MeshCall | undefined {
     const existing = this.calls.get(sdk.groupCallId);
-    if (existing) return existing;
+    if (existing) return existing as MeshCall;
     const room = this.session.rooms.get(sdk.room.roomId);
     if (!room) return undefined;
-    const call = new GroupCall(this.session, room, sdk);
+    const call = new MeshCall(this.session, room, sdk);
     this.calls.add(sdk.groupCallId, call);
     return call;
   }
@@ -353,8 +392,8 @@ export class CallHandler {
     for (const sdk of handler.groupCalls.values()) this.adopt(sdk);
   }
 
-  /** The call for a room, once the room's state is loaded. */
-  async getCallForRoom(roomId: string): Promise<GroupCall | undefined> {
+  /** The room's mesh call, once the room's state is loaded. */
+  async getCallForRoom(roomId: string): Promise<MeshCall | undefined> {
     await this.client.waitUntilRoomReadyForGroupCalls(roomId).catch(() => undefined);
     const sdk = this.client.getGroupCallForRoom(roomId);
     return sdk ? this.adopt(sdk) : undefined;
@@ -373,6 +412,41 @@ export class CallHandler {
     );
     const call = this.adopt(sdk);
     if (!call) throw new Error("Couldn't start the world call: the room isn't loaded");
+    return call;
+  }
+
+  /**
+   * Who is in each kind of call in a world right now (not counting this device). Mesh members come from the room's
+   * MSC3401 call, LiveKit members from its MatrixRTC session (expired memberships aren't counted).
+   */
+  async openWorldCalls(roomId: string): Promise<OpenWorldCalls> {
+    const open: OpenWorldCalls = { mesh: [], livekit: [] };
+    const self = (userId: string, deviceId: string) =>
+      userId === this.session.userId && deviceId === this.session.deviceId;
+    const mesh = await this.getCallForRoom(roomId);
+    if (mesh) {
+      for (const [member, devices] of mesh.sdk.participants) {
+        for (const deviceId of devices.keys()) if (!self(member.userId, deviceId)) open.mesh.push(member.userId);
+      }
+    }
+    const room = this.session.rooms.get(roomId);
+    if (room) {
+      for (const membership of await liveKitMemberships(room)) {
+        if (!self(membership.userId, membership.deviceId)) open.livekit.push(membership.userId);
+      }
+    }
+    return open;
+  }
+
+  /** The world's LiveKit call (created on first use; it isn't joined until `join`). */
+  liveKitCall(roomId: string): LiveKitCall {
+    const id = liveKitCallId(roomId);
+    const existing = this.calls.get(id);
+    if (existing) return existing as LiveKitCall;
+    const room = this.session.rooms.get(roomId);
+    if (!room) throw new Error("Couldn't start the world call: the room isn't loaded");
+    const call = new LiveKitCall(this.session, room);
+    this.calls.add(id, call);
     return call;
   }
 

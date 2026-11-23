@@ -1,6 +1,12 @@
 import {
   CallIntent,
+  CallMethod,
+  callMethodOverride,
   Client,
+  decideCallMethod,
+  getCallMethodChooser,
+  recommendedCallMethod,
+  WORLD_CALL_EVENT,
   GroupCall,
   LocalMedia,
   Member,
@@ -15,7 +21,6 @@ import { MainContext } from "../MainThread";
 import { getModule } from "../module/module.common";
 import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
-import { getRoomCall } from "../../ui/utils/matrixUtils";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
 
@@ -50,7 +55,39 @@ function getReliableHost(groupCall: GroupCall): Member | undefined {
   return sortedMembers[0];
 }
 
-const getWorldGroupCall = (session: Session, world: Room) => getRoomCall(session.callHandler.calls, world.id);
+/** Thrown when the player cancels the "which call?" question: the world isn't entered. */
+export class CallChoiceCancelled extends Error {
+  constructor() {
+    super("Entering the world was cancelled.");
+  }
+}
+
+/**
+ * Buzzar: the world call to join. New calls use the world's recommended method (or the developer override); if a call
+ * of another method is already open, the player is asked which one to join (callMethod.ts).
+ */
+async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall> {
+  const preferred =
+    callMethodOverride() ??
+    recommendedCallMethod(world.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "")?.getContent());
+  const open = await session.callHandler.openWorldCalls(world.id);
+  const decision = decideCallMethod(preferred, open);
+  let method: CallMethod | undefined;
+  if (decision.kind === "join") {
+    method = decision.method;
+  } else {
+    const chooser = getCallMethodChooser();
+    method = chooser
+      ? await chooser({ id: world.id, name: world.name ?? "this world" }, decision)
+      : decision.options[0].method;
+    if (!method) throw new CallChoiceCancelled();
+  }
+  if (method === "livekit") return session.callHandler.liveKitCall(world.id);
+  return (
+    (await session.callHandler.getCallForRoom(world.id)) ??
+    (await session.callHandler.createCall(world.id, "m.voice", "World Call", CallIntent.Room))
+  );
+}
 
 export async function createMatrixNetworkInterface(
   ctx: MainContext,
@@ -64,11 +101,7 @@ export async function createMatrixNetworkInterface(
     throw new Error("You must initialize the client session before creating the network interface");
   }
 
-  let groupCall = getWorldGroupCall(session, world);
-
-  if (!groupCall) {
-    groupCall = await session.callHandler.createCall(world.id, "m.voice", "World Call", CallIntent.Room);
-  }
+  const groupCall = await chooseWorldCall(session, world);
 
   let stream;
   try {

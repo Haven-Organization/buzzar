@@ -6,6 +6,7 @@ import { AudioModule } from "../../engine/audio/audio.main";
 import { disposeActiveMatrixRoom, setActiveMatrixRoom } from "../../engine/matrix/matrix.main";
 import { getModule } from "../../engine/module/module.common";
 import {
+  CallChoiceCancelled,
   createMatrixNetworkInterface,
   registerMatrixNetworkInterface,
   provideMatrixNetworkInterface,
@@ -156,6 +157,8 @@ export function useWorldLoader(): WorldLoader {
         setWorld({ type: "ENTER" });
       } catch (err: any) {
         networkPromise?.then((network) => network.dispose()).catch(() => undefined);
+        // Buzzar: cancelling the "which call?" question isn't an error to show.
+        if (err instanceof CallChoiceCancelled) throw err;
         throw new Error(err?.message ?? "Unknown error loading world.");
       }
     },

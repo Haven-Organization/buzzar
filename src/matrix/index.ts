@@ -7,6 +7,8 @@ export * from "./platform";
 export * from "./room";
 export * from "./session";
 export * from "./calls";
+export * from "./callMethod";
+export * from "./livekitCall";
 export * from "./client";
 export * from "./oidc";
 export * from "./crypto";

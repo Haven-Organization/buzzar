@@ -9,13 +9,22 @@ import { Switch } from "../../../atoms/button/Switch";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { developerModeAtom } from "../../../state/developerMode";
-import { isSlidingSyncEnabled, setSlidingSyncEnabled } from "../../../../matrix";
+import {
+  CALL_METHOD_LABEL,
+  CALL_METHOD_OVERRIDE_KEY,
+  CALL_METHODS,
+  CallMethodOverride,
+  isSlidingSyncEnabled,
+  setSlidingSyncEnabled,
+} from "../../../../matrix";
+import { SelectInput } from "../../components/property-panel/SelectInput";
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 export function DeveloperSettings() {
   const [developerMode, setDeveloperMode] = useAtom(developerModeAtom);
   const [immersiveAR, setImmersiveAR] = useLocalStorage("feature_immersiveAR", false);
   const [sceneEditor, setSceneEditor] = useLocalStorage("feature_sceneEditor", false);
+  const [callMethod, setCallMethod] = useLocalStorage<CallMethodOverride>(CALL_METHOD_OVERRIDE_KEY, "recommended");
 
   const slidingSync = isSlidingSyncEnabled();
   // The setting is read when the session starts, so changing it reloads the app.
@@ -54,6 +63,21 @@ export function DeveloperSettings() {
           </SettingTile>
           <SettingTile label={<Label>Scene Editor (Experimental, Requires Refresh)</Label>}>
             <Switch checked={sceneEditor} onCheckedChange={setSceneEditor} />
+          </SettingTile>
+          <SettingTile label={<Label>Call Type for New World Calls</Label>}>
+            <SelectInput
+              options={[
+                { value: "recommended", label: "The world's recommended type" },
+                ...CALL_METHODS.map((value) => ({ value, label: CALL_METHOD_LABEL[value] })),
+              ]}
+              value={callMethod}
+              onChange={(value) => setCallMethod(value as CallMethodOverride)}
+            />
+            <Text variant="b3" color="surface-low">
+              The kind of call you start when you enter a world nobody is in, ignoring the world&apos;s recommendation
+              (World Settings → Calls). If a call of another kind is already open, you&apos;re asked which to join.
+              Players only see and hear the others in the same call. Saved in this browser.
+            </Text>
           </SettingTile>
         </>
       )}

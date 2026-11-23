@@ -14,6 +14,7 @@ import { WorldLoading } from "./WorldLoading";
 import { WorldThumbnail } from "./WorldThumbnail";
 import { WorldView } from "./WorldView";
 import { editorEnabledAtom } from "../../../state/editor";
+import { CallChoiceCancelled } from "../../../../engine/network/createMatrixNetworkInterface";
 
 async function getWorldContent(world: Room) {
   const stateEvent = await world.getStateEvent("org.matrix.msc3815.world");
@@ -44,12 +45,18 @@ export default function WorldRootView() {
           const content = await getWorldContent(navigatedWorld);
           await loadAndEnterWorld(navigatedWorld, content ?? {});
         } catch (err) {
+          // Buzzar: the player cancelled choosing a call (callMethod.ts): back to the menu, not an error.
+          if (err instanceof CallChoiceCancelled) {
+            exitWorld();
+            setOverlayVisibility(true);
+            return;
+          }
           setError(err as Error);
           console.error(err);
         }
       })();
     }
-  }, [navigatedWorld, reloadId, selectWorld, loadAndEnterWorld, exitWorld, setWorld]);
+  }, [navigatedWorld, reloadId, selectWorld, loadAndEnterWorld, exitWorld, setWorld, setOverlayVisibility]);
 
   /**
    * Selects the world we are entered into for display in the overlay
