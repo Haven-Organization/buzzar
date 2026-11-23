@@ -86,6 +86,8 @@ export const SLIDING_SYNC_STATE = [
   ["m.space.child", "*"],
   ["org.matrix.msc3815.world", ""],
   ["software.haven.world.rules", ""],
+  // The world's recommended call type (callMethod.ts), read when entering a world and in World Settings → Calls.
+  ["software.haven.world.call", ""],
   ["org.matrix.msc3401.call", "*"],
   ["org.matrix.msc3401.call.member", "*"],
 ];

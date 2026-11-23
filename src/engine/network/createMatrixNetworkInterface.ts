@@ -5,8 +5,6 @@ import {
   Client,
   decideCallMethod,
   getCallMethodChooser,
-  recommendedCallMethod,
-  WORLD_CALL_EVENT,
   GroupCall,
   LocalMedia,
   Member,
@@ -68,8 +66,7 @@ export class CallChoiceCancelled extends Error {
  */
 async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall> {
   const override = callMethodOverride();
-  const preferred =
-    override ?? recommendedCallMethod(world.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "")?.getContent());
+  const preferred = override ?? (await session.callHandler.recommendedMethod(world.id));
   const open = await session.callHandler.openWorldCalls(world.id);
   const decision = decideCallMethod(preferred, open);
   let method: CallMethod | undefined;

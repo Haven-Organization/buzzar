@@ -20,6 +20,7 @@ import { CallEvent, CallState, MatrixCall } from "matrix-js-sdk/lib/webrtc/call"
 import { GroupCallEventHandlerEvent } from "matrix-js-sdk/lib/webrtc/groupCallEventHandler";
 
 import { EventEmitter, ObservableMap } from "./observable";
+import { recommendedCallMethod, WORLD_CALL_EVENT } from "./callMethod";
 import type { CallMethod, OpenWorldCalls } from "./callMethod";
 import { LiveKitCall, liveKitCallId, liveKitMemberships } from "./livekitCall";
 import { Stream, toStream } from "./platform";
@@ -436,6 +437,20 @@ export class CallHandler {
       }
     }
     return open;
+  }
+
+  /**
+   * The world's recommended call method. Read from synced state, else asked from the server: with sliding sync a
+   * client whose sync cache predates the event may not have it.
+   */
+  async recommendedMethod(roomId: string): Promise<CallMethod> {
+    const synced = this.session.rooms.get(roomId)?.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "");
+    if (synced) return recommendedCallMethod(synced.getContent());
+    try {
+      return recommendedCallMethod(await this.client.getStateEvent(roomId, WORLD_CALL_EVENT, ""));
+    } catch {
+      return recommendedCallMethod(undefined);
+    }
   }
 
   /** The world's LiveKit call (created on first use; it isn't joined until `join`). */

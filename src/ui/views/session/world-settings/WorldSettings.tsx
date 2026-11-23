@@ -153,6 +153,15 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       if (!callMethodTouched.current) setCallMethod(method);
     }, [])
   );
+  // Not synced yet (sliding sync with an older cache): ask the server once.
+  useEffect(() => {
+    if (!room) return;
+    session.callHandler.recommendedMethod(room.id).then((method) => {
+      if (!isMounted()) return;
+      setSavedCallMethod(method);
+      if (!callMethodTouched.current) setCallMethod(method);
+    });
+  }, [room, session, isMounted]);
   const changeCallMethod = (method: CallMethod) => {
     callMethodTouched.current = true;
     setCallMethod(method);
