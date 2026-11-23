@@ -246,7 +246,16 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
   }
 
   private async token(serviceUrl: string): Promise<{ url: string; jwt: string }> {
-    const openIdToken = await this.session.client.getOpenIdToken();
+    let openIdToken;
+    try {
+      openIdToken = await this.session.client.getOpenIdToken();
+    } catch (error) {
+      throw new Error(
+        `Your homeserver didn't give Buzzar a sign-in token for the LiveKit server (${
+          error instanceof Error ? error.message : error
+        }).`
+      );
+    }
     const response = await fetch(`${serviceUrl.replace(/\/$/, "")}/sfu/get`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
