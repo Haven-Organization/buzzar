@@ -89,7 +89,8 @@ export function decideCallMethod(preferred: CallMethod, open: OpenWorldCalls): C
  * they cancelled (the world isn't entered).
  */
 export type CallMethodChooser = (
-  world: { id: string; name: string },
+  /** `preferredFrom`: whether the preferred method is the world's recommendation or the developer override. */
+  world: { id: string; name: string; preferredFrom: "world" | "setting" },
   decision: Extract<CallMethodDecision, { kind: "ask" }>
 ) => Promise<CallMethod | undefined>;
 

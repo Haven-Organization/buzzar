@@ -38,6 +38,8 @@ import { LiveKitDataChannel } from "./livekitDataChannel";
 export const WORLD_RTC_SLOT = { application: "software.haven.world", id: "main" };
 const DATA_TOPIC = "buzzar";
 const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
+/** How long our membership lasts unless refreshed (js-sdk refreshes it shortly before). */
+const MEMBERSHIP_EXPIRY_MS = 5 * 60 * 1000;
 const RTC_FOCI_KEY = "org.matrix.msc4143.rtc_foci";
 
 export function liveKitCallId(roomId: string) {
@@ -322,7 +324,13 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
         memberId: identityOf(this.session.userId, this.session.deviceId),
       },
       [{ type: "livekit", livekit_service_url: serviceUrl, livekit_alias: this.room.id }],
-      { manageMediaKeys: false, callIntent: "audio" }
+      {
+        manageMediaKeys: false,
+        callIntent: "audio",
+        // Short-lived and kept fresh while we're in the call: homeservers without delayed events (MSC4140) can't
+        // remove a membership when its client vanishes, so it must expire on its own soon.
+        membershipEventExpiryMs: MEMBERSHIP_EXPIRY_MS,
+      }
     );
     this.joined = true;
     this.syncMembers();

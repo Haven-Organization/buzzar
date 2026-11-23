@@ -33,11 +33,19 @@ infrastructure and can't scale to VRChat-sized instances.
 - [x] ✅ **S** Room v12 compatibility (done: no `users` entry in power-level overrides; Backrooms on glowers.club is a v12 world). World, home and profile creation puts the creator in
       `power_levels.users` (`CreateWorldForm.tsx:129`, `useHomeWorld.ts`, `useUserProfile.ts`), which v12
       rejects. Treat creators as having infinite power. Room IDs no longer contain a server name. *Verify with an integration test.*
-- [ ] ❌ **XL** 🅼 **Move voice and data to MatrixRTC (MSC4143) + LiveKit (MSC4195).** This replaces the
+- [ ] 🟡 **XL** 🅼 **Move voice and data to MatrixRTC (MSC4143) + LiveKit (MSC4195).** This replaces the
       MSC3401 full mesh (which struggles at 10–20 users) with an SFU that scales to 40–80+ users.
-      - Application `software.haven.world`, one slot per instance (`software.haven.world#<instance>`).
-      - Distance-based audio subscription. Lossy data tracks for poses, reliable packets for commands.
-      - Sticky `m.rtc.member` events plus a delayed leave event (MSC4140/MSC4354).
+      - **Done 2026-11-22:** LiveKit world calls alongside the mesh (`src/matrix/livekitCall.ts`): slot
+        `software.haven.world#main`, membership through matrix-js-sdk's MatrixRTCSession (legacy state-event format,
+        5-minute expiry kept fresh), media and data through the LiveKit server from the oldest member's
+        `/sfu/get` service; game data as reliable data packets per player, chunked (`livekitDataChannel.ts`).
+        Worlds recommend a call type (`software.haven.world.call`, World Settings → Calls, default mesh); a dialog asks
+        which call to join when one of another type is open; Developer Mode can override the type for new calls.
+        Tested live with two clients (voice track, data channel, movement, the dialog).
+      - Still to do: one slot per instance (`software.haven.world#<instance>`); distance-based audio subscription;
+        lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
+        (MSC4140/MSC4354: the homeserver must enable delayed events, otherwise a vanished player's membership lasts
+        until it expires); showing LiveKit players in world tiles and the overlay before you join.
 - [ ] 🟡 **S** Legacy MSC3401 call compatibility in old worlds: choose the call deterministically.
       `#uk-city-1` has a call created by an unrelated PL0 user; ignore stale `call.member` events.
 - [ ] 🟡 **L** **Authority and validation layer.** Today any peer can spawn any prefab or take ownership of any

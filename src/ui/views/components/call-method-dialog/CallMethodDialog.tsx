@@ -14,7 +14,7 @@ import { AlertDialog } from "../../session/dialogs/AlertDialog";
 import { CALL_METHOD_LABEL, CallMethod, CallMethodDecision, setCallMethodChooser } from "../../../../matrix";
 
 interface Pending {
-  world: { id: string; name: string };
+  world: { id: string; name: string; preferredFrom: "world" | "setting" };
   decision: Extract<CallMethodDecision, { kind: "ask" }>;
   resolve: (method: CallMethod | undefined) => void;
 }
@@ -46,6 +46,7 @@ export function CallMethodDialogHost() {
 
   if (!pending) return null;
   const { world, decision } = pending;
+  const fromSetting = world.preferredFrom === "setting";
   const room = session.rooms.get(world.id);
   const nameOf = (userId: string) => room?.getMember(userId)?.name ?? userId;
   const settle = (method: CallMethod | undefined) => {
@@ -63,12 +64,15 @@ export function CallMethodDialogHost() {
           <Text variant="b2">
             {decision.options.filter((o) => o.players.length > 0).length > 1
               ? `${world.name} has calls of two kinds open. `
+              : fromSetting
+              ? `${world.name} has a call open that isn't the kind your developer setting asks for. `
               : `${world.name} has a call open that doesn't use the kind of call this world recommends. `}
             You'll only see and hear the players in the call you join: players in the other kind of call won&apos;t
             appear for you, and you won&apos;t appear for them.
           </Text>
           <Text variant="b3" color="surface-low">
-            Recommended for this world: {CALL_METHOD_LABEL[decision.preferred]}.
+            {fromSetting ? "Your developer setting" : "Recommended for this world"}:{" "}
+            {CALL_METHOD_LABEL[decision.preferred]}.
           </Text>
         </div>
       }
@@ -83,7 +87,7 @@ export function CallMethodDialogHost() {
             >
               {option.players.length > 0
                 ? `Join the ${CALL_METHOD_LABEL[option.method]} call (${playerList(option.players.map(nameOf))})`
-                : `Start a ${CALL_METHOD_LABEL[option.method]} call (recommended)`}
+                : `Start a ${CALL_METHOD_LABEL[option.method]} call (${fromSetting ? "your setting" : "recommended"})`}
             </Button>
           ))}
           <Button variant="secondary" fill="none" onClick={() => settle(undefined)}>

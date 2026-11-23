@@ -67,9 +67,9 @@ export class CallChoiceCancelled extends Error {
  * of another method is already open, the player is asked which one to join (callMethod.ts).
  */
 async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall> {
+  const override = callMethodOverride();
   const preferred =
-    callMethodOverride() ??
-    recommendedCallMethod(world.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "")?.getContent());
+    override ?? recommendedCallMethod(world.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "")?.getContent());
   const open = await session.callHandler.openWorldCalls(world.id);
   const decision = decideCallMethod(preferred, open);
   let method: CallMethod | undefined;
@@ -78,7 +78,10 @@ async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall
   } else {
     const chooser = getCallMethodChooser();
     method = chooser
-      ? await chooser({ id: world.id, name: world.name ?? "this world" }, decision)
+      ? await chooser(
+          { id: world.id, name: world.name ?? "this world", preferredFrom: override ? "setting" : "world" },
+          decision
+        )
       : decision.options[0].method;
     if (!method) throw new CallChoiceCancelled();
   }

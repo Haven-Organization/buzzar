@@ -102,6 +102,15 @@ On a phone or tablet you can put Buzzar on your home screen, where it opens on i
 
 Invite people to a world, or share its link. As the creator you can change the world's name, scene and privacy settings, and give others roles to help moderate.
 
+#### World calls
+
+Everyone in a world is in its call: that's how you see each other move and hear each other talk. A world's call can work two ways, chosen in **World Settings → Calls**:
+
+- **Peer-to-peer (mesh)**, the default: every player connects to every other. Works with every Buzzar version; best for small groups.
+- **LiveKit server**: everyone connects to a LiveKit server that passes voices and movement on, so far more people fit. Whoever starts the call needs a homeserver that offers LiveKit.
+
+You only see and hear the players in the same call. If you arrive while a call of the other kind is open, Buzzar asks which one to join, and says who is in each.
+
 ### 5. Set up your profile
 
 ![Screenshot of the profile menu](/images/ViewProfile.png)
