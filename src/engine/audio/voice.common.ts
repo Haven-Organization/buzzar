@@ -113,6 +113,21 @@ export function zoneVoiceSettings(world: VoiceSettings, zone: GLTFVoiceZoneExten
   };
 }
 
+/** What a world script set for one player (peer.setVoice): any of the settings; the rest stay as they were. */
+export type VoiceOverride = Partial<VoiceSettings>;
+
+/** A script's settings over the world's or zone's (untrusted values are clamped like the file's). */
+export function overrideVoiceSettings(base: VoiceSettings, o: VoiceOverride): VoiceSettings {
+  const far = o.far === Infinity ? Infinity : o.far !== undefined ? clampVoiceRange(o.far) : base.far;
+  const near = o.near === Infinity ? Infinity : o.near !== undefined ? clampNear(o.near, base.near) : base.near;
+  return {
+    gainDb: clampGain(o.gainDb, base.gainDb),
+    near: Math.min(near, far),
+    far,
+    lowpass: typeof o.lowpass === "boolean" ? o.lowpass : base.lowpass,
+  };
+}
+
 /** How far between near (0) and far (1) a listener is. */
 function falloff(distance: number, s: VoiceSettings): number {
   if (distance <= s.near) return 0;

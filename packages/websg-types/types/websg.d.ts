@@ -2533,6 +2533,22 @@ declare namespace WebSGNetworking {
     get translation(): WebSG.Vector3;
     get rotation(): WebSG.Quaternion;
     send(message: string | ArrayBuffer, reliable: boolean): undefined;
+    /**
+     * Buzzar: how this visitor hears this player, like VRChat's SetVoiceGain / SetVoiceDistanceNear /
+     * SetVoiceDistanceFar / SetVoiceLowpass. Values left out stay as the world sets them (its HAVEN_voice, or the
+     * HAVEN_voice_zone the player stands in); these win over both. World scripts run for every visitor, so setting
+     * the same thing everywhere makes everyone hear the player the same way. Cleared when the world is left.
+     * @param voice.gain - Decibels relative to normal (−40 to +12).
+     * @param voice.near - Metres within which the voice is at full volume.
+     * @param voice.far - Metres at which the voice falls silent (Infinity: heard everywhere).
+     * @param voice.lowpass - Whether distance muffles the voice.
+     * @example
+     * // A presenter everyone hears clearly, wherever they are:
+     * presenter.setVoice({ far: Infinity, near: Infinity, lowpass: false });
+     */
+    setVoice(voice: { gain?: number; near?: number; far?: number; lowpass?: boolean }): undefined;
+    /** Buzzar: hear this player as the world sets it again (undoes setVoice). */
+    resetVoice(): undefined;
   }
 
   class NetworkMessage {

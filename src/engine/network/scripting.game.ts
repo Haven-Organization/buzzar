@@ -1,5 +1,6 @@
 import { addComponent, hasComponent } from "bitecs";
 
+import { setPeerVoiceOverride } from "../audio/voice.game";
 import {
   createCursorView,
   moveCursorView,
@@ -342,6 +343,30 @@ export function createWebSGNetworkModule(ctx: GameContext, wasmCtx: WASMModuleCo
       }
 
       return network.peerId === peerId ? 1 : 0;
+    },
+    // Buzzar: how this visitor hears a player (peer.setVoice / peer.resetVoice; engine/audio/voice.game.ts).
+    peer_set_voice(peerIndex: number, gainDb: number, near: number, far: number, lowpass: number) {
+      const peerId = network.indexToPeerId.get(peerIndex);
+      if (!peerId) {
+        console.error(`WebSGNetworking: Peer index ${peerIndex} does not exist.`);
+        return -1;
+      }
+      setPeerVoiceOverride(peerId, {
+        gainDb: Number.isNaN(gainDb) ? undefined : gainDb,
+        near: Number.isNaN(near) ? undefined : near,
+        far: Number.isNaN(far) ? undefined : far,
+        lowpass: lowpass === -1 ? undefined : lowpass === 1,
+      });
+      return 0;
+    },
+    peer_reset_voice(peerIndex: number) {
+      const peerId = network.indexToPeerId.get(peerIndex);
+      if (!peerId) {
+        console.error(`WebSGNetworking: Peer index ${peerIndex} does not exist.`);
+        return -1;
+      }
+      setPeerVoiceOverride(peerId, undefined);
+      return 0;
     },
     peer_send: (peerIndex: number, packetPtr: number, byteLength: number, binary: number, reliable: number) => {
       try {

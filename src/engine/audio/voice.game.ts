@@ -16,6 +16,8 @@ import {
   GLTFVoiceExtension,
   GLTFVoiceZoneExtension,
   isVoiceAudible,
+  overrideVoiceSettings,
+  VoiceOverride,
   VOICE_REF_DISTANCE,
   VOICE_ROLLOFF,
   VoiceAudibilityMessage,
@@ -36,6 +38,23 @@ interface VoiceZone {
 
 const zones: VoiceZone[] = [];
 const peerVoices = new Map<string, RemoteNode>();
+/** What world scripts set for players (peer.setVoice), by peer ID: over the world's and zones' settings. */
+const overrides = new Map<string, VoiceOverride>();
+
+/** A world script's voice settings for a player (undefined: back to the world's). */
+export function setPeerVoiceOverride(peerId: string, override: VoiceOverride | undefined) {
+  if (override) overrides.set(peerId, { ...overrides.get(peerId), ...stripUndefined(override) });
+  else overrides.delete(peerId);
+}
+
+function stripUndefined(o: VoiceOverride): VoiceOverride {
+  const out: VoiceOverride = {};
+  if (o.gainDb !== undefined) out.gainDb = o.gainDb;
+  if (o.near !== undefined) out.near = o.near;
+  if (o.far !== undefined) out.far = o.far;
+  if (o.lowpass !== undefined) out.lowpass = o.lowpass;
+  return out;
+}
 let worldVoice: VoiceSettings = worldVoiceSettings(undefined);
 
 /** The world's voice defaults (HAVEN_voice on its scene; the defaults when it has none). */
@@ -122,7 +141,10 @@ export function VoiceSystem(ctx: GameContext) {
 
     // Their voice settings: the world's, or those of the zone they stand in (a stage: everyone hears them).
     const zone = voiceZoneAt(ctx, _position);
-    const settings = zone ? zoneVoiceSettings(worldVoice, zone.ext) : worldVoice;
+    const placed = zone ? zoneVoiceSettings(worldVoice, zone.ext) : worldVoice;
+    // A world script's settings for them (peer.setVoice) win, like VRChat's SetVoice*.
+    const override = overrides.get(peerId);
+    const settings = override ? overrideVoiceSettings(placed, override) : placed;
     emitter.gain = voiceGain(distance, settings);
     emitter.lowpassFrequency = voiceLowpass(distance, settings);
     emitter.refDistance = VOICE_REF_DISTANCE;
@@ -142,4 +164,5 @@ export function resetVoice() {
   zones.length = 0;
   lastAudible = "";
   worldVoice = worldVoiceSettings(undefined);
+  overrides.clear();
 }

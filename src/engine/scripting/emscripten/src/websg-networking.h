@@ -22,6 +22,9 @@ import_websg_networking(peer_get_rotation) int32_t websg_peer_get_rotation(uint3
 import_websg_networking(peer_is_host) int32_t websg_peer_is_host(uint32_t peer_index);
 import_websg_networking(peer_is_local) int32_t websg_peer_is_local(uint32_t peer_index);
 import_websg_networking(peer_send) int32_t websg_peer_send(uint32_t peer_index, uint8_t *packet, uint32_t byte_length, uint32_t binary, uint32_t reliable);
+// Buzzar: how this visitor hears a player (VRChat's SetVoice*): NaN / -1 leave a value as the world sets it.
+import_websg_networking(peer_set_voice) int32_t websg_peer_set_voice(uint32_t peer_index, float_t gain_db, float_t near, float_t far, int32_t lowpass);
+import_websg_networking(peer_reset_voice) int32_t websg_peer_reset_voice(uint32_t peer_index);
 
 import_websg_networking(network_get_host_peer_index) uint32_t websg_network_get_host_peer_index();
 import_websg_networking(network_get_local_peer_index) uint32_t websg_network_get_local_peer_index();

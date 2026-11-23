@@ -4,6 +4,7 @@ import {
   clampVoiceRange,
   DEFAULT_VOICE_RANGE,
   isVoiceAudible,
+  overrideVoiceSettings,
   voiceGain,
   voiceLowpass,
   worldVoiceSettings,
@@ -82,5 +83,23 @@ describe("clampVoiceRange", () => {
     expect(clampVoiceRange(-3)).toBe(DEFAULT_VOICE_RANGE);
     expect(clampVoiceRange(1)).toBe(3);
     expect(clampVoiceRange(1e9)).toBe(10000);
+  });
+});
+
+describe("script overrides (peer.setVoice)", () => {
+  it("win over the world's and zones' settings, only for what they set", () => {
+    const stage = zoneVoiceSettings(world, { mode: "broadcast" });
+    expect(overrideVoiceSettings(stage, { far: 10 })).toEqual({ gainDb: 0, near: 10, far: 10, lowpass: false });
+    expect(overrideVoiceSettings(world, { gainDb: 6, lowpass: false })).toEqual({
+      gainDb: 6,
+      near: 0,
+      far: 25,
+      lowpass: false,
+    });
+  });
+
+  it("can make a voice reach everywhere, or mute it", () => {
+    expect(isVoiceAudible(1000, overrideVoiceSettings(world, { far: Infinity }))).toBe(true);
+    expect(voiceGain(1, overrideVoiceSettings(world, { gainDb: -40 }))).toBeLessThan(0.02);
   });
 });

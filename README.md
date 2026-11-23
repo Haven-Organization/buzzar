@@ -237,8 +237,9 @@ peer-to-peer call instead.
 Voices are spatial and modelled on VRChat's per-player voice settings: full volume close by, falling off fast and
 muffled with distance, silent past the world's voice range (25 m by default). In a LiveKit call you don't even receive
 the voices you can't hear, which keeps crowded worlds light. Worlds set their voice defaults in their glTF
-([HAVEN_voice](./docs/gltf/HAVEN_voice/README.md)) and mark stages and other voice zones
-([HAVEN_voice_zone](./docs/gltf/HAVEN_voice_zone/README.md)).
+([HAVEN_voice](./docs/gltf/HAVEN_voice/README.md)), mark stages and other voice zones
+([HAVEN_voice_zone](./docs/gltf/HAVEN_voice_zone/README.md)), and world scripts can adjust how a player is heard
+(`peer.setVoice`, like VRChat's `SetVoice*`).
 
 Data channels are ordered and reliable today; unreliable delivery for fast-changing data like transforms is planned, as
 are separate instances of a busy world (one MatrixRTC slot each) and end-to-end encrypted LiveKit media. The network

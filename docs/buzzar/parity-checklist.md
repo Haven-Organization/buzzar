@@ -44,7 +44,9 @@ infrastructure and can't scale to VRChat-sized instances.
         Tested live with two clients (voice track, data channel, movement, the dialog).
       - **Done 2026-11-23:** voices by distance: they fade out at the world's voice range (`HAVEN_voice`, default
         25 m) and LiveKit calls only receive the voices within earshot; stage areas (`HAVEN_voice_zone`): whoever
-        stands in one is heard by everyone. A failed LiveKit connection says why and offers a peer-to-peer call.
+        stands in one is heard by everyone. A failed LiveKit connection says why and offers a peer-to-peer call. Voices
+        follow VRChat's per-player settings (near 0, far 25 m, distance low-pass, gain): set per world
+        (`HAVEN_voice`), per zone (`HAVEN_voice_zone`) and per player from world scripts (`peer.setVoice`).
       - Still to do: one slot per instance (`software.haven.world#<instance>`); lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
         (MSC4140/MSC4354: the homeserver must enable delayed events, otherwise a vanished player's membership lasts
         until it expires).

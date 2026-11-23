@@ -22,7 +22,7 @@ This extension sets how voices carry in a world. It follows VRChat's per-player 
 - **Muffling** (`lowpass`): distant voices are low-pass filtered, more the further they are, which makes nearby speech easier to pick out in a busy world. On by default; turn it off for worlds where voices should stay clear at any distance.
 - **Gain** (`gain`): in decibels, relative to normal.
 
-A voice always comes from where the speaker stands. People in a [HAVEN_voice_zone](../HAVEN_voice_zone/README.md) get that zone's settings instead; a stage zone is heard by everyone.
+World scripts can change these for a particular player with `peer.setVoice({ gain, near, far, lowpass })` and undo it with `peer.resetVoice()`, like VRChat's `SetVoice*` calls; a script's settings win over the world's and zones'. A voice always comes from where the speaker stands. People in a [HAVEN_voice_zone](../HAVEN_voice_zone/README.md) get that zone's settings instead; a stage zone is heard by everyone.
 
 World sounds are separate: a [KHR_audio](https://github.com/KhronosGroup/glTF/pull/2137) emitter is `"global"` (heard the same everywhere) or `"positional"` (from a place, with its own distance settings).
 

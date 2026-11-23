@@ -1,3 +1,4 @@
+#include <math.h>
 #include "../quickjs/cutils.h"
 #include "../quickjs/quickjs.h"
 #include "../../websg-networking.h"
@@ -92,11 +93,89 @@ static JSValue js_websg_peer_send(JSContext *ctx, JSValueConst this_val, int arg
   return JS_EXCEPTION;
 }
 
+/**
+ * Buzzar: peer.setVoice({ gain, near, far, lowpass }): how this visitor hears this player, like VRChat's
+ * SetVoiceGain/SetVoiceDistanceNear/SetVoiceDistanceFar/SetVoiceLowpass. gain is in decibels relative to normal; near
+ * and far in metres (far: Infinity for everywhere); lowpass a boolean. Values left out stay as the world sets them.
+ * World scripts run for every visitor, so setting this the same way everywhere makes everyone hear it the same.
+ */
+static int js_websg_peer_voice_number(JSContext *ctx, JSValueConst options, const char *name, float_t *out) {
+  JSValue value = JS_GetPropertyStr(ctx, options, name);
+
+  if (JS_IsUndefined(value)) {
+    *out = NAN;
+    return 0;
+  }
+
+  double number;
+  int result = JS_ToFloat64(ctx, &number, value);
+  JS_FreeValue(ctx, value);
+
+  if (result == -1) {
+    return -1;
+  }
+
+  *out = (float_t)number;
+  return 0;
+}
+
+static JSValue js_websg_peer_set_voice(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+  WebSGPeerData *peer_data = JS_GetOpaque(this_val, js_websg_peer_class_id);
+
+  if (!JS_IsObject(argv[0])) {
+    JS_ThrowTypeError(ctx, "WebSGNetworking: setVoice expects an object ({ gain, near, far, lowpass }).");
+    return JS_EXCEPTION;
+  }
+
+  float_t gain, near, far;
+
+  if (
+    js_websg_peer_voice_number(ctx, argv[0], "gain", &gain) == -1 ||
+    js_websg_peer_voice_number(ctx, argv[0], "near", &near) == -1 ||
+    js_websg_peer_voice_number(ctx, argv[0], "far", &far) == -1
+  ) {
+    return JS_EXCEPTION;
+  }
+
+  int32_t lowpass = -1;
+  JSValue lowpass_value = JS_GetPropertyStr(ctx, argv[0], "lowpass");
+
+  if (!JS_IsUndefined(lowpass_value)) {
+    lowpass = JS_ToBool(ctx, lowpass_value);
+    JS_FreeValue(ctx, lowpass_value);
+
+    if (lowpass == -1) {
+      return JS_EXCEPTION;
+    }
+  }
+
+  if (websg_peer_set_voice(peer_data->peer_index, gain, near, far, lowpass) == -1) {
+    JS_ThrowInternalError(ctx, "WebSGNetworking: error setting peer voice.");
+    return JS_EXCEPTION;
+  }
+
+  return JS_UNDEFINED;
+}
+
+/** Buzzar: peer.resetVoice(): hear this player as the world sets it again. */
+static JSValue js_websg_peer_reset_voice(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+  WebSGPeerData *peer_data = JS_GetOpaque(this_val, js_websg_peer_class_id);
+
+  if (websg_peer_reset_voice(peer_data->peer_index) == -1) {
+    JS_ThrowInternalError(ctx, "WebSGNetworking: error resetting peer voice.");
+    return JS_EXCEPTION;
+  }
+
+  return JS_UNDEFINED;
+}
+
 static const JSCFunctionListEntry js_websg_peer_proto_funcs[] = {
   JS_CGETSET_DEF("id", js_websg_peer_get_id, NULL),
   JS_CGETSET_DEF("isHost", js_websg_peer_get_is_host, NULL),
   JS_CGETSET_DEF("isLocal", js_websg_peer_get_is_local, NULL),
   JS_CFUNC_DEF("send", 2, js_websg_peer_send),
+  JS_CFUNC_DEF("setVoice", 1, js_websg_peer_set_voice),
+  JS_CFUNC_DEF("resetVoice", 0, js_websg_peer_reset_voice),
   JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Peer", JS_PROP_CONFIGURABLE),
 };
 
