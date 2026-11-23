@@ -212,22 +212,38 @@ and third party libraries such as [Oddio](https://github.com/Ralith/oddio).
 
 ### Networking
 
-Manifold uses WebRTC DataChannels for game networking. Buzzar (like Third Room) establishes these DataChannels via Matrix
-([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md)),
-however Manifold has an interface to connect your own network interface. Currently we are working with ordered and
-reliable DataChannels, but we intend to utilize unreliable DataChannels for fast changing data like transforms.
+Everyone in a world is in its call: that's how players see each other move and hear each other talk. Manifold's game
+networking runs over per-player data channels, behind an interface you can plug your own network into; Buzzar connects
+it to Matrix in one of two ways, chosen per world (**World Settings → Calls**, stored in the world's
+`software.haven.world.call` state event):
 
-We also intend to document our network protocol and hopefully standardize it as part of our virtual world Matrix spec
-([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)). We've documented some of our progress so
-far in our [network protocol document](./docs/network-protocol.md).
+- **LiveKit** ([MatrixRTC, MSC4143](https://github.com/matrix-org/matrix-spec-proposals/pull/4143) with a
+  [LiveKit SFU, MSC4195](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)): everyone connects to a
+  LiveKit server, which forwards voices and game data, so a world holds far more players than a full mesh. Membership is
+  a MatrixRTC session in the world room (slot `software.haven.world#main`), kept by matrix-js-sdk with a delayed leave
+  event (MSC4140) where the homeserver supports it, so players who vanish drop out within seconds. The LiveKit server
+  comes from the homeserver's `org.matrix.msc4143.rtc_foci` (`.well-known/matrix/client`); everyone in a call uses the
+  oldest member's, so they all meet on one server. Game data travels as reliable LiveKit data packets addressed to each
+  player, chunked to fit LiveKit's packet size. This is what Buzzar's public worlds use.
+- **Peer-to-peer** ([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md)
+  group calls, as in Third Room): every player connects to every other over WebRTC, through the homeserver's TURN
+  relay when a direct path fails. Every Buzzar version (and Third Room) speaks it; it suits small groups. It's the
+  default for worlds that don't choose.
 
-Currently our networking is peer-to-peer, however work is underway on a selective forwarding unit (SFU) and sfu-to-sfu
-protocol that will increase world capacity by lowering outbound bandwidth and interest management algorithms. Our start
-on this project can be seen in the [sfu-to-sfu](https://github.com/matrix-org/sfu-to-sfu) repository.
+Players only see and hear the others in the same call. If someone arrives while a call of the other type is open,
+Buzzar asks which one to join, saying who is in each. If a LiveKit call can't connect, Buzzar says why and offers a
+peer-to-peer call instead.
 
-WebRTC is a fantastic technology, however it's also a very complex and fragile one. The new
-[WebTransport](https://www.w3.org/TR/webtransport/) API looks like it may be a possible alternative when communicating
-through a SFU. We're interested in exploring this area further in the future.
+Voices are spatial and modelled on VRChat's per-player voice settings: full volume close by, falling off fast and
+muffled with distance, silent past the world's voice range (25 m by default). In a LiveKit call you don't even receive
+the voices you can't hear, which keeps crowded worlds light. Worlds set their voice defaults in their glTF
+([HAVEN_voice](./docs/gltf/HAVEN_voice/README.md)) and mark stages and other voice zones
+([HAVEN_voice_zone](./docs/gltf/HAVEN_voice_zone/README.md)).
+
+Data channels are ordered and reliable today; unreliable delivery for fast-changing data like transforms is planned, as
+are separate instances of a busy world (one MatrixRTC slot each) and end-to-end encrypted LiveKit media. The network
+protocol is documented in the [protocol docs](./docs/protocol/index.md), with the aim of standardising it as part of a
+virtual world Matrix spec.
 
 ### WebXR
 
