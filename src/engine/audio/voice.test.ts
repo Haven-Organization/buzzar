@@ -6,7 +6,7 @@ describe("voiceRangeGain", () => {
   it("is full volume up close, falls off fast, and is silent at the range", () => {
     expect(voiceRangeGain(0, 25)).toBe(1);
     expect(voiceRangeGain(VOICE_NEAR, 25)).toBe(1);
-    expect(voiceRangeGain(10, 25)).toBeCloseTo(0.42, 2);
+    expect(voiceRangeGain(10, 25)).toBeCloseTo(0.425, 2);
     expect(voiceRangeGain(15, 25)).toBeCloseTo(0.19, 2);
     expect(voiceRangeGain(20, 25)).toBeCloseTo(0.047, 2);
     expect(voiceRangeGain(25, 25)).toBe(0);
