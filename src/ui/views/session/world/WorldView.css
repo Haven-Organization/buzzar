@@ -122,7 +122,10 @@
   height: calc(100% - 70px - var(--touch-stick-size) - var(--sp-sm));
 }
 
+/* 16px from the edge: the mic's speaking glow (a 2px ring and a 12px blur, WorldControls.css) still fades out before
+   the edge. The bell above is lined up on the same centre (StatusBar.css). */
 .WorldView--touch .WorldView__controls {
   top: 52px;
+  right: 16px;
   bottom: auto;
 }

@@ -46,3 +46,14 @@
   top: -6px;
   right: -10px;
 }
+
+/* Buzzar (Third Room #156): with touch controls the bell sits on the same centre line as the mic and More buttons below
+   it (40px wide, 16px in from the edge: WorldView.css). */
+.StatusBar--touch .StatusBar__right {
+  padding-right: 16px;
+}
+.StatusBar--touch .StatusBar__right .OverlayButton {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}

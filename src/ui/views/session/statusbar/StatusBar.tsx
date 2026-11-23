@@ -1,6 +1,7 @@
 import { CSSProperties, ReactNode } from "react";
 import { useMatch } from "react-router-dom";
 import { useAtom, useSetAtom } from "jotai";
+import classNames from "classnames";
 
 import { Session } from "../../../../matrix";
 import { Text } from "../../../atoms/text/Text";
@@ -16,6 +17,7 @@ import { NotificationBadge } from "../../../atoms/badge/NotificationBadge";
 import { useUnreadNotificationCount } from "../../../hooks/useMatrixNotifications";
 import NotificationIC from "../../../../../res/ic/notification.svg";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
 
 /** Buzzar: whether the world's name shows at the top (Settings → Graphics). Off by default. */
 export const LOCAL_STORAGE_SHOW_WORLD_NAME = "buzzar.showWorldName";
@@ -75,6 +77,7 @@ export function StatusBar() {
   const [knownWorldId] = useWorldPath();
   const world = knownWorldId ? session.rooms.get(knownWorldId) : undefined;
   const [showWorldName] = useLocalStorage(LOCAL_STORAGE_SHOW_WORLD_NAME, false);
+  const touchControls = useTouchControlsEnabled();
 
   // Buzzar: clicking "Close Overlay" is a user gesture, so it takes the mouse back for play too.
   const resumePlay = useResumePlay();
@@ -102,7 +105,7 @@ export function StatusBar() {
   };
 
   return (
-    <div className="StatusBar shrink-0 flex items-center">
+    <div className={classNames("StatusBar shrink-0 flex items-center", { "StatusBar--touch": touchControls })}>
       <div className="StatusBar__left grow basis-0 flex">
         {knownWorldId && overlayVisible && (
           // Buzzar: in the world, the menu button and its Tab key sit with the other controls at the bottom right,
