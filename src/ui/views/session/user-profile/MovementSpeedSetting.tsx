@@ -4,6 +4,7 @@
  */
 import { CSSProperties } from "react";
 
+import { Button } from "../../../atoms/button/Button";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
@@ -61,10 +62,20 @@ export function MovementSpeedSetting({ which }: { which: keyof MovementPrefs }) 
           onChange={(e) => setStored({ ...prefs, [which]: Number(e.target.value) })}
           aria-label={LABEL[which]}
         />
-        <Text variant="b3" color="surface-low">
-          {DESCRIPTION[which]} In a world with normal speeds that&apos;s {metres.toFixed(1)} m/s. Worlds set a top speed
-          you can&apos;t go past.
-        </Text>
+        <div className="flex items-center gap-sm">
+          <Text variant="b3" color="surface-low" className="grow">
+            {DESCRIPTION[which]} In a world with normal speeds that&apos;s {metres.toFixed(1)} m/s. Worlds set a top
+            speed you can&apos;t go past.
+          </Text>
+          <Button
+            size="sm"
+            fill="outline"
+            disabled={value === DEFAULT_MOVEMENT_PREFS[which]}
+            onClick={() => setStored({ ...prefs, [which]: DEFAULT_MOVEMENT_PREFS[which] })}
+          >
+            Reset
+          </Button>
+        </div>
       </div>
     </SettingTile>
   );

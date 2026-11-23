@@ -174,6 +174,8 @@ export const sprintModifier = 2.5;
 export const jumpForce = 7;
 export const inAirModifier = 0.5;
 export const inAirDrag = 6;
+/** Buzzar: the most steering force you have in the air (upstream's in-air cap). */
+export const airControl = 20;
 export const crouchModifier = 0.7;
 export const crouchJumpModifier = 1.5;
 export const minSlideSpeed = 3;
@@ -306,8 +308,10 @@ export function updateKinematicControls(
     .applyQuaternion(_q)
     .multiplyScalar(Math.max(walkAccel, targetSpeed * drag * sprintModifier));
 
-  if (!isGrounded) _acceleration.multiplyScalar(inAirModifier);
-  _acceleration.clampLength(0, targetSpeed * drag);
+  // In the air you can only steer a little, whatever your speed: the same as before speeds could be set (about
+  // 3 m/s against the air drag). Scaling it with the speed let fast players run back up onto a ledge they'd fallen off.
+  if (!isGrounded) _acceleration.multiplyScalar(inAirModifier).clampLength(0, Math.min(targetSpeed * drag, airControl));
+  else _acceleration.clampLength(0, targetSpeed * drag);
 
   _acceleration.y = physicsWorld.gravity.y * 1.5;
 

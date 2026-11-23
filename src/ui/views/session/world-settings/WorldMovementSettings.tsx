@@ -5,11 +5,12 @@
  */
 import { CSSProperties } from "react";
 
+import { Button } from "../../../atoms/button/Button";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { Switch } from "../../../atoms/button/Switch";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
-import { MovementRules } from "../../../../engine/player/movement.common";
+import { DEFAULT_MOVEMENT, MovementRules } from "../../../../engine/player/movement.common";
 import "../things/ThingCloneDialog.css";
 
 const fill = (value: number, min: number, max: number) =>
@@ -71,6 +72,9 @@ export function WorldMovementSettings({
   };
   const running = value.runSpeed > value.walkSpeed;
   const jumping = value.jump > 0;
+  const isDefault = (Object.keys(DEFAULT_MOVEMENT) as (keyof MovementRules)[]).every(
+    (key) => value[key] === DEFAULT_MOVEMENT[key]
+  );
 
   return (
     <div className="ThingCloneDialog flex flex-column gap-md" style={{ padding: 0 }}>
@@ -184,10 +188,20 @@ export function WorldMovementSettings({
           />
         </>
       )}
-      <Text variant="b3" color="surface-low">
-        Buzzar&apos;s normal speeds: walk 2 m/s, run 5 m/s, players may choose up to 10 m/s, normal jumps, flying at 10
-        m/s with 200% boost.
-      </Text>
+      <div className="flex items-center gap-sm">
+        <Text variant="b3" color="surface-low" className="grow">
+          Buzzar&apos;s normal speeds: walk 2 m/s, run 5 m/s, players may choose up to 10 m/s, normal jumps, flying at
+          10 m/s with 200% boost.
+        </Text>
+        <Button
+          size="sm"
+          fill="outline"
+          disabled={disabled || isDefault}
+          onClick={() => onChange({ ...DEFAULT_MOVEMENT })}
+        >
+          Reset to Normal
+        </Button>
+      </div>
     </div>
   );
 }
