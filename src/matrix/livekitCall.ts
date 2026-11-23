@@ -23,6 +23,7 @@ import {
   LocalTrackPublication,
   ConnectionState,
 } from "livekit-client";
+import { MatrixEvent, RoomStateEvent } from "matrix-js-sdk";
 import { MatrixRTCSession, MatrixRTCSessionEvent } from "matrix-js-sdk/lib/matrixrtc/MatrixRTCSession";
 
 import type { CallMembership } from "matrix-js-sdk/lib/matrixrtc/CallMembership";
@@ -36,6 +37,7 @@ import { LiveKitDataChannel } from "./livekitDataChannel";
 
 export const WORLD_RTC_SLOT = { application: "software.haven.world", id: "main" };
 const DATA_TOPIC = "buzzar";
+const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 const RTC_FOCI_KEY = "org.matrix.msc4143.rtc_foci";
 
 export function liveKitCallId(roomId: string) {
@@ -178,6 +180,13 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     const sync = () => this.syncMembers();
     this.rtc.on(MatrixRTCSessionEvent.MembershipsChanged, sync);
     this.disposers.push(() => this.rtc.off(MatrixRTCSessionEvent.MembershipsChanged, sync));
+    // A session made without matrix-js-sdk's session manager isn't told when call memberships change (the manager
+    // does that for `m.call` only), so recalculate on every membership state event in the room.
+    const onState = (event: MatrixEvent) => {
+      if (event.getType() === CALL_MEMBER_EVENT) void this.rtc.ensureRecalculateSessionMembers();
+    };
+    room.sdk.on(RoomStateEvent.Events, onState);
+    this.disposers.push(() => room.sdk.off(RoomStateEvent.Events, onState));
     this.rtc.initialMembershipCalculated.then(sync);
   }
 
