@@ -1,5 +1,6 @@
 import { MovementModule } from "./player/movement.game";
 import { ScreenShareModule } from "./screenshare/screenShare.game";
+import { ScreenHandleModule, ScreenHandleSystem } from "../plugins/screen-share/screenHandle.game";
 import { VoiceSystem } from "./audio/voice.game";
 import { defineConfig } from "./module/module.common";
 import { AudioModule } from "./audio/audio.game";
@@ -83,6 +84,7 @@ export default defineConfig<GameContext>({
     SpawnRulesModule,
     MovementModule,
     ScreenShareModule,
+    ScreenHandleModule,
     StatsModule,
     EditorModule,
     RendererModule,
@@ -123,6 +125,8 @@ export default defineConfig<GameContext>({
     SetWebXRReferenceSpaceSystem,
     InteractionSystem,
     XRInteractionSystem,
+    // Buzzar (Third Room #398): after grabbing, so a carried screen handle reports where it went.
+    ScreenHandleSystem,
     InteractableHighlightSystem,
     MirrorSystem,
     LadderSystem,

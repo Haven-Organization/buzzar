@@ -46,6 +46,13 @@ export const KEY_ACTIONS: KeyAction[] = [
   { id: "camera", label: "Third Person Camera", group: "move", defaultKey: "KeyV", engine: true },
   { id: "grab", label: "Grab / Use / Drop", group: "actions", defaultKey: "KeyE", engine: true },
   { id: "straighten", label: "Straighten Held Object", group: "actions", defaultKey: "KeyR", engine: true },
+  {
+    id: "rotate",
+    label: "Rotate Held Object (hold, move the mouse)",
+    group: "actions",
+    defaultKey: "KeyQ",
+    engine: true,
+  },
   { id: "delete", label: "Delete Object", group: "actions", defaultKey: "KeyX", engine: true },
   { id: "mute", label: "Mute / Unmute", group: "interface", defaultKey: "KeyM" },
   { id: "names", label: "Names: banners / names only / hidden", group: "interface", defaultKey: "KeyN" },

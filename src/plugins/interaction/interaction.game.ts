@@ -47,7 +47,8 @@ import { XRAvatarRig } from "../../engine/input/WebXRAvatarRigSystem";
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
 import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { PlayerModule } from "../../engine/player/Player.game";
-import { ZoomComponent, orbitAnchorQuery, OrbitAnchor } from "../../engine/player/CameraRig";
+import { ZoomComponent, orbitAnchorQuery, OrbitAnchor, CameraRigAction } from "../../engine/player/CameraRig";
+import { heldRotation } from "../../engine/player/heldRotation";
 import {
   GameRendererModuleState,
   notifyUICanvasFocus,
@@ -210,6 +211,23 @@ const InteractionActionMap: ActionMap = {
       ],
     },
     {
+      // Buzzar: hold and move the mouse (or right stick) to turn what you're holding.
+      id: "rotate-held",
+      path: "RotateHeld",
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Keyboard/KeyQ" },
+        { type: BindingType.Button, path: padButton(PadButton.LB) },
+      ],
+    },
+    {
+      // Buzzar: a quarter-turn-and-a-half (45°) of what you're holding, for touch controls (More → Turn Held).
+      id: "turn-held",
+      path: "TurnHeld",
+      type: ActionType.Button,
+      bindings: [{ type: BindingType.Button, path: padButton(PadButton.DpadUp) }],
+    },
+    {
       id: "delete",
       path: "Delete",
       type: ActionType.Button,
@@ -339,6 +357,42 @@ function holdRotation(
 function recenterHold(grabberEid: number) {
   const entry = heldRelativeRotation.get(grabberEid);
   if (entry) quat.identity(entry.rel);
+}
+
+/** Buzzar: radians the held object turns per pixel of mouse movement while rotating it. */
+const ROTATE_PER_PIXEL = 0.006;
+const TURN_STEP = Math.PI / 4;
+const _turn = quat.create();
+
+/**
+ * Buzzar: turns what `grabberEid` holds, about the view's up axis (yaw) and its sideways axis (pitch), so moving the
+ * mouse right turns it right and up tips it back, whichever way it faces.
+ */
+function rotateHold(grabberEid: number, yaw: number, pitch: number) {
+  const entry = heldRelativeRotation.get(grabberEid);
+  if (!entry) return;
+  if (yaw) quat.multiply(entry.rel, quat.setAxisAngle(_turn, [0, 1, 0], yaw), entry.rel);
+  if (pitch) quat.multiply(entry.rel, quat.setAxisAngle(_turn, [1, 0, 0], pitch), entry.rel);
+  quat.normalize(entry.rel, entry.rel);
+}
+
+/**
+ * Buzzar: grabbables that aren't ordinary objects (a shared screen's handle): they can't be thrown, stay where
+ * they're let go (no falling or drifting), and Delete does something of their own.
+ */
+export interface GrabBehaviour {
+  noThrow?: boolean;
+  stayPut?: boolean;
+  /** What the Delete prompt says (and that Delete works on it). */
+  deleteLabel?: string;
+  onDelete?: (ctx: GameContext) => void;
+}
+
+export const grabBehaviours = new Map<number, GrabBehaviour>();
+
+function stopBody(body: { setLinvel(v: Vector3, wake: boolean): void; setAngvel(v: Vector3, wake: boolean): void }) {
+  body.setLinvel(zero, true);
+  body.setAngvel(zero, true);
 }
 
 /** Radians per second an upright object that's been left tilted turns back to level. */
@@ -643,6 +697,12 @@ function updateDeletion(ctx: GameContext, interaction: InteractionModuleState, i
   if (deleteBtn.pressed) {
     const focusedEid = FocusComponent.focusedEntity[rig];
     const focused = getRemoteResource<RemoteNode>(ctx, focusedEid);
+    const behaviour = focused ? grabBehaviours.get(focused.eid) : undefined;
+    if (behaviour?.onDelete) {
+      behaviour.onDelete(ctx);
+      playOneShotAudio(ctx, interaction.clickEmitter?.sources[1] as RemoteAudioSource, 0.4);
+      return;
+    }
     // TODO: For now we only delete owned objects
     if (
       focused &&
@@ -690,8 +750,11 @@ function updateGrabThrow(
 
   const ourPlayer = hasComponent(ctx.world, OurPlayer, rig.eid);
 
+  if (ourPlayer) heldRotation.active = false;
+  const heldBehaviour = heldEntity ? grabBehaviours.get(heldEntity) : undefined;
+
   // if holding and entity and throw is pressed
-  if (heldEntity && throwPressed) {
+  if (heldEntity && throwPressed && !heldBehaviour?.noThrow) {
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
 
     getRotationNoAlloc(_worldQuat, grabbingNode.worldMatrix);
@@ -720,11 +783,14 @@ function updateGrabThrow(
     GrabComponent.heldOffset[rig.eid] = 0;
 
     // if holding an entity and grab is pressed again
-  } else if (grabPressed && heldEntity) {
-    // release
+  } else if ((grabPressed || (throwPressed && heldBehaviour?.noThrow)) && heldEntity) {
+    // release (Buzzar: throwing something that can't be thrown just lets go)
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
     const droppedBody = getRemoteResource<RemoteNode>(ctx, heldEntity)?.physicsBody?.body;
-    if (droppedBody) settleDroppedBody(droppedBody);
+    if (droppedBody) {
+      if (heldBehaviour?.stayPut) stopBody(droppedBody);
+      else settleDroppedBody(droppedBody);
+    }
 
     if (ourPlayer) {
       sendInteractionMessage(ctx, InteractableAction.Release, heldEntity);
@@ -829,6 +895,16 @@ function updateGrabThrow(
   if (heldNode) {
     const recenter = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;
     if (recenter?.pressed) recenterHold(rig.eid);
+    // Buzzar: turn it: hold Rotate Held Object and move the mouse or right stick (the view stays still meanwhile),
+    // or a 45° step (touch controls).
+    const rotate = input.actionStates.get("RotateHeld") as ButtonActionState | undefined;
+    if (ourPlayer && rotate?.held) {
+      heldRotation.active = true;
+      const look = input.actionStates.get(CameraRigAction.LookMovement) as vec2;
+      rotateHold(rig.eid, look[0] * ROTATE_PER_PIXEL, look[1] * ROTATE_PER_PIXEL);
+    }
+    const turn = input.actionStates.get("TurnHeld") as ButtonActionState | undefined;
+    if (turn?.pressed) rotateHold(rig.eid, -TURN_STEP, 0);
 
     // move held point upon scrolling
     const [, scrollY] = input.actionStates.get("Scroll") as vec2;
@@ -1034,6 +1110,8 @@ export function sendInteractionMessage(ctx: GameContext, action: InteractableAct
       // Buzzar: GrabComponent sits on the player doing the grabbing, not on the object, so this was always false
       // and the prompt never switched to Drop / Throw.
       held: isHeldByUs(ctx, eid),
+      noThrow: grabBehaviours.get(eid)?.noThrow,
+      deleteLabel: grabBehaviours.get(eid)?.deleteLabel,
       action,
       peerId,
       ownerId,

@@ -16,6 +16,10 @@ export interface InteractionMessage {
   interactableType?: InteractableType;
   name?: string;
   held?: boolean;
+  /** Buzzar: it can't be thrown (a shared screen's handle). */
+  noThrow?: boolean;
+  /** Buzzar: Delete works on it and does this (e.g. "Stop Sharing"). */
+  deleteLabel?: string;
   peerId?: string;
   ownerId?: string;
   uri?: string;

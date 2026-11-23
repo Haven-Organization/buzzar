@@ -23,6 +23,7 @@ interface EntityTooltipProps {
 export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProps) {
   const keyLabel = useActionKeyLabel("grab");
   const deleteKey = useActionKeyLabel("delete");
+  const rotateKey = useActionKeyLabel("rotate");
   // Buzzar (Third Room #156): with touch controls, the on-screen Use button rather than a key or the mouse.
   const touch = useTouchControlsEnabled();
   const grabKey = touch ? "Use" : keyLabel;
@@ -93,10 +94,18 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
                   {grabHint}
                   <span> Left Click: Drop</span>
                 </Text>
-                <Text variant="b3" color="world">
-                  <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
-                  <span> Right Click: Throw</span>
-                </Text>
+                {!activeEntity.noThrow && (
+                  <Text variant="b3" color="world">
+                    <Icon src={MouseIC} size="sm" className="EntityTooltip__mouseIcon" color="world" />
+                    <span> Right Click: Throw</span>
+                  </Text>
+                )}
+                {!touch && (
+                  <Text variant="b3" color="world">
+                    <span className="EntityTooltip__boxedKey">{rotateKey}</span>
+                    <span> + Mouse: Rotate</span>
+                  </Text>
+                )}
               </>
             ) : (
               <Text variant="b3" color="world">
@@ -104,10 +113,12 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
                 <span> Grab</span>
               </Text>
             )}
-            {activeEntity.ownerId === activeEntity.peerId && (
+            {(activeEntity.deleteLabel || activeEntity.ownerId === activeEntity.peerId) && (
               <Text variant="b3" color="world">
                 <span className="EntityTooltip__boxedKey">{touch ? "Delete" : deleteKey}</span>
-                <span>{touch ? " in More" : " Delete"}</span>
+                <span>
+                  {touch ? " in More" : ""} {activeEntity.deleteLabel ?? (touch ? "" : "Delete")}
+                </span>
               </Text>
             )}
           </div>

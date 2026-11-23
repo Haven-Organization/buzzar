@@ -22,7 +22,8 @@ import { registerMessageHandler, Thread } from "../module/module.common";
 import type { LiveKitCall } from "../../matrix/livekitCall";
 import {
   floatingPlacement,
-  floatingScreenMatrix,
+  poseMatrix,
+  ScreenHandleMessage,
   parseScreenAnnouncement,
   ScreenAnnouncement,
   ScreenFrameMessage,
@@ -42,6 +43,8 @@ import {
 const MAX_FRAME_WIDTH = 1280;
 const MAX_FPS = 15;
 const LOCAL_ID = "local";
+/** How often a carried screen's place is sent to everyone (they glide between). */
+const ANNOUNCE_PER_SECOND = 8;
 
 /** Turns a video track into ImageBitmaps for the render thread. */
 class FrameFeed {
@@ -132,6 +135,8 @@ export interface ScreenShareState {
 export interface ScreenShareOptions {
   /** Whether this user may share here (the world's rule and their power level). */
   mayShare: (userId: string) => boolean;
+  /** A person's name, for the back of their screen. */
+  displayName: (userId: string) => string;
   ourUserId: string;
 }
 
@@ -192,6 +197,19 @@ export class ScreenShare {
       room.off(RoomEvent.ParticipantConnected, onJoined);
       room.off(RoomEvent.ParticipantDisconnected, onLeft);
     });
+    // Our screen's handle (plugins/screen-share): carried around, or Delete pressed on it.
+    this.disposers.push(
+      registerMessageHandler(ctx, ScreenShareMessageType.HandleMoved, (_ctx, message) => {
+        const { position, rotation } = message as unknown as ScreenHandleMessage;
+        const placement = this.ourPlacement;
+        if (placement?.kind !== "floating") return;
+        this.ourPlacement = { ...placement, position, rotation };
+        this.placements.set(LOCAL_ID, this.ourPlacement);
+        void this.refresh();
+        this.announceSoon();
+      }),
+      registerMessageHandler(ctx, ScreenShareMessageType.HandleDeleted, () => void this.stop())
+    );
     this.disposers.push(
       registerMessageHandler(ctx, ScreenShareMessageType.QueryResult, (_ctx, message: ScreenQueryResultMessage) => {
         const resolve = this.queries.get(message.requestId);
@@ -254,12 +272,32 @@ export class ScreenShare {
       const placement = this.placements.get(id);
       let show: Omit<ScreenShowMessage, "type" | "id"> | undefined;
       if (placement && this.allowedToShow(shown)) {
+        const label = shown.userId ? this.options.displayName(shown.userId) : "Someone";
         if (placement.kind === "floating") {
           const width = SCREEN_WIDTHS[placement.size];
-          show = { matrix: floatingScreenMatrix(placement.position, placement.yaw), width, height: width };
+          show = {
+            matrix: poseMatrix(placement.position, placement.rotation),
+            width,
+            height: width,
+            anchor: "bottom",
+            handle: true,
+            label,
+            // Others' moves arrive a few times a second: glide between them. Ours follow the handle every frame.
+            smooth: id !== LOCAL_ID,
+          };
         } else if (onWorldScreen.get(placement.screen) === id) {
           const screen = this.worldScreens.find((s) => s.name === placement.screen);
-          if (screen) show = { matrix: screen.matrix, width: screen.width, height: screen.height };
+          if (screen) {
+            show = {
+              matrix: screen.matrix,
+              width: screen.width,
+              height: screen.height,
+              anchor: "center",
+              handle: false,
+              label,
+              smooth: false,
+            };
+          }
         }
       }
       const key = show ? JSON.stringify(show) : undefined;
@@ -294,6 +332,33 @@ export class ScreenShare {
         destinationIdentities: to,
       })
       .catch((error) => console.warn("Screen share: couldn't send the screen's place", error));
+  }
+
+  private announceTimer?: number;
+  private lastAnnounced = 0;
+
+  /** While the screen is carried: tell everyone where it is, at most ANNOUNCE_PER_SECOND times a second. */
+  private announceSoon() {
+    if (this.announceTimer !== undefined) return;
+    const wait = Math.max(0, this.lastAnnounced + 1000 / ANNOUNCE_PER_SECOND - performance.now());
+    this.announceTimer = window.setTimeout(() => {
+      this.announceTimer = undefined;
+      this.lastAnnounced = performance.now();
+      if (this.ourPlacement) void this.announce(this.ourPlacement);
+    }, wait);
+  }
+
+  /** Put our screen's handle where the placement says (floating), or take it away. */
+  private placeHandle(placement: ScreenPlacement | undefined) {
+    if (placement?.kind === "floating") {
+      this.ctx.sendMessage<ScreenHandleMessage>(Thread.Game, {
+        type: ScreenShareMessageType.SetHandle,
+        position: placement.position,
+        rotation: placement.rotation,
+      });
+    } else {
+      this.ctx.sendMessage(Thread.Game, { type: ScreenShareMessageType.RemoveHandle });
+    }
   }
 
   /** A floating screen in front of us now. */
@@ -335,6 +400,7 @@ export class ScreenShare {
       track.addEventListener("ended", () => void this.stop());
       this.watch(LOCAL_ID, track, this.options.ourUserId);
     }
+    this.placeHandle(placement);
     await this.refresh();
   }
 
@@ -343,6 +409,9 @@ export class ScreenShare {
     const wasSharing = !!this.ourPlacement;
     this.ourPlacement = undefined;
     this.placements.delete(LOCAL_ID);
+    window.clearTimeout(this.announceTimer);
+    this.announceTimer = undefined;
+    if (wasSharing) this.placeHandle(undefined);
     if (this.publication) {
       this.publication = undefined;
       await room?.localParticipant.setScreenShareEnabled(false).catch(() => undefined);

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   fitScreen,
   floatingPlacement,
-  floatingScreenMatrix,
+  poseMatrix,
   parseScreenAnnouncement,
   parseScreenPlacement,
   parseScreenShareRule,
@@ -13,31 +13,33 @@ import {
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 
 describe("screen placement", () => {
-  it("puts a floating screen 2 m ahead, facing back at you", () => {
+  it("puts a floating screen's handle 2 m ahead, below the eyes, the picture facing you", () => {
     // Looking down -Z (yaw 0).
     const p = floatingPlacement([1, 1.6, 5], 0, "medium");
-    expect(p).toEqual({ kind: "floating", position: [1, 1.8, 3], yaw: 0, size: "medium" });
-    const m = floatingScreenMatrix([1, 1.8, 3], 0);
+    expect(p).toEqual({ kind: "floating", position: [1, 1.15, 3], rotation: [0, 0, 0, 1], size: "medium" });
+    if (p.kind !== "floating") throw new Error();
+    const m = poseMatrix(p.position, p.rotation);
     // The picture's front (+Z) points at the viewer, who is at +Z from it.
     expect([m[8], m[9], m[10]]).toEqual([0, 0, 1]);
+    expect([m[12], m[13], m[14]]).toEqual([1, 1.15, 3]);
   });
 
   it("works when turned", () => {
     // Looking down -X: yaw +90°.
-    const yaw = Math.PI / 2;
-    const p = floatingPlacement([0, 1.6, 0], yaw, "small");
+    const p = floatingPlacement([0, 1.6, 0], Math.PI / 2, "small");
     if (p.kind !== "floating") throw new Error();
     expect(p.position[0]).toBeCloseTo(-2);
     expect(p.position[2]).toBeCloseTo(0);
-    const m = floatingScreenMatrix(p.position, p.yaw);
-    // Front faces +X, back towards the viewer.
+    const m = poseMatrix(p.position, p.rotation);
+    // Front faces +X, towards the viewer.
     expect(m[8]).toBeCloseTo(1);
     expect(m[10]).toBeCloseTo(0);
   });
 
   it("reads the yaw back from a camera matrix", () => {
     for (const yaw of [0, 1, -2, 3]) {
-      expect(yawOfMatrix(floatingScreenMatrix([0, 0, 0], yaw))).toBeCloseTo(yaw);
+      const m = poseMatrix([0, 0, 0], [0, Math.sin(yaw / 2), 0, Math.cos(yaw / 2)]);
+      expect(yawOfMatrix(m)).toBeCloseTo(yaw);
     }
   });
 
@@ -55,20 +57,30 @@ describe("untrusted screen messages", () => {
       screen: "Cinema",
     });
     expect(
-      parseScreenPlacement(JSON.stringify({ kind: "floating", position: [1, 2, 3], yaw: 0.5, size: "large" }))
-    ).toEqual({ kind: "floating", position: [1, 2, 3], yaw: 0.5, size: "large" });
+      parseScreenPlacement(
+        JSON.stringify({ kind: "floating", position: [1, 2, 3], rotation: [0, 0, 0, 2], size: "large" })
+      )
+    ).toEqual({ kind: "floating", position: [1, 2, 3], rotation: [0, 0, 0, 1], size: "large" });
   });
 
   it("rejects bad ones", () => {
     expect(parseScreenPlacement("not json")).toBeUndefined();
     expect(parseScreenPlacement(JSON.stringify({ kind: "world", screen: "" }))).toBeUndefined();
-    expect(parseScreenPlacement(JSON.stringify({ kind: "floating", position: [1, 2], yaw: 0 }))).toBeUndefined();
-    expect(parseScreenPlacement(JSON.stringify({ kind: "floating", position: [1e9, 0, 0], yaw: 0 }))).toBeUndefined();
+    const r = [0, 0, 0, 1];
+    expect(parseScreenPlacement(JSON.stringify({ kind: "floating", position: [1, 2], rotation: r }))).toBeUndefined();
+    expect(
+      parseScreenPlacement(JSON.stringify({ kind: "floating", position: [1e9, 0, 0], rotation: r }))
+    ).toBeUndefined();
+    expect(
+      parseScreenPlacement(JSON.stringify({ kind: "floating", position: [0, 0, 0], rotation: [0, 0, 0, 0] }))
+    ).toBeUndefined();
     expect(parseScreenPlacement(JSON.stringify({ kind: "other" }))).toBeUndefined();
   });
 
   it("an odd size becomes medium", () => {
-    const p = parseScreenPlacement(JSON.stringify({ kind: "floating", position: [0, 0, 0], yaw: 0, size: "huge" }));
+    const p = parseScreenPlacement(
+      JSON.stringify({ kind: "floating", position: [0, 0, 0], rotation: [0, 0, 0, 1], size: "huge" })
+    );
     expect(p).toMatchObject({ size: "medium" });
   });
 

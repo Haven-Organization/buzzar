@@ -381,7 +381,8 @@ export async function createMatrixNetworkInterface(
       if (rule === "nobody") return false;
       return state.hasSufficientPowerLevelFor("kick", world.sdk.getMember(sharer)?.powerLevel ?? 0);
     };
-    screenShare = new ScreenShare(ctx, groupCall, { mayShare, ourUserId: userId });
+    const displayName = (id: string) => world.sdk.getMember(id)?.name || id;
+    screenShare = new ScreenShare(ctx, groupCall, { mayShare, displayName, ourUserId: userId });
     setScreenShare(screenShare);
     const share = screenShare;
     const onState = (event: { getType(): string }) => {

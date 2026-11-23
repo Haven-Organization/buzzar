@@ -1,6 +1,6 @@
 import { defineConfig } from "../module/module.common";
 import { RendererModule } from "./renderer.render";
-import { ScreenShareRenderModule } from "../screenshare/screenShare.render";
+import { ScreenShareRenderModule, ScreenShareRenderSystem } from "../screenshare/screenShare.render";
 import { ResourceModule, ResourceLoaderSystem, ReturnRecycledResourcesSystem } from "./RenderResources";
 import { UpdateRendererMaterialSystem } from "./systems/UpdateRendererMaterialSystem";
 import { UpdateRendererMeshPrimitivesSystem } from "./systems/UpdateRendererMeshPrimitivesSystem";
@@ -56,6 +56,8 @@ export default defineConfig({
     WorldMapCaptureSystem,
     // Buzzar (Third Room #128): after transforms and reflections are updated, before drawing.
     AutoInstancingSystem,
+    // Buzzar (Third Room #398): shared screens glide to where their sharer moved them.
+    ScreenShareRenderSystem,
     RenderSubmitSystem,
     RenderThreadStatsSystem,
     RendererOutgoingTripleBufferSystem, // Swap outgoing triplebuffers

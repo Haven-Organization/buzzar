@@ -19,6 +19,7 @@ import { CameraRigMessage } from "./Player.common";
 import { PlayerModule } from "./Player.game";
 import { ThirdPersonComponent } from "./CharacterController";
 import { embodyAvatar } from "./embodyAvatar";
+import { heldRotation } from "./heldRotation";
 import { CameraRef } from "./getCamera";
 import { ourPlayerQuery } from "./Player";
 
@@ -348,7 +349,8 @@ function applyYaw(ctx: GameContext, input: GameInputModule, rigYaw: YawComponent
     rigYaw.snapTurnDisabled = false;
   }
 
-  if (look !== 0) {
+  // Buzzar: the mouse is turning what you hold (heldRotation.ts).
+  if (look !== 0 && !heldRotation.active) {
     setYaw(node, look * radiansPerPixel(rigYaw.sensitivity));
   }
 }
@@ -373,7 +375,7 @@ function applyPitch(ctx: GameContext, input: GameInputModule, rigPitch: PitchCom
 
   const look = input.actionStates.get(CameraRigAction.LookMovement) as vec2;
 
-  if (look[1] !== 0) {
+  if (look[1] !== 0 && !heldRotation.active) {
     setPitch(node, rigPitch, rigPitch.pitch - look[1] * radiansPerPixel(rigPitch.sensitivity));
   }
 }

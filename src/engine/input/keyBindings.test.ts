@@ -44,8 +44,8 @@ describe("key bindings (Third Room #382)", () => {
   });
 
   it("moves both Shift keys off running when it's rebound", () => {
-    setKey("run", "KeyQ");
-    expect(engineKey("KeyQ")).toBe("ShiftLeft");
+    setKey("run", "KeyG");
+    expect(engineKey("KeyG")).toBe("ShiftLeft");
     expect(engineKey("ShiftLeft")).toBeNull();
     expect(engineKey("ShiftRight")).toBeNull();
     resetKey("run");

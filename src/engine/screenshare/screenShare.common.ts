@@ -13,12 +13,20 @@
 export type ScreenSize = "small" | "medium" | "large";
 /** Floating screen widths (metres). */
 export const SCREEN_WIDTHS: Record<ScreenSize, number> = { small: 1.2, medium: 2, large: 3.5 };
-/** How far in front of you a floating screen goes, and its centre's height above your eyes (metres). */
+/** How far in front of you a floating screen's handle goes, and how far below your eyes (metres). */
 export const FLOATING_DISTANCE = 2;
-export const FLOATING_RAISE = 0.2;
+export const HANDLE_BELOW_EYES = 0.45;
+/** Gap between the handle and the picture's bottom edge (metres). */
+export const HANDLE_GAP = 0.08;
 
 export type ScreenPlacement =
-  | { kind: "floating"; position: [number, number, number]; yaw: number; size: ScreenSize }
+  /** A floating screen: its handle's position and rotation (the picture stands on the handle, facing its +Z). */
+  | {
+      kind: "floating";
+      position: [number, number, number];
+      rotation: [number, number, number, number];
+      size: ScreenSize;
+    }
   | { kind: "world"; screen: string };
 
 /** A screen the world provides (HAVEN_screen): its node's world transform and the space the picture fits in. */
@@ -54,34 +62,72 @@ export function parseScreenPlacement(json: string | undefined): ScreenPlacement 
     if (!Array.isArray(p) || p.length !== 3 || !p.every((c) => finite(c) && Math.abs(c) <= MAX_COORDINATE)) {
       return undefined;
     }
-    if (!finite(v.yaw)) return undefined;
+    const r = v.rotation;
+    if (!Array.isArray(r) || r.length !== 4 || !r.every((c) => finite(c))) return undefined;
+    const length = Math.hypot(r[0], r[1], r[2], r[3]);
+    if (length < 1e-6) return undefined;
     const size: ScreenSize = v.size === "small" || v.size === "large" ? v.size : "medium";
-    return { kind: "floating", position: [p[0], p[1], p[2]], yaw: v.yaw, size };
+    return {
+      kind: "floating",
+      position: [p[0], p[1], p[2]],
+      rotation: [r[0] / length, r[1] / length, r[2] / length, r[3] / length],
+      size,
+    };
   }
   return undefined;
 }
 
 /**
  * A floating screen in front of someone whose eyes are at `eye`, looking towards `yaw` (radians about +Y; 0 looks
- * down -Z), facing them.
+ * down -Z): its handle a little below eye level, the picture facing them.
  */
 export function floatingPlacement(eye: [number, number, number], yaw: number, size: ScreenSize): ScreenPlacement {
-  const x = eye[0] - Math.sin(yaw) * FLOATING_DISTANCE;
-  const z = eye[2] - Math.cos(yaw) * FLOATING_DISTANCE;
   const round = (n: number) => Math.round(n * 1000) / 1000;
   return {
     kind: "floating",
-    position: [round(x), round(eye[1] + FLOATING_RAISE), round(z)],
-    yaw: round(yaw),
+    position: [
+      round(eye[0] - Math.sin(yaw) * FLOATING_DISTANCE),
+      round(eye[1] - HANDLE_BELOW_EYES),
+      round(eye[2] - Math.cos(yaw) * FLOATING_DISTANCE),
+    ],
+    rotation: [0, round(Math.sin(yaw / 2)), 0, round(Math.cos(yaw / 2))],
     size,
   };
 }
 
-/** The world matrix of a floating screen: at its position, turned by its yaw (so it faces where it was placed from). */
-export function floatingScreenMatrix(position: [number, number, number], yaw: number): number[] {
-  const c = Math.cos(yaw);
-  const s = Math.sin(yaw);
-  return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, position[0], position[1], position[2], 1];
+/** A column-major world matrix from a position and a rotation quaternion [x, y, z, w]. */
+export function poseMatrix(position: [number, number, number], rotation: [number, number, number, number]): number[] {
+  const [x, y, z, w] = rotation;
+  const x2 = x + x;
+  const y2 = y + y;
+  const z2 = z + z;
+  const xx = x * x2;
+  const xy = x * y2;
+  const xz = x * z2;
+  const yy = y * y2;
+  const yz = y * z2;
+  const zz = z * z2;
+  const wx = w * x2;
+  const wy = w * y2;
+  const wz = w * z2;
+  return [
+    1 - (yy + zz),
+    xy + wz,
+    xz - wy,
+    0,
+    xy - wz,
+    1 - (xx + zz),
+    yz + wx,
+    0,
+    xz + wy,
+    yz - wx,
+    1 - (xx + yy),
+    0,
+    position[0],
+    position[1],
+    position[2],
+    1,
+  ];
 }
 
 /** The picture's size (metres) fitted inside width × height, keeping its aspect ratio (width / height). */
@@ -107,6 +153,20 @@ export enum ScreenShareMessageType {
   Query = "screen-share-query",
   /** Game → main: the answer. */
   QueryResult = "screen-share-query-result",
+  /** Main → game: put our screen's handle here (creating it). */
+  SetHandle = "screen-share-set-handle",
+  /** Main → game: take our screen's handle away. */
+  RemoveHandle = "screen-share-remove-handle",
+  /** Game → main: our handle moved (it's being carried). */
+  HandleMoved = "screen-share-handle-moved",
+  /** Game → main: Delete was pressed on our handle (stop sharing). */
+  HandleDeleted = "screen-share-handle-deleted",
+}
+
+export interface ScreenHandleMessage {
+  type: ScreenShareMessageType.SetHandle | ScreenShareMessageType.HandleMoved;
+  position: [number, number, number];
+  rotation: [number, number, number, number];
 }
 
 export interface ScreenShowMessage {
@@ -116,6 +176,14 @@ export interface ScreenShowMessage {
   /** The space the picture fits in (metres). */
   width: number;
   height: number;
+  /** "bottom": the matrix is a handle the picture stands on (floating screens); "center": the picture's middle. */
+  anchor: "center" | "bottom";
+  /** Draw a handle bar (floating screens). */
+  handle: boolean;
+  /** Who's sharing: shown on the back. */
+  label: string;
+  /** Glide to a new place rather than jump (someone else's screen, whose moves arrive a few times a second). */
+  smooth: boolean;
 }
 
 export interface ScreenFrameMessage {

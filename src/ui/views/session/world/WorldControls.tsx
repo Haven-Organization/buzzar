@@ -23,6 +23,7 @@ import { fullscreenSupported, toggleFullscreen, useFullscreen } from "../../../u
 import XRIC from "../../../../../res/ic/xr.svg";
 import MenuIC from "../../../../../res/ic/menu.svg";
 import ScreenShareIC from "../../../../../res/ic/screen-share.svg";
+import RotateIC from "../../../../../res/ic/rotate.svg";
 import { canShareScreens, ScreenShareDialog, useScreenShare } from "./ScreenShareDialog";
 import { Text } from "../../../atoms/text/Text";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
@@ -226,6 +227,8 @@ export function WorldControls({
       // Moved off the screen to keep the touch buttons few: fly mode (D-pad right) and straightening what you hold (B).
       { label: "Fly", icon: FlyIC, onSelect: () => pressVirtualButton(PadButton.DpadRight) },
       { label: "Straighten Held", icon: StraightenIC, onSelect: () => pressVirtualButton(PadButton.B) },
+      // Turns what you hold 45° (D-pad up); a mouse or stick turns it freely.
+      { label: "Turn Held", icon: RotateIC, onSelect: () => pressVirtualButton(PadButton.DpadUp) },
     ];
     if (canFullscreen) {
       actions.push({

@@ -20,6 +20,9 @@ export interface InteractionState {
   peerId?: string;
   ownerId?: string;
   uri?: string;
+  /** Buzzar: can't be thrown / Delete does this instead (a shared screen's handle). */
+  noThrow?: boolean;
+  deleteLabel?: string;
 }
 
 export function useWorldInteraction(ctx: MainContext, interactionCallback: (interaction?: InteractionState) => void) {
@@ -39,6 +42,8 @@ export function useWorldInteraction(ctx: MainContext, interactionCallback: (inte
           name: message.name || "Object",
           held: message.held || false,
           ownerId: message.ownerId,
+          noThrow: message.noThrow,
+          deleteLabel: message.deleteLabel,
         });
         return;
       }
