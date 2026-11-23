@@ -43,7 +43,7 @@ infrastructure and can't scale to VRChat-sized instances.
         which call to join when one of another type is open; Developer Mode can override the type for new calls.
         Tested live with two clients (voice track, data channel, movement, the dialog).
       - **Done 2026-11-23:** voices by distance: they fade out at the world's voice range (`HAVEN_voice`, default
-        30 m) and LiveKit calls only receive the voices within earshot; stage areas (`HAVEN_voice_zone`): whoever
+        25 m) and LiveKit calls only receive the voices within earshot; stage areas (`HAVEN_voice_zone`): whoever
         stands in one is heard by everyone. A failed LiveKit connection says why and offers a peer-to-peer call.
       - Still to do: one slot per instance (`software.haven.world#<instance>`); lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
         (MSC4140/MSC4354: the homeserver must enable delayed events, otherwise a vanished player's membership lasts
