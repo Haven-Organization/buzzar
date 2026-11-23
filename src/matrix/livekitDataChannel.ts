@@ -14,6 +14,9 @@
 export const CHUNK_PAYLOAD_BYTES = 14000;
 const HEADER_BYTES = 8;
 
+/** Most messages kept for a channel nobody listens to yet (a world snapshot is a handful). */
+const MAX_UNHEARD = 2000;
+
 export type ChunkSender = (chunk: Uint8Array<ArrayBuffer>) => Promise<void>;
 
 /** Splits a message into chunks: [u32 message number][u16 index][u16 count][payload]. */
@@ -83,6 +86,13 @@ export class LiveKitDataChannel extends EventTarget {
   private nextMessage = 0;
   private sending: Promise<void> = Promise.resolve();
   private assembler = new ChunkAssembler();
+  /**
+   * Messages that arrived before anyone listened. The other side treats the channel as open as soon as we're in the
+   * LiveKit room, and sends its world snapshot straight away, while the engine here may still be joining (it adds its
+   * listener later): those messages were lost, so that player never appeared properly (no voice, no avatar).
+   */
+  private unheard: ArrayBuffer[] = [];
+  private listening = false;
 
   constructor(private sendChunk: ChunkSender) {
     super();
@@ -109,7 +119,25 @@ export class LiveKitDataChannel extends EventTarget {
   receive(chunk: Uint8Array) {
     if (this.readyState !== "open") return;
     const message = this.assembler.add(chunk);
-    if (message) this.dispatchEvent(new MessageEvent("message", { data: message }));
+    if (!message) return;
+    if (this.listening) this.dispatchEvent(new MessageEvent("message", { data: message }));
+    else if (this.unheard.length < MAX_UNHEARD) this.unheard.push(message);
+  }
+
+  addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions
+  ) {
+    super.addEventListener(type, listener, options);
+    if (type !== "message" || this.listening) return;
+    this.listening = true;
+    // Deliver what arrived before, in order, once the caller has finished setting up.
+    queueMicrotask(() => {
+      const unheard = this.unheard;
+      this.unheard = [];
+      for (const data of unheard) this.dispatchEvent(new MessageEvent("message", { data }));
+    });
   }
 
   /** @internal */
@@ -123,6 +151,7 @@ export class LiveKitDataChannel extends EventTarget {
     if (this.readyState === "closed") return;
     this.readyState = "closed";
     this.assembler = new ChunkAssembler();
+    this.unheard = [];
     this.dispatchEvent(new Event("close"));
   }
 }

@@ -59,6 +59,19 @@ describe("LiveKitDataChannel", () => {
     expect(got).toEqual([bytes(4, 5), big]);
   });
 
+  it("keeps messages that arrive before anyone listens, and delivers them in order once someone does", async () => {
+    const channel = new LiveKitDataChannel(async () => undefined);
+    channel.open();
+    channel.receive(chunkMessage(bytes(3, 1), 0)[0]);
+    channel.receive(chunkMessage(bytes(3, 2), 1)[0]);
+    const got: Uint8Array[] = [];
+    channel.addEventListener("message", (e) => got.push(new Uint8Array((e as MessageEvent).data)));
+    expect(got).toEqual([]);
+    await Promise.resolve();
+    channel.receive(chunkMessage(bytes(3, 3), 2)[0]);
+    expect(got).toEqual([bytes(3, 1), bytes(3, 2), bytes(3, 3)]);
+  });
+
   it("refuses to send before it's open", () => {
     const channel = new LiveKitDataChannel(async () => undefined);
     expect(() => channel.send(new Uint8Array(1))).toThrow();

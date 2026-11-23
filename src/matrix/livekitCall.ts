@@ -37,6 +37,8 @@ import { LiveKitDataChannel } from "./livekitDataChannel";
 
 export const WORLD_RTC_SLOT = { application: "software.haven.world", id: "main" };
 const DATA_TOPIC = "buzzar";
+/** Most packets kept from one player before we know them (a world snapshot is a few hundred at most). */
+const MAX_EARLY_PACKETS = 4000;
 const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 /** How long our membership lasts unless refreshed (js-sdk refreshes it shortly before). */
 const MEMBERSHIP_EXPIRY_MS = 5 * 60 * 1000;
@@ -304,7 +306,15 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     };
     const onData = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
       if (topic !== DATA_TOPIC || !participant) return;
-      this.memberFor(participant.identity)?.channel.receive(payload);
+      const member = this.memberFor(participant.identity);
+      if (member && member.isConnected) {
+        member.channel.receive(payload);
+        return;
+      }
+      // Their call membership (or LiveKit presence) hasn't reached us yet: keep what they sent until it does.
+      const early = this.early.get(participant.identity) ?? [];
+      if (early.length < MAX_EARLY_PACKETS) early.push(payload.slice());
+      this.early.set(participant.identity, early);
     };
     liveKit.on(RoomEvent.ParticipantConnected, refresh);
     liveKit.on(RoomEvent.ParticipantDisconnected, refresh);
@@ -387,6 +397,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     this.liveKit = undefined;
     this.microphone = undefined;
     this._localMedia = undefined;
+    this.early.clear();
     this.syncMembers();
     this.emit("change");
   }
@@ -456,10 +467,18 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     this.emit("change");
   }
 
+  /** Packets from players we didn't know yet (by LiveKit identity), delivered once we do. */
+  private early = new Map<string, Uint8Array[]>();
+
   private syncParticipants() {
     const participants = this.joined && this.liveKit ? this.liveKit.remoteParticipants : undefined;
     for (const [key, member] of this.members) {
       if (member.setParticipant(participants?.get(member.identity))) this.members.update(key);
+      const early = member.isConnected ? this.early.get(member.identity) : undefined;
+      if (early) {
+        this.early.delete(member.identity);
+        for (const packet of early) member.channel.receive(packet);
+      }
     }
     this.applyAudioSubscriptions();
     this.emit("change");
