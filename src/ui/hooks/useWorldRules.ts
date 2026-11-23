@@ -3,6 +3,7 @@
  * max_member_object_cap) to the engine, and tells moderators when someone's blocked by them.
  */
 import { useCallback, useEffect, useRef } from "react";
+import { useAtomValue } from "jotai";
 
 import { Room, StateEvent } from "../../matrix";
 import { useMainThreadContext } from "./useMainThread";
@@ -35,6 +36,8 @@ import { confirmDialog } from "../views/components/confirm-dialog/ConfirmDialog"
 import { setLimitOverrides } from "../utils/limitOverrides";
 import { setWorldShadows } from "../../engine/renderer/renderer.main";
 import { parseWorldShadows } from "../../engine/renderer/renderer.common";
+import { developerModeAtom } from "../state/developerMode";
+import { overlayVisibilityAtom } from "../state/overlayVisibility";
 
 const NO_OVERRIDES: Partial<LimitOverrides> = {};
 
@@ -83,7 +86,9 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
   // Buzzar (Third Room #295): this player's own speeds (Settings → Controls) and the Developer limit overrides.
   const [prefs] = useLocalStorage<unknown>(MOVEMENT_PREFS_KEY, DEFAULT_MOVEMENT_PREFS);
   const [overrides] = useLocalStorage<Partial<LimitOverrides>>(LIMIT_OVERRIDES_KEY, NO_OVERRIDES);
-  const [developerMode] = useLocalStorage("buzzar.developerMode", false);
+  // The Developer mode switch writes through this atom, which doesn't tell useLocalStorage, so reading the key here
+  // missed it being turned on in a world until the world was entered again.
+  const developerMode = useAtomValue(developerModeAtom);
   const ignoreOwn = developerMode && !!overrides.ignoreOwn;
   const ignoreOthers = developerMode && !!overrides.ignoreOthers;
   useEffect(() => {
@@ -99,13 +104,23 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
     });
   }, [mainThread, ignoreOwn, ignoreOthers]);
 
-  // On entering a world with either override on: a reminder, so they're not left on by accident (and nobody is
-  // confused by things only they can see).
-  const overridesRef = useRef({ ignoreOwn, ignoreOthers });
-  overridesRef.current = { ignoreOwn, ignoreOthers };
+  // A reminder when either override is on, so they're not left on by accident (and nobody is confused by things only
+  // they can see): on entering a world, and when one is turned on in a world, once the overlay (where Settings is)
+  // closes. They take effect at once either way.
+  const overlayVisible = useAtomValue(overlayVisibilityAtom);
+  /** The overrides the player has last been reminded of (or turned off); a newly turned-on one gets a reminder. */
+  const acknowledged = useRef({ ignoreOwn: false, ignoreOthers: false });
+  const remindedRoom = useRef<string>();
   useEffect(() => {
-    const { ignoreOwn, ignoreOthers } = overridesRef.current;
-    if (!ignoreOwn && !ignoreOthers) return;
+    if (remindedRoom.current !== room.id) {
+      remindedRoom.current = room.id;
+      acknowledged.current = { ignoreOwn: false, ignoreOthers: false };
+    }
+    if (overlayVisible) return;
+    const seen = acknowledged.current;
+    const newlyOn = (ignoreOwn && !seen.ignoreOwn) || (ignoreOthers && !seen.ignoreOthers);
+    acknowledged.current = { ignoreOwn, ignoreOthers };
+    if (!newlyOn) return;
     const lines = [
       ignoreOwn &&
         "• Ignore world limits for my actions: other players' Buzzar still blocks what breaks this world's rules. They won't see those objects, and they'll see you held back if you move too fast. Moderators are told each time and may kick or ban you.",
@@ -122,7 +137,7 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
     }).then((off) => {
       if (off) setLimitOverrides({ ignoreOwn: false, ignoreOthers: false });
     });
-  }, [room.id]);
+  }, [room.id, overlayVisible, ignoreOwn, ignoreOthers]);
 
   // Moderators (anyone who can kick) hear about blocked attempts; everyone else just doesn't see them.
   const { getPowerLevel, canDoAction } = usePowerLevels(room);
