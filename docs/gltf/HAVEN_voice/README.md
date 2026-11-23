@@ -14,7 +14,7 @@ Written against the glTF 2.0 spec.
 
 ## Overview
 
-This extension sets how far voices carry in a world. Voices are spatial: full volume within 2 metres, then falling off fast (with the default 25 m range: about 40% at 10 m, 20% at 15 m, 6% at 20 m) and silent at `range`. Groups a little way apart can talk without hearing each other. Past that you don't hear someone at all, and in a LiveKit world call their voice isn't even downloaded, so crowded worlds stay light. Movement is still received from everyone.
+This extension sets how far voices carry in a world. Voices are spatial: full volume within 2 metres, then falling off fast (with the default 25 m range: about 40% at 10 m, 20% at 15 m, 5% at 20 m) and silent at `range`. Groups a little way apart can talk without hearing each other. Past that you don't hear someone at all, and in a LiveKit world call their voice isn't even downloaded, so crowded worlds stay light. Movement is still received from everyone.
 
 People standing in a stage area ([HAVEN_voice_zone](../HAVEN_voice_zone/README.md)) are heard by everyone regardless of range.
 

@@ -47,7 +47,7 @@ export interface VoiceAudibilityMessageType {
 /**
  * How loud a spatial voice is at `distance` metres: full within VOICE_NEAR, then falling off fast and reaching
  * silence at `range`, so groups a little way apart don't talk over each other. With the default 25 m: about 40% at
- * 10 m, 20% at 15 m, 6% at 20 m.
+ * 10 m, 20% at 15 m, 5% at 20 m.
  */
 export function voiceRangeGain(distance: number, range: number): number {
   if (distance <= VOICE_NEAR) return 1;

@@ -8,7 +8,7 @@ describe("voiceRangeGain", () => {
     expect(voiceRangeGain(VOICE_NEAR, 25)).toBe(1);
     expect(voiceRangeGain(10, 25)).toBeCloseTo(0.42, 2);
     expect(voiceRangeGain(15, 25)).toBeCloseTo(0.19, 2);
-    expect(voiceRangeGain(20, 25)).toBeCloseTo(0.06, 2);
+    expect(voiceRangeGain(20, 25)).toBeCloseTo(0.047, 2);
     expect(voiceRangeGain(25, 25)).toBe(0);
     expect(voiceRangeGain(100, 25)).toBe(0);
   });
