@@ -1678,6 +1678,7 @@ const loadGLTFMaterial = createCachedSubresourceLoader(
     }
   ) => {
     if (extensions?.KHR_materials_unlit) {
+      const unlitTransform = pbrMetallicRoughness?.baseColorTexture?.extensions?.KHR_texture_transform;
       const { baseColorTexture } = {
         baseColorTexture:
           pbrMetallicRoughness?.baseColorTexture?.index !== undefined
@@ -1695,6 +1696,11 @@ const loadGLTFMaterial = createCachedSubresourceLoader(
         alphaCutoff,
         baseColorFactor: pbrMetallicRoughness?.baseColorFactor,
         baseColorTexture,
+        // Buzzar: unlit materials ignored KHR_texture_transform, so a texture sheet with several images (e.g. the
+        // Umamusume avatars' eyes: 4 × 2 eyes, one picked by scale) showed all of them squeezed together.
+        baseColorTextureOffset: unlitTransform?.offset,
+        baseColorTextureRotation: unlitTransform?.rotation,
+        baseColorTextureScale: unlitTransform?.scale,
       });
     } else {
       const transmissionTextureInfo = extensions?.KHR_materials_transmission?.transmissionTexture;
