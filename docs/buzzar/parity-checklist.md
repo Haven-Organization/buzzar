@@ -45,7 +45,9 @@ infrastructure and can't scale to VRChat-sized instances.
       - Still to do: one slot per instance (`software.haven.world#<instance>`); distance-based audio subscription;
         lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
         (MSC4140/MSC4354: the homeserver must enable delayed events, otherwise a vanished player's membership lasts
-        until it expires); showing LiveKit players in world tiles and the overlay before you join.
+        until it expires).
+      - **Done 2026-11-23:** world tiles and the overlay show who's in a world's LiveKit call before you join; joining
+        drops this device's membership of the other kind of call; closing the page leaves the call (keepalive).
 - [ ] 🟡 **S** Legacy MSC3401 call compatibility in old worlds: choose the call deterministically.
       `#uk-city-1` has a call created by an unrelated PL0 user; ignore stale `call.member` events.
 - [ ] 🟡 **L** **Authority and validation layer.** Today any peer can spawn any prefab or take ownership of any
