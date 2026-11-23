@@ -95,7 +95,8 @@ export function ControllerControlsList() {
         </>
       )}
       {renderItem("Throw Held Object", <Kbd size="xs">X</Kbd>)}
-      {renderItem("Straighten Held Object", <Kbd size="xs">B</Kbd>)}
+      {renderItem("Straighten Held Object (tap) / Rotate It (hold + Right Stick)", <Kbd size="xs">B</Kbd>)}
+      {renderItem("Turn Held Object 45°", <Kbd size="xs">L1</Kbd>)}
       {renderItem("Mute", <Kbd size="xs">Y</Kbd>)}
       {renderItem("Names", <Kbd size="xs">D-pad Up</Kbd>)}
       {renderItem("Hide / show the HUD", <Kbd size="xs">D-pad Down</Kbd>)}

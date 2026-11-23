@@ -201,7 +201,8 @@ const InteractionActionMap: ActionMap = {
       ],
     },
     {
-      // Buzzar: turns what you're holding back to how it faces when it's spawned (straight ahead, upright).
+      // Buzzar: tap to turn what you're holding back to how it faces when it's spawned (straight ahead, upright);
+      // hold and move the mouse (or right stick) to turn it freely.
       id: "recenter",
       path: "RecenterHeld",
       type: ActionType.Button,
@@ -211,21 +212,11 @@ const InteractionActionMap: ActionMap = {
       ],
     },
     {
-      // Buzzar: hold and move the mouse (or right stick) to turn what you're holding.
-      id: "rotate-held",
-      path: "RotateHeld",
-      type: ActionType.Button,
-      bindings: [
-        { type: BindingType.Button, path: "Keyboard/KeyQ" },
-        { type: BindingType.Button, path: padButton(PadButton.LB) },
-      ],
-    },
-    {
-      // Buzzar: a quarter-turn-and-a-half (45°) of what you're holding, for touch controls (More → Turn Held).
+      // Buzzar: an eighth of a turn (45°) of what you're holding, for touch controls (More → Turn Held).
       id: "turn-held",
       path: "TurnHeld",
       type: ActionType.Button,
-      bindings: [{ type: BindingType.Button, path: padButton(PadButton.DpadUp) }],
+      bindings: [{ type: BindingType.Button, path: padButton(PadButton.LB) }],
     },
     {
       id: "delete",
@@ -383,12 +374,33 @@ function rotateHold(grabberEid: number, yaw: number, pitch: number) {
 export interface GrabBehaviour {
   noThrow?: boolean;
   stayPut?: boolean;
+  /** "yaw-pitch": it only turns around and tilts up or down, never rolls sideways (a shared screen). */
+  rotation?: "yaw-pitch";
   /** What the Delete prompt says (and that Delete works on it). */
   deleteLabel?: string;
   onDelete?: (ctx: GameContext) => void;
 }
 
 export const grabBehaviours = new Map<number, GrabBehaviour>();
+
+const _forward = vec3.create();
+const _yawQuat = quat.create();
+
+/** Buzzar: `q` without any sideways roll: the same facing, made of a turn about +Y and a tilt about the side axis. */
+function yawPitchOnly(q: quat): quat {
+  vec3.transformQuat(_forward, [0, 0, 1], q);
+  const yaw = Math.atan2(_forward[0], _forward[2]);
+  const tilt = Math.atan2(-_forward[1], Math.hypot(_forward[0], _forward[2]));
+  quat.setAxisAngle(_yawQuat, [0, 1, 0], yaw);
+  quat.setAxisAngle(_turn, [1, 0, 0], tilt);
+  return quat.multiply(q, _yawQuat, _turn);
+}
+
+/** Buzzar: a tap of Straighten / Rotate (R) is shorter than this (ms) and moves the mouse less than this (px). */
+const TAP_MS = 300;
+const TAP_SLOP = 6;
+/** Per grabber: when R went down and how far the mouse has moved since. */
+const rotatePress = new Map<number, { since: number; moved: number }>();
 
 function stopBody(body: { setLinvel(v: Vector3, wake: boolean): void; setAngvel(v: Vector3, wake: boolean): void }) {
   body.setLinvel(zero, true);
@@ -893,15 +905,20 @@ function updateGrabThrow(
   const heldNode = getRemoteResource<RemoteNode>(ctx, heldEntity);
 
   if (heldNode) {
-    const recenter = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;
-    if (recenter?.pressed) recenterHold(rig.eid);
-    // Buzzar: turn it: hold Rotate Held Object and move the mouse or right stick (the view stays still meanwhile),
-    // or a 45° step (touch controls).
-    const rotate = input.actionStates.get("RotateHeld") as ButtonActionState | undefined;
-    if (ourPlayer && rotate?.held) {
+    // Buzzar: R does two things. Tap it: straighten what you hold. Hold it and move the mouse (or right stick): turn
+    // it, while the view stays still. A 45° step comes from Turn Held (touch controls).
+    const rKey = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;
+    if (rKey?.pressed) rotatePress.set(rig.eid, { since: ctx.elapsed, moved: 0 });
+    const press = rotatePress.get(rig.eid);
+    if (rKey?.held && press && ourPlayer) {
       heldRotation.active = true;
       const look = input.actionStates.get(CameraRigAction.LookMovement) as vec2;
-      rotateHold(rig.eid, look[0] * ROTATE_PER_PIXEL, look[1] * ROTATE_PER_PIXEL);
+      press.moved += Math.abs(look[0]) + Math.abs(look[1]);
+      if (press.moved > TAP_SLOP) rotateHold(rig.eid, look[0] * ROTATE_PER_PIXEL, look[1] * ROTATE_PER_PIXEL);
+    }
+    if (rKey?.released && press) {
+      if (ctx.elapsed - press.since < TAP_MS && press.moved <= TAP_SLOP) recenterHold(rig.eid);
+      rotatePress.delete(rig.eid);
     }
     const turn = input.actionStates.get("TurnHeld") as ButtonActionState | undefined;
     if (turn?.pressed) rotateHold(rig.eid, -TURN_STEP, 0);
@@ -934,7 +951,9 @@ function updateGrabThrow(
     if (body) {
       body.setLinvel(_impulse.fromArray(target), true);
       body.setAngvel(zero, true);
-      body.setRotation(_r.fromArray(holdRotation(ctx.tick, rig.eid, heldNode, body)), true);
+      const rotation = holdRotation(ctx.tick, rig.eid, heldNode, body);
+      if (grabBehaviours.get(heldNode.eid)?.rotation === "yaw-pitch") yawPitchOnly(rotation);
+      body.setRotation(_r.fromArray(rotation), true);
     }
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Buzzar (Third Room #398): the handle under your own floating shared screen (engine/screenshare). Grab it to carry
- * the screen around and turn it (Rotate Held Object); it can't be thrown, stays where you let go, and Delete on it
+ * the screen around and turn it (hold R and move the mouse: it only turns around and tilts up or down); it can't be thrown, stays where you let go, and Delete on it
  * stops sharing. Only the sharer has one: everyone else's screen follows the moves the sharer sends.
  */
 import { vec3, quat } from "gl-matrix";
@@ -102,6 +102,8 @@ function setHandle(ctx: GameContext, position: number[], rotation: number[]) {
   grabBehaviours.set(node.eid, {
     noThrow: true,
     stayPut: true,
+    // Turn it around or tilt it up/down, never crooked.
+    rotation: "yaw-pitch",
     deleteLabel: "Stop Sharing",
     onDelete: (ctx) => ctx.sendMessage(Thread.Main, { type: ScreenShareMessageType.HandleDeleted }),
   });

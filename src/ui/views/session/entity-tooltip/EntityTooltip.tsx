@@ -23,7 +23,7 @@ interface EntityTooltipProps {
 export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProps) {
   const keyLabel = useActionKeyLabel("grab");
   const deleteKey = useActionKeyLabel("delete");
-  const rotateKey = useActionKeyLabel("rotate");
+  const rotateKey = useActionKeyLabel("straighten");
   // Buzzar (Third Room #156): with touch controls, the on-screen Use button rather than a key or the mouse.
   const touch = useTouchControlsEnabled();
   const grabKey = touch ? "Use" : keyLabel;
@@ -103,7 +103,7 @@ export function EntityTooltip({ activeEntity, portalProcess }: EntityTooltipProp
                 {!touch && (
                   <Text variant="b3" color="world">
                     <span className="EntityTooltip__boxedKey">{rotateKey}</span>
-                    <span> + Mouse: Rotate</span>
+                    <span> Tap: Straighten, Hold + Mouse: Rotate</span>
                   </Text>
                 )}
               </>

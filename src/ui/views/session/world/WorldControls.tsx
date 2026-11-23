@@ -227,8 +227,8 @@ export function WorldControls({
       // Moved off the screen to keep the touch buttons few: fly mode (D-pad right) and straightening what you hold (B).
       { label: "Fly", icon: FlyIC, onSelect: () => pressVirtualButton(PadButton.DpadRight) },
       { label: "Straighten Held", icon: StraightenIC, onSelect: () => pressVirtualButton(PadButton.B) },
-      // Turns what you hold 45° (D-pad up); a mouse or stick turns it freely.
-      { label: "Turn Held", icon: RotateIC, onSelect: () => pressVirtualButton(PadButton.DpadUp) },
+      // Turns what you hold 45° (LB); holding R (or B) and moving the mouse or right stick turns it freely.
+      { label: "Turn Held", icon: RotateIC, onSelect: () => pressVirtualButton(PadButton.LB) },
     ];
     if (canFullscreen) {
       actions.push({
