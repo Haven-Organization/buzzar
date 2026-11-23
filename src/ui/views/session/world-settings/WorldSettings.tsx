@@ -32,6 +32,8 @@ import MapIC from "../../../../../res/ic/my-location.svg";
 import { WorldMapSettings } from "./WorldMapSettings";
 import { WorldCallSettings } from "./WorldCallSettings";
 import { WorldMovementSettings } from "./WorldMovementSettings";
+import { WorldScreenShareSetting } from "./WorldScreenShareSetting";
+import { parseScreenShareRule, ScreenShareRule } from "../../../../engine/screenshare/screenShare.common";
 import RunIC from "../../../../../res/ic/run.svg";
 import { MovementRules, parseMovementRules, serializeMovementRules } from "../../../../engine/player/movement.common";
 import CallIC from "../../../../../res/ic/call.svg";
@@ -129,6 +131,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const [savedMovement, setSavedMovement] = useState<MovementRules>(() => parseMovementRules(undefined));
   const [movement, setMovement] = useState<MovementRules>(savedMovement);
   const movementTouched = useRef(false);
+  // Buzzar (Third Room #398): who may share their screen, also in the rules event.
+  const [savedScreenShare, setSavedScreenShare] = useState<ScreenShareRule>("everyone");
+  const [screenShareRule, setScreenShareRule] = useState<ScreenShareRule>("everyone");
+  const screenShareTouched = useRef(false);
   const onRules = useCallback((event: StateEvent | undefined) => {
     rulesContent.current = event?.content as Record<string, unknown> | undefined;
     const draft = draftFromRules(rulesContent.current);
@@ -140,6 +146,9 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     const movementDraft = parseMovementRules(rulesContent.current);
     setSavedMovement(movementDraft);
     if (!movementTouched.current) setMovement(movementDraft);
+    const screenShareDraft = parseScreenShareRule(rulesContent.current);
+    setSavedScreenShare(screenShareDraft);
+    if (!screenShareTouched.current) setScreenShareRule(screenShareDraft);
   }, []);
   useStateEventKeyCallback(room, WORLD_RULES_EVENT, "", onRules);
   const changeThingRules = (draft: ThingRulesDraft) => {
@@ -149,6 +158,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const changeMovement = (draft: MovementRules) => {
     movementTouched.current = true;
     setMovement(draft);
+  };
+  const changeScreenShareRule = (rule: ScreenShareRule) => {
+    screenShareTouched.current = true;
+    setScreenShareRule(rule);
   };
   const changeShadows = (draft: WorldShadowsDraft) => {
     shadowsTouched.current = true;
@@ -187,7 +200,8 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const rulesChanged =
     JSON.stringify(thingRules) !== JSON.stringify(savedRules) ||
     JSON.stringify(shadows) !== JSON.stringify(savedShadows) ||
-    JSON.stringify(serializeMovementRules(movement)) !== JSON.stringify(serializeMovementRules(savedMovement));
+    JSON.stringify(serializeMovementRules(movement)) !== JSON.stringify(serializeMovementRules(savedMovement)) ||
+    screenShareRule !== savedScreenShare;
   const canEditRules = canSendStateEvent(WORLD_RULES_EVENT, myPowerLevel);
 
   useEffect(() => {
@@ -275,6 +289,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
           objects,
           shadows: serializeShadows(shadows),
           movement: serializeMovementRules(movement),
+          screen_share: screenShareRule,
         })
         .response()
         .catch((e: unknown) =>
@@ -435,6 +450,11 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "calls"}>
                         <WorldCallSettings value={callMethod} onChange={changeCallMethod} canEdit={canEditCalls} />
+                        <WorldScreenShareSetting
+                          value={screenShareRule}
+                          onChange={changeScreenShareRule}
+                          canEdit={canEditRules}
+                        />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
                         {canEditScene && (

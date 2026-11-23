@@ -1,4 +1,5 @@
 import { MovementModule } from "./player/movement.game";
+import { ScreenShareModule } from "./screenshare/screenShare.game";
 import { VoiceSystem } from "./audio/voice.game";
 import { defineConfig } from "./module/module.common";
 import { AudioModule } from "./audio/audio.game";
@@ -81,6 +82,7 @@ export default defineConfig<GameContext>({
     NetworkModule,
     SpawnRulesModule,
     MovementModule,
+    ScreenShareModule,
     StatsModule,
     EditorModule,
     RendererModule,

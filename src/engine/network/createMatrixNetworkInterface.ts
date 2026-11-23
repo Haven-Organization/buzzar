@@ -1,3 +1,5 @@
+import { RoomStateEvent } from "matrix-js-sdk";
+
 import {
   CallIntent,
   CallMethod,
@@ -19,6 +21,9 @@ import { AudioModule, setLocalMediaStream, setPeerMediaStream } from "../audio/a
 import { MainContext } from "../MainThread";
 import { getModule, registerMessageHandler } from "../module/module.common";
 import { VoiceAudibilityMessage, VoiceAudibilityMessageType } from "../audio/voice.common";
+import { ScreenShare, setScreenShare } from "../screenshare/screenShare.main";
+import { parseScreenShareRule } from "../screenshare/screenShare.common";
+import { WORLD_RULES_EVENT } from "./spawnRules.common";
 import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
 import { startAvatarSync } from "../avatar/avatar.main";
@@ -364,6 +369,29 @@ export async function createMatrixNetworkInterface(
     }
   );
 
+  // Buzzar (Third Room #398): screen sharing, on LiveKit calls. The world's rules say who may share; each viewer
+  // applies them, so a screen from someone who may not share isn't shown.
+  let screenShare: ScreenShare | undefined;
+  let stopWatchingShareRules: (() => void) | undefined;
+  if (groupCall instanceof LiveKitCall && groupCall.liveKitRoom) {
+    const state = world.sdk.currentState;
+    const mayShare = (sharer: string) => {
+      const rule = parseScreenShareRule(state.getStateEvents(WORLD_RULES_EVENT, "")?.getContent());
+      if (rule === "everyone") return true;
+      if (rule === "nobody") return false;
+      return state.hasSufficientPowerLevelFor("kick", world.sdk.getMember(sharer)?.powerLevel ?? 0);
+    };
+    screenShare = new ScreenShare(ctx, groupCall, { mayShare, ourUserId: userId });
+    setScreenShare(screenShare);
+    const share = screenShare;
+    const onState = (event: { getType(): string }) => {
+      const type = event.getType();
+      if (type === WORLD_RULES_EVENT || type === "m.room.power_levels") share.rulesChanged();
+    };
+    state.on(RoomStateEvent.Events, onState);
+    stopWatchingShareRules = () => state.off(RoomStateEvent.Events, onState);
+  }
+
   // Buzzar: closing the page or app can't wait for a normal leave, so the membership stayed behind (an hour for mesh
   // calls) and others saw a player who wasn't there. On page hide, send the leave as a keepalive request, which the
   // browser finishes after the page is gone.
@@ -377,6 +405,11 @@ export async function createMatrixNetworkInterface(
     dispose: () => {
       window.removeEventListener("pagehide", leaveOnPageHide);
       stopVoiceAudibility();
+      stopWatchingShareRules?.();
+      if (screenShare) {
+        setScreenShare(undefined);
+        screenShare.dispose();
+      }
       avatarSync.dispose();
       registerMicrophoneSwitcher(undefined);
       disconnect(ctx);

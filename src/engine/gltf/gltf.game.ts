@@ -4,6 +4,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { AnimationAction, AnimationClip, AnimationMixer, Bone, Group, Object3D, SkinnedMesh } from "three";
 
 import { addVoiceZone } from "../audio/voice.game";
+import { addWorldScreen } from "../screenshare/screenShare.game";
 import {
   addMirror,
   addMirrorButtonNode,
@@ -904,7 +905,10 @@ function mozLightmap(resource: GLTFResource, meshIndex: number | undefined): Rem
     const moz = (material?.extensions as { MOZ_lightmap?: { index: number; intensity?: number } } | undefined)
       ?.MOZ_lightmap;
     if (moz) {
-      return loadGLTFLightMap(resource, { lightMapTexture: { index: moz.index, texCoord: 1 }, intensity: moz.intensity });
+      return loadGLTFLightMap(resource, {
+        lightMapTexture: { index: moz.index, texCoord: 1 },
+        intensity: moz.intensity,
+      });
     }
   }
   return undefined;
@@ -1486,6 +1490,17 @@ const loadGLTFNode = createInstancedSubresourceLoader(
           : undefined;
         if (box) addVoiceZone(node, box.min, box.max, voiceZone);
         else console.warn(`HAVEN_voice_zone on "${name}": needs a size or a mesh`);
+      }
+
+      // Buzzar (Third Room #398): a place shared screens can be shown (its `size`, or its mesh's X × Y bounds).
+      const screen = extensions?.HAVEN_screen;
+      if (screen) {
+        const size = Array.isArray(screen.size) ? screen.size : undefined;
+        const bounds = !size && meshIndex !== undefined ? gltfMeshBounds(resource.root, meshIndex) : undefined;
+        const width = size ? size[0] : bounds ? bounds.max[0] - bounds.min[0] : 0;
+        const height = size ? size[1] : bounds ? bounds.max[1] - bounds.min[1] : 0;
+        if (width > 0 && height > 0) addWorldScreen(node, width, height, screen);
+        else console.warn(`HAVEN_screen on "${name}": needs a size or a mesh`);
       }
 
       if (extensions?.HAVEN_mirror) {

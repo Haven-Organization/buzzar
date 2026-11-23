@@ -22,6 +22,8 @@ import FullscreenExitIC from "../../../../../res/ic/fullscreen-exit.svg";
 import { fullscreenSupported, toggleFullscreen, useFullscreen } from "../../../utils/fullscreen";
 import XRIC from "../../../../../res/ic/xr.svg";
 import MenuIC from "../../../../../res/ic/menu.svg";
+import ScreenShareIC from "../../../../../res/ic/screen-share.svg";
+import { canShareScreens, ScreenShareDialog, useScreenShare } from "./ScreenShareDialog";
 import { Text } from "../../../atoms/text/Text";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
 import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";
@@ -178,6 +180,15 @@ export function WorldControls({
 
   useDisableInput(shortcutUI);
 
+  // Buzzar (Third Room #398): screen sharing, where the browser can (not phones).
+  const showScreenShare = useMemo(() => canShareScreens(), []);
+  const [screenShareOpen, setScreenShareOpen] = useState(false);
+  const [, screenShareState] = useScreenShare();
+  const sharingScreen = !!screenShareState?.sharing;
+  const screenShareDialog = showScreenShare && (
+    <ScreenShareDialog open={screenShareOpen} onOpenChange={setScreenShareOpen} world={world} showToast={showToast} />
+  );
+
   const helpDialog = (
     <Dialog open={shortcutUI} onOpenChange={setShortcutUI}>
       <Header
@@ -200,6 +211,15 @@ export function WorldControls({
       { label: "People", icon: PeopleIC, onSelect: showPeople },
       { label: NAME_MODE_LABEL[nameMode], icon: showNames ? SubtitlesIC : SubtitlesOffIC, onSelect: toggleShowNames },
       { label: "Controls", icon: HelpIC, onSelect: toggleShortcutUI },
+      ...(showScreenShare
+        ? [
+            {
+              label: sharingScreen ? "Sharing Screen" : "Share Screen",
+              icon: ScreenShareIC,
+              onSelect: () => setScreenShareOpen(true),
+            },
+          ]
+        : []),
       // Deletes what you're aiming at (if it's yours), like X on a keyboard: a short press of the virtual pad's
       // D-pad left, which is bound to it.
       { label: "Delete Aimed", icon: DeleteIC, onSelect: () => pressVirtualButton(PadButton.DpadLeft) },
@@ -219,6 +239,7 @@ export function WorldControls({
     return (
       <div className={classNames(className, "flex flex-column items-end gap-xs WorldControls--touch")}>
         {helpDialog}
+        {screenShareDialog}
         <TouchHudMenu actions={actions}>
           {activeCall && <MuteButton showToast={showToast} activeCall={activeCall} />}
         </TouchHudMenu>
@@ -272,6 +293,25 @@ export function WorldControls({
           <Text variant="b3" color="world" weight="bold">
             Alt + X
           </Text>
+        </div>
+      )}
+      {showScreenShare && (
+        <div className="flex flex-column items-center">
+          <Tooltip content={sharingScreen ? "Sharing Your Screen" : "Share Your Screen"}>
+            <IconButton
+              variant={sharingScreen ? "primary" : "world"}
+              label="Share Screen"
+              iconSrc={ScreenShareIC}
+              onClick={(e) => {
+                e.currentTarget.blur();
+                setScreenShareOpen(true);
+              }}
+            />
+          </Tooltip>
+          <Text variant="b3" color="world" weight="bold">
+            {"\u00a0"}
+          </Text>
+          {screenShareDialog}
         </div>
       )}
       <div className="flex flex-column items-center">

@@ -2,6 +2,7 @@ import { defineQuery, hasComponent } from "bitecs";
 import RAPIER from "@dimforge/rapier3d-compat";
 
 import { resetVoice, setWorldVoice } from "../../engine/audio/voice.game";
+import { resetWorldScreens } from "../../engine/screenshare/screenShare.game";
 import { SpawnPoint } from "../../engine/component/SpawnPoint";
 import { addChild } from "../../engine/component/transform";
 import { GameContext } from "../../engine/GameTypes";
@@ -429,6 +430,8 @@ function enterWorld(ctx: GameContext, localPeerId?: string) {
 
   // Buzzar: voices (engine/audio/voice.game.ts): a new world's stage areas and voice range.
   resetVoice();
+  // Buzzar (Third Room #398): and its screens.
+  resetWorldScreens();
   const environmentScene = loadDefaultGLTFScene(ctx, environmentGLTFResource, {
     createDefaultMeshColliders: true,
     rootIsStatic: true,

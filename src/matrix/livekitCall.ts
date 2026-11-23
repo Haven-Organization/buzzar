@@ -281,6 +281,17 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     });
   };
 
+  /** The LiveKit room while we're connected (screen sharing uses it: engine/screenshare/screenShare.main.ts). */
+  get liveKitRoom(): LiveKitRoom | undefined {
+    return this.liveKit;
+  }
+
+  /** The Matrix user behind a LiveKit identity ("@user:server:DEVICE"). */
+  userIdOf(identity: string): string | undefined {
+    for (const [, member] of this.members) if (member.identity === identity) return member.userId;
+    return undefined;
+  }
+
   async join(localMedia: LocalMedia): Promise<void> {
     if (this.joined) return;
     this._localMedia = localMedia;

@@ -1,3 +1,4 @@
+import type { GLTFScreenExtension } from "../screenshare/screenShare.game";
 import type { GLTFVoiceExtension, GLTFVoiceZoneExtension } from "../audio/voice.common";
 import type { GLTFMirrorExtension } from "../../plugins/mirrors/mirrors.game";
 import type { GLTFAvatarPedestalExtension } from "../../plugins/avatar-pedestals/pedestals.game";
@@ -595,6 +596,8 @@ export interface GLTFNode extends GLTFChildOfRootProperty {
     HAVEN_trampoline?: GLTFTrampolineExtension;
     /** Buzzar: a stage area: everyone hears whoever stands in it (engine/audio/voice.game.ts). */
     HAVEN_voice_zone?: GLTFVoiceZoneExtension;
+    /** Buzzar: a place shared screens can be shown (engine/screenshare, docs/gltf/HAVEN_screen). */
+    HAVEN_screen?: GLTFScreenExtension;
     MX_spawn_point?: {};
     MX_static?: {};
     MX_lights_shadows?: GLTFLightsShadows;

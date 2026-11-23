@@ -1,5 +1,6 @@
 import { defineConfig } from "../module/module.common";
 import { RendererModule } from "./renderer.render";
+import { ScreenShareRenderModule } from "../screenshare/screenShare.render";
 import { ResourceModule, ResourceLoaderSystem, ReturnRecycledResourcesSystem } from "./RenderResources";
 import { UpdateRendererMaterialSystem } from "./systems/UpdateRendererMaterialSystem";
 import { UpdateRendererMeshPrimitivesSystem } from "./systems/UpdateRendererMeshPrimitivesSystem";
@@ -26,7 +27,7 @@ import { WorldMapCaptureSystem } from "./systems/WorldMapCaptureSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
-  modules: [ResourceModule, RendererModule],
+  modules: [ResourceModule, RendererModule, ScreenShareRenderModule],
   systems: [
     RendererIncomingTripleBufferSystem,
     UpdateXRInputSourcesSystem,
