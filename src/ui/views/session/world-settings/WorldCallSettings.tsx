@@ -1,26 +1,13 @@
 /**
- * Buzzar: World Settings → Calls. The kind of call new visitors start in this world (src/matrix/callMethod.ts), kept in
- * its `software.haven.world.call` state event and saved as soon as it's changed. Players only see and hear the others
- * in the same call, so this is what keeps everyone together.
+ * Buzzar: World Settings → Calls. The kind of call new visitors start in this world (src/matrix/callMethod.ts), kept
+ * in its `software.haven.world.call` state event and sent with the window's Save, like the other settings. Players
+ * only see and hear the others in the same call, so this is what keeps everyone together.
  */
-import { useCallback, useState } from "react";
-
-import {
-  CALL_METHOD_LABEL,
-  CALL_METHODS,
-  CallMethod,
-  DEFAULT_CALL_METHOD,
-  recommendedCallMethod,
-  Room,
-  StateEvent,
-  WORLD_CALL_EVENT,
-} from "../../../../matrix";
+import { CALL_METHOD_LABEL, CALL_METHODS, CallMethod } from "../../../../matrix";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { SelectInput } from "../../components/property-panel/SelectInput";
-import { useMatrix } from "../../../hooks/useMatrix";
-import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallback";
 
 const DESCRIPTION: Record<CallMethod, string> = {
   mesh: "Every player connects to every other. Works with every Buzzar version; best for small groups (up to about 10).",
@@ -28,46 +15,26 @@ const DESCRIPTION: Record<CallMethod, string> = {
     "Everyone connects to a LiveKit server, which passes voices and movement on. Handles far more players. Needs a recent Buzzar, and a homeserver that offers LiveKit (for whoever starts the call).",
 };
 
-export function WorldCallSettings({ room, canEdit }: { room: Room; canEdit: boolean }) {
-  const { session } = useMatrix(true);
-  const [method, setMethod] = useState<CallMethod>(DEFAULT_CALL_METHOD);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-
-  useStateEventKeyCallback(
-    room,
-    WORLD_CALL_EVENT,
-    "",
-    useCallback((event: StateEvent | undefined) => setMethod(recommendedCallMethod(event?.content)), [])
-  );
-
-  const change = async (value: string) => {
-    const next = value as CallMethod;
-    const previous = method;
-    setMethod(next);
-    setBusy(true);
-    setError(undefined);
-    try {
-      await session.hsApi.sendState(room.id, WORLD_CALL_EVENT, "", { recommended_method: next }).response();
-    } catch (e) {
-      setMethod(previous);
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+export function WorldCallSettings({
+  value,
+  onChange,
+  canEdit,
+}: {
+  value: CallMethod;
+  onChange: (value: CallMethod) => void;
+  canEdit: boolean;
+}) {
   return (
     <div className="flex flex-column gap-md">
       <SettingTile label={<Label>Recommended Call Type</Label>}>
         <SelectInput
-          options={CALL_METHODS.map((value) => ({ value, label: CALL_METHOD_LABEL[value] }))}
-          value={method}
-          onChange={change}
-          disabled={!canEdit || busy}
+          options={CALL_METHODS.map((method) => ({ value: method, label: CALL_METHOD_LABEL[method] }))}
+          value={value}
+          onChange={(method) => onChange(method as CallMethod)}
+          disabled={!canEdit}
         />
         <Text variant="b3" color="surface-low">
-          {DESCRIPTION[method]}
+          {DESCRIPTION[value]}
         </Text>
       </SettingTile>
       <Text variant="b3" color="surface-low">
@@ -78,11 +45,6 @@ export function WorldCallSettings({ room, canEdit }: { room: Room; canEdit: bool
       {!canEdit && (
         <Text variant="b3" color="surface-low">
           Only people allowed to change this world&apos;s settings can change this.
-        </Text>
-      )}
-      {error && (
-        <Text variant="b3" color="danger">
-          Couldn&apos;t save: {error}
         </Text>
       )}
     </div>

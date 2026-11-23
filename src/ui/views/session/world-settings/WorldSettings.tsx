@@ -1,7 +1,14 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState, useRef } from "react";
 import { useSetAtom } from "jotai";
 
-import { Room, StateEvent, WORLD_CALL_EVENT } from "../../../../matrix";
+import {
+  CallMethod,
+  DEFAULT_CALL_METHOD,
+  recommendedCallMethod,
+  Room,
+  StateEvent,
+  WORLD_CALL_EVENT,
+} from "../../../../matrix";
 import { IconButton } from "../../../atoms/button/IconButton";
 import { Content } from "../../../atoms/content/Content";
 import { Header } from "../../../atoms/header/Header";
@@ -132,6 +139,27 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     shadowsTouched.current = true;
     setShadows(draft);
   };
+  // Buzzar: the world's recommended call type (callMethod.ts), sent with Save.
+  const [savedCallMethod, setSavedCallMethod] = useState<CallMethod>(DEFAULT_CALL_METHOD);
+  const [callMethod, setCallMethod] = useState<CallMethod>(DEFAULT_CALL_METHOD);
+  const callMethodTouched = useRef(false);
+  useStateEventKeyCallback(
+    room,
+    WORLD_CALL_EVENT,
+    "",
+    useCallback((event: StateEvent | undefined) => {
+      const method = recommendedCallMethod(event?.content);
+      setSavedCallMethod(method);
+      if (!callMethodTouched.current) setCallMethod(method);
+    }, [])
+  );
+  const changeCallMethod = (method: CallMethod) => {
+    callMethodTouched.current = true;
+    setCallMethod(method);
+  };
+  const callMethodChanged = callMethod !== savedCallMethod;
+  const canEditCalls = canSendStateEvent(WORLD_CALL_EVENT, myPowerLevel);
+
   const rulesChanged =
     JSON.stringify(thingRules) !== JSON.stringify(savedRules) ||
     JSON.stringify(shadows) !== JSON.stringify(savedShadows);
@@ -223,6 +251,19 @@ export function WorldSettings({ room }: WorldSettingsProps) {
           // Buzzar: say so when the homeserver refuses (it used to fail silently and the settings snapped back).
           confirmDialog({
             title: "Couldn't Save the World's Rules",
+            message: e instanceof Error ? e.message : String(e),
+            confirmLabel: "OK",
+          })
+        );
+    }
+
+    if (canEditCalls && callMethodChanged) {
+      session.hsApi
+        .sendState(room.id, WORLD_CALL_EVENT, "", { recommended_method: callMethod })
+        .response()
+        .catch((e: unknown) =>
+          confirmDialog({
+            title: "Couldn't Save the Call Type",
             message: e instanceof Error ? e.message : String(e),
             confirmLabel: "OK",
           })
@@ -355,7 +396,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         <WorldMapSettings room={room} canEdit={canSendStateEvent(WORLD_MAP_EVENT, myPowerLevel)} />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "calls"}>
-                        <WorldCallSettings room={room} canEdit={canSendStateEvent(WORLD_CALL_EVENT, myPowerLevel)} />
+                        <WorldCallSettings value={callMethod} onChange={changeCallMethod} canEdit={canEditCalls} />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
                         {canEditScene && (
@@ -393,7 +434,8 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         !previewInfo.mxc &&
                         maxObjectCap === maxObjectCapRef.current &&
                         !scriptInfo.mxc &&
-                        !rulesChanged
+                        !rulesChanged &&
+                        !callMethodChanged
                       }
                     >
                       Save
