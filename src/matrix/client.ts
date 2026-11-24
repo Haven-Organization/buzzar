@@ -405,6 +405,7 @@ export class Client {
     // and a few recent rooms, be ready as soon as they arrive, and load the full list in the background.
     const startRooms = getStartRooms(info.userId);
     const ALL_ROOMS = [[0, 499]];
+    const ROOMS_PER_STEP = 50;
     if (isSlidingSyncEnabled()) {
       const fastStart = startRooms.length > 0;
       const lists = new Map([
@@ -424,13 +425,18 @@ export class Client {
         if (rooms.has(roomId)) return;
         sliding.modifyRoomSubscriptions(new Set([...rooms, roomId]));
       };
-      // The full list is in once a response completes with the full range asked for.
-      let fullRangeRequested = !fastStart;
+      // The full list is in once a response completes with the full range asked for. After a fast start it grows
+      // ROOMS_PER_STEP rooms per response rather than all at once: every room's newest event goes through the
+      // notification rules on the main thread, and one response with hundreds of rooms blocked it (and mouse look in
+      // the world just entered) for half a second at a time.
+      let requestedEnd = fastStart ? 9 : ALL_ROOMS[0][1];
+      const lastIndex = ALL_ROOMS[0][1];
       const onLifecycle = (state: SlidingSyncState) => {
         if (state !== SlidingSyncState.Complete) return;
-        if (!fullRangeRequested) {
-          fullRangeRequested = true;
-          sliding.setListRanges("all", ALL_ROOMS);
+        const roomCount = sliding.getListData("all")?.joinedCount ?? Infinity;
+        if (requestedEnd < lastIndex && requestedEnd < roomCount - 1) {
+          requestedEnd = Math.min(lastIndex, requestedEnd + ROOMS_PER_STEP);
+          sliding.setListRanges("all", [[0, requestedEnd]]);
           return;
         }
         sliding.off(SlidingSyncEvent.Lifecycle, onLifecycle);
