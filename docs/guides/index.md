@@ -84,7 +84,7 @@ On a phone or tablet, Buzzar shows touch controls:
 - **Flick** to keep the view turning for a moment; touch the world again to stop it.
 - **Chat** by tapping the chat box above the joystick.
 - **More** (the ⋯ button on the right edge, under the mic) holds your Things to spawn, and Menu, People, Names, Controls, Delete Aimed
-  (removes your object at the centre of the screen), Fly, Straighten Held, Fullscreen and Leave World.
+  (removes your object at the centre of the screen), Fly, Straighten Held, Turn Held, Fullscreen and Leave World.
 
 You can turn touch controls on or off in **Settings → Controls**, for example to use them on a touch-screen laptop.
 
@@ -116,6 +116,10 @@ Everyone in a world is in its call: that's how you see each other move and hear 
 - **LiveKit server**: everyone connects to a LiveKit server that passes voices and movement on, so far more people fit. Whoever starts the call needs a homeserver that offers LiveKit.
 
 You only see and hear the players in the same call. If you arrive while a call of the other kind is open, Buzzar asks which one to join, and says who is in each.
+
+#### Sharing your screen
+
+In a world with a LiveKit call, use the **Share Screen** button (on a computer) to show your screen to everyone there: as a floating screen in front of you, or on one of the world's own screens. A floating screen stands on a handle. Grab the handle to carry it, hold **R** and move the mouse to turn it around or tilt it, and press **X** while aiming at it to stop sharing. Its back tells people on the other side who is sharing. The world chooses who may share in **World Settings → Calls**. Your screen's sound isn't shared.
 
 ### 5. Set up your profile
 
