@@ -66,6 +66,7 @@ import { InteractableHighlightSystem } from "../plugins/interaction/highlight.ga
 import { AvatarPedestalModule, AvatarPedestalSystem } from "../plugins/avatar-pedestals/pedestals.game";
 import { AvatarModule, AvatarSystem } from "./avatar/avatar.game";
 import { AvatarCullingModule, AvatarCullingSystem } from "./avatar/avatarCulling.game";
+import { TestCrowdModule } from "./avatar/testCrowd.game";
 import { AvatarPlaceholderSystem } from "./avatar/placeholder.game";
 import { EnableCharacterControllerSystem } from "./player/CharacterController";
 import { CameraRigSystem } from "./player/CameraRig";
@@ -100,6 +101,7 @@ export default defineConfig<GameContext>({
     WorldMapModule,
     AvatarModule,
     AvatarCullingModule,
+    TestCrowdModule,
     AvatarPedestalModule,
     SeatModule,
     PostureModule,

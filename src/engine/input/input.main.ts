@@ -69,6 +69,11 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
       ctx.sendMessage(Thread.Game, { type: "software.haven.debug.player" })
     );
 
+    // Buzzar debug (Third Room #126): `thirdroom.spawnCrowd(20)` stands 20 default avatars in front of you, `(0)` removes them.
+    registerThirdroomGlobalFn("spawnCrowd", (count?: number) =>
+      ctx.sendMessage(Thread.Game, { type: "software.haven.debug.crowd", count: count ?? 0 })
+    );
+
     // Buzzar debug: `thirdroom.sit(0)` sits on the world's first seat (HAVEN_seat), `thirdroom.sit()` stands up.
     registerThirdroomGlobalFn("sit", (seat?: number) =>
       ctx.sendMessage(Thread.Game, { type: "software.haven.debug.sit", seat: seat ?? -1 })
