@@ -6,7 +6,6 @@ import { useKBar, VisualState } from "kbar";
 import { Room } from "../../../../matrix";
 import {
   installPointerLockTracking,
-  markGameResumed,
   requestGamePointerLock,
   resumedRecently,
   wasReleasedByCode,
@@ -112,18 +111,6 @@ export function WorldView({ world }: WorldViewProps) {
     }
   }, [isWorldEntered, mainThread]);
 
-  // Buzzar: when the browser last released the mouse on Escape. The browser keeps that keydown, but while the key is
-  // still held it can deliver more Escape keydowns (not always marked as repeats, up to a second later): they mustn't
-  // capture the mouse straight back. So after a release, Escape does nothing until that press's key-up.
-  const browserReleasedAt = useRef(-Infinity);
-  const escapeHeldSinceRelease = useRef(false);
-  useEffect(() => {
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "Escape") escapeHeldSinceRelease.current = false;
-    };
-    window.addEventListener("keyup", onKeyUp, true);
-    return () => window.removeEventListener("keyup", onKeyUp, true);
-  }, []);
   // Buzzar: latest UI state for the pointer-lock listener below.
   const uiStateRef = useRef({ isWorldEntered, overlayVisible, worldChatVisible, editorEnabled });
   uiStateRef.current = { isWorldEntered, overlayVisible, worldChatVisible, editorEnabled };
@@ -139,18 +126,6 @@ export function WorldView({ world }: WorldViewProps) {
       // is now free (Escape frees and captures it; Tab opens the overlay). Alt-Tab releases it too, but the window
       // has lost focus.
       const ui = uiStateRef.current;
-      if (wasLocked && !locked) {
-        console.debug("[pointer-lock] released", {
-          byCode: wasReleasedByCode(),
-          focus: document.hasFocus(),
-          entered: ui.isWorldEntered,
-          overlay: ui.overlayVisible,
-          chat: ui.worldChatVisible,
-          editor: ui.editorEnabled,
-          resumedRecently: resumedRecently(),
-          orbiting: getModule(mainThread, PlayerModule).orbiting,
-        });
-      }
       if (
         wasLocked &&
         !locked &&
@@ -163,8 +138,6 @@ export function WorldView({ world }: WorldViewProps) {
         !resumedRecently() &&
         !getModule(mainThread, PlayerModule).orbiting
       ) {
-        browserReleasedAt.current = performance.now();
-        escapeHeldSinceRelease.current = true;
         setMouseFreed(true);
       }
       wasLocked = locked;
@@ -172,6 +145,19 @@ export function WorldView({ world }: WorldViewProps) {
     document.addEventListener("pointerlockchange", update);
     return () => document.removeEventListener("pointerlockchange", update);
   }, [mainThread, setMouseFreed]);
+  // Buzzar: while "Click to play" shows, using a controller dismisses it (the pad doesn't need the mouse).
+  const clickToPlayShown = isWorldEntered && mouseFreed && !pointerLocked;
+  useEffect(() => {
+    if (!clickToPlayShown) return;
+    const timer = window.setInterval(() => {
+      const used = Array.from(navigator.getGamepads?.() ?? []).some(
+        (pad) =>
+          !!pad && (pad.buttons.some((button) => button.pressed) || pad.axes.some((axis) => Math.abs(axis) > 0.5))
+      );
+      if (used) setMouseFreed(false);
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [clickToPlayShown, setMouseFreed]);
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
@@ -324,25 +310,11 @@ export function WorldView({ world }: WorldViewProps) {
           return;
         }
 
-        // Buzzar: Escape frees and captures the mouse (browsers already release it on Escape, so it's the key for
-        // both). While captured the browser keeps the Escape for itself (see the pointer-lock listener); here the
-        // mouse is free, so take it back. A key press is a user gesture; right after a release the browser may refuse
-        // for a moment, which requestGamePointerLock retries.
-        console.debug("[pointer-lock] Escape keydown", {
-          locked: document.pointerLockElement === mainThread.canvas,
-          sinceBrowserRelease: Math.round(performance.now() - browserReleasedAt.current),
-          heldSinceRelease: escapeHeldSinceRelease.current,
-          repeat: e.repeat,
-        });
-        // Still the press that released it (a key-up that went missing stops counting after a few seconds).
-        if (escapeHeldSinceRelease.current && performance.now() - browserReleasedAt.current < 5000) return;
-        if (document.pointerLockElement === mainThread.canvas) {
-          setMouseFreed(true);
-          document.exitPointerLock();
-        } else {
-          markGameResumed();
-          requestGamePointerLock(mainThread.canvas);
-        }
+        // Buzzar: Escape only frees the mouse (browsers release it on Escape themselves, and keep that keypress; see
+        // the pointer-lock listener). It never captures it again: a held or late Escape did that by surprise, hiding
+        // "Click to play" without the game getting the mouse. Clicking the world (or using a controller) resumes.
+        if (document.pointerLockElement === mainThread.canvas) document.exitPointerLock();
+        setMouseFreed(true);
         return;
       }
 
@@ -426,7 +398,7 @@ export function WorldView({ world }: WorldViewProps) {
           // mouse back on its own.
           <div className={classNames("WorldView__click-to-play", { "WorldView__click-to-play--delayed": !mouseFreed })}>
             <Text color="world" weight="semi-bold">
-              Click or press Esc to play
+              Click to play
             </Text>
           </div>
         )}

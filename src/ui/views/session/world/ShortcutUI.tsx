@@ -38,7 +38,7 @@ export function FixedControlsList() {
   return (
     <>
       {renderItem("Open/Close Overlay", <>{key("Tab")}</>)}
-      {renderItem("Free/Capture Mouse (also closes menus)", key("Esc"))}
+      {renderItem("Free Mouse (also closes menus)", key("Esc"))}
       {renderItem("Chat", key("Enter"))}
       {renderItem(
         "Spawn Your Shortcut Things",

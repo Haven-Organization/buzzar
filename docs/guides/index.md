@@ -53,7 +53,7 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Crouch                        | C                                            |
 | First / third person          | V                                            |
 | Interact, sit, enter a portal | E or left click                              |
-| Free / capture the mouse      | Escape                                       |
+| Free the mouse (click to play) | Escape                                      |
 | Menu                          | Tab (Escape closes it)                       |
 | Hide / show the HUD           | H                                            |
 
