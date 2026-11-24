@@ -53,8 +53,8 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 | Crouch                        | C                                            |
 | First / third person          | V                                            |
 | Interact, sit, enter a portal | E or left click                              |
-| Free / capture the mouse      | Shift + Tab                                  |
-| Menu                          | Tab (or Escape)                              |
+| Free / capture the mouse      | Escape                                       |
+| Menu                          | Tab (Escape closes it)                       |
 | Hide / show the HUD           | H                                            |
 
 You can change any of these keys in **Settings → Controls**: click an action's key, then press the new one.

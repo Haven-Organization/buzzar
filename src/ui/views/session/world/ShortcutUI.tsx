@@ -37,13 +37,8 @@ const combo = (...labels: string[]) =>
 export function FixedControlsList() {
   return (
     <>
-      {renderItem(
-        "Open/Close Overlay",
-        <>
-          {key("Tab")} / {key("Esc")}
-        </>
-      )}
-      {renderItem("Free/Capture Mouse", combo("Shift", "Tab"))}
+      {renderItem("Open/Close Overlay", <>{key("Tab")}</>)}
+      {renderItem("Free/Capture Mouse (also closes menus)", key("Esc"))}
       {renderItem("Chat", key("Enter"))}
       {renderItem(
         "Spawn Your Shortcut Things",

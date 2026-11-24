@@ -6,6 +6,7 @@ import { useKBar, VisualState } from "kbar";
 import { Room } from "../../../../matrix";
 import {
   installPointerLockTracking,
+  markGameResumed,
   requestGamePointerLock,
   resumedRecently,
   wasReleasedByCode,
@@ -110,6 +111,9 @@ export function WorldView({ world }: WorldViewProps) {
     }
   }, [isWorldEntered, mainThread]);
 
+  // Buzzar: when the browser last released the mouse on Escape. Some browsers also deliver that Escape to the page:
+  // it mustn't capture the mouse straight back.
+  const browserReleasedAt = useRef(-Infinity);
   // Buzzar: latest UI state for the pointer-lock listener below.
   const uiStateRef = useRef({ isWorldEntered, overlayVisible, worldChatVisible, editorEnabled });
   uiStateRef.current = { isWorldEntered, overlayVisible, worldChatVisible, editorEnabled };
@@ -121,8 +125,9 @@ export function WorldView({ world }: WorldViewProps) {
       const locked = document.pointerLockElement === mainThread.canvas;
       setPointerLocked(locked);
       // Buzzar: the browser consumes the Escape that releases pointer lock, so the page never sees it. If the lock
-      // was released by the browser (not our own code) while the window still has focus, that was Escape: open the
-      // overlay now instead of needing a second press. (Alt-Tab releases it too, but the window has lost focus.)
+      // was released by the browser (not our own code) while the window still has focus, that was Escape: the mouse
+      // is now free (Escape frees and captures it; Tab opens the overlay). Alt-Tab releases it too, but the window
+      // has lost focus.
       const ui = uiStateRef.current;
       if (
         wasLocked &&
@@ -136,13 +141,14 @@ export function WorldView({ world }: WorldViewProps) {
         !resumedRecently() &&
         !getModule(mainThread, PlayerModule).orbiting
       ) {
-        setOverlayVisibility(true);
+        browserReleasedAt.current = performance.now();
+        setMouseFreed(true);
       }
       wasLocked = locked;
     };
     document.addEventListener("pointerlockchange", update);
     return () => document.removeEventListener("pointerlockchange", update);
-  }, [mainThread, setOverlayVisibility]);
+  }, [mainThread, setMouseFreed]);
   const [statsEnabled, setStatsEnabled] = useState(false);
 
   const { toastShown, toastContent, showToast } = useToast();
@@ -291,33 +297,31 @@ export function WorldView({ world }: WorldViewProps) {
           resumePlay();
           setOverlayVisibility(false);
           return;
-        } else {
-          document.exitPointerLock();
-          setOverlayVisibility(true);
-          return;
         }
+
+        // Buzzar: Escape frees and captures the mouse (browsers already release it on Escape, so it's the key for
+        // both). While captured the browser keeps the Escape for itself (see the pointer-lock listener); here the
+        // mouse is free, so take it back. A key press is a user gesture; right after a release the browser may refuse
+        // for a moment, which requestGamePointerLock retries.
+        if (performance.now() - browserReleasedAt.current < 500) return;
+        if (document.pointerLockElement === mainThread.canvas) {
+          setMouseFreed(true);
+          document.exitPointerLock();
+        } else {
+          markGameResumed();
+          requestGamePointerLock(mainThread.canvas);
+        }
+        return;
       }
 
       if (inputFocused()) return;
 
-      // Buzzar: Tab opens and closes the overlay, Shift+Tab frees and re-captures the mouse. Unlike Escape (which the
-      // browser itself uses to release the mouse, and which doesn't count as a user gesture), these are ordinary key
-      // presses, so the mouse comes back the moment the overlay closes. In a text field Tab still moves focus.
+      // Buzzar: Tab opens and closes the overlay (Escape closes it too, and frees/captures the mouse). An ordinary key
+      // press, so the mouse comes back the moment the overlay closes. In a text field Tab still moves focus.
       if (e.code === "Tab" && !e.altKey && !e.ctrlKey && !e.metaKey) {
         if (worldChatVisible || editorEnabled) return;
         e.preventDefault();
         if (e.repeat) return;
-        if (e.shiftKey) {
-          if (overlayVisible) return;
-          if (document.pointerLockElement === mainThread.canvas) {
-            setMouseFreed(true);
-            document.exitPointerLock();
-          } else {
-            // A key press is a user gesture, so the lock is allowed here; gaining it ends the free-mouse mode.
-            requestGamePointerLock(mainThread.canvas);
-          }
-          return;
-        }
         if (overlayVisible) {
           resumePlay();
           setOverlayVisibility(false);
@@ -390,7 +394,7 @@ export function WorldView({ world }: WorldViewProps) {
           // mouse back on its own.
           <div className={classNames("WorldView__click-to-play", { "WorldView__click-to-play--delayed": !mouseFreed })}>
             <Text color="world" weight="semi-bold">
-              Click to play
+              Click or press Esc to play
             </Text>
           </div>
         )}
