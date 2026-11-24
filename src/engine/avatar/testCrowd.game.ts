@@ -56,7 +56,7 @@ function spawnCrowd(ctx: GameContext, count: number) {
       _ours[1],
       _ours[2] + _forward[2] * (4 + row * SPACING) + _right[2] * col * SPACING,
     ]);
-    quat.fromEuler(avatar.quaternion, 0, (yaw * 180) / Math.PI, 0);
+    quat.fromEuler(avatar.quaternion, 0, (yaw * 180) / Math.PI + 180, 0);
     addObjectToWorld(ctx, avatar);
     state.avatars.push(avatar);
   }
