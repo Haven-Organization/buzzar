@@ -93,9 +93,18 @@ export async function waitForKeyBackup(session: Session, timeoutMs = 30000): Pro
         }
         if (await crypto.getSessionBackupPrivateKey()) await crypto.checkKeyBackupAndEnable();
       }
-      if ((await crypto.getActiveSessionBackupVersion()) !== null) {
-        // Fetch the old messages' keys in the background.
-        crypto.restoreKeyBackup().catch((e) => console.warn("Couldn't restore the key backup", e));
+      const version = await crypto.getActiveSessionBackupVersion();
+      if (version !== null) {
+        // Fetch the old messages' keys in the background, once per device and backup version. It used to run on
+        // every start: thousands of keys this device already had, imported on the main thread, so looking around in
+        // a world stuttered for the first 15-20 seconds. Keys sent later arrive through sync.
+        const done = restoredBackupKey(session);
+        if (readStorage(done) !== version) {
+          crypto
+            .restoreKeyBackup()
+            .then(() => writeStorage(done, version))
+            .catch((e) => console.warn("Couldn't restore the key backup", e));
+        }
         return "active";
       }
     } catch (e) {
@@ -103,6 +112,27 @@ export async function waitForKeyBackup(session: Session, timeoutMs = 30000): Pro
     }
     if (Date.now() >= deadline) return "missing";
     await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+}
+
+/** Where we note which key backup version this device has restored in full. */
+function restoredBackupKey(session: Session) {
+  return `buzzar.keyBackupRestored.${session.userId}.${session.deviceId}`;
+}
+
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // not saved: the restore runs again next time, as before
   }
 }
 
