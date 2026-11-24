@@ -48,6 +48,9 @@ const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 /** How long our membership lasts unless refreshed (js-sdk refreshes it shortly before). */
 const MEMBERSHIP_EXPIRY_MS = 5 * 60 * 1000;
 const RTC_FOCI_KEY = "org.matrix.msc4143.rtc_foci";
+/** How long to wait for the homeserver's LiveKit details and for a LiveKit token (ms). */
+const WELL_KNOWN_TIMEOUT_MS = 10_000;
+const SFU_TOKEN_TIMEOUT_MS = 15_000;
 
 export function liveKitCallId(roomId: string, instance: string = MAIN_INSTANCE) {
   return instance === MAIN_INSTANCE ? `livekit:${roomId}` : `livekit:${roomId}#${instance}`;
@@ -78,7 +81,9 @@ async function homeserverLiveKitService(session: Session): Promise<string | unde
   if (cached) return cached;
   const serverName = session.userId.slice(session.userId.indexOf(":") + 1);
   try {
-    const response = await fetch(`https://${serverName}/.well-known/matrix/client`);
+    const response = await fetch(`https://${serverName}/.well-known/matrix/client`, {
+      signal: AbortSignal.timeout(WELL_KNOWN_TIMEOUT_MS),
+    });
     if (response.ok) return fromFoci(await response.json());
   } catch {
     // No .well-known: no LiveKit service.
@@ -263,7 +268,10 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
         }).`
       );
     }
+    // Buzzar: a time limit, so an unreachable service fails (and offers a peer-to-peer call) instead of leaving the
+    // world stuck at "Loading Scene: 100%".
     const response = await fetch(`${serviceUrl.replace(/\/$/, "")}/sfu/get`, {
+      signal: AbortSignal.timeout(SFU_TOKEN_TIMEOUT_MS),
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Each instance meets in a LiveKit room of its own (instances.ts); the service uses this name as given.
@@ -272,6 +280,12 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
         openid_token: openIdToken,
         device_id: this.session.deviceId,
       }),
+    }).catch((error: unknown) => {
+      throw new Error(
+        error instanceof DOMException && error.name === "TimeoutError"
+          ? `The LiveKit service didn't answer within ${SFU_TOKEN_TIMEOUT_MS / 1000} seconds.`
+          : `The LiveKit service couldn't be reached (${error instanceof Error ? error.message : error}).`
+      );
     });
     if (!response.ok) throw new Error(`The LiveKit service refused the call (${response.status}).`);
     const body = await response.json();
