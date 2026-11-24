@@ -1,0 +1,4 @@
+/* Buzzar: room for an instance's name, its players and two buttons on one line. */
+.Dialog.InstancesDialog {
+  max-width: min(560px, calc(100vw - 32px));
+}

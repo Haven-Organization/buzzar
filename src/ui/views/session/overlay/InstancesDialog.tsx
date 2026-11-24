@@ -31,6 +31,7 @@ import { roomIdToAlias } from "../../../utils/matrixUtils";
 import { worldLink } from "../../../utils/worldDirectory";
 import { EnterWorldButton } from "./WorldPreview";
 import CrossIC from "../../../../../res/ic/cross.svg";
+import "./InstancesDialog.css";
 
 /** How often the list refreshes while it's open (ms). */
 const REFRESH_MS = 4000;
@@ -186,14 +187,14 @@ export function InstancesDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog className="InstancesDialog" open={open} onOpenChange={onOpenChange}>
       <Header
         left={<HeaderTitle size="lg">Instances</HeaderTitle>}
         right={<IconButton iconSrc={CrossIC} onClick={close} label="Close" />}
       />
       <div style={{ maxHeight: "70vh", display: "flex" }}>
         <Scroll type="hover">
-          <div style={{ padding: "var(--sp-md)", width: 520, maxWidth: "calc(100vw - 32px)" }}>{body}</div>
+          <div style={{ padding: "var(--sp-md)" }}>{body}</div>
         </Scroll>
       </div>
     </Dialog>
