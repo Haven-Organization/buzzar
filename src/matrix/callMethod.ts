@@ -43,6 +43,44 @@ export function recommendedCallMethod(content: unknown): CallMethod {
   return isCallMethod(method) ? method : DEFAULT_CALL_METHOD;
 }
 
+/**
+ * Most players a peer-to-peer (mesh) call takes (Third Room #126). In a mesh everyone sends their voice and movement
+ * to everyone else: measured about 55 kbit/s per other player while talking and moving, so 16 players need about
+ * 0.8 Mbit/s up and down each (and the browser encodes your voice once per connection). LiveKit worlds hold more
+ * (instances, World Settings → Calls).
+ */
+export const MESH_CALL_CAP = 16;
+
+/** Developer setting (localStorage, JSON boolean): join a full peer-to-peer call anyway. */
+export const IGNORE_MESH_CAP_KEY = "buzzar.ignoreMeshCallCap";
+
+/** Joining a peer-to-peer call that already has MESH_CALL_CAP players (unless the developer setting allows it). */
+export class MeshCallFull extends Error {
+  constructor() {
+    super(
+      `This world's peer-to-peer call is full (${MESH_CALL_CAP} players, the most such calls handle well). ` +
+        "Its owners can switch it to a LiveKit server (World Settings → Calls), which holds more."
+    );
+    this.name = "MeshCallFull";
+  }
+}
+
+/** Whether a peer-to-peer call with this many others in it (devices, without us) has room for us. */
+export function meshCallHasRoom(others: number): boolean {
+  return others < MESH_CALL_CAP || ignoreMeshCap();
+}
+
+function ignoreMeshCap(): boolean {
+  try {
+    return (
+      JSON.parse(localStorage.getItem("buzzar.developerMode") ?? "false") === true &&
+      JSON.parse(localStorage.getItem(IGNORE_MESH_CAP_KEY) ?? "false") === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** The developer override, if Developer Mode is on and one is chosen. */
 export function callMethodOverride(): CallMethod | undefined {
   try {

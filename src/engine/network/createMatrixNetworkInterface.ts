@@ -4,6 +4,8 @@ import {
   CallIntent,
   CallMethod,
   callMethodOverride,
+  MeshCallFull,
+  meshCallHasRoom,
   Client,
   decideCallMethod,
   getCallMethodChooser,
@@ -153,6 +155,8 @@ async function chooseWorldCall(session: Session, world: Room, requestedInstance?
     const { id } = pickInstance(others, cap, requestedInstance);
     return session.callHandler.liveKitCall(world.id, id);
   }
+  // Buzzar (Third Room #126): a peer-to-peer call holds MESH_CALL_CAP players.
+  if (!meshCallHasRoom(open.mesh.length)) throw new MeshCallFull();
   return (
     (await session.callHandler.getCallForRoom(world.id)) ??
     (await session.callHandler.createCall(world.id, "m.voice", "World Call", CallIntent.Room))

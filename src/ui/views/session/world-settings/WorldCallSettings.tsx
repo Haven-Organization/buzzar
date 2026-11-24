@@ -3,7 +3,7 @@
  * in its `software.haven.world.call` state event and sent with the window's Save, like the other settings. Players
  * only see and hear the others in the same call, so this is what keeps everyone together.
  */
-import { CALL_METHOD_LABEL, CALL_METHODS, CallMethod } from "../../../../matrix";
+import { CALL_METHOD_LABEL, CALL_METHODS, CallMethod, MESH_CALL_CAP } from "../../../../matrix";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
@@ -12,7 +12,7 @@ import { Input } from "../../../atoms/input/Input";
 import { MAX_INSTANCE_CAP, MIN_INSTANCE_CAP } from "../../../../matrix/instances";
 
 const DESCRIPTION: Record<CallMethod, string> = {
-  mesh: "Every player connects to every other. Works with every Buzzar version; best for small groups (up to about 10).",
+  mesh: `Every player connects to every other. Works with every Buzzar version. Holds up to ${MESH_CALL_CAP} players: each one sends their voice and movement to everyone else, so every extra player costs everyone upload. Choose LiveKit for bigger groups.`,
   livekit:
     "Everyone connects to a LiveKit server, which passes voices and movement on. Handles far more players. Needs a recent Buzzar, and a homeserver that offers LiveKit (for whoever starts the call).",
 };
@@ -62,7 +62,8 @@ export function WorldCallSettings({
         <Text variant="b3" color="surface-low">
           LiveKit calls are split into instances, separate copies of the world (like VRChat&apos;s). Someone entering
           joins the busiest instance with room, and a new one starts when all are full. Anyone can start a new instance
-          or join a full one from the world&apos;s Instances list. Peer-to-peer calls have no instances.
+          or join a full one from the world&apos;s Instances list. Peer-to-peer calls have no instances: once one has{" "}
+          {MESH_CALL_CAP} players, nobody else can join it.
         </Text>
       </SettingTile>
       <Text variant="b3" color="surface-low">

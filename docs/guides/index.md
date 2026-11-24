@@ -112,7 +112,7 @@ Everyone's Buzzar holds other players to the world's limits: someone using a mod
 
 Everyone in a world is in its call: that's how you see each other move and hear each other talk. A world's call can work two ways, chosen in **World Settings → Calls**:
 
-- **Peer-to-peer (mesh)**, the default: every player connects to every other. Works with every Buzzar version; best for small groups.
+- **Peer-to-peer (mesh)**, the default: every player connects to every other. Works with every Buzzar version. It holds up to 16 players: everyone sends their voice and movement to everyone else (about 55 kbit/s per other player while talking and moving, so about 0.8 Mbit/s each way at 16), and once a call is full nobody else can join it.
 - **LiveKit server**: everyone connects to a LiveKit server that passes voices and movement on, so far more people fit. Whoever starts the call needs a homeserver that offers LiveKit.
 
 You only see and hear the players in the same call. If you arrive while a call of the other kind is open, Buzzar asks which one to join, and says who is in each.

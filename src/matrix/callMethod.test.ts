@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { decideCallMethod, recommendedCallMethod } from "./callMethod";
+import {
+  decideCallMethod,
+  IGNORE_MESH_CAP_KEY,
+  MESH_CALL_CAP,
+  meshCallHasRoom,
+  recommendedCallMethod,
+} from "./callMethod";
 
 describe("recommendedCallMethod", () => {
   it("reads the world's choice and falls back to mesh", () => {
@@ -41,5 +47,21 @@ describe("decideCallMethod", () => {
         { method: "mesh", players: ["@a:x"] },
       ],
     });
+  });
+});
+
+describe("peer-to-peer call cap", () => {
+  afterEach(() => localStorage.clear());
+
+  it("has room below the cap and none at it", () => {
+    expect(meshCallHasRoom(MESH_CALL_CAP - 1)).toBe(true);
+    expect(meshCallHasRoom(MESH_CALL_CAP)).toBe(false);
+  });
+
+  it("lets developers join a full call only with Developer Mode and the setting on", () => {
+    localStorage.setItem(IGNORE_MESH_CAP_KEY, "true");
+    expect(meshCallHasRoom(MESH_CALL_CAP)).toBe(false);
+    localStorage.setItem("buzzar.developerMode", "true");
+    expect(meshCallHasRoom(MESH_CALL_CAP + 5)).toBe(true);
   });
 });

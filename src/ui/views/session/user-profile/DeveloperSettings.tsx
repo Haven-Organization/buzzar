@@ -14,7 +14,9 @@ import {
   CALL_METHOD_OVERRIDE_KEY,
   CALL_METHODS,
   CallMethodOverride,
+  IGNORE_MESH_CAP_KEY,
   isSlidingSyncEnabled,
+  MESH_CALL_CAP,
   setSlidingSyncEnabled,
 } from "../../../../matrix";
 import { SelectInput } from "../../components/property-panel/SelectInput";
@@ -31,6 +33,7 @@ export function DeveloperSettings() {
   const setOverride = (key: keyof LimitOverrides, value: boolean) =>
     setOverrides({ ignoreOwn: !!overrides.ignoreOwn, ignoreOthers: !!overrides.ignoreOthers, [key]: value });
   const [callMethod, setCallMethod] = useLocalStorage<CallMethodOverride>(CALL_METHOD_OVERRIDE_KEY, "recommended");
+  const [ignoreMeshCap, setIgnoreMeshCap] = useLocalStorage<boolean>(IGNORE_MESH_CAP_KEY, false);
 
   const slidingSync = isSlidingSyncEnabled();
   // The setting is read when the session starts, so changing it reloads the app.
@@ -101,6 +104,14 @@ export function DeveloperSettings() {
               The kind of call you start when you enter a world nobody is in, ignoring the world&apos;s recommendation
               (World Settings → Calls). If a call of another kind is already open, you&apos;re asked which to join.
               Players only see and hear the others in the same call. Saved in this browser.
+            </Text>
+          </SettingTile>
+          <SettingTile label={<Label>Join Full Peer-to-Peer Calls</Label>}>
+            <Switch checked={ignoreMeshCap} onCheckedChange={setIgnoreMeshCap} />
+            <Text variant="b3" color="surface-low">
+              Peer-to-peer world calls hold {MESH_CALL_CAP} players: everyone sends their voice and movement to everyone
+              else, so each extra player costs everyone upload and CPU. On, you can join one that&apos;s full anyway
+              (for testing; it may stutter for everyone in it). Saved in this browser.
             </Text>
           </SettingTile>
         </>
