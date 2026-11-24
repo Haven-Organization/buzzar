@@ -25,7 +25,7 @@ import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
 import { getSessionAuth } from "../utils/avatarMatrix";
 import { WORLD_RULES_EVENT } from "../../engine/network/spawnRules.common";
-import { setWorldShadows } from "../../engine/renderer/renderer.main";
+import { setWorldShadows, waitForShadersSettled } from "../../engine/renderer/renderer.main";
 import { parseWorldShadows } from "../../engine/renderer/renderer.common";
 import { MediaConfigMessage, MediaConfigMessageType } from "../../engine/avatar/avatar.common";
 
@@ -182,6 +182,11 @@ export function useWorldLoader(): WorldLoader {
             .then((lists) => removeStaleLiveKitMemberships(auth, lists.flat()))
             .catch(() => undefined);
         }
+
+        // Buzzar: the loading card stays up while the world's shaders compile (compiling stalls drawing, which
+        // felt like a second of jittery mouse look just after entering).
+        await waitForShadersSettled(mainThread);
+        markStartup("shaders ready");
 
         const audio = getModule(mainThread, AudioModule);
         audio.context.resume().catch(() => console.error("Couldn't resume audio context"));

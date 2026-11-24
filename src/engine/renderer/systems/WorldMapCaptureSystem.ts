@@ -64,16 +64,27 @@ export function mapArea(bounds: Box3): WorldMapArea {
   const w = Math.min(MAX_MAP_SPAN, Math.max(4, _size.x * 1.04));
   const d = Math.min(MAX_MAP_SPAN, Math.max(4, _size.z * 1.04));
   const cm = (m: number) => Math.round(m * 100) / 100;
-  return { minX: cm(_center.x - w / 2), maxX: cm(_center.x + w / 2), minZ: cm(_center.z - d / 2), maxZ: cm(_center.z + d / 2) };
+  return {
+    minX: cm(_center.x - w / 2),
+    maxX: cm(_center.x + w / 2),
+    minZ: cm(_center.z - d / 2),
+    maxZ: cm(_center.z + d / 2),
+  };
 }
 
 export function WorldMapCaptureSystem(ctx: RenderContext) {
   const request = pending.shift();
   if (!request) return;
   const reply = (result: Omit<WorldMapGeneratedMessage, "type" | "id">) =>
-    ctx.sendMessage<WorldMapGeneratedMessage>(Thread.Main, { type: WorldMapMessageType.Generated, id: request.id, ...result });
+    ctx.sendMessage<WorldMapGeneratedMessage>(Thread.Main, {
+      type: WorldMapMessageType.Generated,
+      id: request.id,
+      ...result,
+    });
 
-  capture(ctx, request).then(reply, (error) => reply({ error: error instanceof Error ? error.message : String(error) }));
+  capture(ctx, request).then(reply, (error) =>
+    reply({ error: error instanceof Error ? error.message : String(error) })
+  );
 }
 
 async function capture(ctx: RenderContext, request: WorldMapGenerateMessage) {
@@ -140,7 +151,8 @@ async function capture(ctx: RenderContext, request: WorldMapGenerateMessage) {
     scene.fog = null;
     renderer.setClearColor(0x1d2228, 1);
     // y <= cutHeight stays: the plane keeps the side its normal points to.
-    renderer.clippingPlanes = request.cutHeight !== undefined ? [new Plane(new Vector3(0, -1, 0), request.cutHeight)] : [];
+    renderer.clippingPlanes =
+      request.cutHeight !== undefined ? [new Plane(new Vector3(0, -1, 0), request.cutHeight)] : [];
     renderer.setRenderTarget(target);
     renderer.clear();
     renderer.render(scene, camera);

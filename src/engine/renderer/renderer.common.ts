@@ -20,6 +20,9 @@ export enum RendererMessageType {
   PhysicsDisableDebugRender = "physics-disable-debug-render",
   /** Buzzar (Third Room #204): the world's shadow settings (World Settings → Scene & Script). */
   SetWorldShadows = "set-world-shadows",
+  /** Buzzar: main asks to be told once the scene's shaders have stopped compiling; render answers with ShadersSettled. */
+  AwaitShadersSettled = "await-shaders-settled",
+  ShadersSettled = "shaders-settled",
   SetNodeOptimizationsEnabled = "set-node-optimizations-enabled",
   PrintRenderThreadState = "print-render-thread-state",
   UICanvasPress = "ui-canvas-press",
@@ -175,6 +178,16 @@ export interface WorldShadowSettings {
     /** How dark its shadows are, 0–1. */
     strength: number;
   };
+}
+
+export interface AwaitShadersSettledMessage {
+  type: RendererMessageType.AwaitShadersSettled;
+  id: number;
+}
+
+export interface ShadersSettledMessage {
+  type: RendererMessageType.ShadersSettled;
+  id: number;
 }
 
 export interface SetWorldShadowsMessage {

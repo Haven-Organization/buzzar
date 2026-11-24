@@ -1,4 +1,4 @@
-import { defineModule, Thread } from "../module/module.common";
+import { defineModule, registerMessageHandler, Thread } from "../module/module.common";
 import { MainContext } from "../MainThread";
 import {
   InitializeRendererMessage,
@@ -16,6 +16,8 @@ import {
   RenderStatsBuffer,
   RenderQualitySetting,
   TogglePhysicsDebugMessage,
+  AwaitShadersSettledMessage,
+  ShadersSettledMessage,
 } from "./renderer.common";
 import { createDisposables } from "../utils/createDisposables";
 import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
@@ -160,6 +162,33 @@ function shadowQualitySetting(): ShadowQualitySetting {
 }
 
 /** Buzzar (Third Room #204): tells the renderer the current world's shadow settings. */
+let nextSettleId = 1;
+
+/**
+ * Buzzar: resolves once the render thread has compiled the scene's shaders and nothing new has needed compiling for
+ * a few frames (or after `timeoutMs`, whichever is first). The loading card waits for this, so the compiling happens
+ * behind it rather than as a freeze just after you enter.
+ */
+export function waitForShadersSettled(ctx: MainContext, timeoutMs = 8000): Promise<void> {
+  const id = nextSettleId++;
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timeout);
+      dispose();
+      resolve();
+    };
+    const timeout = setTimeout(done, timeoutMs);
+    const dispose = registerMessageHandler(
+      ctx,
+      RendererMessageType.ShadersSettled,
+      (_ctx, m: ShadersSettledMessage) => {
+        if (m.id === id) done();
+      }
+    );
+    ctx.sendMessage<AwaitShadersSettledMessage>(Thread.Render, { type: RendererMessageType.AwaitShadersSettled, id });
+  });
+}
+
 export function setWorldShadows(ctx: MainContext, shadows: WorldShadowSettings) {
   ctx.sendMessage<SetWorldShadowsMessage>(Thread.Render, {
     type: RendererMessageType.SetWorldShadows,

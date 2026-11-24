@@ -112,9 +112,18 @@ export function WorldView({ world }: WorldViewProps) {
     }
   }, [isWorldEntered, mainThread]);
 
-  // Buzzar: when the browser last released the mouse on Escape. Some browsers also deliver that Escape to the page:
-  // it mustn't capture the mouse straight back.
+  // Buzzar: when the browser last released the mouse on Escape. The browser keeps that keydown, but while the key is
+  // still held it can deliver more Escape keydowns (not always marked as repeats, up to a second later): they mustn't
+  // capture the mouse straight back. So after a release, Escape does nothing until that press's key-up.
   const browserReleasedAt = useRef(-Infinity);
+  const escapeHeldSinceRelease = useRef(false);
+  useEffect(() => {
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Escape") escapeHeldSinceRelease.current = false;
+    };
+    window.addEventListener("keyup", onKeyUp, true);
+    return () => window.removeEventListener("keyup", onKeyUp, true);
+  }, []);
   // Buzzar: latest UI state for the pointer-lock listener below.
   const uiStateRef = useRef({ isWorldEntered, overlayVisible, worldChatVisible, editorEnabled });
   uiStateRef.current = { isWorldEntered, overlayVisible, worldChatVisible, editorEnabled };
@@ -155,6 +164,7 @@ export function WorldView({ world }: WorldViewProps) {
         !getModule(mainThread, PlayerModule).orbiting
       ) {
         browserReleasedAt.current = performance.now();
+        escapeHeldSinceRelease.current = true;
         setMouseFreed(true);
       }
       wasLocked = locked;
@@ -321,8 +331,11 @@ export function WorldView({ world }: WorldViewProps) {
         console.debug("[pointer-lock] Escape keydown", {
           locked: document.pointerLockElement === mainThread.canvas,
           sinceBrowserRelease: Math.round(performance.now() - browserReleasedAt.current),
+          heldSinceRelease: escapeHeldSinceRelease.current,
+          repeat: e.repeat,
         });
-        if (performance.now() - browserReleasedAt.current < 500) return;
+        // Still the press that released it (a key-up that went missing stops counting after a few seconds).
+        if (escapeHeldSinceRelease.current && performance.now() - browserReleasedAt.current < 5000) return;
         if (document.pointerLockElement === mainThread.canvas) {
           setMouseFreed(true);
           document.exitPointerLock();

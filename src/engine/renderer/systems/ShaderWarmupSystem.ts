@@ -9,10 +9,10 @@
  * reports their shaders ready (KHR_parallel_shader_compile). They appear a moment later; the view keeps running.
  * Where the browser can't report that, nothing is hidden and drawing waits for the compile as before.
  */
-import { Material, Mesh, NoToneMapping, Object3D, Scene, WebGLRenderer } from "three";
+import { Light, Material, Mesh, NoToneMapping, Object3D, Scene, WebGLRenderer } from "three";
 
-import { getModule } from "../../module/module.common";
-import { RenderQuality } from "../renderer.common";
+import { getModule, Thread } from "../../module/module.common";
+import { RendererMessageType, RenderQuality, ShadersSettledMessage } from "../renderer.common";
 import { RenderContext, RendererModule } from "../renderer.render";
 import { Mirror } from "../Mirror";
 import { MirrorState } from "../../resource/schema";
@@ -24,18 +24,35 @@ const MAX_WAIT_MS = 10000;
 
 let lastSceneEid = 0;
 let lastMeshCount = -1;
+let lastLights = "";
+/** Frames in a row with nothing new to compile. */
+let quietFrames = 0;
+/** After this many quiet frames the scene counts as settled (lights and shadows switch on a few frames in). */
+const SETTLED_FRAMES = 20;
+/** Main-thread requests waiting for the scene to settle (the loading card stays up meanwhile). */
+const settleRequests: number[] = [];
+
+export function awaitShadersSettled(id: number) {
+  settleRequests.push(id);
+}
 let parallel: boolean | undefined;
 /** Meshes waiting for their shaders, and since when. */
 const pending = new Map<Mesh, { programs: WebGLProgram[]; since: number; wasVisible: boolean }>();
 
-function countMeshes(scene: Scene) {
+/**
+ * What decides which shaders the scene needs: its meshes, and its lights (a light added, or one starting to cast
+ * shadows, as world shadows do, rebuilds every lit material's shader).
+ */
+function surveyScene(scene: Scene) {
   let meshes = 0;
   let mirror: Mirror | undefined;
+  const lights: string[] = [];
   scene.traverse((object: Object3D) => {
     if ((object as Mesh).isMesh) meshes++;
+    else if ((object as Light).isLight && object.visible) lights.push(object.type + (object.castShadow ? "+" : ""));
     if (object instanceof Mirror && object.state !== MirrorState.Off) mirror ??= object;
   });
-  return { meshes, mirror };
+  return { meshes, mirror, lights: `${lights.sort().join(",")}|${scene.environment?.uuid ?? ""}|${!!scene.fog}` };
 }
 
 type ProgramProperties = { currentProgram?: { program: WebGLProgram } };
@@ -70,14 +87,23 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
   const rendererModule = getModule(ctx, RendererModule);
   const activeScene = ctx.worldResource.environment?.publicScene;
   const camera = ctx.worldResource.activeCameraNode?.cameraObject;
-  if (!activeScene || !camera) return;
   const { renderer, renderPipeline, scene } = rendererModule;
-  if (renderer.xr.isPresenting) return;
+  if (!activeScene || !camera || renderer.xr.isPresenting) {
+    quietFrames = 0;
+    answerSettled(ctx, renderer.xr.isPresenting);
+    return;
+  }
 
-  const { meshes, mirror } = countMeshes(scene);
-  if (activeScene.eid === lastSceneEid && meshes === lastMeshCount) return;
+  const { meshes, mirror, lights } = surveyScene(scene);
+  if (activeScene.eid === lastSceneEid && meshes === lastMeshCount && lights === lastLights) {
+    if (pending.size === 0) quietFrames++;
+    answerSettled(ctx, false);
+    return;
+  }
   lastSceneEid = activeScene.eid;
   lastMeshCount = meshes;
+  lastLights = lights;
+  quietFrames = 0;
 
   const gl = renderer.getContext();
   parallel ??= !!gl.getExtension("KHR_parallel_shader_compile");
@@ -107,6 +133,14 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
   const added = (renderer.info.programs?.length ?? 0) - programsBefore;
   if (added > 0) {
     console.info(`[shaders] compiling ${added} new shaders; ${pending.size} meshes wait for them`);
+  }
+}
+
+/** Tells the main thread the scene's shaders are ready, once nothing new has needed compiling for a while. */
+function answerSettled(ctx: RenderContext, now: boolean) {
+  if (settleRequests.length === 0 || (!now && quietFrames < SETTLED_FRAMES)) return;
+  for (const id of settleRequests.splice(0)) {
+    ctx.sendMessage<ShadersSettledMessage>(Thread.Main, { type: RendererMessageType.ShadersSettled, id });
   }
 }
 

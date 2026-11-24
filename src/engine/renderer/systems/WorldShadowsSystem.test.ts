@@ -9,9 +9,9 @@ describe("shadows (Third Room #204)", () => {
     expect(parseWorldShadows(undefined)).toEqual({ sun: false, bakedSun: undefined });
     expect(parseWorldShadows({ sun: true })).toEqual({ sun: true, bakedSun: undefined });
     expect(parseWorldShadows({ baked_sun: { enabled: false, azimuth: 10 } }).bakedSun).toBeUndefined();
-    expect(parseWorldShadows({ baked_sun: { enabled: true, azimuth: 400, elevation: 0, strength: "x" } }).bakedSun).toEqual(
-      { azimuth: 360, elevation: 5, strength: 0.6 }
-    );
+    expect(
+      parseWorldShadows({ baked_sun: { enabled: true, azimuth: 400, elevation: 0, strength: "x" } }).bakedSun
+    ).toEqual({ azimuth: 360, elevation: 5, strength: 0.6 });
     // Strength is a whole percentage in the event (Matrix events allow only whole numbers).
     expect(parseWorldShadows({ baked_sun: { enabled: true, strength: 75 } }).bakedSun?.strength).toBe(0.75);
   });

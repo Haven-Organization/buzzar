@@ -36,6 +36,7 @@ import {
 import { createDisposables } from "../utils/createDisposables";
 import {
   SetWorldShadowsMessage,
+  AwaitShadersSettledMessage,
   WorldShadowSettings,
   CanvasResizeMessage,
   EnableMatrixMaterialMessage,
@@ -68,6 +69,7 @@ import {
 import { ResourceId } from "../resource/resource.common";
 import { onGenerateWorldMap } from "./systems/WorldMapCaptureSystem";
 import { WorldMapMessageType } from "../../plugins/world-map/worldMap.common";
+import { awaitShadersSettled } from "./systems/ShaderWarmupSystem";
 import { RenderPipeline } from "./RenderPipeline";
 import patchShaderChunks from "./materials/patchShaderChunks";
 import { MatrixMaterial } from "./materials/MatrixMaterial";
@@ -411,6 +413,9 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
         (ctx: RenderContext, m: SetWorldShadowsMessage) => {
           getModule(ctx, RendererModule).worldShadows = m.shadows;
         }
+      ),
+      registerMessageHandler(ctx, RendererMessageType.AwaitShadersSettled, (_ctx, m: AwaitShadersSettledMessage) =>
+        awaitShadersSettled(m.id)
       ),
       registerMessageHandler(ctx, WorldMapMessageType.Generate, onGenerateWorldMap),
       registerMessageHandler(ctx, RendererMessageType.EnterXR, onEnterXR),

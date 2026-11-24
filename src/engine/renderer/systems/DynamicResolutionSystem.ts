@@ -76,7 +76,9 @@ export function DynamicResolutionSystem(ctx: RenderContext) {
   // The display's refresh interval: the quickest frames of the last few seconds, kept from drifting.
   refreshInterval = Math.max(1 / 240, Math.min(windowMin, refreshInterval * 1.05));
   const counters = { slow: slowSeconds, smooth: smoothSeconds };
-  pipeline.setResolutionScale(nextResolutionScale(pipeline.resolutionScale, windowTime / windowFrames, refreshInterval, counters));
+  pipeline.setResolutionScale(
+    nextResolutionScale(pipeline.resolutionScale, windowTime / windowFrames, refreshInterval, counters)
+  );
   slowSeconds = counters.slow;
   smoothSeconds = counters.smooth;
 
