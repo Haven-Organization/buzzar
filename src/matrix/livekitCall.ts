@@ -34,8 +34,13 @@ import type { Session } from "./session";
 import type { GroupCall, Member } from "./calls";
 import { CallIntent, LocalMedia, MuteSettings } from "./calls";
 import { LiveKitDataChannel } from "./livekitDataChannel";
+import { liveKitRoomName, MAIN_INSTANCE } from "./instances";
 import { SCREEN_TOPIC } from "../engine/screenshare/screenShare.common";
-export const WORLD_RTC_SLOT = { application: "software.haven.world", id: "main" };
+export const WORLD_RTC_APPLICATION = "software.haven.world";
+/** The first instance's slot (older Buzzar versions only know this one). */
+export const WORLD_RTC_SLOT = { application: WORLD_RTC_APPLICATION, id: MAIN_INSTANCE };
+/** An instance's MatrixRTC slot (instances.ts). */
+export const worldSlot = (instance: string) => ({ application: WORLD_RTC_APPLICATION, id: instance });
 const DATA_TOPIC = "buzzar";
 /** Most packets kept from one player before we know them (a world snapshot is a few hundred at most). */
 const MAX_EARLY_PACKETS = 4000;
@@ -44,13 +49,13 @@ const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
 const MEMBERSHIP_EXPIRY_MS = 5 * 60 * 1000;
 const RTC_FOCI_KEY = "org.matrix.msc4143.rtc_foci";
 
-export function liveKitCallId(roomId: string) {
-  return `livekit:${roomId}`;
+export function liveKitCallId(roomId: string, instance: string = MAIN_INSTANCE) {
+  return instance === MAIN_INSTANCE ? `livekit:${roomId}` : `livekit:${roomId}#${instance}`;
 }
 
 /** The world's current LiveKit call memberships (not expired), oldest first. */
-export async function liveKitMemberships(room: Room): Promise<CallMembership[]> {
-  const memberships = await MatrixRTCSession.sessionMembershipsForSlot(room.sdk, WORLD_RTC_SLOT, {
+export async function liveKitMemberships(room: Room, instance: string = MAIN_INSTANCE): Promise<CallMembership[]> {
+  const memberships = await MatrixRTCSession.sessionMembershipsForSlot(room.sdk, worldSlot(instance), {
     listenForStickyEvents: false,
     listenForMemberStateEvents: true,
   });
@@ -175,9 +180,9 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
   private joined = false;
   private disposers: (() => void)[] = [];
 
-  constructor(private session: Session, private room: Room) {
+  constructor(private session: Session, private room: Room, readonly instance: string = MAIN_INSTANCE) {
     super();
-    this.rtc = MatrixRTCSession.sessionForSlot(session.client, room.sdk, WORLD_RTC_SLOT, {
+    this.rtc = MatrixRTCSession.sessionForSlot(session.client, room.sdk, worldSlot(instance), {
       listenForStickyEvents: false,
       listenForMemberStateEvents: true,
     });
@@ -195,7 +200,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
   }
 
   get id(): string {
-    return liveKitCallId(this.room.id);
+    return liveKitCallId(this.room.id, this.instance);
   }
 
   get roomId(): string {
@@ -237,7 +242,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
 
   /** The LiveKit JWT service to use: the oldest member's (so everyone meets on one server), else our homeserver's. */
   private async serviceUrl(): Promise<string> {
-    const memberships = await liveKitMemberships(this.room);
+    const memberships = await liveKitMemberships(this.room, this.instance);
     for (const membership of memberships) {
       const url = serviceUrlOf(membership);
       if (url) return url;
@@ -261,7 +266,12 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
     const response = await fetch(`${serviceUrl.replace(/\/$/, "")}/sfu/get`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ room: this.room.id, openid_token: openIdToken, device_id: this.session.deviceId }),
+      // Each instance meets in a LiveKit room of its own (instances.ts); the service uses this name as given.
+      body: JSON.stringify({
+        room: liveKitRoomName(this.room.id, this.instance),
+        openid_token: openIdToken,
+        device_id: this.session.deviceId,
+      }),
     });
     if (!response.ok) throw new Error(`The LiveKit service refused the call (${response.status}).`);
     const body = await response.json();
@@ -376,7 +386,13 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
         deviceId: this.session.deviceId,
         memberId: identityOf(this.session.userId, this.session.deviceId),
       },
-      [{ type: "livekit", livekit_service_url: serviceUrl, livekit_alias: this.room.id }],
+      [
+        {
+          type: "livekit",
+          livekit_service_url: serviceUrl,
+          livekit_alias: liveKitRoomName(this.room.id, this.instance),
+        },
+      ],
       {
         manageMediaKeys: false,
         callIntent: "audio",

@@ -21,6 +21,8 @@ import { AudioModule, setLocalMediaStream, setPeerMediaStream } from "../audio/a
 import { MainContext } from "../MainThread";
 import { getModule, registerMessageHandler } from "../module/module.common";
 import { VoiceAudibilityMessage, VoiceAudibilityMessageType } from "../audio/voice.common";
+import { pickInstance } from "../../matrix/instances";
+import { setCurrentInstance } from "./currentInstance";
 import { ScreenShare, setScreenShare } from "../screenshare/screenShare.main";
 import { parseScreenShareRule } from "../screenshare/screenShare.common";
 import { WORLD_RULES_EVENT } from "./spawnRules.common";
@@ -28,7 +30,7 @@ import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
-import { liveKitMembershipKey } from "../../ui/utils/callCleanup";
+import { liveKitMembershipKey, liveKitMembershipKeyPrefix } from "../../ui/utils/callCleanup";
 import { confirmDialog } from "../../ui/views/components/confirm-dialog/ConfirmDialog";
 
 export interface MatrixNetworkInterface {
@@ -66,7 +68,13 @@ function getReliableHost(groupCall: GroupCall): Member | undefined {
  * Removes this device's membership of one kind of world call, if the room state still lists it. `keepalive` lets the
  * request outlive the page (see leaveOnPageHide).
  */
-function removeOwnMembership(session: Session, world: Room, method: CallMethod, keepalive = false) {
+function removeOwnMembership(
+  session: Session,
+  world: Room,
+  method: CallMethod,
+  keepalive = false,
+  keepInstance?: string
+) {
   const client = session.client;
   const token = client.getAccessToken();
   if (!token) return;
@@ -81,9 +89,14 @@ function removeOwnMembership(session: Session, world: Room, method: CallMethod, 
     }).catch(() => undefined);
 
   if (method === "livekit") {
-    const key = liveKitMembershipKey(session.userId, session.deviceId);
-    const content = world.sdk.currentState.getStateEvents(memberEvent, key)?.getContent();
-    if (content && Object.keys(content).length > 0) put(key, {});
+    // Every instance of the world (instances.ts), except the one we're staying in.
+    const prefix = liveKitMembershipKeyPrefix(session.userId, session.deviceId);
+    const keep = keepInstance ? liveKitMembershipKey(session.userId, session.deviceId, keepInstance) : undefined;
+    for (const event of world.sdk.currentState.getStateEvents(memberEvent)) {
+      const key = event.getStateKey();
+      if (!key?.startsWith(prefix) || key === keep) continue;
+      if (Object.keys(event.getContent() ?? {}).length > 0) put(key, {});
+    }
     return;
   }
   const content = world.sdk.currentState.getStateEvents(memberEvent, session.userId)?.getContent() as
@@ -108,7 +121,7 @@ export class CallChoiceCancelled extends Error {
  * Buzzar: the world call to join. New calls use the world's recommended method (or the developer override); if a call
  * of another method is already open, the player is asked which one to join (callMethod.ts).
  */
-async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall> {
+async function chooseWorldCall(session: Session, world: Room, requestedInstance?: string): Promise<GroupCall> {
   const override = callMethodOverride();
   const preferred = override ?? (await session.callHandler.recommendedMethod(world.id));
   const open = await session.callHandler.openWorldCalls(world.id);
@@ -126,7 +139,20 @@ async function chooseWorldCall(session: Session, world: Room): Promise<GroupCall
       : decision.options[0].method;
     if (!method) throw new CallChoiceCancelled();
   }
-  if (method === "livekit") return session.callHandler.liveKitCall(world.id);
+  if (method === "livekit") {
+    // Buzzar: which instance (instances.ts): the one asked for (a link, the Instances list), else the busiest with room.
+    const [instances, cap] = await Promise.all([
+      session.callHandler.worldInstances(world.id),
+      session.callHandler.instanceCap(world.id),
+    ]);
+    // Not counting this device: a stale membership of ours mustn't make an instance look busier.
+    const others = instances.map((instance) => ({
+      ...instance,
+      userIds: instance.userIds.filter((userId) => userId !== session.userId),
+    }));
+    const { id } = pickInstance(others, cap, requestedInstance);
+    return session.callHandler.liveKitCall(world.id, id);
+  }
   return (
     (await session.callHandler.getCallForRoom(world.id)) ??
     (await session.callHandler.createCall(world.id, "m.voice", "World Call", CallIntent.Room))
@@ -137,7 +163,9 @@ export async function createMatrixNetworkInterface(
   ctx: MainContext,
   client: Client,
   platform: Platform,
-  world: Room
+  world: Room,
+  /** An instance ID, or "new" (instances.ts); LiveKit calls only. */
+  requestedInstance?: string
 ): Promise<MatrixNetworkInterface> {
   const session = client.session;
 
@@ -145,7 +173,7 @@ export async function createMatrixNetworkInterface(
     throw new Error("You must initialize the client session before creating the network interface");
   }
 
-  let groupCall = await chooseWorldCall(session, world);
+  let groupCall = await chooseWorldCall(session, world, requestedInstance);
 
   let stream;
   try {
@@ -191,6 +219,9 @@ export async function createMatrixNetworkInterface(
   // Buzzar: this device may still be listed in the world's call of the other kind (an app closed without leaving,
   // before switching kinds): drop that, or others are offered a call with a ghost of us in it.
   removeOwnMembership(session, world, groupCall.method === "livekit" ? "mesh" : "livekit");
+  // And from the world's other instances (instances.ts).
+  if (groupCall instanceof LiveKitCall) removeOwnMembership(session, world, "livekit", false, groupCall.instance);
+  setCurrentInstance(groupCall instanceof LiveKitCall ? { roomId: world.id, instance: groupCall.instance } : undefined);
 
   // Mute after connecting based on user preference
   if (groupCall.muteSettings?.microphone === false && localStorage.getItem("microphone") !== "true") {
@@ -406,6 +437,7 @@ export async function createMatrixNetworkInterface(
     dispose: () => {
       window.removeEventListener("pagehide", leaveOnPageHide);
       stopVoiceAudibility();
+      setCurrentInstance(undefined);
       stopWatchingShareRules?.();
       if (screenShare) {
         setScreenShare(undefined);

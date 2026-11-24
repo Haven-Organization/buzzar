@@ -23,7 +23,8 @@ import { GroupCallEventHandlerEvent } from "matrix-js-sdk/lib/webrtc/groupCallEv
 import { EventEmitter, ObservableMap } from "./observable";
 import { recommendedCallMethod, WORLD_CALL_EVENT } from "./callMethod";
 import type { CallMethod, OpenWorldCalls } from "./callMethod";
-import { LiveKitCall, liveKitCallId, liveKitMemberships, WORLD_RTC_SLOT } from "./livekitCall";
+import { LiveKitCall, liveKitCallId, liveKitMemberships, WORLD_RTC_APPLICATION } from "./livekitCall";
+import { isInstanceId, MAIN_INSTANCE, parseInstanceCap, sortInstances, WorldInstance } from "./instances";
 import { Stream, toStream } from "./platform";
 import type { Room, RoomMember } from "./room";
 import type { Session } from "./session";
@@ -350,10 +351,16 @@ export class MeshCall extends EventEmitter<{ change: undefined }> implements Gro
   }
 }
 
-/** Whether a call.member state event is someone's (non-empty) membership in a world's LiveKit call. */
-function isWorldLiveKitMembership(event: MatrixEvent): boolean {
-  if (event.getType() !== CALL_MEMBER_EVENT || !event.getStateKey()?.startsWith("_")) return false;
-  return event.getContent()?.application === WORLD_RTC_SLOT.application;
+/**
+ * The world instance a call.member state event is someone's (non-empty) membership of, if it's one of a world's
+ * LiveKit calls (instances.ts; the instance is the slot ID, in `call_id`).
+ */
+function worldLiveKitInstance(event: MatrixEvent): string | undefined {
+  if (event.getType() !== CALL_MEMBER_EVENT || !event.getStateKey()?.startsWith("_")) return undefined;
+  const content = event.getContent();
+  if (content?.application !== WORLD_RTC_APPLICATION) return undefined;
+  const instance = content.call_id ?? MAIN_INSTANCE;
+  return isInstanceId(instance) ? instance : undefined;
 }
 
 /** The calls in the user's rooms, by call ID (mesh calls by their call ID, LiveKit calls by their slot). */
@@ -375,13 +382,17 @@ export class CallHandler {
     // Buzzar: a world's LiveKit call is picked up as soon as anyone's membership in it arrives, so world tiles and the
     // overlay show who's there before you join (mesh calls come from the group call handler above).
     const onState = (event: MatrixEvent) => {
-      if (isWorldLiveKitMembership(event)) this.adoptLiveKit(event.getRoomId());
+      const instance = worldLiveKitInstance(event);
+      if (instance) this.adoptLiveKit(event.getRoomId(), instance);
     };
     client.on(RoomStateEvent.Events, onState);
     // Rooms arrive after their state (sliding sync loads them in batches): pick up any that were waiting.
     const unsubscribeRooms = session.rooms.subscribe({
       onAdd: (roomId) => {
-        if (this.waitingForRoom.delete(roomId)) this.adoptLiveKit(roomId);
+        const instances = this.waitingForRoom.get(roomId);
+        if (!instances) return;
+        this.waitingForRoom.delete(roomId);
+        for (const instance of instances) this.adoptLiveKit(roomId, instance);
       },
     });
     this.disposers.push(unsubscribeRooms);
@@ -408,21 +419,51 @@ export class CallHandler {
     const handler = this.client.groupCallEventHandler;
     if (handler) for (const sdk of handler.groupCalls.values()) this.adopt(sdk);
     for (const room of this.client.getRooms()) {
-      const events = room.currentState.getStateEvents(CALL_MEMBER_EVENT);
-      if (events.some(isWorldLiveKitMembership)) this.adoptLiveKit(room.roomId);
+      for (const event of room.currentState.getStateEvents(CALL_MEMBER_EVENT)) {
+        const instance = worldLiveKitInstance(event);
+        if (instance) this.adoptLiveKit(room.roomId, instance);
+      }
     }
   }
 
-  private waitingForRoom = new Set<string>();
+  /** Rooms (and their instances) whose LiveKit calls were seen before the room itself loaded. */
+  private waitingForRoom = new Map<string, Set<string>>();
 
-  /** Tracks a world's LiveKit call (not joined) once someone has a membership in it. */
-  private adoptLiveKit(roomId: string | undefined) {
-    if (!roomId || this.calls.has(liveKitCallId(roomId))) return;
+  /** Tracks a world instance's LiveKit call (not joined) once someone has a membership in it. */
+  private adoptLiveKit(roomId: string | undefined, instance: string) {
+    if (!roomId || this.calls.has(liveKitCallId(roomId, instance))) return;
     if (!this.session.rooms.get(roomId)) {
-      this.waitingForRoom.add(roomId);
+      const waiting = this.waitingForRoom.get(roomId) ?? new Set<string>();
+      waiting.add(instance);
+      this.waitingForRoom.set(roomId, waiting);
       return;
     }
-    this.liveKitCall(roomId);
+    this.liveKitCall(roomId, instance);
+  }
+
+  /**
+   * The world's instances with people in them (instances.ts), in display order. Expired memberships don't count;
+   * this device does.
+   */
+  async worldInstances(roomId: string): Promise<WorldInstance[]> {
+    const room = this.session.rooms.get(roomId);
+    if (!room) return [];
+    const ids = new Set<string>();
+    for (const event of room.sdk.currentState.getStateEvents(CALL_MEMBER_EVENT)) {
+      const instance = worldLiveKitInstance(event);
+      if (instance) ids.add(instance);
+    }
+    const instances: WorldInstance[] = [];
+    for (const id of ids) {
+      const memberships = await liveKitMemberships(room, id);
+      if (memberships.length === 0) continue;
+      instances.push({
+        id,
+        userIds: memberships.map((m) => m.userId),
+        since: Math.min(...memberships.map((m) => m.createdTs())),
+      });
+    }
+    return sortInstances(instances);
   }
 
   /** The room's mesh call, once the room's state is loaded. */
@@ -462,10 +503,13 @@ export class CallHandler {
         for (const deviceId of devices.keys()) if (!self(member.userId, deviceId)) open.mesh.push(member.userId);
       }
     }
+    // Every instance counts: they're all the LiveKit kind of call.
     const room = this.session.rooms.get(roomId);
     if (room) {
-      for (const membership of await liveKitMemberships(room)) {
-        if (!self(membership.userId, membership.deviceId)) open.livekit.push(membership.userId);
+      for (const instance of await this.worldInstances(roomId)) {
+        for (const membership of await liveKitMemberships(room, instance.id)) {
+          if (!self(membership.userId, membership.deviceId)) open.livekit.push(membership.userId);
+        }
       }
     }
     return open;
@@ -485,14 +529,25 @@ export class CallHandler {
     }
   }
 
-  /** The world's LiveKit call (created on first use; it isn't joined until `join`). */
-  liveKitCall(roomId: string): LiveKitCall {
-    const id = liveKitCallId(roomId);
+  /** Players per instance in a world (its call event's `instance_cap`; instances.ts). */
+  async instanceCap(roomId: string): Promise<number> {
+    const synced = this.session.rooms.get(roomId)?.sdk.currentState.getStateEvents(WORLD_CALL_EVENT, "");
+    if (synced) return parseInstanceCap(synced.getContent());
+    try {
+      return parseInstanceCap(await this.client.getStateEvent(roomId, WORLD_CALL_EVENT, ""));
+    } catch {
+      return parseInstanceCap(undefined);
+    }
+  }
+
+  /** A world instance's LiveKit call (created on first use; it isn't joined until `join`). */
+  liveKitCall(roomId: string, instance: string = MAIN_INSTANCE): LiveKitCall {
+    const id = liveKitCallId(roomId, instance);
     const existing = this.calls.get(id);
     if (existing) return existing as LiveKitCall;
     const room = this.session.rooms.get(roomId);
     if (!room) throw new Error("Couldn't start the world call: the room isn't loaded");
-    const call = new LiveKitCall(this.session, room);
+    const call = new LiveKitCall(this.session, room, instance);
     this.calls.add(id, call);
     return call;
   }

@@ -30,6 +30,7 @@ import BoxIC from "../../../../../res/ic/box-3d.svg";
 import LightingIC from "../../../../../res/ic/dark-light.svg";
 import MapIC from "../../../../../res/ic/my-location.svg";
 import { WorldMapSettings } from "./WorldMapSettings";
+import { DEFAULT_INSTANCE_CAP, parseInstanceCap } from "../../../../matrix/instances";
 import { WorldCallSettings } from "./WorldCallSettings";
 import { WorldMovementSettings } from "./WorldMovementSettings";
 import { WorldScreenShareSetting } from "./WorldScreenShareSetting";
@@ -171,6 +172,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const [savedCallMethod, setSavedCallMethod] = useState<CallMethod>(DEFAULT_CALL_METHOD);
   const [callMethod, setCallMethod] = useState<CallMethod>(DEFAULT_CALL_METHOD);
   const callMethodTouched = useRef(false);
+  // Buzzar: players per instance (src/matrix/instances.ts), in the same event.
+  const [savedInstanceCap, setSavedInstanceCap] = useState(DEFAULT_INSTANCE_CAP);
+  const [instanceCap, setInstanceCap] = useState(DEFAULT_INSTANCE_CAP);
+  const instanceCapTouched = useRef(false);
   useStateEventKeyCallback(
     room,
     WORLD_CALL_EVENT,
@@ -179,6 +184,9 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       const method = recommendedCallMethod(event?.content);
       setSavedCallMethod(method);
       if (!callMethodTouched.current) setCallMethod(method);
+      const cap = parseInstanceCap(event?.content);
+      setSavedInstanceCap(cap);
+      if (!instanceCapTouched.current) setInstanceCap(cap);
     }, [])
   );
   // Not synced yet (sliding sync with an older cache): ask the server once.
@@ -189,12 +197,21 @@ export function WorldSettings({ room }: WorldSettingsProps) {
       setSavedCallMethod(method);
       if (!callMethodTouched.current) setCallMethod(method);
     });
+    session.callHandler.instanceCap(room.id).then((cap) => {
+      if (!isMounted()) return;
+      setSavedInstanceCap(cap);
+      if (!instanceCapTouched.current) setInstanceCap(cap);
+    });
   }, [room, session, isMounted]);
   const changeCallMethod = (method: CallMethod) => {
     callMethodTouched.current = true;
     setCallMethod(method);
   };
-  const callMethodChanged = callMethod !== savedCallMethod;
+  const changeInstanceCap = (cap: number) => {
+    instanceCapTouched.current = true;
+    setInstanceCap(cap);
+  };
+  const callMethodChanged = callMethod !== savedCallMethod || instanceCap !== savedInstanceCap;
   const canEditCalls = canSendStateEvent(WORLD_CALL_EVENT, myPowerLevel);
 
   const rulesChanged =
@@ -304,7 +321,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
 
     if (canEditCalls && callMethodChanged) {
       session.hsApi
-        .sendState(room.id, WORLD_CALL_EVENT, "", { recommended_method: callMethod })
+        .sendState(room.id, WORLD_CALL_EVENT, "", { recommended_method: callMethod, instance_cap: instanceCap })
         .response()
         .catch((e: unknown) =>
           confirmDialog({
@@ -449,7 +466,13 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         )}
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "calls"}>
-                        <WorldCallSettings value={callMethod} onChange={changeCallMethod} canEdit={canEditCalls} />
+                        <WorldCallSettings
+                          value={callMethod}
+                          onChange={changeCallMethod}
+                          instanceCap={instanceCap}
+                          onInstanceCapChange={changeInstanceCap}
+                          canEdit={canEditCalls}
+                        />
                         <WorldScreenShareSetting
                           value={screenShareRule}
                           onChange={changeScreenShareRule}

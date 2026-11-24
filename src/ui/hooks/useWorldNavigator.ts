@@ -16,14 +16,19 @@ export function useWorldNavigator(session: Session) {
       world: Room,
       options?: {
         reload?: boolean;
+        /** Buzzar: the instance to join (src/matrix/instances.ts): an instance ID, or "new". */
+        instance?: string;
       }
     ) => {
-      const { reload } = options ?? {};
+      const { reload, instance } = options ?? {};
 
       const worldAlias = roomIdToAlias(session.rooms, world.id);
-      const reloadPath = reload ? `?reload=${++worldReloadId}` : "";
+      const params = new URLSearchParams();
+      if (reload) params.set("reload", String(++worldReloadId));
+      if (instance) params.set("instance", instance);
+      const query = params.toString();
 
-      navigate(`/world/${worldAlias ?? world.id}${reloadPath}`);
+      navigate(`/world/${worldAlias ?? world.id}${query ? `?${query}` : ""}`);
     },
     [session.rooms, navigate]
   );

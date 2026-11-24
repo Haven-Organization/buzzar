@@ -8,6 +8,8 @@ import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { SelectInput } from "../../components/property-panel/SelectInput";
+import { Input } from "../../../atoms/input/Input";
+import { MAX_INSTANCE_CAP, MIN_INSTANCE_CAP } from "../../../../matrix/instances";
 
 const DESCRIPTION: Record<CallMethod, string> = {
   mesh: "Every player connects to every other. Works with every Buzzar version; best for small groups (up to about 10).",
@@ -18,10 +20,15 @@ const DESCRIPTION: Record<CallMethod, string> = {
 export function WorldCallSettings({
   value,
   onChange,
+  instanceCap,
+  onInstanceCapChange,
   canEdit,
 }: {
   value: CallMethod;
   onChange: (value: CallMethod) => void;
+  /** Players per instance (src/matrix/instances.ts). */
+  instanceCap: number;
+  onInstanceCapChange: (value: number) => void;
   canEdit: boolean;
 }) {
   return (
@@ -35,6 +42,27 @@ export function WorldCallSettings({
         />
         <Text variant="b3" color="surface-low">
           {DESCRIPTION[value]}
+        </Text>
+      </SettingTile>
+      <SettingTile label={<Label>Players per Instance</Label>}>
+        <div style={{ maxWidth: 120 }}>
+          <Input
+            type="number"
+            min={MIN_INSTANCE_CAP}
+            max={MAX_INSTANCE_CAP}
+            value={instanceCap}
+            disabled={!canEdit}
+            onChange={(event) => {
+              const n = Math.round(Number(event.target.value));
+              if (Number.isFinite(n)) onInstanceCapChange(Math.min(MAX_INSTANCE_CAP, Math.max(MIN_INSTANCE_CAP, n)));
+            }}
+            aria-label="Players per instance"
+          />
+        </div>
+        <Text variant="b3" color="surface-low">
+          LiveKit calls are split into instances, separate copies of the world (like VRChat&apos;s). Someone entering
+          joins the busiest instance with room, and a new one starts when all are full. Anyone can start a new instance
+          or join a full one from the world&apos;s Instances list. Peer-to-peer calls have no instances.
         </Text>
       </SettingTile>
       <Text variant="b3" color="surface-low">

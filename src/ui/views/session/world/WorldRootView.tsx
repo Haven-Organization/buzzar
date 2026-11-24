@@ -30,7 +30,7 @@ export default function WorldRootView() {
   const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
   const { loadAndEnterWorld, reloadWorld, exitWorld } = useWorldLoader();
   const selectWorld = useSetAtom(overlayWorldAtom);
-  const [roomId, reloadId] = useWorldPath();
+  const [roomId, reloadId, instance] = useWorldPath();
   const navigatedWorld = useRoom(session, roomId);
   const setEditorEnabled = useSetAtom(editorEnabledAtom);
 
@@ -43,7 +43,7 @@ export default function WorldRootView() {
       (async () => {
         try {
           const content = await getWorldContent(navigatedWorld);
-          await loadAndEnterWorld(navigatedWorld, content ?? {});
+          await loadAndEnterWorld(navigatedWorld, content ?? {}, { instance });
         } catch (err) {
           // Buzzar: the player cancelled choosing a call (callMethod.ts): back to the menu, not an error.
           if (err instanceof CallChoiceCancelled) {
@@ -56,7 +56,7 @@ export default function WorldRootView() {
         }
       })();
     }
-  }, [navigatedWorld, reloadId, selectWorld, loadAndEnterWorld, exitWorld, setWorld, setOverlayVisibility]);
+  }, [navigatedWorld, reloadId, instance, selectWorld, loadAndEnterWorld, exitWorld, setWorld, setOverlayVisibility]);
 
   /**
    * Selects the world we are entered into for display in the overlay

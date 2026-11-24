@@ -1,9 +1,10 @@
+import { useEffect, useReducer } from "react";
+
 import { GroupCall, Member, ObservableValue, Platform, Room, RoomMember, Session } from "../../../../matrix";
 import { Avatar } from "../../../atoms/avatar/Avatar";
 import { AvatarPile } from "../../../atoms/avatar/AvatarPile";
 import { Text } from "../../../atoms/text/Text";
 import { Tooltip } from "../../../atoms/tooltip/Tooltip";
-import { useObservableMap } from "../../../hooks/useObservableMap";
 import { useAsyncObservableValue } from "../../../hooks/useAsyncObservableValue";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getAvatarHttpUrl } from "../../../utils/avatar";
@@ -12,15 +13,29 @@ import { getMxIdUsername } from "../../../utils/matrixUtils";
 interface WorldTileMembersProps {
   session: Session;
   platform: Platform;
-  groupCall: GroupCall;
+  /** The world's calls: every instance's (src/matrix/instances.ts), and a peer-to-peer call if there is one. */
+  groupCalls: GroupCall[];
   room: Room;
+}
+
+/** Everyone in any of these calls, kept up to date. */
+function useMembersOf(groupCalls: GroupCall[]): Member[] {
+  const [, forceUpdate] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    const refresh = () => forceUpdate();
+    const stops = groupCalls.map((call) =>
+      call.members.subscribe({ onReset: refresh, onAdd: refresh, onUpdate: refresh, onRemove: refresh })
+    );
+    return () => stops.forEach((stop) => stop());
+  }, [groupCalls]);
+  return groupCalls.flatMap((call) => [...call.members.values()]);
 }
 
 const maxAvatars = 5;
 
-export function WorldTileMembers({ session, platform, groupCall, room }: WorldTileMembersProps) {
-  const allMembers = useObservableMap(() => groupCall.members, [groupCall]);
-  const members = [...allMembers.values()].reduce((filtered, member) => {
+export function WorldTileMembers({ session, platform, groupCalls, room }: WorldTileMembersProps) {
+  const allMembers = useMembersOf(groupCalls);
+  const members = allMembers.reduce((filtered, member) => {
     if (!filtered.has(member.userId)) filtered.set(member.userId, member);
     return filtered;
   }, new Map<string, Member>());

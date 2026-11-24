@@ -15,7 +15,11 @@ import { enterWorld, loadWorld, reloadWorld } from "../../plugins/thirdroom/thir
 import { worldAtom } from "../state/world";
 import { makeWorldNotice, worldNoticeAtom } from "../state/worldNotice";
 import { scriptPolicy, takeEnterWithoutScript } from "../utils/scriptSettings";
-import { liveKitMembershipKey, removeStaleCallMemberships, removeStaleLiveKitMemberships } from "../utils/callCleanup";
+import {
+  liveKitMembershipKeyPrefix,
+  removeStaleCallMemberships,
+  removeStaleLiveKitMemberships,
+} from "../utils/callCleanup";
 import { useMatrix } from "./useMatrix";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
@@ -31,6 +35,8 @@ export interface WorldLoader {
     content: Content,
     options?: {
       reload?: boolean;
+      /** The instance to join (src/matrix/instances.ts): an instance ID, or "new". */
+      instance?: string;
     }
   ) => Promise<void>;
   reloadWorld: (world: Room, content: Content) => Promise<void>;
@@ -54,7 +60,7 @@ export function useWorldLoader(): WorldLoader {
   }, [setWorld, mainThread]);
 
   const loadAndEnterWorldCallback = useCallback(
-    async (world: Room, content: Content) => {
+    async (world: Room, content: Content, options?: { instance?: string }) => {
       const roomId = world.id;
 
       markStartup("world load started");
@@ -112,7 +118,7 @@ export function useWorldLoader(): WorldLoader {
         // Buzzar: if the world fails to load, still hang up the call this started (it would otherwise stay joined,
         // with your microphone attached, and the next world couldn't attach it: "Local media stream source already
         // connected").
-        networkPromise = createMatrixNetworkInterface(mainThread, client, platform, world);
+        networkPromise = createMatrixNetworkInterface(mainThread, client, platform, world, options?.instance);
         const [matrixNetworkInterface] = await Promise.all([
           networkPromise,
           loadWorld(mainThread, environmentUrl, {
@@ -148,19 +154,20 @@ export function useWorldLoader(): WorldLoader {
             .then((ids) => ids.filter((id): id is string => !!id))
             .then((ids) => removeStaleCallMemberships(auth, session.userId, deviceId, ids, world.id))
             .catch(() => undefined);
-          // The same for LiveKit calls: our device's own membership event, still filled in, in another world.
+          // The same for LiveKit calls: our device's own membership events, still filled in, in other worlds (any
+          // instance of them).
+          const prefix = liveKitMembershipKeyPrefix(session.userId, deviceId);
           Promise.all(
             [...session.rooms.values()]
               .filter((room) => room.type === "org.matrix.msc3815.world" && room.id !== world.id)
               .map(async (room) => {
-                const key = liveKitMembershipKey(session.userId, deviceId);
-                const observable = await room.observeStateTypeAndKey("org.matrix.msc3401.call.member", key);
-                const content = observable.get()?.content as Record<string, unknown> | undefined;
-                return content && Object.keys(content).length > 0 ? room.id : undefined;
+                const events = await room.observeStateType("org.matrix.msc3401.call.member");
+                return [...events]
+                  .filter(([key, event]) => key.startsWith(prefix) && Object.keys(event.content ?? {}).length > 0)
+                  .map(([key]) => ({ roomId: room.id, key }));
               })
           )
-            .then((ids) => ids.filter((id): id is string => !!id))
-            .then((ids) => removeStaleLiveKitMemberships(auth, session.userId, deviceId, ids))
+            .then((lists) => removeStaleLiveKitMemberships(auth, lists.flat()))
             .catch(() => undefined);
         }
 

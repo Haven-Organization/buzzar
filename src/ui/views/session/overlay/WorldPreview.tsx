@@ -25,6 +25,7 @@ import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
 import { setEnterWithoutScript } from "../../../utils/scriptSettings";
 import { useJoinedMemberCount } from "../../../hooks/useJoinedMemberCount";
+import { InstancesButton } from "./InstancesDialog";
 
 interface InviteWorldPreviewProps {
   session: Session;
@@ -108,10 +109,15 @@ export function EnterWorldButton({
   size = "lg",
   label = "Enter World",
   withoutScriptRequest = 0,
+  instance,
+  fill,
 }: {
   room: Room;
   size?: "sm" | "md" | "lg";
   label?: string;
+  /** Buzzar: the instance to join (src/matrix/instances.ts); otherwise the busiest one with room. */
+  instance?: string;
+  fill?: "solid" | "outline";
   /** Buzzar: increase to enter through this button's usual steps, but without the world's script (this visit only). */
   withoutScriptRequest?: number;
 }) {
@@ -136,7 +142,7 @@ export function EnterWorldButton({
     markGameResumed();
     requestGamePointerLock(mainThread.canvas);
     exitWorld();
-    navigateEnterWorld(room);
+    navigateEnterWorld(room, { instance });
   };
 
   const handleEnterWorld = async (checkUpdate = false) => {
@@ -226,6 +232,7 @@ export function EnterWorldButton({
       <Button
         size={size}
         variant="primary"
+        fill={fill}
         disabled={loading}
         onClick={() => {
           withoutScriptRef.current = false;
@@ -294,7 +301,12 @@ export function WorldPreview() {
               <WorldPreviewCard
                 title={room?.name || "Unnamed Room"}
                 memberCount={memberCount}
-                options={<EnterWorldButton room={room} />}
+                options={
+                  <div className="flex gap-xs items-center">
+                    <EnterWorldButton room={room} />
+                    <InstancesButton room={room} />
+                  </div>
+                }
               />
             )
           );

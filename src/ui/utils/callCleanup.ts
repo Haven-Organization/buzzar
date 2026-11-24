@@ -6,15 +6,20 @@
  * you in several worlds at once. On entering a world we drop our device from every other room's call state.
  *
  * LiveKit world calls (MatrixRTC, src/matrix/livekitCall.ts) keep one membership event per device instead, under the
- * state key `_<user>_<device>_<slot>`; a stale one is emptied.
+ * state key `_<user>_<device>_<slot>`, one per instance of a world (src/matrix/instances.ts); a stale one is emptied.
  */
 import { MatrixAuth } from "./avatarMatrix";
 
 const CALL_MEMBER = "org.matrix.msc3401.call.member";
 
-/** Our LiveKit membership's state key in a world (matrix-js-sdk's legacy session format). */
-export function liveKitMembershipKey(userId: string, deviceId: string, slot = "software.haven.worldmain") {
-  return `_${userId}_${deviceId}_${slot}`;
+/** Our LiveKit membership's state key in a world instance (matrix-js-sdk's legacy session format). */
+export function liveKitMembershipKey(userId: string, deviceId: string, instance = "main") {
+  return `_${userId}_${deviceId}_software.haven.world${instance}`;
+}
+
+/** The start every one of this device's world-instance membership keys shares. */
+export function liveKitMembershipKeyPrefix(userId: string, deviceId: string) {
+  return liveKitMembershipKey(userId, deviceId, "");
 }
 
 type CallMemberContent = { "m.calls"?: { "m.devices"?: { device_id?: string }[] }[] } & Record<string, unknown>;
@@ -58,18 +63,13 @@ export async function removeStaleCallMemberships(
   return changed;
 }
 
-/** Empties this device's LiveKit call membership in each room in `roomIds` (all are expected to list it). */
-export async function removeStaleLiveKitMemberships(
-  auth: MatrixAuth,
-  userId: string,
-  deviceId: string,
-  roomIds: string[]
-) {
-  const key = encodeURIComponent(liveKitMembershipKey(userId, deviceId));
+/** Empties these LiveKit call memberships of this device (each a room and a membership state key). */
+export async function removeStaleLiveKitMemberships(auth: MatrixAuth, memberships: { roomId: string; key: string }[]) {
   const changed: string[] = [];
-  for (const roomId of roomIds) {
+  for (const { roomId, key } of memberships) {
     try {
-      const put = await api(auth, "PUT", `/rooms/${encodeURIComponent(roomId)}/state/${CALL_MEMBER}/${key}`, {});
+      const path = `/rooms/${encodeURIComponent(roomId)}/state/${CALL_MEMBER}/${encodeURIComponent(key)}`;
+      const put = await api(auth, "PUT", path, {});
       if (put.ok) changed.push(roomId);
     } catch {
       // best effort

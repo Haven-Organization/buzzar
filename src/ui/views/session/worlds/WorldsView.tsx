@@ -138,11 +138,16 @@ function YourWorlds() {
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const [filter, setFilter] = useState("");
 
+  // Buzzar: every call of each world (its instances: src/matrix/instances.ts, and a peer-to-peer call if any).
   const groupCalls = useMemo(() => {
-    const map = new Map<string, GroupCall>();
-    for (const [, groupCall] of calls) map.set(groupCall.roomId, groupCall);
+    const map = new Map<string, GroupCall[]>();
+    for (const [, groupCall] of calls) map.set(groupCall.roomId, [...(map.get(groupCall.roomId) ?? []), groupCall]);
     return map;
   }, [calls]);
+  const peopleIn = useCallback(
+    (roomId: string) => (groupCalls.get(roomId) ?? []).reduce((sum, call) => sum + call.members.size, 0),
+    [groupCalls]
+  );
 
   const shown = useMemo(() => {
     const needle = filter.trim().toLowerCase();
@@ -155,11 +160,11 @@ function YourWorlds() {
     return list.sort((a, b) => {
       if (a.id === worldId) return -1;
       if (b.id === worldId) return 1;
-      const live = (groupCalls.get(b.id)?.members.size ?? 0) - (groupCalls.get(a.id)?.members.size ?? 0);
+      const live = peopleIn(b.id) - peopleIn(a.id);
       if (live !== 0) return live;
       return (a.name || "").localeCompare(b.name || "");
     });
-  }, [worlds, filter, worldId, groupCalls]);
+  }, [worlds, filter, worldId, peopleIn]);
 
   return (
     <>
@@ -186,7 +191,7 @@ function YourWorlds() {
                 <YourWorldTile
                   key={room.id}
                   room={room}
-                  groupCall={groupCalls.get(room.id)}
+                  groupCalls={groupCalls.get(room.id) ?? NO_CALLS}
                   isHere={entered && room.id === worldId}
                 />
               ))}
@@ -238,7 +243,9 @@ function useReturnToWorld() {
   };
 }
 
-function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: GroupCall; isHere: boolean }) {
+const NO_CALLS: GroupCall[] = [];
+
+function YourWorldTile({ room, groupCalls, isHere }: { room: Room; groupCalls: GroupCall[]; isHere: boolean }) {
   const { session, platform } = useMatrix(true);
   const memberCount = useJoinedMemberCount(room);
   const { preview, topic, hasScript } = useJoinedWorldPreview(room);
@@ -286,8 +293,8 @@ function YourWorldTile({ room, groupCall, isHere }: { room: Room; groupCall?: Gr
         memberCount={memberCount}
         badge={isHere ? "You're here" : isHome ? "Home" : undefined}
         overlay={
-          groupCall ? (
-            <WorldTileMembers session={session} platform={platform} groupCall={groupCall} room={room} />
+          groupCalls.length > 0 ? (
+            <WorldTileMembers session={session} platform={platform} groupCalls={groupCalls} room={room} />
           ) : undefined
         }
         action={
