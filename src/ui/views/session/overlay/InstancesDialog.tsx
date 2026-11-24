@@ -144,7 +144,7 @@ export function InstancesDialog({
                     </Text>
                     <Text variant="b3" color="surface-low">
                       {count}
-                      {cap !== undefined ? ` / ${cap}` : ""} {count === 1 ? "player" : "players"}
+                      {cap !== undefined ? ` / ${cap}` : ""} {count === 1 && cap === undefined ? "player" : "players"}
                       {full ? " (full)" : ""}: {people(instance)}
                     </Text>
                   </div>

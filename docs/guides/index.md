@@ -117,6 +117,12 @@ Everyone in a world is in its call: that's how you see each other move and hear 
 
 You only see and hear the players in the same call. If you arrive while a call of the other kind is open, Buzzar asks which one to join, and says who is in each.
 
+#### Instances
+
+A world with a LiveKit call can have several **instances**: separate copies of the world, each with its own players, voices and Things (chat is shared by all of them). When you enter, Buzzar puts you in the busiest instance with room, and starts a new one when they're all full. The world sets how many players fit in one in **World Settings → Calls**.
+
+Open **Instances** from a world's ⋯ menu to see who is in which instance, join any of them (even a full one), copy a link to one to invite people, or start a new instance. Give it a name, or leave the name empty and it gets a number, like `#48213`.
+
 #### Sharing your screen
 
 In a world with a LiveKit call, use the **Share Screen** button (on a computer) to show your screen to everyone there: as a floating screen in front of you, or on one of the world's own screens. A floating screen stands on a handle. Grab the handle to carry it, hold **R** and move the mouse to turn it around or tilt it, and press **X** while aiming at it to stop sharing. Its back tells people on the other side who is sharing. The world chooses who may share in **World Settings → Calls**. Your screen's sound isn't shared.
