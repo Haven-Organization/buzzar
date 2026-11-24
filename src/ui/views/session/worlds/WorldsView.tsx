@@ -19,6 +19,7 @@ import { Dots } from "../../../atoms/loading/Dots";
 import { Scroll } from "../../../atoms/scroll/Scroll";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { DropdownMenu } from "../../../atoms/menu/DropdownMenu";
+import { InstancesDialog } from "../overlay/InstancesDialog";
 import { DropdownMenuItem } from "../../../atoms/menu/DropdownMenuItem";
 import { Checkbox } from "../../../atoms/checkbox/Checkbox";
 import { SegmentControl } from "../../../atoms/segment-control/SegmentControl";
@@ -261,6 +262,8 @@ function YourWorldTile({ room, groupCalls, isHere }: { room: Room; groupCalls: G
   const setSidebarTab = useSetAtom(sidebarTabAtom);
   const invite = useDialog(false);
   const setHome = useDialog(false);
+  // Buzzar: the world's instances (src/matrix/instances.ts).
+  const [instancesOpen, setInstancesOpen] = useState(false);
   const home = useAtomValue(homeWorldAtom);
   const isHome = home.status === "ready" && home.roomId === room.id;
   const name = room.name || "Unnamed world";
@@ -268,6 +271,7 @@ function YourWorldTile({ room, groupCalls, isHere }: { room: Room; groupCalls: G
 
   return (
     <>
+      <InstancesDialog room={room} open={instancesOpen} onOpenChange={setInstancesOpen} />
       <Dialog open={invite.open} onOpenChange={invite.setOpen}>
         <InviteDialog roomId={room.id} requestClose={invite.closeDialog} />
       </Dialog>
@@ -316,6 +320,7 @@ function YourWorldTile({ room, groupCalls, isHere }: { room: Room; groupCalls: G
             >
               Chat
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setInstancesOpen(true)}>Instances</DropdownMenuItem>
             <DropdownMenuItem onSelect={invite.openDialog}>Invite</DropdownMenuItem>
             {!isHome && <DropdownMenuItem onSelect={setHome.openDialog}>Set as Home World</DropdownMenuItem>}
             <DropdownMenuItem onSelect={() => copyToClipboard(worldLink(address))}>Copy Link</DropdownMenuItem>
