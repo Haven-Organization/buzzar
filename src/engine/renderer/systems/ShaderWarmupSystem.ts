@@ -49,6 +49,8 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
   lastMeshCount = meshes;
 
   const previousTarget = renderer.getRenderTarget();
+  const started = performance.now();
+  const programsBefore = renderer.info.programs?.length ?? 0;
   try {
     // The main view: High and Ultra draw it into the post-processing target, Low straight to the screen.
     renderer.setRenderTarget(
@@ -65,5 +67,10 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
     }
   } finally {
     renderer.setRenderTarget(previousTarget);
+    const ms = performance.now() - started;
+    const added = (renderer.info.programs?.length ?? 0) - programsBefore;
+    if (ms > 50) {
+      console.info(`[shaders] compiled ${added} new shaders for ${meshes} meshes in ${Math.round(ms)} ms`);
+    }
   }
 }
