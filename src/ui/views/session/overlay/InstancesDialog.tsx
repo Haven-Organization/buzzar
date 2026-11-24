@@ -3,7 +3,7 @@
  * own players, voices and objects (chat is shared). Join any of them, copy a link to one, or start a new one, named
  * or not.
  */
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { Room } from "../../../../matrix";
 import {
@@ -88,6 +88,7 @@ export function InstancesDialog({
   const [name, setName] = useState("");
   const [newId, setNewId] = useState(() => newInstanceId());
   const [copied, setCopied] = useState<string>();
+  const startRef = useRef<HTMLSpanElement>(null);
 
   // A fresh number each time the dialog opens, and whenever the name changes.
   useEffect(() => {
@@ -163,6 +164,9 @@ export function InstancesDialog({
           className="flex flex-column gap-xs"
           onSubmit={(event: FormEvent) => {
             event.preventDefault();
+            // Enter in the name box starts the instance, just as clicking Start does (the key press counts as the
+            // user gesture that capturing the mouse needs).
+            startRef.current?.querySelector("button")?.click();
           }}
         >
           <Label>New Instance</Label>
@@ -176,7 +180,9 @@ export function InstancesDialog({
                 aria-label="New instance name"
               />
             </div>
-            <EnterWorldButton room={room} instance={newId} size="sm" label="Start" onBeforeEnter={close} />
+            <span ref={startRef}>
+              <EnterWorldButton room={room} instance={newId} size="sm" label="Start" onBeforeEnter={close} />
+            </span>
           </div>
           <Text variant="b3" color="surface-low">
             {cleanInstanceName(name)
