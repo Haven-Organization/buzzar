@@ -55,12 +55,13 @@ export default defineConfig({
     // Buzzar (Third Room #461): a generated map, when asked for; before instancing, so the world's own meshes can be
     // shown one by one and last frame's instanced copies hidden.
     WorldMapCaptureSystem,
-    // Buzzar: compile new shaders in one go rather than whenever something first comes into view.
-    ShaderWarmupSystem,
     // Buzzar (Third Room #128): after transforms and reflections are updated, before drawing.
     AutoInstancingSystem,
     // Buzzar (Third Room #398): shared screens glide to where their sharer moved them.
     ScreenShareRenderSystem,
+    // Buzzar: compile new shaders in one go rather than whenever something first comes into view; after instancing,
+    // whose merged meshes are new too (they compiled mid-draw).
+    ShaderWarmupSystem,
     // Buzzar: last before drawing (after instancing's own hiding): meshes whose shaders are still compiling wait.
     ShaderReadySystem,
     RenderSubmitSystem,
