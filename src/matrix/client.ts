@@ -7,6 +7,7 @@ import { SlidingSync, SlidingSyncEvent, SlidingSyncState } from "matrix-js-sdk/l
 
 import { encryptCallSignalling } from "./callSignalling";
 import { secretStorageCallbacks, waitForKeyBackup } from "./crypto";
+import { quietCryptoLogs, quietMatrixLogs } from "./logging";
 import { ObservableValue } from "./observable";
 import { discoverOidcIssuer, exchangeOidcCode, QueryOIDCResult, takeOidcLoginState } from "./oidc";
 import { ISessionInfo, Platform } from "./platform";
@@ -21,6 +22,9 @@ import {
   SLIDING_SYNC_STATE,
   takeSyncStoreReset,
 } from "./syncSettings";
+
+// Buzzar: before any client exists (src/matrix/logging.ts).
+quietMatrixLogs();
 
 export enum LoadStatus {
   NotLoading = "NotLoading",
@@ -343,6 +347,7 @@ export class Client {
     if (cryptoWanted) {
       try {
         await client.initRustCrypto({ cryptoDatabasePrefix: `buzzar-crypto-${info.id}` });
+        quietCryptoLogs();
       } catch (e) {
         // Sync and unencrypted rooms (worlds) still work; encrypted chats won't.
         console.error("Couldn't start end-to-end encryption", e);
