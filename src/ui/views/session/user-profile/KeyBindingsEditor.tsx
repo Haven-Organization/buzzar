@@ -13,7 +13,8 @@ import {
   KEY_ACTIONS,
   KeyActionGroup,
   keyLabel,
-  RESERVED_KEYS,
+  bindingOf,
+  isReservedBinding,
   resetAllKeys,
   resetKey,
   setKey,
@@ -34,15 +35,20 @@ function KeyCapture({ onKey, onCancel }: { onKey: (code: string) => void; onCanc
     // Nothing else (shortcuts, the game) sees this key.
     e.preventDefault();
     e.stopPropagation();
-    if (e.code === "Escape") onCancel();
-    else if (e.code) onKey(e.code);
+    if (e.code === "Escape" && !e.ctrlKey && !e.altKey) {
+      onCancel();
+      return;
+    }
+    // Ctrl or Alt pressed first: wait for the key that goes with it ("Alt + S" is its own binding).
+    const binding = bindingOf(e);
+    if (binding) onKey(binding);
   };
   return (
     <input
       ref={ref}
       className="KeyBindingsEditor__capture"
       readOnly
-      value="Press a key…"
+      value="Press a key (Ctrl or Alt with it if you like)…"
       aria-label="Press the new key, or Escape to cancel"
       onKeyDown={onKeyDown}
       onBlur={onCancel}
@@ -57,7 +63,7 @@ export function KeyBindingsEditor() {
 
   const bind = (id: string, code: string) => {
     setListening(undefined);
-    if (RESERVED_KEYS.has(code)) {
+    if (isReservedBinding(code)) {
       setNotice({ text: `${keyLabel(code)} can't be used: it's needed elsewhere in Buzzar.`, error: true });
       return;
     }

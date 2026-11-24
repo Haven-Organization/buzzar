@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   actionForKey,
+  bindingOf,
   engineKey,
   getKey,
   isActionKey,
+  isReservedBinding,
   keyLabel,
   parseKeyBindings,
   resetAllKeys,
@@ -80,5 +82,41 @@ describe("key bindings (Third Room #382)", () => {
     expect(keyLabel("ShiftLeft")).toBe("Shift");
     expect(keyLabel("Backquote")).toBe("`");
     expect(keyLabel("Numpad8")).toBe("Num 8");
+  });
+
+  it("binds Ctrl/Alt combinations as their own keys", () => {
+    expect(getKey("screenshare")).toBe("Alt+KeyS");
+    expect(keyLabel("Alt+KeyS")).toBe("Alt + S");
+    expect(keyLabel("Ctrl+Alt+KeyX")).toBe("Ctrl + Alt + X");
+    // Alt+S is never also S: no game action is bound to it.
+    expect(engineKey("Alt+KeyS")).toBeNull();
+    expect(engineKey("KeyS")).toBe("KeyS");
+    // A game action bound to a combination gets it.
+    setKey("jump", "Alt+KeyJ");
+    expect(engineKey("Alt+KeyJ")).toBe("Space");
+    expect(engineKey("Space")).toBeNull();
+    resetKey("jump");
+    expect(engineKey("Alt+KeyJ")).toBeNull();
+  });
+
+  it("matches combinations exactly", () => {
+    const press = (code: string, mods: Partial<KeyboardEventInit> = {}) =>
+      new KeyboardEvent("keydown", { code, ...mods });
+    expect(isActionKey(press("KeyS", { altKey: true }), "screenshare")).toBe(true);
+    expect(isActionKey(press("KeyS"), "screenshare")).toBe(false);
+    expect(isActionKey(press("KeyS", { altKey: true, shiftKey: true }), "screenshare")).toBe(false);
+    expect(isActionKey(press("KeyS", { altKey: true, metaKey: true }), "screenshare")).toBe(false);
+    expect(isActionKey(press("KeyF", { ctrlKey: true }), "fullscreen")).toBe(true);
+    // Plain keys still work with Shift held (running).
+    expect(isActionKey(press("KeyM", { shiftKey: true }), "mute")).toBe(true);
+    expect(bindingOf({ code: "AltLeft", ctrlKey: false, altKey: true })).toBeUndefined();
+  });
+
+  it("keeps browser and app shortcuts", () => {
+    for (const binding of ["Ctrl+KeyW", "Alt+Tab", "Alt+ArrowLeft", "Ctrl+KeyC", "Alt+Escape", "Ctrl+AltLeft", "Tab"]) {
+      expect(isReservedBinding(binding)).toBe(true);
+    }
+    expect(isReservedBinding("Alt+KeyQ")).toBe(false);
+    expect(() => setKey("mute", "Ctrl+KeyW")).toThrow();
   });
 });

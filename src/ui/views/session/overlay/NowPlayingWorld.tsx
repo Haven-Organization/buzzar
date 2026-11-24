@@ -25,6 +25,8 @@ import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { screenShareDialogAtom } from "../../../state/screenShareDialog";
+import { useKeyBindings } from "../../../hooks/useKeyBindings";
+import { keyLabel } from "../../../../engine/input/keyBindings";
 import { canShareScreens, useScreenShare } from "../world/ScreenShareDialog";
 import ScreenShareIC from "../../../../../res/ic/screen-share.svg";
 
@@ -41,6 +43,7 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
   const openedChatId = useAtomValue(openedChatAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
   const setScreenShareOpen = useSetAtom(screenShareDialogAtom);
+  const keys = useKeyBindings();
   const [, screenShareState] = useScreenShare();
   const sharingScreen = !!screenShareState?.sharing;
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);
@@ -92,7 +95,9 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
           </Tooltip>
           {canShareScreens() && (
             // Buzzar (Third Room #398): Share Screen (also Alt + S in the world).
-            <Tooltip content={`${sharingScreen ? "Sharing Your Screen" : "Share Your Screen"} (Alt + S)`}>
+            <Tooltip
+              content={`${sharingScreen ? "Sharing Your Screen" : "Share Your Screen"} (${keyLabel(keys.screenshare)})`}
+            >
               <IconButton
                 variant={sharingScreen ? "primary" : "surface-low"}
                 label="Share Screen"

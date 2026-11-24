@@ -3,7 +3,7 @@ import { setLipSyncDebug } from "../audio/lipsync.main";
 import { MainContext } from "../MainThread";
 import { defineModule, getModule, registerMessageHandler, Thread } from "../module/module.common";
 import { codeToKeyCode } from "./KeyCodes";
-import { engineKey } from "./keyBindings";
+import { bindingOf, engineKey } from "./keyBindings";
 import { getStats } from "../stats/stats.main";
 import { PlayerModule } from "../player/Player.main";
 import { InitializeInputStateMessage, InputComponentId, InputMessageType, InputSourceId } from "./input.common";
@@ -315,14 +315,17 @@ export const InputModule = defineModule<MainContext, MainInputModule>({
 
     function onKeyDown({ code, ctrlKey, altKey, metaKey }: KeyboardEvent) {
       debugCounts.keyDown++;
-      // Buzzar: browser/OS shortcuts (Ctrl+Shift+B toggles Brave's bookmarks bar, Ctrl+T, Alt+Tab…) must not also
-      // fire game actions; Ctrl+Shift+B was switching fly mode on. No game binding uses Ctrl/Alt/Meta. Releases
-      // are still always delivered (onKeyUp), so nothing can get stuck held.
-      if (ctrlKey || altKey || metaKey) return;
+      // Buzzar: a key pressed with Ctrl or Alt is a separate input from the key alone (keyBindings.ts): it reaches
+      // the game only if a game action is bound to that combination, so browser/OS shortcuts (Ctrl+Shift+B, Ctrl+T,
+      // Alt+Tab…) and interface shortcuts (Alt+S…) don't also fire game actions (Ctrl+Shift+B was switching fly mode
+      // on). Meta is the system's. Releases are still always delivered (onKeyUp), so nothing can get stuck held.
+      if (metaKey) return;
+      const binding = bindingOf({ code, ctrlKey, altKey });
+      if (!binding) return;
       if (lastKeyMap[code]) return;
       lastKeyMap[code] = true;
 
-      const sent = engineKey(code);
+      const sent = engineKey(binding);
       if (sent === null) {
         delete sentAs[code];
         return;

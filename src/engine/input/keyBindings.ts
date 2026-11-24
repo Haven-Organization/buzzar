@@ -11,6 +11,10 @@
  *
  * Every key belongs to at most one action: binding a key that's taken swaps the two actions' keys. A few keys stay
  * fixed (Tab, Escape, Enter, the number keys…), since other parts of the app or the browser rely on them.
+ *
+ * A binding can include Ctrl and/or Alt ("Alt+KeyS", "Ctrl+KeyF"): a key pressed with them is a separate input from
+ * the key alone. Shift isn't a modifier here (it's the Run key). Combinations reach the game only when a game action
+ * is bound to one; browser and app shortcuts (Ctrl+W, Alt+Tab, Alt+←…) can't be bound.
  */
 
 export type KeyActionGroup = "move" | "actions" | "interface";
@@ -59,6 +63,10 @@ export const KEY_ACTIONS: KeyAction[] = [
   { id: "map", label: "World Map", group: "interface", defaultKey: "KeyO" },
   { id: "hud", label: "Hide / Show the HUD", group: "interface", defaultKey: "KeyH" },
   { id: "controls", label: "Controls Help", group: "interface", defaultKey: "Slash" },
+  { id: "screenshare", label: "Share Your Screen", group: "interface", defaultKey: "Alt+KeyS" },
+  { id: "fullscreen", label: "Fullscreen", group: "interface", defaultKey: "Ctrl+KeyF" },
+  { id: "xr", label: "Enter XR", group: "interface", defaultKey: "Alt+KeyX" },
+  { id: "leave", label: "Leave the World", group: "interface", defaultKey: "Alt+KeyL" },
   { id: "editor", label: "Scene Editor", group: "interface", defaultKey: "Backquote" },
 ];
 
@@ -85,6 +93,47 @@ export const RESERVED_KEYS = new Set([
 
 export const KEY_BINDINGS_KEY = "buzzar.keyBindings";
 
+/** Keys that are only modifiers: never bindable on their own here (Shift is: it's Run). */
+const MODIFIER_KEYS = new Set(["ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"]);
+
+/** Combinations the browser, the desktop app or the system use. */
+const RESERVED_COMBOS = new Set([
+  ...["KeyW", "KeyT", "KeyN", "KeyQ", "KeyR", "KeyL", "KeyC", "KeyV", "KeyX", "KeyA", "KeyZ", "KeyY", "Tab"].map(
+    (key) => `Ctrl+${key}`
+  ),
+  "Alt+Tab",
+  "Alt+F4",
+  "Alt+ArrowLeft",
+  "Alt+ArrowRight",
+  "Alt+Space",
+]);
+/** Keys never used in a combination. */
+const RESERVED_COMBO_BASES = new Set(["Tab", "Escape", "Enter", "NumpadEnter"]);
+
+/** Splits a binding into its modifiers and key: "Ctrl+Alt+KeyS" → { ctrl: true, alt: true, key: "KeyS" }. */
+export function parseBinding(binding: string): { ctrl: boolean; alt: boolean; key: string } {
+  let rest = binding;
+  const ctrl = rest.startsWith("Ctrl+");
+  if (ctrl) rest = rest.slice(5);
+  const alt = rest.startsWith("Alt+");
+  if (alt) rest = rest.slice(4);
+  return { ctrl, alt, key: rest };
+}
+
+/** A key event as a binding ("KeyS", "Alt+KeyS", "Ctrl+Alt+KeyS"); undefined for a modifier key pressed alone. */
+export function bindingOf(event: { code: string; ctrlKey: boolean; altKey: boolean }): string | undefined {
+  if (!event.code || MODIFIER_KEYS.has(event.code)) return undefined;
+  return `${event.ctrlKey ? "Ctrl+" : ""}${event.altKey ? "Alt+" : ""}${event.code}`;
+}
+
+/** Whether a binding can't be used (the app or browser needs it), or isn't a valid one. */
+export function isReservedBinding(binding: string): boolean {
+  const { ctrl, alt, key } = parseBinding(binding);
+  if (!/^[A-Za-z0-9]{1,24}$/.test(key) || MODIFIER_KEYS.has(key)) return true;
+  if (!ctrl && !alt) return RESERVED_KEYS.has(key);
+  return RESERVED_COMBOS.has(binding) || RESERVED_COMBO_BASES.has(key);
+}
+
 const byId = new Map(KEY_ACTIONS.map((action) => [action.id, action]));
 let overrides: Record<string, string> | undefined;
 let remap: Map<string, string | null> | undefined;
@@ -96,7 +145,7 @@ export function parseKeyBindings(value: unknown): Record<string, string> {
   if (typeof value !== "object" || value === null) return result;
   for (const [id, key] of Object.entries(value as Record<string, unknown>)) {
     const action = byId.get(id);
-    if (!action || typeof key !== "string" || !/^[A-Za-z0-9]{1,24}$/.test(key) || RESERVED_KEYS.has(key)) continue;
+    if (!action || typeof key !== "string" || isReservedBinding(key)) continue;
     if (key !== action.defaultKey) result[id] = key;
   }
   // Drop any binding whose key another action also ends up with.
@@ -158,7 +207,7 @@ function save(next: Record<string, string>) {
  */
 export function setKey(id: KeyActionId, key: string): KeyAction | undefined {
   if (!byId.has(id)) throw new Error(`Unknown action ${id}`);
-  if (RESERVED_KEYS.has(key)) throw new Error(`${keyLabel(key)} can't be rebound.`);
+  if (isReservedBinding(key)) throw new Error(`${keyLabel(key)} can't be used: it's needed elsewhere.`);
   const current = getKey(id);
   if (current === key) return undefined;
   const other = actionForKey(key);
@@ -188,8 +237,9 @@ export function onKeyBindings(listener: () => void): () => void {
 }
 
 /**
- * For the engine: the key code to pass on for a physical key, `null` to swallow it (it's a game action's default key
- * whose action moved), or the key itself when no game action is involved.
+ * For the engine: the key code to pass on for a key press (a binding: "KeyW", or "Alt+KeyW" with modifiers), `null` to
+ * swallow it (a game action's default key whose action moved, or a combination no game action is bound to), or the
+ * key itself when no game action is involved.
  */
 export function engineKey(code: string): string | null {
   if (!remap) {
@@ -211,12 +261,20 @@ export function engineKey(code: string): string | null {
     }
   }
   const mapped = remap.get(code);
-  return mapped === undefined ? code : mapped;
+  if (mapped !== undefined) return mapped;
+  // Combinations only reach the game when a game action is bound to one: Alt+S is never also S.
+  const { ctrl, alt } = parseBinding(code);
+  return ctrl || alt ? null : code;
 }
 
-/** Whether a key event is the key for an action (no Ctrl/Alt/Meta held). */
+/**
+ * Whether a key event is the binding for an action (with exactly its Ctrl/Alt; never with Meta). A Ctrl/Alt binding
+ * doesn't fire with Shift held too (Ctrl + Shift + S is the statistics, not Ctrl + S); plain keys do (Shift is Run).
+ */
 export function isActionKey(event: KeyboardEvent, id: KeyActionId) {
-  return event.code === getKey(id) && !event.ctrlKey && !event.altKey && !event.metaKey;
+  if (event.metaKey) return false;
+  if ((event.ctrlKey || event.altKey) && event.shiftKey) return false;
+  return bindingOf(event) === getKey(id);
 }
 
 const KEY_NAMES: Record<string, string> = {
@@ -248,8 +306,13 @@ const KEY_NAMES: Record<string, string> = {
   IntlBackslash: "\\",
 };
 
-/** How a key code is shown: "KeyW" → "W", "Numpad4" → "Num 4", "ShiftLeft" → "Shift". */
-export function keyLabel(code: string): string {
+/** How a binding is shown: "KeyW" → "W", "Numpad4" → "Num 4", "ShiftLeft" → "Shift", "Alt+KeyS" → "Alt + S". */
+export function keyLabel(binding: string): string {
+  const { ctrl, alt, key } = parseBinding(binding);
+  return [...(ctrl ? ["Ctrl"] : []), ...(alt ? ["Alt"] : []), singleKeyLabel(key)].join(" + ");
+}
+
+function singleKeyLabel(code: string): string {
   if (KEY_NAMES[code]) return KEY_NAMES[code];
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);

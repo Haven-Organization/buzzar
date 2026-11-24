@@ -50,7 +50,7 @@ import { useActionBar } from "../../../hooks/useActionBar";
 import { thingKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
 import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
 import { useKeyBindings } from "../../../hooks/useKeyBindings";
-import { keyLabel } from "../../../../engine/input/keyBindings";
+import { isActionKey, keyLabel } from "../../../../engine/input/keyBindings";
 import { useTouchControlsEnabled } from "../touch-controls/TouchControls";
 import { TouchHudAction, TouchHudMenu } from "../touch-controls/TouchHudMenu";
 import { pressVirtualButton } from "../../../../engine/input/touchControls";
@@ -179,20 +179,22 @@ export function WorldControls({
     (e) => {
       if (inputFocused()) return;
 
-      if (e.altKey && e.code === "KeyL") {
+      // Buzzar: rebindable in Settings → Controls (keyBindings.ts); by default Alt + L leaves, Alt + S opens Share
+      // Screen, Ctrl + F toggles fullscreen (not the browser's find) and Alt + X enters XR.
+      if (isActionKey(e, "leave")) {
         navigateExitWorld();
-      }
-      // Buzzar: Alt + S opens Share Screen; Ctrl + F toggles fullscreen (not the browser's find).
-      if (e.altKey && e.code === "KeyS" && showScreenShare) {
+      } else if (isActionKey(e, "screenshare") && showScreenShare) {
         e.preventDefault();
         setScreenShareOpen(true);
-      }
-      if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === "KeyF" && canFullscreen) {
+      } else if (isActionKey(e, "fullscreen") && canFullscreen) {
         e.preventDefault();
         toggleFullscreen();
+      } else if (isActionKey(e, "xr") && isWebXRSupported) {
+        e.preventDefault();
+        enterXR();
       }
     },
-    [enterXR, isWebXRSupported, showScreenShare, canFullscreen]
+    [enterXR, isWebXRSupported, showScreenShare, canFullscreen, navigateExitWorld, setScreenShareOpen]
   );
 
   useDisableInput(shortcutUI);
@@ -273,7 +275,7 @@ export function WorldControls({
             />
           </Tooltip>
           <Text variant="b3" color="world" weight="bold">
-            Ctrl + F
+            {keyLabel(keys.fullscreen)}
           </Text>
         </div>
       )}
@@ -300,7 +302,7 @@ export function WorldControls({
             <IconButton variant="world" label="Enter XR" iconSrc={XRIC} onClick={enterXR} />
           </Tooltip>
           <Text variant="b3" color="world" weight="bold">
-            Alt + X
+            {keyLabel(keys.xr)}
           </Text>
         </div>
       )}
@@ -338,7 +340,7 @@ export function WorldControls({
           <IconButton variant="danger" label="Disconnect" iconSrc={CallCrossIC} onClick={navigateExitWorld} />
         </Tooltip>
         <Text variant="b3" color="world" weight="bold">
-          Alt + L
+          {keyLabel(keys.leave)}
         </Text>
       </div>
     </div>

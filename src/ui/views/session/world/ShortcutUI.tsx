@@ -53,9 +53,6 @@ export function FixedControlsList() {
       )}
       {renderItem("Grab/Drop Object", key("Left Click"))}
       {renderItem("Throw Held Object", key("Right Click"))}
-      {renderItem("Leave the World", combo("Alt", "L"))}
-      {renderItem("Share Your Screen", combo("Alt", "S"))}
-      {renderItem("Fullscreen", combo("Ctrl", "F"))}
       {renderItem("Show Statistics", combo("Ctrl", "Shift", "S"))}
     </>
   );
