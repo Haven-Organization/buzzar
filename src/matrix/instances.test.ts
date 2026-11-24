@@ -83,6 +83,8 @@ describe("world instances", () => {
     expect(pickInstance([inst(MAIN_INSTANCE, 10)], 10, MAIN_INSTANCE)).toEqual({ id: MAIN_INSTANCE, isNew: false });
     expect(pickInstance([inst(MAIN_INSTANCE, 1)], 10, "new", () => 0).isNew).toBe(true);
     expect(pickInstance([], 10, "i-44444")).toEqual({ id: "i-44444", isNew: true });
+    // A link whose name arrived decoded still finds the instance.
+    expect(pickInstance([], 10, "i-12345~Test Room B").id).toBe("i-12345~Test%20Room%20B");
     // Nonsense requests are ignored.
     expect(pickInstance([inst(MAIN_INSTANCE, 1)], 10, "bogus").id).toBe(MAIN_INSTANCE);
   });

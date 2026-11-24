@@ -49,6 +49,20 @@ export function cleanInstanceName(name: string | undefined): string {
   return chars.join("").trim();
 }
 
+/**
+ * An instance ID from a link or address, which may arrive with its name already decoded ("i-12345~Movie Night"):
+ * the valid ID, or undefined.
+ */
+export function normalizeInstanceId(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (isInstanceId(value)) return value;
+  const match = /^i-(\d{5})~(.+)$/s.exec(value);
+  if (!match) return undefined;
+  const name = cleanInstanceName(match[2]);
+  const id = name ? `i-${match[1]}~${encodeURIComponent(name)}` : `i-${match[1]}`;
+  return isInstanceId(id) ? id : undefined;
+}
+
 /** How an instance is shown: "Main", its name, or "#" and its number. */
 export function instanceName(id: string): string {
   if (id === MAIN_INSTANCE) return "Main";
@@ -105,9 +119,8 @@ export function pickInstance(
   random?: () => number
 ): { id: string; isNew: boolean } {
   if (requested === "new") return { id: newInstanceId(undefined, random), isNew: true };
-  if (isInstanceId(requested)) {
-    return { id: requested, isNew: !instances.some((instance) => instance.id === requested) };
-  }
+  const asked = normalizeInstanceId(requested);
+  if (asked) return { id: asked, isNew: !instances.some((instance) => instance.id === asked) };
   const open = sortInstances(instances).filter((instance) => instance.userIds.length > 0);
   if (open.length === 0) return { id: MAIN_INSTANCE, isNew: true };
   const withRoom = open.filter((instance) => instance.userIds.length < cap);
