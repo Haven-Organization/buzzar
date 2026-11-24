@@ -301,7 +301,12 @@ function GLTFViewerUI() {
   return (
     <>
       <Stats statsEnabled={statsEnabled} />
-      {editorEnabled && <EditorView />}
+      {/* Buzzar: over the view (in the page flow it sat below the full-height canvas, off screen). */}
+      {editorEnabled && (
+        <div className="GLTFViewer__editor">
+          <EditorView />
+        </div>
+      )}
       {activeEntity && <EntityTooltip activeEntity={activeEntity} portalProcess={{ joining: false }} />}
       <Reticle />
     </>

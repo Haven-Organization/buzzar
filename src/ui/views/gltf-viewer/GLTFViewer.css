@@ -12,6 +12,12 @@
   height: 100%;
 }
 
+.GLTFViewer__editor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 .GLTFViewer__message {
   position: absolute;
   top: 50%;
