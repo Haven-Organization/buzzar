@@ -58,6 +58,8 @@ import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useResumePlay } from "../../../hooks/useResumePlay";
 import { awaitingLockAtom, mouseFreedAtom } from "../../../state/mouseMode";
 import { hudHiddenAtom } from "../../../state/hud";
+import { screenShareDialogAtom } from "../../../state/screenShareDialog";
+import { canShareScreens, ScreenShareDialog } from "./ScreenShareDialog";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
 
 interface WorldViewProps {
@@ -83,6 +85,7 @@ export function WorldView({ world }: WorldViewProps) {
   // the player was in. Coming back from another window never shows the prompt: the keyboard works without the lock
   // and the first click on the world takes the mouse for looking around.
   const [mouseFreed, setMouseFreed] = useAtom(mouseFreedAtom);
+  const [screenShareOpen, setScreenShareOpen] = useAtom(screenShareDialogAtom);
   const [awaitingLock, setAwaitingLock] = useAtom(awaitingLockAtom);
   useEffect(() => {
     if (pointerLocked) {
@@ -404,6 +407,15 @@ export function WorldView({ world }: WorldViewProps) {
           <WorldChat open={worldChatVisible} room={world} onClose={closeChat} />
         )}
       </div>
+      {/* Buzzar (Third Room #398): Share Screen, opened by Alt + S, the call panel or the touch More panel. */}
+      {world && canShareScreens() && (
+        <ScreenShareDialog
+          open={screenShareOpen}
+          onOpenChange={setScreenShareOpen}
+          world={world}
+          showToast={showToast}
+        />
+      )}
       {world && !editorEnabled && (
         <>
           {!worldChatVisible && !hudHidden && !touchControls && <HotbarControls />}

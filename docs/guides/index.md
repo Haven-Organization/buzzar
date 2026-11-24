@@ -125,7 +125,7 @@ Open **Instances** from a world's ⋯ menu to see who is in which instance, join
 
 #### Sharing your screen
 
-In a world with a LiveKit call, use the **Share Screen** button (on a computer) to show your screen to everyone there: as a floating screen in front of you, or on one of the world's own screens. A floating screen stands on a handle. Grab the handle to carry it, hold **R** and move the mouse to turn it around or tilt it, and press **X** while aiming at it to stop sharing. Its back tells people on the other side who is sharing. The world chooses who may share in **World Settings → Calls**. Your screen's sound isn't shared.
+In a world with a LiveKit call, press **Alt + S** or use the **Share Screen** button next to the call buttons in the Chat tab (on a computer) to show your screen to everyone there: as a floating screen in front of you, or on one of the world's own screens. A floating screen stands on a handle. Grab the handle to carry it, hold **R** and move the mouse to turn it around or tilt it, and press **X** while aiming at it to stop sharing. Its back tells people on the other side who is sharing. The world chooses who may share in **World Settings → Calls**. Your screen's sound isn't shared.
 
 ### 5. Set up your profile
 

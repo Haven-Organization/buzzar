@@ -24,7 +24,8 @@ import XRIC from "../../../../../res/ic/xr.svg";
 import MenuIC from "../../../../../res/ic/menu.svg";
 import ScreenShareIC from "../../../../../res/ic/screen-share.svg";
 import RotateIC from "../../../../../res/ic/rotate.svg";
-import { canShareScreens, ScreenShareDialog, useScreenShare } from "./ScreenShareDialog";
+import { canShareScreens, useScreenShare } from "./ScreenShareDialog";
+import { screenShareDialogAtom } from "../../../state/screenShareDialog";
 import { Text } from "../../../atoms/text/Text";
 import { NametagsEnableMessage, NametagsEnableMessageType } from "../../../../engine/player/nametags.common";
 import { NAME_MODE_LABEL, NameMode, nextNameMode } from "../../../utils/nameDisplay";
@@ -168,6 +169,12 @@ export function WorldControls({
     });
   }, [mainThread, showNames]);
 
+  // Buzzar (Third Room #398): screen sharing, where the browser can (not phones).
+  const showScreenShare = useMemo(() => canShareScreens(), []);
+  const setScreenShareOpen = useSetAtom(screenShareDialogAtom);
+  const [, screenShareState] = useScreenShare();
+  const sharingScreen = !!screenShareState?.sharing;
+
   useKeyDown(
     (e) => {
       if (inputFocused()) return;
@@ -175,20 +182,20 @@ export function WorldControls({
       if (e.altKey && e.code === "KeyL") {
         navigateExitWorld();
       }
+      // Buzzar: Alt + S opens Share Screen; Ctrl + F toggles fullscreen (not the browser's find).
+      if (e.altKey && e.code === "KeyS" && showScreenShare) {
+        e.preventDefault();
+        setScreenShareOpen(true);
+      }
+      if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === "KeyF" && canFullscreen) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
     },
-    [enterXR, isWebXRSupported]
+    [enterXR, isWebXRSupported, showScreenShare, canFullscreen]
   );
 
   useDisableInput(shortcutUI);
-
-  // Buzzar (Third Room #398): screen sharing, where the browser can (not phones).
-  const showScreenShare = useMemo(() => canShareScreens(), []);
-  const [screenShareOpen, setScreenShareOpen] = useState(false);
-  const [, screenShareState] = useScreenShare();
-  const sharingScreen = !!screenShareState?.sharing;
-  const screenShareDialog = showScreenShare && (
-    <ScreenShareDialog open={screenShareOpen} onOpenChange={setScreenShareOpen} world={world} showToast={showToast} />
-  );
 
   const helpDialog = (
     <Dialog open={shortcutUI} onOpenChange={setShortcutUI}>
@@ -242,7 +249,6 @@ export function WorldControls({
     return (
       <div className={classNames(className, "flex flex-column items-end gap-xs WorldControls--touch")}>
         {helpDialog}
-        {screenShareDialog}
         <TouchHudMenu actions={actions}>
           {activeCall && <MuteButton showToast={showToast} activeCall={activeCall} />}
         </TouchHudMenu>
@@ -267,7 +273,7 @@ export function WorldControls({
             />
           </Tooltip>
           <Text variant="b3" color="world" weight="bold">
-            {"\u00a0"}
+            Ctrl + F
           </Text>
         </div>
       )}
@@ -296,25 +302,6 @@ export function WorldControls({
           <Text variant="b3" color="world" weight="bold">
             Alt + X
           </Text>
-        </div>
-      )}
-      {showScreenShare && (
-        <div className="flex flex-column items-center">
-          <Tooltip content={sharingScreen ? "Sharing Your Screen" : "Share Your Screen"}>
-            <IconButton
-              variant={sharingScreen ? "primary" : "world"}
-              label="Share Screen"
-              iconSrc={ScreenShareIC}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                setScreenShareOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Text variant="b3" color="world" weight="bold">
-            {"\u00a0"}
-          </Text>
-          {screenShareDialog}
         </div>
       )}
       <div className="flex flex-column items-center">

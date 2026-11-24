@@ -24,6 +24,9 @@ import { manageMuteRequest, MicExceptionDialog, useMuteButton } from "../../comp
 import { OverlayWindow, overlayWindowAtom } from "../../../state/overlayWindow";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useMatrix } from "../../../hooks/useMatrix";
+import { screenShareDialogAtom } from "../../../state/screenShareDialog";
+import { canShareScreens, useScreenShare } from "../world/ScreenShareDialog";
+import ScreenShareIC from "../../../../../res/ic/screen-share.svg";
 
 interface NowPlayingWorldProps {
   world: Room;
@@ -37,6 +40,9 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
   const setActiveChat = useSetAtom(activeChatsAtom);
   const openedChatId = useAtomValue(openedChatAtom);
   const setOverlayWindow = useSetAtom(overlayWindowAtom);
+  const setScreenShareOpen = useSetAtom(screenShareDialogAtom);
+  const [, screenShareState] = useScreenShare();
+  const sharingScreen = !!screenShareState?.sharing;
   const { getPowerLevel, canSendStateEvent } = usePowerLevels(world);
 
   const [inviteDialog, setInviteDialog] = useState(false);
@@ -84,6 +90,17 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
               }}
             />
           </Tooltip>
+          {canShareScreens() && (
+            // Buzzar (Third Room #398): Share Screen (also Alt + S in the world).
+            <Tooltip content={`${sharingScreen ? "Sharing Your Screen" : "Share Your Screen"} (Alt + S)`}>
+              <IconButton
+                variant={sharingScreen ? "primary" : "surface-low"}
+                label="Share Screen"
+                iconSrc={ScreenShareIC}
+                onClick={() => setScreenShareOpen(true)}
+              />
+            </Tooltip>
+          )}
           <Tooltip content="Disconnect">
             <IconButton variant="danger" label="Disconnect" iconSrc={CallCrossIC} onClick={onExitWorld} />
           </Tooltip>
