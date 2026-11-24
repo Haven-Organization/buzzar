@@ -9,7 +9,18 @@
  * reports their shaders ready (KHR_parallel_shader_compile). They appear a moment later; the view keeps running.
  * Where the browser can't report that, nothing is hidden and drawing waits for the compile as before.
  */
-import { Light, Material, Mesh, NoToneMapping, Object3D, Scene, WebGLRenderer } from "three";
+import {
+  Camera,
+  LinearEncoding,
+  Light,
+  Material,
+  Mesh,
+  NoToneMapping,
+  Object3D,
+  Scene,
+  WebGLRenderer,
+  WebGLRenderTarget,
+} from "three";
 
 import { getModule, Thread } from "../../module/module.common";
 import { RendererMessageType, RenderQuality, ShadersSettledMessage } from "../renderer.common";
@@ -29,6 +40,11 @@ let lastLights = "";
 let quietFrames = 0;
 /** After this many quiet frames the scene counts as settled (lights and shadows switch on a few frames in). */
 const SETTLED_FRAMES = 20;
+/** A tiny target for drawing the scene once off screen, which compiles what compile() doesn't (shadow depth). */
+let warmTarget: WebGLRenderTarget | undefined;
+/** Render pipelines whose hover outline has been compiled. */
+const outlineWarmed = new WeakSet<object>();
+
 /** How many programs the renderer had after the last warm-up check: more next frame means drawing compiled some. */
 let programsSeen = 0;
 
@@ -99,6 +115,14 @@ function programsOf(renderer: WebGLRenderer, mesh: Mesh): WebGLProgram[] {
   return programs;
 }
 
+function firstVisibleMesh(scene: Scene): Mesh | undefined {
+  let found: Mesh | undefined;
+  scene.traverseVisible((object) => {
+    if (!found && (object as Mesh).isMesh) found = object as Mesh;
+  });
+  return found;
+}
+
 /** After compiling: note the meshes whose shaders aren't ready yet. */
 function collectPending(renderer: WebGLRenderer, scene: Scene, now: number) {
   const gl = renderer.getContext();
@@ -154,13 +178,38 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
     renderer.compile(scene, camera);
     if (parallel) collectPending(renderer, scene, now);
     if (mirror) {
-      // As Mirror.renderReflection draws it.
-      const toneMapping = renderer.toneMapping;
+      // As Mirror.renderReflection draws it (shader keys include the output encoding and tone mapping).
+      const { toneMapping, outputEncoding } = renderer;
       renderer.toneMapping = NoToneMapping;
+      renderer.outputEncoding = LinearEncoding;
       renderer.setRenderTarget(mirror.renderTarget);
       renderer.compile(scene, camera);
       renderer.toneMapping = toneMapping;
+      renderer.outputEncoding = outputEncoding;
       if (parallel) collectPending(renderer, scene, now);
+    }
+    // Shadows are drawn with depth shaders of their own, which compile() doesn't build: draw the scene once into a
+    // tiny target, shadows included.
+    if (renderer.shadowMap.enabled) {
+      warmTarget ??= new WebGLRenderTarget(4, 4);
+      renderer.setRenderTarget(warmTarget);
+      renderer.shadowMap.needsUpdate = true;
+      renderer.render(scene, camera);
+    }
+    // The hover outline (looking at something you can grab) compiled its shaders the first time it showed, just
+    // after entering: draw it once, around any mesh.
+    if (!outlineWarmed.has(renderPipeline)) {
+      const mesh = firstVisibleMesh(scene);
+      if (mesh) {
+        outlineWarmed.add(renderPipeline);
+        const { outlinePass, effectComposer } = renderPipeline;
+        const selected = outlinePass.selectedObjects;
+        outlinePass.selectedObjects = [mesh];
+        outlinePass.renderScene = scene;
+        outlinePass.renderCamera = camera as Camera;
+        outlinePass.render(renderer, effectComposer.writeBuffer, effectComposer.readBuffer, 0, false);
+        outlinePass.selectedObjects = selected;
+      }
     }
   } finally {
     renderer.setRenderTarget(previousTarget);
