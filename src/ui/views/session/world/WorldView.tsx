@@ -59,6 +59,7 @@ import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { useResumePlay } from "../../../hooks/useResumePlay";
 import { awaitingLockAtom, mouseFreedAtom } from "../../../state/mouseMode";
 import { hudHiddenAtom } from "../../../state/hud";
+import { useAvatarCulling } from "../../../hooks/useAvatarCulling";
 import { screenShareDialogAtom } from "../../../state/screenShareDialog";
 import { canShareScreens, ScreenShareDialog } from "./ScreenShareDialog";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
@@ -129,6 +130,18 @@ export function WorldView({ world }: WorldViewProps) {
       // is now free (Escape frees and captures it; Tab opens the overlay). Alt-Tab releases it too, but the window
       // has lost focus.
       const ui = uiStateRef.current;
+      if (wasLocked && !locked) {
+        console.debug("[pointer-lock] released", {
+          byCode: wasReleasedByCode(),
+          focus: document.hasFocus(),
+          entered: ui.isWorldEntered,
+          overlay: ui.overlayVisible,
+          chat: ui.worldChatVisible,
+          editor: ui.editorEnabled,
+          resumedRecently: resumedRecently(),
+          orbiting: getModule(mainThread, PlayerModule).orbiting,
+        });
+      }
       if (
         wasLocked &&
         !locked &&
@@ -156,6 +169,8 @@ export function WorldView({ world }: WorldViewProps) {
   // Buzzar: the world's object rules go to the engine; moderators hear about blocked attempts.
   const notifyModerator = useCallback((text: string) => showToast(text, 6000), [showToast]);
   useWorldRules(world, notifyModerator);
+  // Buzzar: only the avatars near you are loaded and drawn (Settings → Graphics → Avatar Culling).
+  useAvatarCulling();
 
   // Buzzar: one-off notices about this world (e.g. its script wasn't run or stopped).
   const [worldNotice, setWorldNotice] = useAtom(worldNoticeAtom);
@@ -303,6 +318,10 @@ export function WorldView({ world }: WorldViewProps) {
         // both). While captured the browser keeps the Escape for itself (see the pointer-lock listener); here the
         // mouse is free, so take it back. A key press is a user gesture; right after a release the browser may refuse
         // for a moment, which requestGamePointerLock retries.
+        console.debug("[pointer-lock] Escape keydown", {
+          locked: document.pointerLockElement === mainThread.canvas,
+          sinceBrowserRelease: Math.round(performance.now() - browserReleasedAt.current),
+        });
         if (performance.now() - browserReleasedAt.current < 500) return;
         if (document.pointerLockElement === mainThread.canvas) {
           setMouseFreed(true);

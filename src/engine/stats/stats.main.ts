@@ -3,6 +3,7 @@ import { defineModule, getModule, Thread } from "../module/module.common";
 import { RenderStats } from "../renderer/renderer.common";
 import { RendererModule } from "../renderer/renderer.main";
 import { InitializeStatsBufferMessage, StatNames, Stats, StatsBuffer, StatsMessageType } from "./stats.common";
+import { registerThirdroomGlobalFn } from "../utils/registerThirdroomGlobal";
 
 /*********
  * Types *
@@ -23,6 +24,8 @@ export interface PerfSample {
   worstFrame: number;
   gameFps: number;
   gameWorstFrame: number;
+  /** Milliseconds of that second the page's main thread was blocked by long tasks (mouse input waits meanwhile). */
+  mainBlocked: number;
 }
 
 const HISTORY_SECONDS = 120;
@@ -51,6 +54,20 @@ export const StatsModule = defineModule<MainContext, StatsModuleState>({
     context.initialGameWorkerState.statsBuffer = stats.buffer;
     context.initialRenderWorkerState.statsBuffer = stats.buffer;
 
+    // Buzzar: how long the main thread is blocked (long tasks): mouse and key events wait meanwhile, so aiming stutters
+    // even at a good frame rate.
+    let blocked = 0;
+    let observer: PerformanceObserver | undefined;
+    try {
+      observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) blocked += entry.duration;
+      });
+      observer.observe({ entryTypes: ["longtask"] });
+    } catch {
+      // long tasks aren't reported in this browser
+    }
+    const unregister = registerThirdroomGlobalFn("perfReport", () => getPerfReport(context));
+
     // Buzzar: keep a short history of frame rates for bug reports (cheap: a few reads a second).
     const timer = setInterval(() => {
       const render = getModule(context, RendererModule).statsBuffer.f32;
@@ -61,10 +78,16 @@ export const StatsModule = defineModule<MainContext, StatsModuleState>({
         worstFrame: render[RenderStats.worstFrame],
         gameFps: stats.buffer.f32[Stats.gameFps],
         gameWorstFrame: stats.buffer.f32[Stats.gameWorstFrame],
+        mainBlocked: Math.round(blocked),
       });
+      blocked = 0;
       if (stats.history.length > HISTORY_SECONDS) stats.history.shift();
     }, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      observer?.disconnect();
+      unregister();
+    };
   },
 });
 
@@ -134,9 +157,17 @@ export function getPerfReport(ctx: MainContext): string {
     `Cores: ${navigator.hardwareConcurrency ?? "?"}, screen ${screen.width}x${screen.height} @${devicePixelRatio}x`,
     `Now: drawCalls ${now.drawCalls}, triangles ${now.triangles}, textures ${now.textures}, geometries ${now.geometries}, programs ${now.programs}`,
     "",
-    "t(s)\tfps\tfreshFps\tworstFrame(ms)\tgameFps\tgameWorstFrame(ms)",
+    "t(s)\tfps\tfreshFps\tworstFrame(ms)\tgameFps\tgameWorstFrame(ms)\tmainBlocked(ms)",
     ...history.map((s) =>
-      [s.t, s.fps.toFixed(1), s.freshFps.toFixed(1), s.worstFrame.toFixed(1), s.gameFps.toFixed(1), s.gameWorstFrame.toFixed(1)].join("\t")
+      [
+        s.t,
+        s.fps.toFixed(1),
+        s.freshFps.toFixed(1),
+        s.worstFrame.toFixed(1),
+        s.gameFps.toFixed(1),
+        s.gameWorstFrame.toFixed(1),
+        s.mainBlocked,
+      ].join("\t")
     ),
   ];
   return lines.join("\n");

@@ -71,9 +71,12 @@ import {
   hideAvatarPlaceholder,
   hideRigWhileLoading,
   isAvatarLoading,
+  isCulledPlaceholder,
   setAvatarPlaceholderProgress,
   showAvatarPlaceholder,
+  showCulledAvatarPlaceholder,
 } from "./placeholder.game";
+import { isAvatarCulled } from "./avatarCulling.game";
 
 export const DEFAULT_AVATAR_URL = "/gltf/full-animation-rig.glb";
 const NAMETAG_ABOVE_EYES = 0.35;
@@ -291,6 +294,18 @@ export function AvatarSystem(ctx: GameContext) {
   for (const [peerId, { url, name }] of avatars.desired) {
     const container = findContainer(ctx, peerId);
     if (!container) continue;
+
+    // Buzzar: avatar culling (avatarCulling.common.ts). A hidden player's avatar isn't loaded (one already loading
+    // finishes first); the placeholder stands in, showing their name. Back in view, the normal loading below resumes.
+    if (isAvatarCulled(ctx, peerId)) {
+      if (!avatars.loading.has(container) && !isCulledPlaceholder(container)) {
+        avatars.lookupSince.delete(container);
+        showCulledAvatarPlaceholder(ctx, container, name || peerId, "Avatar hidden (Avatar Culling)");
+      }
+      continue;
+    }
+    if (isCulledPlaceholder(container)) hideAvatarPlaceholder(ctx, container);
+
     const current = avatars.applied.has(container) ? avatars.applied.get(container) : undefined;
     if (current === url) {
       // Resolved to what's already shown (e.g. the default avatar): drop a lookup placeholder.

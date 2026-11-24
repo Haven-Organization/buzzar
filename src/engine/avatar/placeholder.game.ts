@@ -7,7 +7,7 @@
  * design.
  */
 import { quat } from "gl-matrix";
-import { SphereGeometry, TorusGeometry } from "three";
+import { BufferGeometry, SphereGeometry, TorusGeometry } from "three";
 
 import { getYaw } from "../common/math";
 import { addChild, removeChild } from "../component/transform";
@@ -38,6 +38,9 @@ interface Placeholder {
   title: RemoteUIText;
   status: RemoteUIText;
   fill: RemoteUIElement;
+  bar: RemoteUIElement;
+  /** Shown for avatar culling (no progress bar), not loading. */
+  culled?: boolean;
   hiddenRig?: RemoteNode;
   hiddenFromMainCamera: boolean;
   shownAt: number;
@@ -62,15 +65,30 @@ function text(
   return { element, uiText };
 }
 
-function glowMaterial(ctx: GameContext, color: [number, number, number], alpha: number) {
+/**
+ * `glow`: how much of the colour is emitted. At 1 lighting adds nothing and every face is the same colour, which made
+ * the diamond look flat (2D); partly lit, its faces shade differently, while staying visible in dark worlds.
+ */
+function glowMaterial(ctx: GameContext, color: [number, number, number], alpha: number, glow = 1) {
   return new RemoteMaterial(ctx.resourceManager, {
     type: MaterialType.Standard,
     baseColorFactor: [color[0], color[1], color[2], alpha],
-    emissiveFactor: color,
+    emissiveFactor: [color[0] * glow, color[1] * glow, color[2] * glow],
     metallicFactor: 0,
     roughnessFactor: 0.25,
     alphaMode: alpha < 1 ? MaterialAlphaMode.BLEND : MaterialAlphaMode.OPAQUE,
   });
+}
+
+/**
+ * An octahedron with a flat normal per face, so each face catches the light differently. Built from a 4×2-segment
+ * sphere (createMesh needs an index; OctahedronGeometry has none), unshared so its normals aren't smoothed.
+ */
+function facetedOctahedron(radius: number): BufferGeometry {
+  const geometry = new SphereGeometry(radius, 4, 2).toNonIndexed();
+  geometry.computeVertexNormals();
+  geometry.setIndex(Array.from({ length: geometry.getAttribute("position").count }, (_, i) => i));
+  return geometry;
 }
 
 /** Shows (or retitles) the placeholder for a player container and hides their current avatar. */
@@ -79,6 +97,13 @@ export function showAvatarPlaceholder(ctx: GameContext, container: RemoteNode, t
   if (existing) {
     existing.title.value = title;
     existing.hideAt = undefined;
+    if (existing.culled) {
+      // Loading takes over from avatar culling: the progress bar is back.
+      existing.culled = false;
+      existing.bar.height = 12;
+      existing.bar.margin.set([0, 0, 8, 0]);
+      existing.fill.height = 12;
+    }
     existing.canvas.redraw++;
     return;
   }
@@ -89,13 +114,12 @@ export function showAvatarPlaceholder(ctx: GameContext, container: RemoteNode, t
     name: "Loading Diamond",
     position: [0, DIAMOND_HEIGHT, 0],
     scale: [1, 1.45, 1],
-    // A 4×2-segment sphere is an octahedron, and indexed (createMesh needs an index; OctahedronGeometry isn't).
-    mesh: createMesh(ctx, new SphereGeometry(0.2, 4, 2), glowMaterial(ctx, [0.25, 0.6, 1], 0.92)),
+    mesh: createMesh(ctx, facetedOctahedron(0.2), glowMaterial(ctx, [0.25, 0.6, 1], 0.92, 0.35)),
   });
   const ring = new RemoteNode(ctx.resourceManager, {
     name: "Loading Ring",
     position: [0, DIAMOND_HEIGHT, 0],
-    mesh: createMesh(ctx, new TorusGeometry(0.4, 0.012, 8, 64), glowMaterial(ctx, [0.55, 0.85, 1], 1)),
+    mesh: createMesh(ctx, new TorusGeometry(0.4, 0.012, 8, 64), glowMaterial(ctx, [0.55, 0.85, 1], 1, 0.6)),
   });
 
   // Panel: title, progress bar, status line.
@@ -157,6 +181,7 @@ export function showAvatarPlaceholder(ctx: GameContext, container: RemoteNode, t
     title: titleText.uiText,
     status: statusText.uiText,
     fill,
+    bar,
     hiddenRig: rig,
     hiddenFromMainCamera: hidden,
     shownAt: performance.now(),
@@ -172,12 +197,34 @@ export function setAvatarPlaceholderProgress(container: RemoteNode, progress: nu
   placeholder.canvas.redraw++;
 }
 
+/**
+ * Buzzar: avatar culling (avatarCulling.common.ts): the placeholder stands in for a hidden avatar, showing the
+ * player's name and why, without the progress bar. Ends with hideAvatarPlaceholder.
+ */
+export function showCulledAvatarPlaceholder(ctx: GameContext, container: RemoteNode, name: string, status: string) {
+  showAvatarPlaceholder(ctx, container, name);
+  const placeholder = placeholders.get(container);
+  if (!placeholder) return;
+  placeholder.culled = true;
+  placeholder.hideAt = undefined;
+  placeholder.bar.height = 0;
+  placeholder.bar.margin.set([0, 0, 0, 0]);
+  placeholder.fill.height = 0;
+  placeholder.status.value = status;
+  placeholder.canvas.redraw++;
+}
+
+export function isCulledPlaceholder(container: RemoteNode): boolean {
+  return !!placeholders.get(container)?.culled;
+}
+
 /** Removes the placeholder now, or after `delayMs` (e.g. to leave an error message readable). */
 export function hideAvatarPlaceholder(ctx: GameContext, container: RemoteNode, delayMs = 0) {
   const placeholder = placeholders.get(container);
   if (!placeholder) return;
   const now = performance.now();
-  const earliest = placeholder.shownAt + MIN_DISPLAY_MS;
+  // Coming back into view shows the avatar at once (the minimum display is for quick loads).
+  const earliest = placeholder.culled ? now : placeholder.shownAt + MIN_DISPLAY_MS;
   if (delayMs > 0 || now < earliest) {
     placeholder.hideAt = Math.max(now + delayMs, earliest);
     return;

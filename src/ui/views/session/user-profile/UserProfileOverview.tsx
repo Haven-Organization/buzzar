@@ -44,6 +44,7 @@ import { SettingsNav, SettingsNavItem } from "./SettingsNav";
 import AvatarIC from "../../../../../res/ic/avatar.svg";
 import MicIC from "../../../../../res/ic/mic.svg";
 import DarkLightIC from "../../../../../res/ic/dark-light.svg";
+import { AvatarCullingSettings } from "./AvatarCullingSettings";
 import MouseIC from "../../../../../res/ic/mouse.svg";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import CurlyBracketIC from "../../../../../res/ic/curly-bracket.svg";
@@ -186,6 +187,7 @@ export function UserProfileOverview() {
                           in this browser.
                         </Text>
                       </SettingTile>
+                      <AvatarCullingSettings />
                     </div>
                   )}
                   {category === "controls" && <ControlsSettings />}

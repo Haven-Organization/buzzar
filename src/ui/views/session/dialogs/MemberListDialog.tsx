@@ -1,5 +1,7 @@
 import { useState, ReactNode, useReducer } from "react";
 
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import { ALWAYS_SHOW_AVATARS_KEY, parseUserIdList } from "../../../../engine/avatar/avatarCulling.common";
 import { Member, Room, RoomMember } from "../../../../matrix";
 import { Header } from "../../../atoms/header/Header";
 import { HeaderTitle } from "../../../atoms/header/HeaderTitle";
@@ -121,6 +123,11 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
     return volumeDetector?.isSpeaking;
   };
 
+  const [alwaysShowStored, setAlwaysShow] = useLocalStorage<unknown>(ALWAYS_SHOW_AVATARS_KEY, []);
+  const alwaysShow = parseUserIdList(alwaysShowStored);
+  const toggleAlwaysShow = (userId: string) =>
+    setAlwaysShow(alwaysShow.includes(userId) ? alwaysShow.filter((id) => id !== userId) : [...alwaysShow, userId]);
+
   const renderMemberTile = (member: RoomMember, isSpeaking?: boolean) => {
     const { userId, name, avatarUrl, membership } = member;
     const userPL = getPowerLevel(userId);
@@ -132,6 +139,10 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
       </DropdownMenuItem>,
       <DropdownMenuItem key="ignore" onSelect={() => removePeer(engine, userId)}>
         Ignore
+      </DropdownMenuItem>,
+      // Buzzar: never hidden by avatar culling (Settings → Graphics → Avatar Culling).
+      <DropdownMenuItem key="show-avatar" onSelect={() => toggleAlwaysShow(userId)}>
+        {alwaysShow.includes(userId) ? "Stop Always Showing Avatar" : "Show Avatar"}
       </DropdownMenuItem>,
     ];
     switch (membership) {

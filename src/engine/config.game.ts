@@ -65,6 +65,7 @@ import { TrampolineObjectSystem } from "./player/trampolineObjects";
 import { InteractableHighlightSystem } from "../plugins/interaction/highlight.game";
 import { AvatarPedestalModule, AvatarPedestalSystem } from "../plugins/avatar-pedestals/pedestals.game";
 import { AvatarModule, AvatarSystem } from "./avatar/avatar.game";
+import { AvatarCullingModule, AvatarCullingSystem } from "./avatar/avatarCulling.game";
 import { AvatarPlaceholderSystem } from "./avatar/placeholder.game";
 import { EnableCharacterControllerSystem } from "./player/CharacterController";
 import { CameraRigSystem } from "./player/CameraRig";
@@ -98,6 +99,7 @@ export default defineConfig<GameContext>({
     NametagModule,
     WorldMapModule,
     AvatarModule,
+    AvatarCullingModule,
     AvatarPedestalModule,
     SeatModule,
     PostureModule,
@@ -147,6 +149,8 @@ export default defineConfig<GameContext>({
 
     ScriptingSystem,
 
+    // Buzzar: whose avatars to hide (avatar culling), before AvatarSystem acts on it.
+    AvatarCullingSystem,
     AvatarSystem,
     AvatarPlaceholderSystem,
     AnimationSystem,
