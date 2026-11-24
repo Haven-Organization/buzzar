@@ -150,7 +150,11 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
   }
 
   const programList = (renderer.info.programs ?? []) as unknown as ProgramInfo[];
-  if (programList.length > programsSeen) reportUnpredicted(programList, programsSeen);
+  if (programList.length > programsSeen) {
+    reportUnpredicted(programList, programsSeen);
+    // Drawing compiled something the warm-up didn't predict: not settled yet (the loading card keeps waiting).
+    quietFrames = 0;
+  }
   programsSeen = programList.length;
 
   const { meshes, mirror, lights } = surveyScene(scene);
