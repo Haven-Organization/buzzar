@@ -29,6 +29,37 @@ let lastLights = "";
 let quietFrames = 0;
 /** After this many quiet frames the scene counts as settled (lights and shadows switch on a few frames in). */
 const SETTLED_FRAMES = 20;
+/** How many programs the renderer had after the last warm-up check: more next frame means drawing compiled some. */
+let programsSeen = 0;
+
+type ProgramInfo = { name: string; cacheKey: string };
+
+/**
+ * Diagnostics: a shader the warm-up didn't predict was compiled while drawing (that stalls the frame). Logs how its
+ * settings differ from the closest one already compiled, which says what the warm-up got wrong.
+ */
+function reportUnpredicted(programs: ProgramInfo[], from: number) {
+  for (const program of programs.slice(from)) {
+    const fields = program.cacheKey.split(",");
+    let best: { diff: string[]; count: number } | undefined;
+    for (const other of programs.slice(0, from)) {
+      if (other.name !== program.name) continue;
+      const otherFields = other.cacheKey.split(",");
+      const diff: string[] = [];
+      const n = Math.max(fields.length, otherFields.length);
+      for (let i = 0; i < n; i++) {
+        if (fields[i] !== otherFields[i])
+          diff.push(`#${i}: ${otherFields[i]?.slice(0, 40)} → ${fields[i]?.slice(0, 40)}`);
+      }
+      if (!best || diff.length < best.count) best = { diff, count: diff.length };
+    }
+    console.info(
+      `[shaders] compiled while drawing: ${program.name}`,
+      best ? best.diff.slice(0, 8).join("; ") : `(no other ${program.name} yet) ${program.cacheKey.slice(0, 300)}`
+    );
+  }
+}
+
 /** Main-thread requests waiting for the scene to settle (the loading card stays up meanwhile). */
 const settleRequests: number[] = [];
 
@@ -94,6 +125,10 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
     return;
   }
 
+  const programList = (renderer.info.programs ?? []) as unknown as ProgramInfo[];
+  if (programList.length > programsSeen) reportUnpredicted(programList, programsSeen);
+  programsSeen = programList.length;
+
   const { meshes, mirror, lights } = surveyScene(scene);
   if (activeScene.eid === lastSceneEid && meshes === lastMeshCount && lights === lastLights) {
     if (pending.size === 0) quietFrames++;
@@ -130,7 +165,8 @@ export function ShaderWarmupSystem(ctx: RenderContext) {
   } finally {
     renderer.setRenderTarget(previousTarget);
   }
-  const added = (renderer.info.programs?.length ?? 0) - programsBefore;
+  programsSeen = renderer.info.programs?.length ?? 0;
+  const added = programsSeen - programsBefore;
   if (added > 0) {
     console.info(`[shaders] compiling ${added} new shaders; ${pending.size} meshes wait for them`);
   }
