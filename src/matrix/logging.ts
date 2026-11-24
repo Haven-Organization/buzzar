@@ -28,15 +28,17 @@ type Factory = typeof loglevel.methodFactory;
 function quieten(target: { methodFactory: Factory; rebuild?: () => void; getLevel(): number; setLevel: Function }) {
   const original = target.methodFactory;
   if ((original as { buzzarQuiet?: boolean }).buzzarQuiet) return;
-  const quiet: Factory = (methodName, level, name) => {
-    if (QUIET.has(methodName as string)) return () => undefined;
-    const method = original(methodName, level, name);
+  // A plain function, called with the logger as `this`: loglevel's factories (and matrix-js-sdk's, which reads
+  // `this.prefix`) need it. Calling the original without it threw inside the sync loop, which then never finished.
+  const quiet = function (this: unknown, methodName: string, level: unknown, name: unknown) {
+    if (QUIET.has(methodName)) return () => undefined;
+    const method = (original as (...a: unknown[]) => (...args: unknown[]) => void).call(this, methodName, level, name);
     // Hundreds of these during a sync, all harmless (state for rooms sliding sync hasn't loaded yet).
-    return (...args: unknown[]) => {
+    return function (this: unknown, ...args: unknown[]) {
       if (args.some((arg) => typeof arg === "string" && arg.includes(NOISY_ERROR))) return;
-      method(...args);
+      method.apply(this, args);
     };
-  };
+  } as unknown as Factory;
   (quiet as { buzzarQuiet?: boolean }).buzzarQuiet = true;
   target.methodFactory = quiet;
   // Apply to the methods already built.
