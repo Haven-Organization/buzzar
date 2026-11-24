@@ -39,7 +39,7 @@ infrastructure and can't scale to VRChat-sized instances.
         `software.haven.world#main`, membership through matrix-js-sdk's MatrixRTCSession (legacy state-event format,
         5-minute expiry kept fresh), media and data through the LiveKit server from the oldest member's
         `/sfu/get` service; game data as reliable data packets per player, chunked (`livekitDataChannel.ts`).
-        Worlds recommend a call type (`software.haven.world.call`, World Settings → Calls, default mesh); a dialog asks
+        Worlds recommend a call type (`software.haven.world.call`, World Settings → Calls, default LiveKit since 2026-11-24); a dialog asks
         which call to join when one of another type is open; Developer Mode can override the type for new calls.
         Tested live with two clients (voice track, data channel, movement, the dialog).
       - **Done 2026-11-23:** voices by distance: they fade out at the world's voice range (`HAVEN_voice`, default

@@ -29,9 +29,21 @@ longer running.)
 
 ## Homeserver Requirements
 
-Your homeserver should be on [Synapse version 1.62 or higher](https://github.com/matrix-org/synapse/releases). This is due to Buzzar's (and Third Room's) requirement of the `Cross-Origin-Resource-Policy: cross-origin` header for the media repository's download route. Buzzar uses SharedArrayBuffers which require us to [run in a secure-context](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#security_requirements).
-
-You also should have a TURN server set up with your homeserver. More info on how to do that [here](https://matrix-org.github.io/synapse/develop/turn-howto.html).
+- **Synapse 1.62 or later** (or another homeserver that sends `Cross-Origin-Resource-Policy: cross-origin` on media
+  downloads). Buzzar uses SharedArrayBuffers, which need a
+  [secure, cross-origin isolated context](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#security_requirements),
+  so world and avatar files must be loadable across origins.
+- **LiveKit**, for world calls (the default call type): a [LiveKit](https://livekit.io) server plus the MatrixRTC
+  authorization service ([lk-jwt-service](https://github.com/element-hq/lk-jwt-service)), announced in your
+  `.well-known/matrix/client` under `org.matrix.msc4143.rtc_foci`. It's the same setup Element Call uses; see its
+  [self-hosting guide](https://github.com/element-hq/element-call/blob/main/docs/self_hosting.md). Only whoever starts
+  a world's call needs it: everyone who joins after them uses that server.
+- **Delayed events** ([MSC4140](https://github.com/matrix-org/matrix-spec-proposals/pull/4140)), recommended: players
+  who close the app without leaving drop out of the call within seconds instead of staying listed until their
+  membership expires. In Synapse, set `max_event_delay_duration` (for example `24h`).
+- **TURN**, for peer-to-peer (mesh) calls: a world can still choose a peer-to-peer call (World Settings → Calls), and
+  Buzzar offers one when a LiveKit call can't connect. Those connect players directly, through your homeserver's TURN
+  relay when a direct path fails; see Synapse's [TURN guide](https://element-hq.github.io/synapse/latest/turn-howto.html).
 
 ## About Buzzar
 
@@ -62,9 +74,12 @@ Buzzar at its core is focused on creating spaces for people and communities to f
 
 ### Matrix
 
-Buzzar, like Third Room, is built on top of the Matrix group VoIP spec
-([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md))
-where WebRTC connections for voice and game networking are established over Matrix. Matrix is also used for hosting
+Buzzar's voice and game networking run in a world's call, set up over Matrix: by default a MatrixRTC session
+([MSC4143](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)) through a LiveKit server
+([MSC4195](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)), or a peer-to-peer group call as in Third
+Room ([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md)).
+The Matrix client is [matrix-js-sdk](https://github.com/matrix-org/matrix-js-sdk), with end-to-end encryption from its
+Rust crypto. Matrix is also used for hosting
 the 3D assets for these virtual worlds and your avatars as well as providing decentralized identity, end to end
 encryption, text chat, room permissions, and more. Third Room started work on a Matrix spec for virtual worlds
 ([MSC3815](https://github.com/matrix-org/matrix-spec-proposals/pull/3815)); Buzzar plans to propose a successor MSC
@@ -186,11 +201,11 @@ architecture. However, the renderer is still using Three.js. This means as Three
 rendering features we hope to add support as well. We may also be able to push support for certain glTF material
 features faster than Three.js in our own loader.
 
-Aside for glTF material features, we hope to add support for various postprocessing effects such as motion blur, depth
-of field, bloom, and more.
-
-For rendering performance we hope to make full use of Three's instanced mesh rendering, light maps, and light probes.
-We'll also be looking into cascaded shadow maps, reflection probes, and more.
+Beyond glTF materials, the renderer has bloom, a hover and selection outline, mirrors
+([HAVEN_mirror](./docs/gltf/HAVEN_mirror/README.md)), reflection probes, light maps, and sun shadows a world can turn
+on. For performance it draws repeated meshes as one instanced mesh, compiles shaders behind the loading screen, scales
+resolution to hold the frame rate, and can hide avatars beyond a distance (Avatar Culling, like VRChat's). Cascaded
+shadow maps and level of detail are still to come.
 
 ### Physics
 
@@ -224,11 +239,13 @@ it to Matrix in one of two ways, chosen per world (**World Settings → Calls**,
   event (MSC4140) where the homeserver supports it, so players who vanish drop out within seconds. The LiveKit server
   comes from the homeserver's `org.matrix.msc4143.rtc_foci` (`.well-known/matrix/client`); everyone in a call uses the
   oldest member's, so they all meet on one server. Game data travels as reliable LiveKit data packets addressed to each
-  player, chunked to fit LiveKit's packet size. This is what Buzzar's public worlds use.
+  player, chunked to fit LiveKit's packet size. It's the default for worlds that don't choose, and what Buzzar's
+  public worlds use. A busy world splits into **instances** (like VRChat's), each its own MatrixRTC slot
+  (`software.haven.world#<instance>`) and LiveKit room; the world sets how many players fit in one (40 by default).
 - **Peer-to-peer** ([MSC3401](https://github.com/matrix-org/matrix-spec-proposals/blob/matthew/group-voip/proposals/3401-group-voip.md)
   group calls, as in Third Room): every player connects to every other over WebRTC, through the homeserver's TURN
-  relay when a direct path fails. Every Buzzar version (and Third Room) speaks it; it suits small groups. It's the
-  default for worlds that don't choose.
+  relay when a direct path fails. Every Buzzar version (and Third Room) speaks it. It holds 16 players: each one sends
+  their voice and movement to everyone else (about 55 kbit/s per other player while talking and moving).
 
 Players only see and hear the others in the same call. If someone arrives while a call of the other type is open,
 Buzzar asks which one to join, saying who is in each. If a LiveKit call can't connect, Buzzar says why and offers a
@@ -242,16 +259,16 @@ the voices you can't hear, which keeps crowded worlds light. Worlds set their vo
 (`peer.setVoice`, like VRChat's `SetVoice*`).
 
 Data channels are ordered and reliable today; unreliable delivery for fast-changing data like transforms is planned, as
-are separate instances of a busy world (one MatrixRTC slot each) and end-to-end encrypted LiveKit media. The network
+is end-to-end encrypted LiveKit media. The network
 protocol is documented in the [protocol docs](./docs/protocol/index.md), with the aim of standardising it as part of a
 virtual world Matrix spec.
 
 ### WebXR
 
-Manifold currently doesn't have WebXR support. However, we plan to start work on it as soon as we have a feature
-complete product running on desktops. Our multithreading support will work a little differently when WebXR is involved
-due to the need for the lowest possible input latency to avoid motion sickness. We're still investigating this area and
-we'll have more to share as we get closer to starting this work.
+Buzzar runs in immersive VR and AR through WebXR: controllers with their input-profile models, smooth locomotion and
+snap turning. In XR the renderer moves to the main thread, for the lowest input latency. Hand tracking, in-headset
+menus and full-body tracking are still to come (see the [parity checklist](./docs/buzzar/parity-checklist.md)). On
+phones and tablets, touch controls (a joystick, drag to look and on-screen buttons) stand in for keyboard and mouse.
 
 ### Editor
 
@@ -273,13 +290,18 @@ Buzzar client as you navigate from world to world.
 We hope to standardize this WebAssembly Scene Graph API as a member of the Open Metaverse Interoperability Group's
 [Scripting Working Group](https://github.com/omigroup/omi-scripting-group).
 
-**UPDATE:** There is a very early version of the Web Scene Graph API supported today. You can find more info about it in the [WebSG Docs](./docs/web-scene-graph-api.md).
+World scripts work today through an early version of the Web Scene Graph API: see the
+[WebSG docs](https://haven.software/buzzar/docs/guides/websg/). A script asks the player before it uses their Matrix
+account (reading the world chat, posting a message).
 
 ## Creating Your Own Scenes
 
-Buzzar is built on top of the glTF standard 3D file format, you can technically use any tool that exports glTF to create Buzzar scenes. However, not all of the glTF extensions Buzzar uses are supported by every tool. The Third Room project created the Third Room Unity Exporter for easily creating Third Room (and therefore Buzzar) scenes from Unity.
-
-Learn more [here](https://github.com/matrix-org/thirdroom-unity-exporter).
+Buzzar worlds are glTF files, so any tool that exports glTF (Blender, Unity, and others) can make one. Interactive
+parts (mirrors, seats, grabbable objects, avatar pedestals, voice zones, screens and more) are described by Buzzar's
+`HAVEN_*` glTF extensions, documented in [docs/gltf](./docs/gltf/index.md); scenes made for Mozilla Hubs keep many of
+their components ([MOZ_hubs_components](./docs/gltf/MOZ_hubs_components/README.md)). The Third Room project's
+[Unity exporter](https://github.com/matrix-org/thirdroom-unity-exporter) still works for Third Room style scenes. The
+[creators guide](https://haven.software/buzzar/docs/guides/creators) walks through making and publishing one.
 
 ## Local Development
 
@@ -311,11 +333,8 @@ The [Dockerfile](./Dockerfile) builds the app and serves it with nginx, headers 
 homeserver. Outside localhost, put it behind TLS: browsers only allow the microphone and shared memory on secure
 origins.
 
-Third Room was deployed to Netlify via a custom GitHub actions deploy script, which this repository still contains. If you fork our repository and
-set the `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` secrets in your GitHub configuration, this setup should work for you
-as well. Every PR will be built and deployed as a preview deploy and every commit / merge to `main` will be deployed to
-your Netlify site.
-
-Before deploying, the [testing procedure](./docs/testing-procedure.md) should be completed before deploying.
+Third Room deployed to Netlify with GitHub Actions workflows, which this repository still contains (they expect
+Third Room's `main` and `prod` branches; Buzzar develops on `develop`). If you fork the repository and set the
+`NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID` secrets, they can deploy your fork the same way.
 
 To setup OIDC login client configs needs to be added in `config.json`. Client configs includes `client_id` and `uris` issued by OIDC Provider.

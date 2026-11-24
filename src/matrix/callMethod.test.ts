@@ -9,11 +9,11 @@ import {
 } from "./callMethod";
 
 describe("recommendedCallMethod", () => {
-  it("reads the world's choice and falls back to mesh", () => {
+  it("reads the world's choice and falls back to LiveKit", () => {
     expect(recommendedCallMethod({ recommended_method: "livekit" })).toBe("livekit");
     expect(recommendedCallMethod({ recommended_method: "mesh" })).toBe("mesh");
-    expect(recommendedCallMethod({ recommended_method: "carrier pigeon" })).toBe("mesh");
-    expect(recommendedCallMethod(undefined)).toBe("mesh");
+    expect(recommendedCallMethod({ recommended_method: "carrier pigeon" })).toBe("livekit");
+    expect(recommendedCallMethod(undefined)).toBe("livekit");
   });
 });
 

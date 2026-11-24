@@ -1,6 +1,6 @@
 # Self Hosting Buzzar
 
-Buzzar isn't publicly hosted yet, so self-hosting is how you run it. You can also customize the client to fit your community.
+Buzzar is hosted at [buzzar.haven.software](https://buzzar.haven.software), and you can also run your own copy, for example to customize the client for your community.
 
 Buzzar is a single page web app (SPA) and can be hosted on any static web server. You do not need your own Matrix homeserver to host the client; it works with accounts on any homeserver.
 
@@ -9,12 +9,14 @@ If you also want to self-host a Matrix homeserver, see the [Synapse documentatio
 ## Homeserver requirements
 
 - Synapse 1.62 or newer (for the `Cross-Origin-Resource-Policy: cross-origin` header on media downloads), or another homeserver that sends it.
-- A TURN server, so voice and world networking connect from any network (see the tip below).
+- LiveKit, for world calls (the default call type): a LiveKit server plus the MatrixRTC authorization service ([lk-jwt-service](https://github.com/element-hq/lk-jwt-service)), announced in your `.well-known/matrix/client` under `org.matrix.msc4143.rtc_foci`. It's the same setup Element Call uses; see its [self-hosting guide](https://github.com/element-hq/element-call/blob/main/docs/self_hosting.md). Only whoever starts a world's call needs it: everyone who joins after them uses that server.
+- Delayed events (MSC4140), recommended: players who close the app without leaving drop out of the call within seconds. In Synapse, set `max_event_delay_duration` (for example `24h`).
+- A TURN server, for peer-to-peer world calls (see the tip below).
 - Room versions: Buzzar creates worlds in your server's default room version, including v12.
 
 ::: tip
-Buzzar uses Matrix's Group VoIP Calls feature to enable networking and voice chat in virtual worlds.
-In order for WebRTC calls to connect in all networking scenarios, you should set up a TURN server such as Coturn. You can find more information on configuring Coturn in Synapse [here](https://element-hq.github.io/synapse/latest/turn-howto.html).
+A world can choose a peer-to-peer call instead of LiveKit (World Settings → Calls), and Buzzar offers one when a LiveKit call can't connect. Those use Matrix's Group VoIP Calls, with players connecting directly to each other.
+For them to connect in all networking scenarios, you should set up a TURN server such as Coturn. You can find more information on configuring Coturn in Synapse [here](https://element-hq.github.io/synapse/latest/turn-howto.html).
 :::
 
 ## Prerequisites

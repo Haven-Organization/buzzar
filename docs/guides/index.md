@@ -24,7 +24,7 @@ Buzzar continues [Third Room](/guides/third-room), the Matrix.org Foundation's v
 
 ![Screenshot of the sign-in page](/images/SignUp.png)
 
-Buzzar isn't publicly hosted yet. To try it, run it yourself (see [Self Hosting](/guides/self-hosting)) and sign in with an account on any Matrix homeserver, such as matrix.org or your own.
+Open [buzzar.haven.software](https://buzzar.haven.software) (or your own copy, see [Self Hosting](/guides/self-hosting)) and sign in with an account on any Matrix homeserver, such as matrix.org or your own.
 
 Your homeserver is where your account data is stored. The sign-in page lets you pick one from a list or type in your own.
 
@@ -112,8 +112,8 @@ Everyone's Buzzar holds other players to the world's limits: someone using a mod
 
 Everyone in a world is in its call: that's how you see each other move and hear each other talk. A world's call can work two ways, chosen in **World Settings → Calls**:
 
-- **Peer-to-peer (mesh)**, the default: every player connects to every other. Works with every Buzzar version. It holds up to 16 players: everyone sends their voice and movement to everyone else (about 55 kbit/s per other player while talking and moving, so about 0.8 Mbit/s each way at 16), and once a call is full nobody else can join it.
-- **LiveKit server**: everyone connects to a LiveKit server that passes voices and movement on, so far more people fit. Whoever starts the call needs a homeserver that offers LiveKit.
+- **Peer-to-peer (mesh)**: every player connects to every other. Works with every Buzzar version. It holds up to 16 players: everyone sends their voice and movement to everyone else (about 55 kbit/s per other player while talking and moving, so about 0.8 Mbit/s each way at 16), and once a call is full nobody else can join it.
+- **LiveKit server**, the default: everyone connects to a LiveKit server that passes voices and movement on, so far more people fit, split into instances. Whoever starts the call needs a homeserver that offers LiveKit; if it can't connect, Buzzar offers a peer-to-peer call instead.
 
 You only see and hear the players in the same call. If you arrive while a call of the other kind is open, Buzzar asks which one to join, and says who is in each.
 

@@ -20,8 +20,11 @@ export const CALL_METHODS: CallMethod[] = ["mesh", "livekit"];
 /** World room state (state key ""): `{ "recommended_method": "mesh" | "livekit" }`. */
 export const WORLD_CALL_EVENT = "software.haven.world.call";
 
-/** Used by worlds that don't name one: the method every client can join. */
-export const DEFAULT_CALL_METHOD: CallMethod = "mesh";
+/**
+ * Used by worlds that don't name one. LiveKit since 2026-11-24: it holds far more players (instances) and suits most
+ * connections; a mesh call stays a choice in World Settings (and is offered when a LiveKit call can't connect).
+ */
+export const DEFAULT_CALL_METHOD: CallMethod = "livekit";
 
 /** Developer override for starting calls (localStorage, JSON like useLocalStorage): "recommended" or a method. */
 export const CALL_METHOD_OVERRIDE_KEY = "buzzar.callMethodOverride";
