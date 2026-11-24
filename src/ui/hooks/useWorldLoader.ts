@@ -24,6 +24,9 @@ import { useMatrix } from "./useMatrix";
 import { useMainThreadContext } from "./useMainThread";
 import { Thread } from "../../engine/module/module.common";
 import { getSessionAuth } from "../utils/avatarMatrix";
+import { WORLD_RULES_EVENT } from "../../engine/network/spawnRules.common";
+import { setWorldShadows } from "../../engine/renderer/renderer.main";
+import { parseWorldShadows } from "../../engine/renderer/renderer.common";
 import { MediaConfigMessage, MediaConfigMessageType } from "../../engine/avatar/avatar.common";
 
 /** The world being visited without its script ("Enter Without Script"), if any. */
@@ -107,6 +110,15 @@ export function useWorldLoader(): WorldLoader {
       let networkPromise: ReturnType<typeof createMatrixNetworkInterface> | undefined;
       try {
         setActiveMatrixRoom(mainThread, session, world.id, publishedScriptUrl);
+
+        // Buzzar: the world's shadows before it first appears. Turned on later (when the world view's rules hook ran,
+        // after entering), every material's shader had to be rebuilt at once: about a second's freeze, just as you
+        // started looking around. The rules hook sends the same settings again, which changes nothing.
+        const rules = await world.getStateEvent(WORLD_RULES_EVENT).catch(() => undefined);
+        setWorldShadows(
+          mainThread,
+          parseWorldShadows((rules?.event.content as { shadows?: unknown } | undefined)?.shadows)
+        );
 
         // Buzzar: lets world content (e.g. avatar pedestals) resolve mxc:// URIs. Must precede LoadWorld.
         const auth = await getSessionAuth(platform, client.sessionId);
