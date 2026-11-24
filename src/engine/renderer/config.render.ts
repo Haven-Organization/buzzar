@@ -24,7 +24,7 @@ import { DynamicResolutionSystem } from "./systems/DynamicResolutionSystem";
 import { AutoInstancingSystem } from "./systems/AutoInstancingSystem";
 import { WorldShadowsSystem } from "./systems/WorldShadowsSystem";
 import { WorldMapCaptureSystem } from "./systems/WorldMapCaptureSystem";
-import { ShaderWarmupSystem } from "./systems/ShaderWarmupSystem";
+import { ShaderReadySystem, ShaderWarmupSystem } from "./systems/ShaderWarmupSystem";
 import { UpdateXRInputSourcesSystem } from "./systems/UpdateXRInputSourcesSystem";
 
 export default defineConfig({
@@ -61,6 +61,8 @@ export default defineConfig({
     AutoInstancingSystem,
     // Buzzar (Third Room #398): shared screens glide to where their sharer moved them.
     ScreenShareRenderSystem,
+    // Buzzar: last before drawing (after instancing's own hiding): meshes whose shaders are still compiling wait.
+    ShaderReadySystem,
     RenderSubmitSystem,
     RenderThreadStatsSystem,
     RendererOutgoingTripleBufferSystem, // Swap outgoing triplebuffers

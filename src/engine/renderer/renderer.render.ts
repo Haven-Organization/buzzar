@@ -214,7 +214,6 @@ export const RendererModule = defineModule<RenderContext, RendererModuleState>({
     // froze the render thread while a world loaded. Without the check (and with parallel compiling where the
     // browser offers it) drivers compile in the background. Development builds still check.
     renderer.debug.checkShaderErrors = import.meta.env.DEV;
-    gl.getExtension("KHR_parallel_shader_compile");
     renderer.outputEncoding = sRGBEncoding;
     renderer.toneMapping = NoToneMapping;
     renderer.toneMappingExposure = 1;
