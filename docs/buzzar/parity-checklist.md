@@ -47,7 +47,7 @@ infrastructure and can't scale to VRChat-sized instances.
         stands in one is heard by everyone. A failed LiveKit connection says why and offers a peer-to-peer call. Voices
         follow VRChat's per-player settings (near 0, far 25 m, distance low-pass, gain): set per world
         (`HAVEN_voice`), per zone (`HAVEN_voice_zone`) and per player from world scripts (`peer.setVoice`).
-      - Still to do: one slot per instance (`software.haven.world#<instance>`); lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
+      - Still to do: lossy packets for poses; media E2EE; sticky `m.rtc.member` events plus a delayed leave event
         (MSC4140/MSC4354: the homeserver must enable delayed events, otherwise a vanished player's membership lasts
         until it expires).
       - **Done 2026-11-23:** world tiles and the overlay show who's in a world's LiveKit call before you join; joining
@@ -64,8 +64,15 @@ infrastructure and can't scale to VRChat-sized instances.
       - unreliable channels are a TODO (`network.main.ts:240`);
       - ~~interpolation is off by default~~ on since 2026-11-22, with a playback delay fitted to each peer (`playbackClock.ts`, Third Room #237);
       - ~~the string/binary flag bug (`network/scripting.game.ts:48`)~~ fixed 2026-11-17.
-- [ ] ❌ **M** Instances (VRChat Public/Friends+/Invite/Group). One world room, many concurrent
+- [x] ✅ **M** Instances (VRChat Public/Friends+/Invite/Group). One world room, many concurrent
       instances, each a MatrixRTC slot with a capacity and a join queue. 🅼
+      - **Done 2026-11-24:** each instance is its own MatrixRTC slot (`software.haven.world#<instance>`) and LiveKit
+        room; `main` stays as before for older versions. World Settings → Calls sets players per instance (default
+        40). Entering fills the busiest instance with room or starts a new one. The Instances list (world preview,
+        world tile menu) shows who's in each, joins any, copies a link (`?instance=`) and starts new ones, named or
+        numbered, at any time. World tiles count everyone across instances.
+      - Still to do: access types (Friends+, Invite, Group; every instance is public today) and a join queue for
+        full instances.
 - [ ] 🟡 **S** Rebrand: package name, app text and help links done; `/landing` kept as Third Room's page on purpose; `config.json` homeserver defaults.
       Keep the `upstream` remote for cherry-picks.
 - [ ] 🟡 **M** Tests. Today there are unit tests only. Add:
@@ -89,7 +96,8 @@ infrastructure and can't scale to VRChat-sized instances.
 | 🟡 | Secondary motion (PhysBones equivalent), contacts/colliders on avatars | L | VRM spring bones as a start. **Buzzar:** Spring bones done; avatar colliders/contacts not yet. |
 | ✅ | Locomotion animation set, nametags, speaking indicator, 1st/3rd person | – | Fixed clip set (Idle/Walk/Run/Strafe/Fall). |
 | ❌ | **Performance ranking + hard limits** (tris, texture MB, bones, audio sources, file size) | M | Prerequisite for moderation §5. Compute at upload and re-check on load. |
-| ❌ | Impostors / fallback avatar for blocked or over-limit avatars | M | |
+| ✅ | **Avatar culling** (VRChat Hide Avatars Beyond / Maximum Shown Avatars) | S | **Buzzar (2026-11-24):** Settings → Graphics → Avatar Culling: hide avatars beyond a distance and/or show only the nearest N, always showing friends (people you have DMs with, until Matrix has a friends list) and anyone chosen with "Show Avatar" in the People list. Hidden avatars aren't downloaded; a 3D placeholder with their name stands in. Tested live. |
+| ❌ | Impostors / fallback avatar for blocked or over-limit avatars | M | The culling placeholder could serve as the fallback. |
 | ❌ | Avatar scripting (per-avatar WebSG) | L | Needs §7 sandbox. Default off; worlds can forbid it. |
 
 ## 2. Scripted worlds
@@ -311,7 +319,7 @@ Notes and open questions:
 ## 6. Portals and world navigation
 
 - [x] ✅ `OMI_link` portals with `matrix:r/` URIs, click-to-activate (reference worlds).
-- [x] ✅ **S** Destination preview card (name, scene_preview, members, instance count). **Buzzar (2026-11-17):** the portal tooltip shows the picture, name, topic and member count (room summary API for worlds you haven't joined). Instance count waits for instances.
+- [x] ✅ **S** Destination preview card (name, scene_preview, members, instance count). **Buzzar (2026-11-17):** the portal tooltip shows the picture, name, topic and member count (room summary API for worlds you haven't joined). The instance count isn't shown yet (instances exist since 2026-11-24).
 - [x] ✅ **S** Dead-destination handling (`#mars:thirdroom.dev` no longer resolves), plus following tombstones.
 - [x] ✅ **S** Accept `matrix:roomid/…?via=` and `https://matrix.to/#/…`. Web-link portals now ask first and open in a new tab.
 - [ ] ❌ **S** Optional walk-through activation (world opt-in).
