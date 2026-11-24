@@ -38,6 +38,8 @@ export default function WorldRootView() {
    * Handle loading are reloading
    */
   useEffect(() => {
+    // Buzzar: the room must be the one in the address (with its instance), never the previous world's for a moment.
+    if (navigatedWorld && navigatedWorld.id !== roomId) return;
     exitWorld();
     if (navigatedWorld) {
       (async () => {
@@ -56,7 +58,17 @@ export default function WorldRootView() {
         }
       })();
     }
-  }, [navigatedWorld, reloadId, instance, selectWorld, loadAndEnterWorld, exitWorld, setWorld, setOverlayVisibility]);
+  }, [
+    navigatedWorld,
+    roomId,
+    reloadId,
+    instance,
+    selectWorld,
+    loadAndEnterWorld,
+    exitWorld,
+    setWorld,
+    setOverlayVisibility,
+  ]);
 
   /**
    * Selects the world we are entered into for display in the overlay

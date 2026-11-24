@@ -13,13 +13,16 @@ export function useObservableMapValue<K, V>(
   find?: (map: BaseObservableMap<K, V>) => V | undefined
 ): V | undefined {
   const lookup = () => (find ? find(map) : key === undefined ? undefined : map.get(key));
-  const [value, setValue] = useState(lookup);
+  const [state, setState] = useState(() => ({ key, value: lookup() }));
   useEffect(() => {
-    const read = () => setValue(lookup());
+    const read = () => setState({ key, value: lookup() });
     read();
     return map.subscribe({ onReset: read, onAdd: read, onUpdate: read, onRemove: read });
     // `find` is recreated each render; what it looks up is identified by `key`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, key]);
-  return value;
+  // Buzzar: when the key has just changed, the stored value is still the old key's until the effect above runs: look
+  // the new one up now. Returning the old one for a render made the world view load the previous world with the next
+  // world's instance (and then load again).
+  return state.key === key ? state.value : lookup();
 }
