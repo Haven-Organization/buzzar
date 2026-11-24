@@ -111,6 +111,7 @@ export function EnterWorldButton({
   withoutScriptRequest = 0,
   instance,
   fill,
+  onBeforeEnter,
 }: {
   room: Room;
   size?: "sm" | "md" | "lg";
@@ -118,6 +119,8 @@ export function EnterWorldButton({
   /** Buzzar: the instance to join (src/matrix/instances.ts); otherwise the busiest one with room. */
   instance?: string;
   fill?: "solid" | "outline";
+  /** Buzzar: called just before entering (e.g. to close the dialog this button is in, so it can't keep focus). */
+  onBeforeEnter?: () => void;
   /** Buzzar: increase to enter through this button's usual steps, but without the world's script (this visit only). */
   withoutScriptRequest?: number;
 }) {
@@ -135,6 +138,7 @@ export function EnterWorldButton({
   const mainThread = useMainThreadContext();
   const withoutScriptRef = useRef(false);
   const handleLoadWorld = async () => {
+    onBeforeEnter?.();
     setEnterWithoutScript(withoutScriptRef.current ? room.id : undefined);
     // Buzzar: take the pointer now, while this click still counts as a user gesture (browsers only allow a lock
     // right after one), so the world is playable the moment it appears instead of asking for another click.

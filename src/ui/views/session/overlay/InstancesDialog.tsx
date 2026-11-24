@@ -151,7 +151,9 @@ export function InstancesDialog({
                   <Button size="sm" fill="outline" onClick={() => copyLink(instance.id)}>
                     {copied === instance.id ? "Copied" : "Copy Link"}
                   </Button>
-                  {!here && <EnterWorldButton room={room} instance={instance.id} size="sm" label="Join" />}
+                  {!here && (
+                    <EnterWorldButton room={room} instance={instance.id} size="sm" label="Join" onBeforeEnter={close} />
+                  )}
                 </div>
               );
             })}
@@ -174,7 +176,7 @@ export function InstancesDialog({
                 aria-label="New instance name"
               />
             </div>
-            <EnterWorldButton room={room} instance={newId} size="sm" label="Start" />
+            <EnterWorldButton room={room} instance={newId} size="sm" label="Start" onBeforeEnter={close} />
           </div>
           <Text variant="b3" color="surface-low">
             {cleanInstanceName(name)
@@ -187,7 +189,14 @@ export function InstancesDialog({
   }
 
   return (
-    <Dialog className="InstancesDialog" open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      className="InstancesDialog"
+      open={open}
+      onOpenChange={onOpenChange}
+      // Entering a world closes this: focus must go back to the world, not to the menu that opened it (keys don't
+      // reach the game while a button on the page has focus).
+      onCloseAutoFocus={(event) => event.preventDefault()}
+    >
       <Header
         left={<HeaderTitle size="lg">Instances</HeaderTitle>}
         right={<IconButton iconSrc={CrossIC} onClick={close} label="Close" />}

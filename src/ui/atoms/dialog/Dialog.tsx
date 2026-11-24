@@ -10,9 +10,19 @@ interface DialogProps {
   onOpenChange?: (open: boolean) => void;
   trigger?: ReactNode;
   children: ReactNode;
+  /** Buzzar: when closing, Radix focuses the element that opened the dialog; call preventDefault() to stop that. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
-export function Dialog({ className, defaultOpen, open, onOpenChange, trigger, children }: DialogProps) {
+export function Dialog({
+  className,
+  defaultOpen,
+  open,
+  onOpenChange,
+  trigger,
+  children,
+  onCloseAutoFocus,
+}: DialogProps) {
   return (
     <RadixDialog.Root defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
       {trigger && (
@@ -22,7 +32,9 @@ export function Dialog({ className, defaultOpen, open, onOpenChange, trigger, ch
       )}
       <RadixDialog.Portal container={document.body}>
         <RadixDialog.Overlay className="Dialog__overlay" />
-        <RadixDialog.Content className={classNames("Dialog", className)}>{children}</RadixDialog.Content>
+        <RadixDialog.Content className={classNames("Dialog", className)} onCloseAutoFocus={onCloseAutoFocus}>
+          {children}
+        </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>
   );
