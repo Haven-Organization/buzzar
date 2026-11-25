@@ -141,19 +141,19 @@ describe("parseAvatarCollection", () => {
   test("keeps valid avatars once, drops malformed ones and bad builtin entries", () => {
     const collection = parseAvatarCollection({
       avatars: [
-        { url: "mxc://glowers.club/abc", name: "Mint", added_ts: 5 },
-        { url: "mxc://glowers.club/abc", name: "duplicate" },
+        { url: "mxc://example.org/abc", name: "Mint", added_ts: 5 },
+        { url: "mxc://example.org/abc", name: "duplicate" },
         { url: "https://evil.example/x.glb" },
         "nonsense",
         { url: "mxc://matrix.org/def", preview_url: "mxc://matrix.org/pre", format: "glb" },
       ],
-      builtin: { devil: "mxc://glowers.club/devil", rose: "http://not-mxc" },
+      builtin: { devil: "mxc://example.org/devil", rose: "http://not-mxc" },
     });
     expect(collection.avatars).toEqual([
-      { url: "mxc://glowers.club/abc", name: "Mint", added_ts: 5 },
+      { url: "mxc://example.org/abc", name: "Mint", added_ts: 5 },
       { url: "mxc://matrix.org/def", preview_url: "mxc://matrix.org/pre", format: "glb", added_ts: 0 },
     ]);
-    expect(collection.builtin).toEqual({ devil: "mxc://glowers.club/devil" });
+    expect(collection.builtin).toEqual({ devil: "mxc://example.org/devil" });
   });
 
   test("missing or garbage account data is an empty collection", () => {

@@ -5,11 +5,11 @@ import { classifyModel, extractRoomLinks, isModelFile } from "./chatEmbeds";
 describe("room links in messages", () => {
   it("finds bare aliases, matrix.to and matrix: links, without duplicates", () => {
     const links = extractRoomLinks({
-      body: "come to #buzzar-backrooms:glowers.club or https://matrix.to/#/#lobby:matrix.org?via=matrix.org and again #buzzar-backrooms:glowers.club",
+      body: "come to #buzzar-backrooms:example.org or https://matrix.to/#/#lobby:matrix.org?via=matrix.org and again #buzzar-backrooms:example.org",
     });
     expect(links).toEqual([
       { target: "#lobby:matrix.org", via: ["matrix.org"] },
-      { target: "#buzzar-backrooms:glowers.club", via: [] },
+      { target: "#buzzar-backrooms:example.org", via: [] },
     ]);
   });
 
@@ -17,14 +17,14 @@ describe("room links in messages", () => {
     const links = extractRoomLinks({
       body: "Test Room",
       formatted_body:
-        '<a href="https://matrix.to/#/!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4?via=glowers.club">Test Room</a>',
+        '<a href="https://matrix.to/#/!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4?via=example.org">Test Room</a>',
     });
-    expect(links).toEqual([{ target: "!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4", via: ["glowers.club"] }]);
+    expect(links).toEqual([{ target: "!x3wwBjFMWtFb4hPc4Kb7prOxe4Ure_Kf8_XOyTVcnh4", via: ["example.org"] }]);
     expect(extractRoomLinks({ body: "matrix:r/maze:other.org" })).toEqual([{ target: "#maze:other.org", via: [] }]);
   });
 
   it("skips people, events and anchors that aren't aliases", () => {
-    expect(extractRoomLinks({ body: "https://matrix.to/#/@q:glowers.club and #hashtag and issue #12" })).toEqual([]);
+    expect(extractRoomLinks({ body: "https://matrix.to/#/@alice:example.org and #hashtag and issue #12" })).toEqual([]);
     expect(extractRoomLinks({ body: "https://matrix.to/#/!room:x.org/$event:x.org" })).toEqual([]);
   });
 });

@@ -12,7 +12,7 @@ import { homeWorldAtom } from "../state/homeWorld";
 /**
  * Buzzar: the default Home World ships with the app (public/worlds/home); its room points at the files' shared
  * matrix.org copies (res/sharedMedia.json, bundledMedia.ts), so creating or upgrading it uploads nothing. Upstream pointed at mxc://thirdroom.io media, which
- * homeservers that can't fetch from thirdroom.io (e.g. glowers.club) couldn't load at all.
+ * homeservers that can't fetch from thirdroom.io couldn't load at all.
  */
 interface HomeWorldMedia {
   sceneUrl: string;

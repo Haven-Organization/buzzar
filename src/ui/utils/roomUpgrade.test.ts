@@ -13,8 +13,8 @@ describe("room upgrades", () => {
   });
 
   it("joins through the upgrader's server and the user's own", () => {
-    expect(upgradeViaServers({ replacementRoom: "!v12id", sender: "@q:glowers.club" }, "@p:matrix.org")).toEqual([
-      "glowers.club",
+    expect(upgradeViaServers({ replacementRoom: "!v12id", sender: "@alice:example.org" }, "@p:matrix.org")).toEqual([
+      "example.org",
       "matrix.org",
     ]);
   });

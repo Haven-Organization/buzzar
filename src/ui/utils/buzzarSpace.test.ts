@@ -12,8 +12,8 @@ describe("Buzzar space", () => {
   });
 
   it("joins v12 rooms through the user's server and older rooms through theirs too", () => {
-    expect(viaServers("!abc", "@q:glowers.club")).toEqual(["glowers.club"]);
-    expect(viaServers("!abc:matrix.org", "@q:glowers.club")).toEqual(["glowers.club", "matrix.org"]);
+    expect(viaServers("!abc", "@alice:example.org")).toEqual(["example.org"]);
+    expect(viaServers("!abc:matrix.org", "@alice:example.org")).toEqual(["example.org", "matrix.org"]);
   });
 
   it("adds missing worlds and removes only auto-added worlds the user left", () => {

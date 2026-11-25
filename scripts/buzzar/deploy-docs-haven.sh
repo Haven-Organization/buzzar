@@ -2,12 +2,12 @@
 # Builds the developer docs for https://haven.software/buzzar/docs/ and uploads them to the Haven website's VPS.
 # The haven-site repo's own deploy (npm run deploy) excludes /buzzar/docs/, so the two deploy independently.
 #
-# Needs the `Glowers_VPS` SSH host alias (same as haven-site). Usage: scripts/buzzar/deploy-docs-haven.sh [--no-build]
+# Needs the `haven-vps` SSH host alias (or set BUZZAR_DOCS_DEST). Usage: scripts/buzzar/deploy-docs-haven.sh [--no-build]
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT="$ROOT/dist-docs-haven"
-DEST=${BUZZAR_DOCS_DEST:-Glowers_VPS:/var/www/haven.software/site/buzzar/docs/}
+DEST=${BUZZAR_DOCS_DEST:-haven-vps:/var/www/haven.software/site/buzzar/docs/}
 
 cd "$ROOT"
 if [ "${1:-}" != "--no-build" ]; then

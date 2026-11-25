@@ -35,7 +35,7 @@ describe("typing notifications", () => {
 
 describe("banners (MSC4427)", () => {
   it("reads the unstable chat.commet.profile_banner, preferring the stable m.banner_url", () => {
-    const unstable = "mxc://glowers.club/MntSjgtaVczPTWAZoqgyqbFp";
+    const unstable = "mxc://example.org/MntSjgtaVczPTWAZoqgyqbFp";
     expect(parseProfileExtras({ "chat.commet.profile_banner": unstable })).toEqual({ bannerUrl: unstable });
     expect(parseProfileExtras({ "chat.commet.profile_banner": unstable, "m.banner_url": "mxc://a.b/stable" })).toEqual({
       bannerUrl: "mxc://a.b/stable",

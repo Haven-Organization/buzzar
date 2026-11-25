@@ -18,7 +18,7 @@ describe("Explore config", () => {
       suggestedWorlds: [
         "#world:matrix.org",
         "#world:matrix.org",
-        { roomId: "!abc:glowers.club", via: ["glowers.club", "matrix.org"] },
+        { roomId: "!abc:example.org", via: ["example.org", "matrix.org"] },
         { roomId: "!noVia:other.org" },
         "hello",
         { via: ["x.org"] },
@@ -28,7 +28,7 @@ describe("Explore config", () => {
     expect(config.directoryServers).toEqual(["example.org"]);
     expect(config.suggestedWorlds).toEqual([
       { target: "#world:matrix.org", via: [] },
-      { target: "!abc:glowers.club", via: ["glowers.club", "matrix.org"] },
+      { target: "!abc:example.org", via: ["example.org", "matrix.org"] },
       { target: "!noVia:other.org", via: ["other.org"] },
     ]);
   });

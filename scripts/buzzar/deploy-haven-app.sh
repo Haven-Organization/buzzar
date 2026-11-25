@@ -2,11 +2,11 @@
 # Builds Buzzar (app + docs at /docs) and uploads it to https://buzzar.haven.software on the Haven VPS.
 # The nginx site is scripts/buzzar/nginx-buzzar-haven.conf (installed on the VPS, with certbot's TLS lines).
 #
-# Needs the `Glowers_VPS` SSH host alias. Usage: scripts/buzzar/deploy-haven-app.sh [--no-build]
+# Needs the `haven-vps` SSH host alias (or set BUZZAR_APP_DEST). Usage: scripts/buzzar/deploy-haven-app.sh [--no-build]
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-DEST=${BUZZAR_APP_DEST:-Glowers_VPS:/var/www/buzzar.haven.software/site/}
+DEST=${BUZZAR_APP_DEST:-haven-vps:/var/www/buzzar.haven.software/site/}
 
 cd "$ROOT"
 if [ "${1:-}" != "--no-build" ]; then
