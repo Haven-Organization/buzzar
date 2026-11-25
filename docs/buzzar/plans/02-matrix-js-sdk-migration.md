@@ -1,6 +1,10 @@
 # Plan 02: replace Hydrogen with matrix-js-sdk
 
-Status: in progress on branch `matrix-js-sdk-migration` (2026-11-21); see [Migration status](#migration-status). Checklist ref: §0 Foundation ("Replace Hydrogen").
+Status: **done.** Merged into `develop` and live since 2026-11-21; the last Hydrogen build is kept on branch
+`legacy-hydrogen-sdk`. See [Migration status](#migration-status). Checklist ref: §0 Foundation ("Replace Hydrogen").
+
+The sections up to [Phase 0 results](#phase-0-results-2026-11-21) are the plan as written before the work started,
+kept for the reasoning; the phases weren't followed (see below).
 
 ## Is Hydrogen abandoned?
 
@@ -125,54 +129,59 @@ Noise seen: the SDK logs warnings about push rules missing from the server's def
 
 ## Migration status
 
-Done in one pass on branch `matrix-js-sdk-migration` (develop still runs Hydrogen), instead of the phased adapter
-route above: the Matrix layer in `src/matrix/` keeps the shapes the UI and engine were written against, so most
-call sites only changed their import. Hydrogen, libolm, the patch and the hand-written types are removed.
+Done in one pass on 2026-11-21 instead of the phased adapter route above, then merged into `develop` and deployed the
+same day: the Matrix layer in `src/matrix/` keeps the shapes the UI and engine were written against, so most call
+sites only changed their import. Hydrogen, libolm, the patch and the hand-written types are gone, and Hydrogen-named
+code was renamed (`useMatrix`, `MatrixRootView`; sessions are kept under `buzzar_sessions_v1`, and sessions from
+Hydrogen builds are signed out once with a notice).
 
-| Area                                                                                    | State                                                                                                                                                               |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Toolchain (TypeScript 5.9, typescript-eslint 7, ESLint 8.57)                            | Done.                                                                                                                                                               |
-| Session: saved sessions, sync start-up, sign-out; old sessions signed out with a notice | Written; start-up from a saved session **tested**. Password and OIDC sign-in **not yet tried against a server**.                                                    |
-| Rooms: lists, state, members, creating/joining, account data, media URLs                | Written. Your Worlds, entering worlds, avatars, the chat list **tested**; creating rooms, invites and settings writes not yet.                                      |
-| Chat: React timelines for the chat window and in-world chat                             | In-world chat **tested** (history, join notes, live messages). Chat window, images, files, embeds, paging and encrypted media not yet.                              |
-| Calls + game networking (matrix-js-sdk MSC3401 group calls)                             | **Tested** with two accounts on two homeservers in one world: both connect, data channel open, they see each other. Microphone audio not tested (headless browser). |
-| Encryption: Rust crypto, verification by emoji or recovery key, key backup              | Written, **untested** (the smoke tests ran with encryption off).                                                                                                    |
-| Typing notifications, unread state, bug reports                                         | Written, untested.                                                                                                                                                  |
+| Area                                                                       | State (2026-11-25)                                                                                                                                                                                                        |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolchain (TypeScript 5.9, typescript-eslint 7, ESLint 8.57)               | Done.                                                                                                                                                                                                                     |
+| Session: sign-in (password, SSO, OIDC/MAS), saved sessions, sign-out       | Done and in daily use. OIDC tokens refresh through the SDK, and media keeps loading with short-lived tokens.                                                                                                              |
+| Rooms: lists, state, members, creating/joining, account data, media        | Done and in daily use (Your Worlds, Explore, world settings, Home World, invites).                                                                                                                                        |
+| Chat: React timelines for the chat window and in-world chat                | Done. Paging back, unread state, invites at the top, an unread filter, and a Notifications list of your Matrix notifications with Mark All Read.                                                                          |
+| Encryption: Rust crypto, verification by emoji or recovery key, key backup | Done and tested live: verifying from another device (Element) now restores the key backup through secret sharing, without asking for the recovery key. The backup is restored in full once per device and backup version. |
+| Peer-to-peer world calls (matrix-js-sdk MSC3401 group calls)               | Done. Old (Hydrogen) and new builds share a call: tested end to end with voice, the data channel and avatars (`callSignalling.ts` Olm-encrypts call set-up, which Hydrogen builds require).                               |
+| Sliding sync (MSC4186)                                                     | Works, opt-in: **Faster Sync** on the sign-in screen and in Settings. A fast start loads the rooms you need first, then the rest 50 at a time.                                                                            |
+| Typing notifications, bug reports                                          | Done; bug reports include performance telemetry.                                                                                                                                                                          |
 
-Known gaps and things to check:
+What came after, built on this:
 
-- **Old and new builds in one world call: fixed in code, not yet confirmed with an old build.** The membership format
-  was the same all along; the blocker was that Hydrogen builds only accept _encrypted_ call set-up messages and
-  matrix-js-sdk can't encrypt them on Rust crypto. `src/matrix/callSignalling.ts` now Olm-encrypts them (plain only
-  as a fallback). Left to check: Hydrogen numbers its messages per connection and matrix-js-sdk expects each call to
-  start at 0, so a retried call from an old build may stall.
-- Host election orders members by their call-membership event's timestamp, which the SDK refreshes hourly.
-- A link to a world you've already joined (`/world/<id>`) lands in your Home World on start-up (may predate this).
-- The chat badge shows the homeserver's total notification count.
-- First load. The crypto engine (7.8 MB WASM, 2.1 MB gzip) is already loaded on demand by the SDK, after sign-in.
-  The loading screen now says what it's doing, and start-up logs its timing (`[matrix] ready in …`). An account in
-  100 rooms took 27 s to first-load with classic sync and **7.4 s with sliding sync** (MSC4186), which is
-  implemented but opt-in for now: `localStorage["buzzar.slidingSync"] = "1"`. Under it every room gets a fixed set
-  of state and opened rooms are subscribed for the rest (`Session.useRoom`); it needs more testing (world
-  settings, member lists, accounts over 500 rooms) before becoming the default.
+- **MatrixRTC + LiveKit world calls** (2026-11-22), now the default call type, with world instances, voices by
+  distance and screen sharing. See the parity checklist, §0.
+- Faster start-up in worlds: quieter SDK logging, and key-backup and room-list work spread out so it no longer stalls
+  the main thread.
 
-To try the branch next to the installed app: build, copy `dist` to `dist-next`, then
+Left to do:
+
+- **Sliding sync as the default**: needs more testing on large accounts (over 500 rooms) first.
+- **Lazy-load the crypto WASM** after sign-in: the SDK already loads it on demand, but it's still about 2 MB
+  (gzip) on a first visit.
+- **Host election** orders members by their call-membership event's timestamp, which the SDK refreshes hourly.
+  (World authority by power level is tracked in the parity checklist.)
+
+To try a build next to the installed app: build, copy `dist` to `dist-next`, then
 `node scripts/buzzar/serve-dist.mjs dist-next 8091`.
 
 ## Testing
 
-- Unit tests for each adapter (the interfaces make the two implementations swappable in tests).
-- Mixed-client checks in a test world: a Hydrogen build and a matrix-js-sdk build in one world (calls, data
-  channel, avatars, objects), since users won't all update at once.
-- Login matrix: matrix.org, a Synapse with OIDC (MAS), an older Synapse, one server without uploads.
-- Encryption: verify against Element Web and Element X; restore from key backup.
+What was checked:
 
-## Open questions
+- Sign-in and start-up from a saved session, in daily use since the merge.
+- Device verification from Element, and restoring the key backup with it or with the recovery key.
+- Mixed-client calls: a Hydrogen build (`legacy-hydrogen-sdk`) and a matrix-js-sdk build in one world, two accounts
+  on two homeservers (voice, data channel, avatars, positions).
 
-- Can an existing session keep its access token (skipping the sign-in) while replacing only its device keys?
-- Sliding sync: use it where the server supports it from day one, or start with classic `/sync`?
-- Chat UI: build our own React timeline, or adapt pieces from an existing Apache-2.0 client?
-- When to do MatrixRTC + LiveKit: straight after, or only once instances regularly pass ~15 players?
+Still worth adding: unit tests for `src/matrix/`, and verification against Element X.
+
+## Open questions (answered)
+
+- **Keep the access token and replace only the device keys?** No: Hydrogen sessions are signed out once and users
+  sign in again.
+- **Sliding sync from day one?** No: opt-in (Faster Sync) until it has had more testing.
+- **Chat UI?** Our own React timeline.
+- **When to do MatrixRTC + LiveKit?** Straight after: done 2026-11-22, the default since 2026-11-24.
 
 ## Sources
 
