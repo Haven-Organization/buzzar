@@ -31,7 +31,7 @@ infrastructure and can't scale to VRChat-sized instances.
       `legacy-hydrogen-sdk`. Plan and status: [plans/02-matrix-js-sdk-migration.md](plans/02-matrix-js-sdk-migration.md).
 - [x] ✅ **S** Authenticated media (`/_matrix/client/v1/media/*`), done in `src/ui/utils/mediaAuth.ts`. Hydrogen builds legacy URLs, so new
       scenes, avatars and scripts fail on modern homeservers. *Note: the reference rooms loaded fine through matrix.org's authenticated endpoint.*
-- [x] ✅ **S** Room v12 compatibility (done: no `users` entry in power-level overrides; Backrooms on glowers.club is a v12 world). World, home and profile creation puts the creator in
+- [x] ✅ **S** Room v12 compatibility (done: no `users` entry in power-level overrides; tested with a v12 world). World, home and profile creation puts the creator in
       `power_levels.users` (`CreateWorldForm.tsx:129`, `useHomeWorld.ts`, `useUserProfile.ts`), which v12
       rejects. Treat creators as having infinite power. Room IDs no longer contain a server name. *Verify with an integration test.*
 - [ ] 🟡 **XL** 🅼 **Move voice and data to MatrixRTC (MSC4143) + LiveKit (MSC4195).** This replaces the
