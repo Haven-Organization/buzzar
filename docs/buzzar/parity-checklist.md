@@ -112,7 +112,7 @@ infrastructure and can't scale to VRChat-sized instances.
 | ❌ | **Synced variables** (VRChat UdonSynced: continuous + manual, ownership, late-joiner state) | L | Today there's only reliable broadcast + `defineReplicator`. Late joiners get nothing unless the script handles it. |
 | 🟡 | Network events with verified sender (VRChat `NetworkCalling.CallingPlayer`) | S | Broadcast exists; the sender must be attested by the transport, not claimed by the payload. |
 | ❌ | **Player API**: teleport, set walk/run/jump/gravity, immobilize, get/set eye height, player list with Matrix IDs + power level/roles | M | Needed for Audience Anarchy (pick volunteer → teleport to stage). |
-| 🟡 | Seats / stations (sit, lock movement, exit control) | M | **Buzzar:** Seats exist (sit, exit); a seat race with two people is known. |
+| ✅ | Seats / stations (sit, lock movement, exit control) | M | **Buzzar:** Seats exist (sit, exit); the two-person seat race was fixed in d7053078. |
 | ❌ | Object sync + object pools (VRChat ObjectSync/ObjectPool) | M | Partly covered by the replicator. |
 | ❌ | Raycasts / overlap queries, input beyond the pointer ray | S | |
 | ❌ | Server-synchronized clock | S | For cue timelines, synced music and dance sync. Derive from RTC/host. |
@@ -257,7 +257,7 @@ the rules in §5 matter more for Buzzar than they do there.
 |---|---|---|---|
 | ✅ | Power levels gate scene/script edits; kick/ban/role change in the member list | – | No engine reaction to kicks: a kicked user's peer data must be dropped immediately. |
 | ✅ | Per-world object cap | S | `max_member_object_cap` (reference worlds = 10). **Buzzar:** enforced by every receiving client, not just the spawner (2026-11-16). |
-| ❌ | **World rules state event** 🅼 `software.haven.world.rules` | M | - max props per user, max prop/avatar size and perf rank<br>- avatar height min/max/forced<br>- allow avatar/prop scripts<br>- allow user portals (+ destination allow/deny)<br>- allow avatar audio/emote audio<br>- which power levels can spawn |
+| 🟡 | **World rules state event** 🅼 `software.haven.world.rules` | M | - max props per user, max prop/avatar size and perf rank<br>- avatar height min/max/forced<br>- allow avatar/prop scripts<br>- allow user portals (+ destination allow/deny)<br>- allow avatar audio/emote audio<br>- which power levels can spawn<br>**Buzzar:** the event exists and holds Things (allow/block lists, per-user limit, blocked behaviours), movement (speeds, jump, fly) and shadows; the call type is its own event. Still to add: avatar height and perf limits, avatar/prop scripts, user portals, avatar audio, who may spawn. |
 | ❌ | **Access zones**: named volumes in the scene + state event mapping zone → required power level / role / allowlist; engine-enforced (colliders block or teleport out) and host-validated | L | 🅼 The world doesn't depend on display names (VRChat does). |
 | ❌ | **Gatekeeper admission flow** (lobby → main area, decided by people) | M | 🅼 This is the "human checks you at the door" pattern from VRChat lobby worlds. It's a judgement call by a person, not identity verification.<br>- A visitor in the lobby zone presses "request entry".<br>- Gatekeepers see a queue (in-world panel + 2D/XR UI) with who is asking, and click admit/deny. They can also admit someone directly by pointing at them.<br>- Admit has two modes, both stored as Matrix state:<br>&nbsp;&nbsp;- **this visit only**: a grant with `expires_ts`, plus a MSC4140 delayed event that clears it when the visitor leaves or disconnects;<br>&nbsp;&nbsp;- **persistent**: a grant with no expiry.<br>- A pending request is a per-user state event (`software.haven.zone.request`, state_key = visitor). Bots can watch the queue as well as humans.<br>- Gatekeepers can send people back to the lobby.<br>- The engine enforces it: zone colliders and the host reject or teleport out anyone without a grant. Scripts can't bypass it.<br>- Every admit, deny and revoke is logged. |
 | ❌ | **Delegated gatekeeper role** (can admit to zone X, but isn't a full moderator; can be any visitor) | M | 🅼 **Decided: pure Matrix.** Zone access and "gatekeeper for zone X" are both roles in the *Role model* below:<br>- access to a zone = a role whose control is that zone;<br>- gatekeeper = a role whose control is "admit to zone X".<br>Persistent grants are PL-gated per role event type (`software.haven.role.<role_id>`), so the homeserver enforces them. Visitor-held gatekeeper roles admit through the role-granter path.<br>**Limitation:** whatever is enforced by power levels is a single ladder (lobby → main → VIP). Arbitrary delegation goes through roles checked by clients, or through a bot. |
@@ -424,15 +424,76 @@ running a headless Buzzar client.
       - entitlement bot (§7).
 - [ ] ❌ **S** Headless mode doubles as the multi-client integration-test harness (§0).
 
-## Suggested phase order
+## Priorities (2026-11-25)
 
-1. **Foundation:** matrix-js-sdk, authenticated media, room v12, script capability lockdown (§7 first bullets),
-   reference-world regression tests.
-2. **Avatars v1:** load custom glb/VRM, in-world switching, height scaling with world limits, perf limits, block/hide.
-3. **Networking v2:** MatrixRTC + LiveKit, host authority + validation, instances, synced vars.
-4. **Worlds v2:** animations, player API, seats, set swapping, audio API, clock, persistence. Ends with an
-   Audience-Anarchy-style demo world as the acceptance test.
-5. **VR & controls v2:** gamepad support + rebinding + gamepad UI navigation, the shared radial action menu, XR menus,
-   hand tracking, 3-point IK, comfort options, then full-body.
-6. **Props & rules:** prop format + scripts, inventory, world rules, access zones, roles, user portals.
-7. **External servers & entitlements**, then the MSC write-up.
+The original phase order is mostly behind us: matrix-js-sdk, authenticated media, room v12, the script lockdown,
+custom avatars, MatrixRTC + LiveKit, instances, gamepad support and rebinding are done. What's left, in order. Within
+a tier, earlier items come first.
+
+**P1. Safety and trust.** Buzzar is public and LiveKit instances hold 40 players, so this comes before growth.
+
+1. Personal safety (§5): block through `m.ignored_user_list` (today it lasts the session), per-user volume, mute,
+   hide avatar, personal space bubble.
+2. Report user/content (`/report`) and MSC2313 policy-list subscription (§5).
+3. Moderator in-world tools (§5): kick from instance, mute for everyone, delete anyone's Things, hide an avatar for
+   everyone; audit log for the instance-level ones.
+4. Avatar performance ranking and hard limits, then the fallback avatar for blocked or over-limit ones (§1; the
+   culling placeholder is the start).
+5. Anti-jumpscare basics (§5): avatar audio loudness limiter, near-camera geometry culling, a panic button.
+6. Network leftovers (§0): delayed leave events (MSC4140) so vanished players drop out at once, lossy packets for
+   poses, peer index collisions, deterministic choice of legacy MSC3401 calls, `config.json` defaults.
+
+**P2. Worlds that do things.** Ends with an Audience-Anarchy-style demo world as the acceptance test.
+
+1. Play glTF scene animations (§2).
+2. Synced variables with late-joiner state, network events with a verified sender, a synced clock (§2).
+3. Player API: teleport, speeds, immobilize, player list with Matrix IDs and roles (§2).
+4. Script animation and audio APIs (§2).
+5. Roles, access zones and the gatekeeper admission flow (§5), with the rest of the world rules event (§5).
+6. Host authority (§0) and fair host-side random selection (§2).
+7. Runtime set swapping (§2), then video players (§2) and persistence (§2).
+8. Instance access types (Friends+, Invite, Group) and a join queue for full instances (§0).
+
+**P3. Expression.** What makes people stay.
+
+1. Shared radial action menu for mouse, pad and VR (§3b).
+2. Emotes and dances with synced audio (§1).
+3. User-adjustable avatar height with world limits (§1).
+4. Full skeleton networking, then 3-point VR IK (§1).
+5. Expression parameters and toggles, avatar colliders/contacts (§1), gesture → expression (§3).
+
+**P4. VR and controls.**
+
+1. XR menu layer (§3): quick menu, settings, moderation, the script consent prompt in XR (§7). Unblocks the VR
+   controller bindings for quick menu and mute (§3b).
+2. Comfort: teleport, smooth turn, vignette, seated mode, height calibration (§3).
+3. Gamepad UI navigation, reticle and aim assist, button glyphs per pad (§3b).
+4. Controller rebinding and bindings in account data (§3b); action-level input for scripts (§3b).
+5. Phone-sized menus and world settings (§3).
+6. Hand tracking to avatar fingers, finger-curl gestures (§3, §3b).
+7. On-screen keyboard, haptics, gamepad in WebXR, accessibility options, Steam Deck/Firefox testing (§3b).
+8. VR performance: LOD, foveation, Quest frame budget (§3).
+
+**P5. Props and portals.**
+
+1. Network ownership rules for Things (grabbing someone else's re-creates it today) (§4).
+2. Prop format with manifest, then inventory (§4).
+3. User-placed portals with world allow/deny and moderator removal; moderator override of scene portals;
+   walk-through portals (§4, §6).
+4. Per-prop scripts (needs multiple scripts, below), player-impulse API for physics props (§4).
+5. Object sync and pools, raycasts and overlap queries (§2).
+6. World discovery on Spaces with `software.haven.*` metadata (§6).
+
+**P6. Platform and long term.**
+
+1. Integration tests: headless multi-client against a local Synapse, the reference worlds as fixtures (§0). Shares
+   its headless client with the bot SDK.
+2. Script CPU/memory budget and watchdog; multiple scripts per world and per node (§2).
+3. Big-world loading UX: progress, cache, chunks/LOD (§2).
+4. Script capability declaration with a content hash; the bridge on matrix-widget-api (§7).
+5. Bot SDK, bots with avatars and labels, reference bots; world-originated writes through a bot (§9, §7).
+6. Safety shield presets by trust, privacy for crowded public worlds (#643), group moderation across worlds (§5).
+7. Media E2EE for LiveKit calls (§0).
+8. Unity exporter / Blender support, in-browser world editor (§2).
+9. Avatar scripting (§1), full-body IK and trackers (§1, §3), MIDI (§2).
+10. External server access, then entitlements (§7); the Buzzar MSC write-up and the room template decision (§8).
