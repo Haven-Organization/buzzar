@@ -19,7 +19,7 @@ import { MicrophoneSettings } from "./MicrophoneSettings";
 import { HomeWorldSettings } from "./HomeWorldSettings";
 import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
 import { WorldScriptSettings } from "./WorldScriptSettings";
-import { BlockedPeopleSettings } from "./BlockedPeopleSettings";
+import { BlockedPeopleSettings, WorldBanExemptionSettings } from "./BlockedPeopleSettings";
 import { ProfileExtrasSettings } from "./ProfileExtrasSettings";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
@@ -204,6 +204,7 @@ export function UserProfileOverview() {
                   {category === "safety" && (
                     <div className="UserProfileOverview__section">
                       <BlockedPeopleSettings />
+                      <WorldBanExemptionSettings />
                     </div>
                   )}
                   {category === "developer" && <DeveloperSettings />}

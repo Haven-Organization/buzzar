@@ -8,7 +8,40 @@ import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { Button } from "../../../atoms/button/Button";
+import { Switch } from "../../../atoms/button/Switch";
 import { useBlockedUsers } from "../../../hooks/useBlockedUsers";
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
+import {
+  BAN_EXEMPTIONS_KEY,
+  BanExemptions,
+  DEFAULT_BAN_EXEMPTIONS,
+  parseBanExemptions,
+} from "../../../../engine/network/heldBack";
+
+/** Settings → Safety: who gets through world bans for you. Your own blocks always apply. */
+export function WorldBanExemptionSettings() {
+  const [stored, setStored] = useLocalStorage<unknown>(BAN_EXEMPTIONS_KEY, DEFAULT_BAN_EXEMPTIONS);
+  const exemptions = parseBanExemptions(stored);
+  const set = (change: Partial<BanExemptions>) => setStored({ ...exemptions, ...change });
+  return (
+    <>
+      <SettingTile label={<Label>Let Friends Through World Bans</Label>}>
+        <Switch checked={exemptions.friends} onCheckedChange={(on) => set({ friends: on })} />
+        <Text variant="b3" color="surface-low">
+          When a world&apos;s ban list bans someone you have direct messages with, you still see and hear each other
+          there. Everyone else in the world keeps them held back. Saved in this browser.
+        </Text>
+      </SettingTile>
+      <SettingTile label={<Label>Let People You Share Rooms With Through World Bans</Label>}>
+        <Switch checked={exemptions.mutuals} onCheckedChange={(on) => set({ mutuals: on })} />
+        <Text variant="b3" color="surface-low">
+          The same for anyone who&apos;s in another room you&apos;re in. That includes big public rooms, so this lets a
+          lot of people through. Saved in this browser.
+        </Text>
+      </SettingTile>
+    </>
+  );
+}
 
 export function BlockedPeopleSettings() {
   const { blocked, unblock } = useBlockedUsers();

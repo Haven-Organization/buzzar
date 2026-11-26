@@ -130,9 +130,17 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
   const heldBackNote = (userId: string) => {
     if (blocked.includes(userId)) return "Blocked";
     const reason = heldBack?.reasonOf(userId);
-    if (reason && "banned" in reason)
-      return `Banned by this world's ban list${reason.banned.reason ? `: ${reason.banned.reason}` : ""}`;
-    return undefined;
+    if (!reason || !("banned" in reason)) return undefined;
+    const why = reason.banned.reason ? `: ${reason.banned.reason}` : "";
+    const through =
+      reason.letThrough === "friend"
+        ? " (you let friends through)"
+        : reason.letThrough === "mutual"
+        ? " (you let people you share rooms with through)"
+        : reason.letThrough === "developer"
+        ? " (you ignore world ban lists)"
+        : "";
+    return `Banned by this world's ban list${through}${why}`;
   };
 
   const [alwaysShowStored, setAlwaysShow] = useLocalStorage<unknown>(ALWAYS_SHOW_AVATARS_KEY, []);

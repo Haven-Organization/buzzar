@@ -22,6 +22,7 @@ import {
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import { LIMIT_OVERRIDES_KEY, LimitOverrides } from "../../../../engine/player/movement.common";
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
+import { IGNORE_WORLD_BANS_KEY } from "../../../../engine/network/heldBack";
 
 const NO_OVERRIDES: Partial<LimitOverrides> = {};
 
@@ -34,6 +35,7 @@ export function DeveloperSettings() {
     setOverrides({ ignoreOwn: !!overrides.ignoreOwn, ignoreOthers: !!overrides.ignoreOthers, [key]: value });
   const [callMethod, setCallMethod] = useLocalStorage<CallMethodOverride>(CALL_METHOD_OVERRIDE_KEY, "recommended");
   const [ignoreMeshCap, setIgnoreMeshCap] = useLocalStorage<boolean>(IGNORE_MESH_CAP_KEY, false);
+  const [ignoreWorldBans, setIgnoreWorldBans] = useLocalStorage<boolean>(IGNORE_WORLD_BANS_KEY, false);
 
   const slidingSync = isSlidingSyncEnabled();
   // The setting is read when the session starts, so changing it reloads the app.
@@ -89,6 +91,14 @@ export function DeveloperSettings() {
               objects, moving too fast), so you may see things nobody else does. Useful for debugging, or for moderators
               who want to see what a rule-breaker is doing. Nobody can move or delete someone else&apos;s things either
               way.
+            </Text>
+          </SettingTile>
+          <SettingTile label={<Label>Ignore World Ban Lists</Label>}>
+            <Switch checked={ignoreWorldBans} onCheckedChange={setIgnoreWorldBans} />
+            <Text variant="b3" color="surface-low">
+              Players banned by a world&apos;s ban lists aren&apos;t held back for you: you see and hear each other,
+              while everyone else in the world still holds them back. People you blocked stay blocked. For testing, or
+              if you&apos;d rather decide for yourself. Saved in this browser.
             </Text>
           </SettingTile>
           <SettingTile label={<Label>Call Type for New World Calls</Label>}>

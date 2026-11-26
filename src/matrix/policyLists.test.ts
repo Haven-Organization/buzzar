@@ -67,3 +67,12 @@ describe("ban entries typed in World Settings", () => {
     expect(parseBanEntity("https://x.org")).toBeUndefined();
   });
 });
+
+describe("who gets through world bans", () => {
+  it("lets friends through by default, people you share rooms with only when asked", async () => {
+    const { parseBanExemptions } = await import("../engine/network/heldBack");
+    expect(parseBanExemptions(undefined)).toEqual({ friends: true, mutuals: false });
+    expect(parseBanExemptions({ friends: false, mutuals: true })).toEqual({ friends: false, mutuals: true });
+    expect(parseBanExemptions({ friends: "no", mutuals: "yes" })).toEqual({ friends: true, mutuals: false });
+  });
+});

@@ -174,7 +174,9 @@ export function WorldView({ world }: WorldViewProps) {
   const heldBack = useHeldBack(world.id);
   const ownBan = heldBack?.ownBan();
   const ownBanText = ownBan
-    ? `This world's ban list bans you${ownBan.reason ? ` (${ownBan.reason})` : ""}, so nobody here can see or hear you.`
+    ? `This world's ban list bans you${
+        ownBan.reason ? ` (${ownBan.reason})` : ""
+      }, so people here can't see or hear you (except anyone who lets you through, such as friends).`
     : undefined;
   useEffect(() => {
     if (ownBanText) showToast(ownBanText, 12000);

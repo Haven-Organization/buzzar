@@ -169,7 +169,7 @@ export function useChat(room: Room, options: ChatOptions) {
   const items = useMemo(
     () => {
       const heldBack = getHeldBack(room.id);
-      const hideSender = heldBack ? (userId: string) => !!heldBack.reasonOf(userId) : undefined;
+      const hideSender = heldBack ? (userId: string) => heldBack.isHeldBack(userId) : undefined;
       return timeline ? buildChatItems(timeline, { dates, media, hideSender }) : [];
     },
     // `version` changes whenever the timeline's events do, `heldBackVersion` whenever who's held back does.
