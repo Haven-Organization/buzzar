@@ -1139,6 +1139,16 @@ export function isHeldByUs(ctx: GameContext, eid: number) {
 export function sendInteractionMessage(ctx: GameContext, action: InteractableAction, eid = NOOP) {
   const network = getModule(ctx, NetworkModule);
 
+  // Buzzar: no hover card for a Thing that does something while held (a water gun): it would sit over your aim for as
+  // long as you hold it, and its Drop/Throw hints don't apply (left click uses it, right click pumps, E lets go).
+  if (action === InteractableAction.Grab && usableThings.has(eid)) {
+    ctx.sendMessage<InteractionMessage>(Thread.Main, {
+      type: InteractionMessageType,
+      action: InteractableAction.Unfocus,
+    });
+    return;
+  }
+
   const interactableType = Interactable.type[eid];
 
   if (!eid || !interactableType) {

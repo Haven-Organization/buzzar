@@ -50,6 +50,7 @@ import { getSpawnRules, isSpawnAllowed, TakenObject } from "../../engine/network
 import { isCustomThingId, isThingId, rememberThingBehaviours } from "../../engine/network/spawnRules.common";
 import { resolveMxcUri } from "../avatar-pedestals/pedestals.game";
 import { attachSprayer } from "../sprayers/sprayer.game";
+import { usableThings } from "../interaction/usable";
 import { readAssetMetadata } from "../../engine/gltf/assetMetadata";
 import { getRemoteResource } from "../../engine/resource/resource.game";
 import {
@@ -581,7 +582,13 @@ export function customThingReady(ctx: GameContext, mxc: string, then: () => void
  * the file turns out to have.
  */
 function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: string, kinematic: boolean) {
-  const node = new RemoteNode(ctx.resourceManager, { name: "Thing" });
+  // When the file is already here (always, for one we spawn), its name and whether it does something while held are
+  // known at once, before it goes in our hands (the hover card and left click depend on them).
+  const file = loadedThingFile(mxc);
+  const node = new RemoteNode(ctx.resourceManager, {
+    name: (file && readAssetMetadata(file as never).name) || "Thing",
+  });
+  if (file?.extensions?.HAVEN_sprayer) usableThings.add(node.eid);
   const used = fileThingPhysics(mxc);
   addThingPhysics(ctx, physics, node, used, kinematic);
   const url = resolveMxcUri(ctx, mxc);
