@@ -20,6 +20,7 @@ import { InputModule } from "../../engine/input/input.game";
 import { ButtonActionState } from "../../engine/input/ActionMap";
 import { ourPlayerQuery } from "../../engine/player/Player";
 import { PhysicsModule } from "../../engine/physics/physics.game";
+import { CollisionGroup } from "../../engine/physics/CollisionGroups";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
 import { getPeerIndexFromNetworkId, NetworkModule } from "../../engine/network/network.game";
 import { NetworkAction } from "../../engine/network/NetworkAction";
@@ -202,7 +203,9 @@ const _rotation = quat.create();
 const _direction = vec3.create();
 const _jitter = quat.create();
 const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
-const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
+/** Drops stop at anything solid except players: the stream leaves the nozzle inside its holder's own capsule. */
+const isSolid = (collider: RAPIER.Collider) =>
+  !collider.isSensor() && ((collider.collisionGroups() >>> 16) & CollisionGroup.Player) === 0;
 
 function emitDrop(ctx: GameContext, sprayer: Sprayer) {
   let drop = sprayer.drops.find((d) => !d.active);

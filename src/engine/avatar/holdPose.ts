@@ -46,6 +46,8 @@ interface LocalHold {
 let localHold: LocalHold | undefined;
 /** peerId → network id of the Thing they hold. */
 const remoteHolds = new Map<string, number>();
+/** peerId → the entity we made a sensor for them (put back when they let go). */
+const remoteSensors = new Map<string, RemoteNode>();
 /** How a Thing (by entity) is held, if it says (set by the Things plugin: thingFile.ts). */
 let resolveHold: (eid: number) => HoldSpec | undefined = () => undefined;
 
@@ -67,6 +69,21 @@ function announce(ctx: GameContext, eid: number | undefined) {
   broadcastReliable(ctx, getModule(ctx, NetworkModule), sliceCursorView(messageView));
 }
 
+/**
+ * Things held in someone's hands don't collide: one at your shoulder would sit inside your own player capsule and
+ * shove you around (and anyone you walk past). Entities made sensors here, to put back when let go.
+ */
+const madeSensors = new Set<number>();
+
+function setHeldCollisions(node: RemoteNode, held: boolean) {
+  const body = node.physicsBody?.body;
+  if (!body) return;
+  if (held === madeSensors.has(node.eid)) return;
+  for (let i = 0; i < body.numColliders(); i++) body.collider(i).setSensor(held);
+  if (held) madeSensors.add(node.eid);
+  else madeSensors.delete(node.eid);
+}
+
 /** Starts holding `node` in our hands: it becomes kinematic, and everyone is told. */
 export function beginLocalHold(ctx: GameContext, node: RemoteNode, spec: HoldSpec) {
   if (localHold) endLocalHold(ctx);
@@ -76,6 +93,7 @@ export function beginLocalHold(ctx: GameContext, node: RemoteNode, spec: HoldSpe
     body.setLinvel({ x: 0, y: 0, z: 0 }, false);
     body.setAngvel({ x: 0, y: 0, z: 0 }, false);
   }
+  setHeldCollisions(node, true);
   localHold = { eid: node.eid, node, spec, placedTick: -1, announcedAt: Date.now() };
   announce(ctx, node.eid);
 }
@@ -85,8 +103,10 @@ export function endLocalHold(ctx: GameContext) {
   if (!localHold) return;
   const body = localHold.node.physicsBody?.body;
   if (body && getRemoteResource<RemoteNode>(ctx, localHold.eid)) {
+    setHeldCollisions(localHold.node, false);
     body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
   }
+  madeSensors.delete(localHold.eid);
   localHold = undefined;
   announce(ctx, undefined);
 }
@@ -110,6 +130,11 @@ export function registerHoldNetwork(ctx: GameContext) {
   const network = getModule(ctx, NetworkModule);
   registerInboundMessageHandler(network, NetworkAction.HavenHold, (_ctx, v, peerId) => {
     const nid = readUint32(v);
+    const previous = remoteSensors.get(peerId);
+    if (previous) {
+      setHeldCollisions(previous, false);
+      remoteSensors.delete(peerId);
+    }
     if (nid === 0) {
       remoteHolds.delete(peerId);
       return;
@@ -441,6 +466,10 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
     const eid = nid !== undefined ? getModule(ctx, NetworkModule).networkIdToEntityId.get(nid) : undefined;
     thing = eid !== undefined ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
     spec = thing ? resolveHold(thing.eid) : undefined;
+    if (thing && spec && remoteSensors.get(player.name) !== thing) {
+      setHeldCollisions(thing, true);
+      remoteSensors.set(player.name, thing);
+    }
   }
   if (!thing || !spec) return;
 
