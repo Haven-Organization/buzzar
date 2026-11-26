@@ -50,6 +50,7 @@ import { getSpawnRules, isSpawnAllowed, TakenObject } from "../../engine/network
 import { isCustomThingId, isThingId, rememberThingBehaviours } from "../../engine/network/spawnRules.common";
 import { resolveMxcUri } from "../avatar-pedestals/pedestals.game";
 import { attachSprayer } from "../sprayers/sprayer.game";
+import { readAssetMetadata } from "../../engine/gltf/assetMetadata";
 import { getRemoteResource } from "../../engine/resource/resource.game";
 import {
   addObjectToWorld,
@@ -580,7 +581,7 @@ export function customThingReady(ctx: GameContext, mxc: string, then: () => void
  * the file turns out to have.
  */
 function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: string, kinematic: boolean) {
-  const node = new RemoteNode(ctx.resourceManager);
+  const node = new RemoteNode(ctx.resourceManager, { name: "Thing" });
   const used = fileThingPhysics(mxc);
   addThingPhysics(ctx, physics, node, used, kinematic);
   const url = resolveMxcUri(ctx, mxc);
@@ -597,6 +598,8 @@ function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: str
         return;
       }
       loadDefaultGLTFScene(ctx, resource, { existingNode: node });
+      // Its name from the file's details (HAVEN_metadata), for the hover label.
+      node.name = readAssetMetadata(resource.root).name ?? "Thing";
       // Behaviours in the file: spraying (HAVEN_sprayer).
       attachSprayer(ctx, node, resource);
       const settings = fileThingPhysics(mxc);

@@ -86,7 +86,8 @@ interface SprayerModuleState {
   sprayers: Map<number, Sprayer>;
 }
 
-const messageView = createCursorView(new ArrayBuffer(16));
+// The header (writeMetadata) alone is 13 bytes.
+const messageView = createCursorView(new ArrayBuffer(64));
 const SPRAYING = 1;
 const PUMPED = 2;
 

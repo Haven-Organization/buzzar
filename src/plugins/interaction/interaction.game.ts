@@ -50,6 +50,7 @@ import { PlayerModule } from "../../engine/player/Player.game";
 import { ZoomComponent, orbitAnchorQuery, OrbitAnchor, CameraRigAction } from "../../engine/player/CameraRig";
 import { heldRotation } from "../../engine/player/heldRotation";
 import { usableThings } from "./usable";
+import { isCustomThingId } from "../../engine/network/spawnRules.common";
 import { endLocalHold, getLocalHold } from "../../engine/avatar/holdPose";
 import {
   GameRendererModuleState,
@@ -1158,9 +1159,11 @@ export function sendInteractionMessage(ctx: GameContext, action: InteractableAct
       uri = PortalComponent.get(eid)?.uri;
     }
 
+    // Buzzar: a custom Thing's prefab is its file's mxc; it's labelled with the file's own name instead.
+    const prefab = Prefab.get(eid);
     const name =
       getRemoteResource<RemoteUIButton>(ctx, eid)?.label ||
-      Prefab.get(eid) ||
+      (prefab && isCustomThingId(prefab) ? getRemoteResource<RemoteNode>(ctx, eid)?.name || "Thing" : prefab) ||
       getRemoteResource<RemoteNode>(ctx, eid)?.name;
 
     ctx.sendMessage<InteractionMessage>(Thread.Main, {

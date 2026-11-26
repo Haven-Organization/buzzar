@@ -59,7 +59,8 @@ export function getLocalHold() {
   return localHold;
 }
 
-const messageView = createCursorView(new ArrayBuffer(16));
+// The header (writeMetadata) alone is 13 bytes.
+const messageView = createCursorView(new ArrayBuffer(64));
 /** Repeated this often while holding, so people who arrive later see it too. */
 const REANNOUNCE_MS = 4000;
 
