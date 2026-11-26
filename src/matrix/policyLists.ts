@@ -6,7 +6,7 @@
  * moderator then follows up in Matrix (room bans, redactions).
  *
  * The world room is a ban list itself: its own `m.policy.rule.*` state events (the spec allows policy rules in any
- * room) always apply. Moderators ban accounts and servers there (World Settings → Moderation), and a moderation bot
+ * room) always apply. Moderators ban accounts and servers there (World Settings → Moderation & Safety), and a moderation bot
  * copies in rules from lists visitors can't read. Every visitor already has the world room's state, so these apply
  * without joining anything.
  *

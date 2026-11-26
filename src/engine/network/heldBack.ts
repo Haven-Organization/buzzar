@@ -5,7 +5,7 @@
  * see their avatar or Things or hear them, and nothing of yours is sent to them; on LiveKit calls the server is told
  * not to send them your voice.
  *
- * World bans can be waived on your own screen (Settings → Safety): friends (people you have direct messages with) are
+ * World bans can be waived on your own screen (Settings → Moderation & Safety): friends (people you have direct messages with) are
  * let through by default, people you share another room with only if you choose, and with Developer Mode on you can
  * ignore world ban lists altogether. Your own blocks always apply.
  *
@@ -50,7 +50,7 @@ function changed() {
   for (const listener of listeners) listener();
 }
 
-/** Settings → Safety: who gets through world bans for you. */
+/** Settings → Moderation & Safety: who gets through world bans for you. */
 export const BAN_EXEMPTIONS_KEY = "buzzar.banExemptions";
 /** Settings → Developer: ignore world ban lists altogether (only with Developer Mode on). */
 export const IGNORE_WORLD_BANS_KEY = "buzzar.ignoreWorldBans";

@@ -1,5 +1,5 @@
 /**
- * Buzzar: World Settings → Moderation (src/matrix/policyLists.ts), saved at once:
+ * Buzzar: World Settings → Moderation & Safety (src/matrix/policyLists.ts), saved at once:
  * - the world's own bans: accounts and servers banned in the world room itself (standard `m.policy.rule.*` events);
  * - the other ban lists it follows (`software.haven.world.moderation`).
  * Every visitor's Buzzar holds back anyone they ban.

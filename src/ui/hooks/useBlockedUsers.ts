@@ -32,7 +32,7 @@ export function useBlockedUsers() {
       title: `Block ${name || userId}?`,
       message:
         "In worlds you won't see or hear each other, and nothing of yours is sent to them. Their messages are hidden " +
-        "everywhere you use Matrix, in Buzzar and other apps alike. You can unblock them in Settings → Blocked People.",
+        "everywhere you use Matrix, in Buzzar and other apps alike. You can unblock them in Settings → Moderation & Safety.",
       confirmLabel: "Block",
       danger: true,
     });

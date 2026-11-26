@@ -131,17 +131,17 @@ In a world with a LiveKit call, press **Alt + S** or use the **Share Screen** bu
 
 To block someone, open the ⋯ menu next to their name in a world's People list and choose **Block**. In worlds you
 then don't see or hear each other, and nothing of yours is sent to them. Blocks are saved with your Matrix account,
-so other apps (like Element) hide their messages too. **Settings → Safety** lists the people you've blocked, to unblock
+so other apps (like Element) hide their messages too. **Settings → Moderation & Safety** lists the people you've blocked, to unblock
 them.
 
-A world's moderators can ban accounts, or whole servers, in **World Settings → Moderation**. Everyone's Buzzar holds
+A world's moderators can ban accounts, or whole servers, in **World Settings → Moderation & Safety**. Everyone's Buzzar holds
 banned players back straight away: nobody in the world sees or hears them. These are standard Matrix ban rules kept in
 the world's room, so moderation bots like Meowlnir or Draupnir can follow a world as a ban list. A world can also
 follow other ban lists. Lists anyone can read apply directly; most big public lists can only be read by joining them,
 so their bans apply once a moderation bot copies them into the world. To remove someone from the world's room and
 chat as well, use **Ban** in the People list.
 
-World bans can be waived on your own screen, in **Settings → Safety**: friends (people you have direct messages
+World bans can be waived on your own screen, in **Settings → Moderation & Safety**: friends (people you have direct messages
 with) get through by default, and you can let through people you share another room with too. Everyone else in the
 world still holds them back. With Developer Mode on, **Settings → Developer → Ignore World Ban Lists** turns world
 bans off for you entirely. People you've blocked yourself stay blocked either way.

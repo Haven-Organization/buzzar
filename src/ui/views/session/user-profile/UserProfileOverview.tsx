@@ -59,7 +59,7 @@ const CATEGORIES: SettingsNavItem<SettingsCategory>[] = [
   { id: "graphics", label: "Graphics", icon: DarkLightIC },
   { id: "controls", label: "Controls", icon: MouseIC },
   { id: "worlds", label: "Worlds & Scripts", icon: PlanetIC },
-  { id: "safety", label: "Safety", icon: ShieldIC },
+  { id: "safety", label: "Moderation & Safety", icon: ShieldIC },
   { id: "developer", label: "Developer", icon: CurlyBracketIC },
 ];
 

@@ -1,5 +1,5 @@
 /**
- * Buzzar: Settings → Safety → the people you've blocked (Matrix's ignore list: ui/hooks/useBlockedUsers.ts), to
+ * Buzzar: Settings → Moderation & Safety → the people you've blocked (Matrix's ignore list: ui/hooks/useBlockedUsers.ts), to
  * unblock them.
  */
 import { useState } from "react";
@@ -18,7 +18,7 @@ import {
   parseBanExemptions,
 } from "../../../../engine/network/heldBack";
 
-/** Settings → Safety: who gets through world bans for you. Your own blocks always apply. */
+/** Settings → Moderation & Safety: who gets through world bans for you. Your own blocks always apply. */
 export function WorldBanExemptionSettings() {
   const [stored, setStored] = useLocalStorage<unknown>(BAN_EXEMPTIONS_KEY, DEFAULT_BAN_EXEMPTIONS);
   const exemptions = parseBanExemptions(stored);

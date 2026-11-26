@@ -78,7 +78,7 @@ const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "things", label: "Things", icon: BoxIC },
   { id: "movement", label: "Movement", icon: RunIC },
   { id: "calls", label: "Calls", icon: CallIC },
-  { id: "moderation", label: "Moderation", icon: ShieldIC },
+  { id: "moderation", label: "Moderation & Safety", icon: ShieldIC },
 ];
 
 function draftFromRules(content: Record<string, unknown> | undefined): ThingRulesDraft {
