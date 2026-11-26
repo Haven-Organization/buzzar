@@ -30,6 +30,8 @@ import BoxIC from "../../../../../res/ic/box-3d.svg";
 import LightingIC from "../../../../../res/ic/dark-light.svg";
 import MapIC from "../../../../../res/ic/my-location.svg";
 import { WorldMapSettings } from "./WorldMapSettings";
+import { WorldModerationSettings } from "./WorldModerationSettings";
+import { WORLD_MODERATION_EVENT } from "../../../../matrix/policyLists";
 import { DEFAULT_INSTANCE_CAP, parseInstanceCap } from "../../../../matrix/instances";
 import { WorldCallSettings } from "./WorldCallSettings";
 import { WorldMovementSettings } from "./WorldMovementSettings";
@@ -38,6 +40,7 @@ import { parseScreenShareRule, ScreenShareRule } from "../../../../engine/screen
 import RunIC from "../../../../../res/ic/run.svg";
 import { MovementRules, parseMovementRules, serializeMovementRules } from "../../../../engine/player/movement.common";
 import CallIC from "../../../../../res/ic/call.svg";
+import ShieldIC from "../../../../../res/ic/shield.svg";
 import { WORLD_MAP_EVENT } from "../../../../plugins/world-map/worldMap.common";
 import { serializeShadows, shadowsDraftFromRules, WorldShadowSettings, WorldShadowsDraft } from "./WorldShadowSettings";
 import {
@@ -66,7 +69,7 @@ import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallbac
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "movement" | "calls";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "movement" | "calls" | "moderation";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
@@ -75,6 +78,7 @@ const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "things", label: "Things", icon: BoxIC },
   { id: "movement", label: "Movement", icon: RunIC },
   { id: "calls", label: "Calls", icon: CallIC },
+  { id: "moderation", label: "Moderation", icon: ShieldIC },
 ];
 
 function draftFromRules(content: Record<string, unknown> | undefined): ThingRulesDraft {
@@ -477,6 +481,12 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                           value={screenShareRule}
                           onChange={changeScreenShareRule}
                           canEdit={canEditRules}
+                        />
+                      </div>
+                      <div className="WorldSettings__section" hidden={category !== "moderation"}>
+                        <WorldModerationSettings
+                          room={room}
+                          canEdit={canSendStateEvent(WORLD_MODERATION_EVENT, myPowerLevel)}
                         />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>

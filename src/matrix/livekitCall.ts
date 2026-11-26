@@ -65,6 +65,12 @@ export async function liveKitMemberships(room: Room, instance: string = MAIN_INS
   return memberships.filter((membership) => !membership.isExpired());
 }
 
+/** The Matrix user ID in a LiveKit identity ("@user:server:DEVICE"). */
+export function userIdOfIdentity(identity: string): string {
+  const colon = identity.lastIndexOf(":");
+  return colon > identity.indexOf(":") ? identity.slice(0, colon) : identity;
+}
+
 function identityOf(userId: string, deviceId: string) {
   return `${userId}:${deviceId}`;
 }
@@ -473,13 +479,52 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
 
   private audibleUsers?: Set<string>;
 
+  /** Players we hold back (blocked, or banned by the world's ban lists: engine/network/heldBack.ts). */
+  private isHeldBack: (userId: string) => boolean = () => false;
+  /** The voice permissions last sent to the server (undefined: everyone may listen). */
+  private sentPermissions?: string;
+
+  /**
+   * Buzzar: hold these players back. We don't receive their voice, and the LiveKit server is told not to send them
+   * ours (track subscription permissions), so a modified app can't listen in either.
+   */
+  setHeldBack(isHeldBack: (userId: string) => boolean) {
+    this.isHeldBack = isHeldBack;
+    this.applyAudioSubscriptions();
+    this.applyVoicePermissions();
+  }
+
+  private applyVoicePermissions() {
+    const liveKit = this.liveKit;
+    if (!liveKit || liveKit.state !== ConnectionState.Connected) return;
+    // Everyone in the room except held-back players, whether or not their call membership has reached us yet.
+    const participants = [...liveKit.remoteParticipants.values()];
+    const allowed = participants.filter((p) => !this.isHeldBack(userIdOfIdentity(p.identity)));
+    if (allowed.length === participants.length) {
+      if (this.sentPermissions !== undefined) liveKit.localParticipant.setTrackSubscriptionPermissions(true);
+      this.sentPermissions = undefined;
+      return;
+    }
+    // Anyone joining later is added when they connect (syncParticipants runs on every connection).
+    const key = allowed
+      .map((p) => p.identity)
+      .sort()
+      .join("\n");
+    if (key === this.sentPermissions) return;
+    liveKit.localParticipant.setTrackSubscriptionPermissions(
+      false,
+      allowed.map((p) => ({ participantIdentity: p.identity, allowAll: true }))
+    );
+    this.sentPermissions = key;
+  }
+
   private applyAudioSubscriptions() {
     const liveKit = this.liveKit;
     if (!liveKit) return;
     for (const [, member] of this.members) {
       const participant = liveKit.remoteParticipants.get(member.identity);
       if (!participant) continue;
-      const wanted = !this.audibleUsers || this.audibleUsers.has(member.userId);
+      const wanted = !this.isHeldBack(member.userId) && (!this.audibleUsers || this.audibleUsers.has(member.userId));
       for (const publication of participant.audioTrackPublications.values()) {
         if (publication.isDesired !== wanted) publication.setSubscribed(wanted);
       }
@@ -534,6 +579,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
       }
     }
     this.applyAudioSubscriptions();
+    this.applyVoicePermissions();
     this.emit("change");
   }
 }

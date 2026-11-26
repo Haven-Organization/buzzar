@@ -2,9 +2,10 @@
  * Buzzar: a room's messages as a list ready to draw (React, since plan 02):
  * messages, images, files, membership notes and date headers, with paging back through history.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { Room, Timeline, TimelineEntry } from "../../matrix";
+import { getHeldBack, onHeldBackChanged } from "../../engine/network/heldBack";
 
 export type ChatItem =
   | { kind: "date"; key: string; timestamp: number }
@@ -68,6 +69,8 @@ export interface ChatOptions {
   dates?: boolean;
   /** Video, audio and file messages (the in-world chat leaves them out). */
   media?: boolean;
+  /** Buzzar: leave out messages from these senders (players the world you're in holds back: heldBack.ts). */
+  hideSender?: (userId: string) => boolean;
 }
 
 export function buildChatItems(timeline: Timeline, options: ChatOptions): ChatItem[] {
@@ -87,7 +90,7 @@ export function buildChatItems(timeline: Timeline, options: ChatOptions): ChatIt
       if (entry.content.replacement_room) {
         item = { kind: "announcement", key: entry.id, entry, text: `${entry.displayName} upgraded this room.` };
       }
-    } else if (entry.isRedacted || entry.isEdit) {
+    } else if (entry.isRedacted || entry.isEdit || options.hideSender?.(entry.sender)) {
       item = undefined;
     } else if (type === "m.room.message" || type === "m.sticker" || type === "m.room.encrypted") {
       const msgtype = entry.content.msgtype;
@@ -139,6 +142,10 @@ export function useChat(room: Room, options: ChatOptions) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<Error>();
   const { dates, media } = options;
+  // Buzzar: in the world you're in, messages from players it holds back (the world's ban lists) are left out. People
+  // you blocked never reach you at all (your homeserver drops them).
+  const [heldBackVersion, heldBackChanged] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => onHeldBackChanged(heldBackChanged), []);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -160,10 +167,14 @@ export function useChat(room: Room, options: ChatOptions) {
   }, [room]);
 
   const items = useMemo(
-    () => (timeline ? buildChatItems(timeline, { dates, media }) : []),
-    // `version` changes whenever the timeline's events do.
+    () => {
+      const heldBack = getHeldBack(room.id);
+      const hideSender = heldBack ? (userId: string) => !!heldBack.reasonOf(userId) : undefined;
+      return timeline ? buildChatItems(timeline, { dates, media, hideSender }) : [];
+    },
+    // `version` changes whenever the timeline's events do, `heldBackVersion` whenever who's held back does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [timeline, version, dates, media]
+    [timeline, version, dates, media, heldBackVersion, room]
   );
 
   const loadMore = useCallback(async () => {

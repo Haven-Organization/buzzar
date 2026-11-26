@@ -27,7 +27,8 @@ import { CategoryHeader } from "../../components/category/CategoryHeader";
 import { Icon } from "../../../atoms/icon/Icon";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { Dots } from "../../../atoms/loading/Dots";
-import { isPeerMuted, removePeer, toggleMutePeer } from "../../../../engine/network/network.main";
+import { isPeerMuted, toggleMutePeer } from "../../../../engine/network/network.main";
+import { useBlockedUsers, useHeldBack } from "../../../hooks/useBlockedUsers";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { InviteDialog } from "./InviteDialog";
@@ -123,6 +124,17 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
     return volumeDetector?.isSpeaking;
   };
 
+  // Buzzar: blocking (Matrix's ignore list) replaces the old Ignore, which only lasted until you left the world.
+  const { blocked, block, unblock } = useBlockedUsers();
+  const heldBack = useHeldBack(room.id);
+  const heldBackNote = (userId: string) => {
+    if (blocked.includes(userId)) return "Blocked";
+    const reason = heldBack?.reasonOf(userId);
+    if (reason && "banned" in reason)
+      return `Banned by this world's ban list${reason.banned.reason ? `: ${reason.banned.reason}` : ""}`;
+    return undefined;
+  };
+
   const [alwaysShowStored, setAlwaysShow] = useLocalStorage<unknown>(ALWAYS_SHOW_AVATARS_KEY, []);
   const alwaysShow = parseUserIdList(alwaysShowStored);
   const toggleAlwaysShow = (userId: string) =>
@@ -137,8 +149,11 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
       <DropdownMenuItem key="mute" onSelect={() => toggleMute(userId)}>
         {isPeerMuted(engine, userId) ? "Unmute" : "Mute"}
       </DropdownMenuItem>,
-      <DropdownMenuItem key="ignore" onSelect={() => removePeer(engine, userId)}>
-        Ignore
+      <DropdownMenuItem
+        key="block"
+        onSelect={() => (blocked.includes(userId) ? unblock(userId) : block(userId, name)).catch(() => undefined)}
+      >
+        {blocked.includes(userId) ? "Unblock" : "Block"}
       </DropdownMenuItem>,
       // Buzzar: never hidden by avatar culling (Settings → Graphics → Avatar Culling).
       <DropdownMenuItem key="show-avatar" onSelect={() => toggleAlwaysShow(userId)}>
@@ -234,6 +249,11 @@ export function MemberListDialog({ room, requestClose, embedded }: MemberListDia
             <Text className="truncate" color="surface-low" variant="b3">
               {userId}
             </Text>
+            {heldBackNote(userId) && (
+              <Text className="truncate" color="danger" variant="b3">
+                {heldBackNote(userId)}
+              </Text>
+            )}
           </>
         }
         options={

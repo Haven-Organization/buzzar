@@ -19,6 +19,7 @@ import { MicrophoneSettings } from "./MicrophoneSettings";
 import { HomeWorldSettings } from "./HomeWorldSettings";
 import { BuzzarSpaceSetting } from "./BuzzarSpaceSetting";
 import { WorldScriptSettings } from "./WorldScriptSettings";
+import { BlockedPeopleSettings } from "./BlockedPeopleSettings";
 import { ProfileExtrasSettings } from "./ProfileExtrasSettings";
 import { AvatarPicker } from "../../components/avatar-picker/AvatarPicker";
 import { useFilePicker } from "../../../hooks/useFilePicker";
@@ -48,15 +49,17 @@ import { AvatarCullingSettings } from "./AvatarCullingSettings";
 import MouseIC from "../../../../../res/ic/mouse.svg";
 import PlanetIC from "../../../../../res/ic/planet.svg";
 import CurlyBracketIC from "../../../../../res/ic/curly-bracket.svg";
+import ShieldIC from "../../../../../res/ic/shield.svg";
 
 // Buzzar: settings are split into categories, picked from a list down the left (like Element).
-type SettingsCategory = "profile" | "voice" | "graphics" | "controls" | "worlds" | "developer";
+type SettingsCategory = "profile" | "voice" | "graphics" | "controls" | "worlds" | "safety" | "developer";
 const CATEGORIES: SettingsNavItem<SettingsCategory>[] = [
   { id: "profile", label: "Profile", icon: AvatarIC },
   { id: "voice", label: "Voice", icon: MicIC },
   { id: "graphics", label: "Graphics", icon: DarkLightIC },
   { id: "controls", label: "Controls", icon: MouseIC },
   { id: "worlds", label: "Worlds & Scripts", icon: PlanetIC },
+  { id: "safety", label: "Safety", icon: ShieldIC },
   { id: "developer", label: "Developer", icon: CurlyBracketIC },
 ];
 
@@ -196,6 +199,11 @@ export function UserProfileOverview() {
                       <HomeWorldSettings />
                       <BuzzarSpaceSetting />
                       <WorldScriptSettings />
+                    </div>
+                  )}
+                  {category === "safety" && (
+                    <div className="UserProfileOverview__section">
+                      <BlockedPeopleSettings />
                     </div>
                   )}
                   {category === "developer" && <DeveloperSettings />}

@@ -59,6 +59,7 @@ import { useResumePlay } from "../../../hooks/useResumePlay";
 import { awaitingLockAtom, mouseFreedAtom } from "../../../state/mouseMode";
 import { hudHiddenAtom } from "../../../state/hud";
 import { useAvatarCulling } from "../../../hooks/useAvatarCulling";
+import { useHeldBack } from "../../../hooks/useBlockedUsers";
 import { screenShareDialogAtom } from "../../../state/screenShareDialog";
 import { canShareScreens, ScreenShareDialog } from "./ScreenShareDialog";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
@@ -167,6 +168,17 @@ export function WorldView({ world }: WorldViewProps) {
   useWorldRules(world, notifyModerator);
   // Buzzar: only the avatars near you are loaded and drawn (Settings → Graphics → Avatar Culling).
   useAvatarCulling();
+
+  // Buzzar: if this world's ban lists ban you, everyone else's Buzzar holds you back: say so instead of leaving you
+  // in an empty world wondering why.
+  const heldBack = useHeldBack(world.id);
+  const ownBan = heldBack?.ownBan();
+  const ownBanText = ownBan
+    ? `This world's ban list bans you${ownBan.reason ? ` (${ownBan.reason})` : ""}, so nobody here can see or hear you.`
+    : undefined;
+  useEffect(() => {
+    if (ownBanText) showToast(ownBanText, 12000);
+  }, [ownBanText, showToast]);
 
   // Buzzar: one-off notices about this world (e.g. its script wasn't run or stopped).
   const [worldNotice, setWorldNotice] = useAtom(worldNoticeAtom);

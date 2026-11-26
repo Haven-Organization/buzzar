@@ -111,6 +111,11 @@ export interface GroupCall extends EventEmitter<{ change: undefined }> {
   setMuted(settings: MuteSettings): Promise<void>;
   leave(): Promise<void>;
   dispose(): void;
+  /**
+   * Buzzar: players this client holds back (blocked, or banned by the world's ban lists: engine/network/heldBack.ts).
+   * They aren't sent our voice. (Their data and avatar are kept out by the network layer.)
+   */
+  setHeldBack(isHeldBack: (userId: string) => boolean): void;
 }
 
 /** One device of one user in a mesh call (not us). */
@@ -156,15 +161,50 @@ export class MeshMember implements Member {
     return this.groupCall.membershipOf(this.userId, this.deviceId).index;
   }
 
+  /** Our microphone tracks taken off this member's connection while they're held back, to put back after. */
+  private withheld?: Map<RTCRtpSender, MediaStreamTrack>;
+
+  /** @internal Stop (or resume) sending our voice to this member. */
+  setVoiceWithheld(withhold: boolean) {
+    if (withhold) {
+      this.withheld ??= new Map();
+      this.applyWithheld();
+      return;
+    }
+    if (this.withheld) {
+      for (const [sender, track] of this.withheld) void sender.replaceTrack(track).catch(() => undefined);
+      this.withheld = undefined;
+    }
+  }
+
+  private applyWithheld() {
+    const withheld = this.withheld;
+    const connection = this.call?.peerConn;
+    if (!withheld || !connection) return;
+    for (const sender of connection.getSenders()) {
+      if (sender.track?.kind !== "audio") continue;
+      withheld.set(sender, sender.track);
+      void sender.replaceTrack(null).catch(() => undefined);
+    }
+  }
+
   /** @internal */
   setCall(call: MatrixCall | undefined) {
-    if (call === this.call) return;
+    if (call === this.call) {
+      // Senders may have been (re)created since, e.g. after a microphone switch.
+      this.applyWithheld();
+      return;
+    }
+    this.withheld?.clear();
     this.detach?.();
     this.detach = undefined;
     this.call = call;
     this.channel = undefined;
     if (call) {
-      const changed = () => this.onChange();
+      const changed = () => {
+        this.applyWithheld();
+        this.onChange();
+      };
       const onChannel = (channel: RTCDataChannel) => {
         this.channel = channel;
         channel.addEventListener("open", changed);
@@ -288,6 +328,7 @@ export class MeshCall extends EventEmitter<{ change: undefined }> implements Gro
           this.members.add(key, member);
         }
         member.setCall(this.callFor(sdkMember.userId, deviceId));
+        member.setVoiceWithheld(this.isHeldBack(sdkMember.userId));
       }
     }
     for (const [key, member] of [...this.members]) {
@@ -329,7 +370,16 @@ export class MeshCall extends EventEmitter<{ change: undefined }> implements Gro
   async setMedia(localMedia: LocalMedia): Promise<void> {
     this._localMedia = localMedia;
     if (localMedia.userMedia) await this.sdk.updateLocalUsermediaStream(localMedia.userMedia);
+    // The new microphone went to every connection, held-back players' too: take it off theirs again.
+    for (const [, member] of this.members) member.setVoiceWithheld(this.isHeldBack(member.userId));
     this.emit("change");
+  }
+
+  private isHeldBack: (userId: string) => boolean = () => false;
+
+  setHeldBack(isHeldBack: (userId: string) => boolean) {
+    this.isHeldBack = isHeldBack;
+    for (const [, member] of this.members) member.setVoiceWithheld(this.isHeldBack(member.userId));
   }
 
   async setMuted(settings: MuteSettings): Promise<void> {

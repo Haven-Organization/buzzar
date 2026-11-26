@@ -30,6 +30,7 @@ import { parseScreenShareRule } from "../screenshare/screenShare.common";
 import { WORLD_RULES_EVENT } from "./spawnRules.common";
 import { addPeer, disconnect, removePeer, setHost } from "./network.main";
 import { reconcilePeerDevices } from "./peerDevices";
+import { followHeldBack } from "./heldBack";
 import { startAvatarSync } from "../avatar/avatar.main";
 import { microphoneConstraint, registerMicrophoneSwitcher } from "../../ui/utils/microphone";
 import { liveKitMembershipKey, liveKitMembershipKeyPrefix } from "../../ui/utils/callCleanup";
@@ -55,10 +56,13 @@ function isOlderThanLocalHost(groupCall: GroupCall, member: Member): boolean {
   return groupCall.eventTimestamp! < member.eventTimestamp;
 }
 
+/** Buzzar: players this client holds back (blocked, or banned by the world's ban lists: heldBack.ts). */
+let isHeldBack: (userId: string) => boolean = () => false;
+
 function getReliableHost(groupCall: GroupCall): Member | undefined {
   const sortedMembers = Array.from(new Map(groupCall.members).values())
     .sort(memberComparator)
-    .filter((member) => member.isConnected && member.dataChannel);
+    .filter((member) => member.isConnected && member.dataChannel && !isHeldBack(member.userId));
 
   if (sortedMembers.length === 0) return undefined;
   if (isOlderThanLocalHost(groupCall, sortedMembers[0])) return undefined;
@@ -260,6 +264,16 @@ export async function createMatrixNetworkInterface(
 
   const userId = session.userId;
 
+  // Buzzar: players you blocked and players the world's ban lists ban are held back: they get no network peer (no
+  // avatar, voice, movement or Things either way), and on LiveKit the server doesn't send them our voice.
+  let resyncPeers: (() => void) | undefined;
+  const heldBack = followHeldBack(session.client, world.id, userId, () => {
+    groupCall.setHeldBack(heldBack.isHeldBack);
+    resyncPeers?.();
+  });
+  isHeldBack = heldBack.isHeldBack;
+  groupCall.setHeldBack(heldBack.isHeldBack);
+
   const initialHostId = await getInitialHost(groupCall, userId);
   await joinWorld(groupCall, userId, initialHostId === userId);
 
@@ -336,7 +350,7 @@ export async function createMatrixNetworkInterface(
           member,
           userId: member.userId,
           deviceId: member.deviceId,
-          usable: !!(member.isConnected && member.dataChannel),
+          usable: !!(member.isConnected && member.dataChannel) && !heldBack.isHeldBack(member.userId),
         })),
         userId
       );
@@ -378,6 +392,7 @@ export async function createMatrixNetworkInterface(
       onUpdate: syncPeers,
     });
 
+    resyncPeers = syncPeers;
     syncPeers();
   }
 
@@ -440,6 +455,8 @@ export async function createMatrixNetworkInterface(
   return {
     dispose: () => {
       window.removeEventListener("pagehide", leaveOnPageHide);
+      heldBack.dispose();
+      isHeldBack = () => false;
       stopVoiceAudibility();
       setCurrentInstance(undefined);
       stopWatchingShareRules?.();
