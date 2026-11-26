@@ -1,10 +1,11 @@
 .InWorldBar {
   position: absolute;
-  top: var(--sp-xs);
+  /* Clear of the menu's windows, which start 50px down (Overlay.css): about 8px of space below. */
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
   max-width: calc(100% - 2 * var(--sp-md));
-  padding: var(--sp-xxs) var(--sp-xxs) var(--sp-xxs) var(--sp-sm);
+  padding: 3px 3px 3px var(--sp-sm);
   border-radius: var(--br-sm);
   background-color: var(--bg-surface);
   box-shadow: var(--bs-surface);
