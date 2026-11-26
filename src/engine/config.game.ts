@@ -22,6 +22,7 @@ import {
 import { GameContext } from "./GameTypes";
 import { RendererModule } from "./renderer/renderer.game";
 import { SpawnablesModule } from "../plugins/spawnables/spawnables.game";
+import { SprayerModule, SprayerSystem } from "../plugins/sprayers/sprayer.game";
 import {
   RecycleResourcesSystem,
   ResourceDisposalSystem,
@@ -97,6 +98,7 @@ export default defineConfig<GameContext>({
     FlyCharacterControllerModule,
     InteractionModule,
     SpawnablesModule,
+    SprayerModule,
     NametagModule,
     WorldMapModule,
     AvatarModule,
@@ -139,6 +141,8 @@ export default defineConfig<GameContext>({
     PostureSystem,
     SceneGrabbableSystem,
     ActionBarSystem,
+    // Buzzar: water guns and other sprayers you hold (after grabbing, so a Thing just picked up can spray).
+    SprayerSystem,
     EnableCharacterControllerSystem,
 
     // step physics forward and copy rigidbody data to transform component

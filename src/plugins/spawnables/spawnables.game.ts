@@ -49,6 +49,7 @@ import {
 import { getSpawnRules, isSpawnAllowed, TakenObject } from "../../engine/network/spawnRules.game";
 import { isCustomThingId, isThingId, rememberThingBehaviours } from "../../engine/network/spawnRules.common";
 import { resolveMxcUri } from "../avatar-pedestals/pedestals.game";
+import { attachSprayer } from "../sprayers/sprayer.game";
 import { getRemoteResource } from "../../engine/resource/resource.game";
 import {
   addObjectToWorld,
@@ -596,6 +597,8 @@ function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: str
         return;
       }
       loadDefaultGLTFScene(ctx, resource, { existingNode: node });
+      // Behaviours in the file: spraying (HAVEN_sprayer).
+      attachSprayer(ctx, node, resource);
       const settings = fileThingPhysics(mxc);
       if (JSON.stringify(settings) !== JSON.stringify(used)) replaceThingPhysics(physics, node, settings);
     })

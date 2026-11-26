@@ -2083,7 +2083,7 @@ const loadGLTFReflectionProbe = createCachedSubresourceLoader(
   }
 );
 
-const loadGLTFAudioData = createCachedSubresourceLoader(
+export const loadGLTFAudioData = createCachedSubresourceLoader(
   "audio",
   (root) => root.extensions?.KHR_audio?.audio,
   (resource, { name, uri, bufferView, mimeType }, index) => {

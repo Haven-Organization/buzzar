@@ -23,6 +23,8 @@ export enum NetworkAction {
   HavenAvatarChanged,
   /** Buzzar: "object <old network ID> is mine now, as <new network ID>" (grab hand-off in place). See ownership. */
   HavenTakeOwnership,
+  /** Buzzar: a sprayer (water gun) of mine started or stopped spraying, or was pumped. See plugins/sprayers. */
+  HavenSpray,
 }
 
 export const UnreliableNetworkActions = [NetworkAction.UpdateChanged, NetworkAction.UpdateSnapshot];

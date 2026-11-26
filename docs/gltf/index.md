@@ -49,6 +49,7 @@ Extensions defined by Buzzar. They are experimental, and Third Room and other cl
 - [HAVEN_seat](./HAVEN_seat/README)
 - [HAVEN_climbable](./HAVEN_climbable/README)
 - [HAVEN_thing](./HAVEN_thing/README)
+- [HAVEN_sprayer](./HAVEN_sprayer/README)
 - [HAVEN_trampoline](./HAVEN_trampoline/README)
 - [HAVEN_voice](./HAVEN_voice/README)
 - [HAVEN_voice_zone](./HAVEN_voice_zone/README)

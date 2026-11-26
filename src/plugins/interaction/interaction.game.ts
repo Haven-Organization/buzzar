@@ -49,6 +49,7 @@ import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { PlayerModule } from "../../engine/player/Player.game";
 import { ZoomComponent, orbitAnchorQuery, OrbitAnchor, CameraRigAction } from "../../engine/player/CameraRig";
 import { heldRotation } from "../../engine/player/heldRotation";
+import { usableThings } from "./usable";
 import {
   GameRendererModuleState,
   notifyUICanvasFocus,
@@ -198,6 +199,35 @@ const InteractionActionMap: ActionMap = {
           path: "Mouse/Right",
         },
         { type: BindingType.Button, path: padButton(PadButton.X) },
+      ],
+    },
+    // Buzzar: for Things that do something while held (plugins/interaction/usable.ts): use it (spray a water gun),
+    // work its pump, or let go of it.
+    {
+      id: "useHeld",
+      path: "UseHeld",
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Mouse/Left" },
+        { type: BindingType.Button, path: padButton(PadButton.RT) },
+      ],
+    },
+    {
+      id: "pumpHeld",
+      path: "PumpHeld",
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Mouse/Right" },
+        { type: BindingType.Button, path: padButton(PadButton.X) },
+      ],
+    },
+    {
+      id: "dropHeld",
+      path: "DropHeld",
+      type: ActionType.Button,
+      bindings: [
+        { type: BindingType.Button, path: "Keyboard/KeyE" },
+        { type: BindingType.Button, path: padButton(PadButton.RB) },
       ],
     },
     {
@@ -766,9 +796,13 @@ function updateGrabThrow(
 
   if (ourPlayer) heldRotation.active = false;
   const heldBehaviour = heldEntity ? grabBehaviours.get(heldEntity) : undefined;
+  // Buzzar: a Thing that does something while held (a water gun) takes left and right click; E lets go of it.
+  const heldUsable = !!heldEntity && usableThings.has(heldEntity);
+  const dropPressed = (input.actionStates.get("DropHeld") as ButtonActionState | undefined)?.pressed ?? false;
+  const releasePressed = heldUsable ? dropPressed : grabPressed || (throwPressed && !!heldBehaviour?.noThrow);
 
   // if holding and entity and throw is pressed
-  if (heldEntity && throwPressed && !heldBehaviour?.noThrow) {
+  if (heldEntity && throwPressed && !heldBehaviour?.noThrow && !heldUsable) {
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
 
     getRotationNoAlloc(_worldQuat, grabbingNode.worldMatrix);
@@ -797,7 +831,7 @@ function updateGrabThrow(
     GrabComponent.heldOffset[rig.eid] = 0;
 
     // if holding an entity and grab is pressed again
-  } else if ((grabPressed || (throwPressed && heldBehaviour?.noThrow)) && heldEntity) {
+  } else if (releasePressed && heldEntity) {
     // release (Buzzar: throwing something that can't be thrown just lets go)
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
     const droppedBody = getRemoteResource<RemoteNode>(ctx, heldEntity)?.physicsBody?.body;
@@ -814,7 +848,7 @@ function updateGrabThrow(
     playOneShotAudio(ctx, interaction.clickEmitter?.sources[0] as RemoteAudioSource, 1, 0.6);
 
     GrabComponent.heldOffset[rig.eid] = 0;
-  } else {
+  } else if (!heldUsable) {
     const hit = hitscan(physics, grabbingNode, grabShapeCastCollisionGroups, GRAB_DISTANCE);
 
     if (hit !== null) {
