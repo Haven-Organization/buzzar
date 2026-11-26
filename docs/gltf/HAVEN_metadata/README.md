@@ -39,12 +39,35 @@ When a field is missing, Buzzar falls back to what the file already says elsewhe
 
 The extension sits on the glTF root.
 
-| Property      | Type     | Description                                                                                                                  |
-| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | `string` | What it's called (up to 200 characters).                                                                                     |
-| `description` | `string` | What it is and how to use it. Can span several lines (`\n`); line breaks are kept when shown. Up to 10,000 characters.       |
-| `author`      | `string` | Who made it, or who made it and who adapted it.                                                                              |
-| `sourceUrl`   | `string` | An `https://` or `http://` page for it: the original listing, the author's page or a download page. Other links are ignored. |
-| `version`     | `string` | Any version label, such as `1`, `1.2.0` or `2026-11-18`. Bump it when you change the file.                                   |
+| Property      | Type     | Description                                                                                                                        |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | `string` | What it's called (up to 200 characters).                                                                                           |
+| `description` | `string` | What it is and how to use it. Can span several lines (`\n`); line breaks are kept when shown. Up to 10,000 characters.             |
+| `author`      | `string` | Who made it, or who made it and who adapted it.                                                                                    |
+| `sourceUrl`   | `string` | An `https://` or `http://` page for it: the original listing, the author's page or a download page. Other links are ignored.       |
+| `version`     | `string` | Any version label, such as `1`, `1.2.0` or `2026-11-18`. Bump it when you change the file.                                         |
+| `controls`    | `array`  | Things only: what each input does with it while held, shown for a few seconds when someone picks it up. See [controls](#controls). |
 
 Every field is optional. For licences, keep using `asset.copyright` (and VRM's own licence fields).
+
+### controls
+
+A Thing lists its controls by **action**, not by key, so every client shows its own bindings:
+
+```json
+"controls": [
+  { "action": "use", "label": "Spray (hold)" },
+  { "action": "secondary", "label": "Pump to refill" },
+  { "action": "drop", "label": "Put down" }
+]
+```
+
+| `action`    | In Buzzar               |
+| ----------- | ----------------------- |
+| `use`       | Left click (gamepad RT) |
+| `secondary` | Right click (gamepad X) |
+| `drop`      | E (gamepad RB)          |
+| `throw`     | Right click (gamepad X) |
+| `rotate`    | R: turn what you hold   |
+
+`label` (up to 80 characters) says what that input does with this Thing. Unknown actions are skipped, and at most 8 controls are shown. Keep controls out of `description`: Buzzar shows them in a card when you pick the Thing up.

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 import { Switch } from "../../../atoms/button/Switch";
 import { editGlbJson, markExtensionUsed, readGlbJson } from "../../../utils/glbMetadata";
+import { bakedThingPhysics, thingPhysicsToJSON } from "../../../../plugins/spawnables/thingFile";
+import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { Modal } from "../../../atoms/modal/Modal";
 import { ModalContent } from "../../../atoms/modal/ModalContent";
 import { Content } from "../../../atoms/content/Content";
@@ -51,14 +53,19 @@ export function UploadThing({
   // Whether it appears in your hold when spawned (HAVEN_thing spawn.held), as the file says and as chosen here.
   const [fileHeld, setFileHeld] = useState(false);
   const [held, setHeld] = useState(false);
+  // Whether the file already says how it behaves physically (HAVEN_thing collider).
+  const [fileHasPhysics, setFileHasPhysics] = useState(true);
   useEffect(() => {
     if (!file) return;
     readGlbJson(file)
       .then((json) => {
-        const thing = (json?.extensions as Record<string, { spawn?: { held?: unknown } }> | undefined)?.HAVEN_thing;
+        const thing = (
+          json?.extensions as Record<string, { spawn?: { held?: unknown }; collider?: unknown }> | undefined
+        )?.HAVEN_thing;
         const value = thing?.spawn?.held === true;
         setFileHeld(value);
         setHeld(value);
+        setFileHasPhysics(!!thing?.collider);
       })
       .catch(() => undefined);
   }, [file]);
@@ -74,16 +81,38 @@ export function UploadThing({
       const auth = await getSessionAuth(platform, client.sessionId);
       if (!auth) throw new Error("Not signed in");
       let baked = await details.prepare(file);
-      if (held !== fileHeld) {
+      // With "Save to file" on, a file that doesn't say how it behaves physically gets Buzzar's own fit (a box round
+      // it) written in, so every client handles it the same way.
+      const bakePhysics = details.saveToFile && !fileHasPhysics;
+      if (held !== fileHeld || bakePhysics) {
         baked = await editGlbJson(baked ?? file, (json) => {
           json.extensions ??= {};
-          const thing = (json.extensions.HAVEN_thing ??= {});
-          thing.spawn = { ...(thing.spawn ?? {}), held };
+          const existing = (json.extensions.HAVEN_thing ?? {}) as Record<string, unknown>;
+          const thing = bakePhysics ? thingPhysicsToJSON(bakedThingPhysics(json), existing) : existing;
+          thing.spawn = { ...((thing.spawn as object) ?? {}), held };
+          json.extensions.HAVEN_thing = thing;
           markExtensionUsed(json, "HAVEN_thing");
         });
       }
       const url = baked ? await uploadMedia(auth, baked, file.name ?? "thing.glb") : fileInfo.mxc;
-      onSaved(await saveToThingCollection(auth, session.userId, { url, name: name.trim() || undefined }));
+      // Its picture (as the Things screen draws it), saved with it so the hotbar and tiles can show it.
+      let previewUrl: string | undefined;
+      try {
+        const httpUrl = session.mediaRepository.mxcUrl(url);
+        if (httpUrl) {
+          const picture = await renderAvatarPreviewFromUrl(url, httpUrl, "thing");
+          previewUrl = await uploadMedia(auth, picture, "thing-preview.png");
+        }
+      } catch (e) {
+        console.warn("Couldn't make a picture of the Thing; it's saved without one.", e);
+      }
+      onSaved(
+        await saveToThingCollection(auth, session.userId, {
+          url,
+          name: name.trim() || undefined,
+          preview_url: previewUrl,
+        })
+      );
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

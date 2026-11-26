@@ -173,3 +173,36 @@ export function physicsFromBounds(bounds: ReturnType<typeof gltfBounds>): ThingP
 export function thingHoldOf(prefab: string | undefined): HoldSpec | undefined {
   return prefab && isCustomThingId(prefab) ? readHold(loadedThingFile(prefab)) : undefined;
 }
+
+/**
+ * `HAVEN_thing` for these physics (what a file would say to get them), keeping any other properties `existing` has
+ * (hold, …). Used to bake Buzzar's own guesses into a file, so every client handles it the same way.
+ */
+export function thingPhysicsToJSON(
+  physics: ThingPhysics,
+  existing: Record<string, unknown> = {}
+): Record<string, unknown> {
+  const c = physics.collider;
+  const collider =
+    c.type === "box"
+      ? { type: "box", size: c.size, offset: c.offset }
+      : c.type === "sphere"
+      ? { type: "sphere", radius: c.radius, offset: c.offset }
+      : { type: "cylinder", radius: c.radius, height: c.height, offset: c.offset };
+  const round = (v: unknown): unknown =>
+    typeof v === "number" ? Math.round(v * 10000) / 10000 : Array.isArray(v) ? v.map(round) : v;
+  const out: Record<string, unknown> = {
+    ...existing,
+    collider: Object.fromEntries(Object.entries(collider).map(([k, v]) => [k, round(v)])),
+    rotation: physics.rotation,
+    upright: physics.upright,
+  };
+  if (physics.density) out.density = physics.density;
+  if (physics.spawn) out.spawn = { ...physics.spawn, distance: round(physics.spawn.distance) };
+  return out;
+}
+
+/** A Thing file's physics as Buzzar would use them: its HAVEN_thing over a box fitted around the model. */
+export function bakedThingPhysics(gltf: GLTFGeometry & { extensions?: AnyRecord }): ThingPhysics {
+  return readThingPhysics(gltf, physicsFromBounds(gltfBounds(gltf)));
+}

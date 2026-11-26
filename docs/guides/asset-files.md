@@ -13,7 +13,7 @@ Buzzar keeps everything that decides how a world, avatar or Thing behaves **in i
 | Avatar        | [HAVEN_avatar_motion](../gltf/HAVEN_avatar_motion/README)                                                                                                                                              | Spring bones (hair, ears, tails, skirts…), idle ear motion, and face parts (blink, eyes, lip sync) |
 | Avatar, Thing | [HAVEN_metadata](../gltf/HAVEN_metadata/README)                                                                                                                                                        | Name, multi-line description, author, source link, version                                         |
 | Thing         | [HAVEN_thing](../gltf/HAVEN_thing/README)                                                                                                                                                              | Collider, weight, tipping, spawn place                                                             |
-| Thing         | [HAVEN_sprayer](../gltf/HAVEN_sprayer/README)                                                                                                                                                              | Spraying: nozzle, stream, tank, pump, sounds                                                       |
+| Thing         | [HAVEN_sprayer](../gltf/HAVEN_sprayer/README)                                                                                                                                                          | Spraying: nozzle, stream, tank, pump, sounds                                                       |
 | Thing, world  | [HAVEN_trampoline](../gltf/HAVEN_trampoline/README)                                                                                                                                                    | Bouncy surfaces and how they bounce                                                                |
 | Thing, world  | [HAVEN_grabbable](../gltf/HAVEN_grabbable/README)                                                                                                                                                      | Objects people can pick up                                                                         |
 | World         | [HAVEN_seat](../gltf/HAVEN_seat/README), [HAVEN_climbable](../gltf/HAVEN_climbable/README), [HAVEN_mirror](../gltf/HAVEN_mirror/README), [HAVEN_avatar_pedestal](../gltf/HAVEN_avatar_pedestal/README) | Seats, ladders, mirrors, avatar pedestals                                                          |
@@ -22,7 +22,7 @@ VRM avatars can keep using VRM's own spring bones (`VRMC_springBone`, or VRM 0.x
 
 ## Baking behaviour into a file
 
-`scripts/buzzar/bake-gltf.ts` writes these extensions into a `.glb` or `.vrm`. It changes only the file's JSON; meshes, textures and every other byte of binary data are copied unchanged. Run it from the repository root:
+`scripts/buzzar/bake-gltf.ts` writes these extensions into a `.glb` or `.vrm`, so an avatar or Thing behaves the same in every client instead of depending on what each client would guess. It changes only the file's JSON (and adds embedded sounds or a map picture to the end of its binary data); meshes, textures and everything else are copied unchanged. Run it from the repository root:
 
 ```sh
 # An avatar's springs and ear motion, as Buzzar would do them today, plus its details:
@@ -30,6 +30,12 @@ node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- in.glb out.glb --avat
   --name "Haru Urara" --author "symbol aughhhh" --version 1 \
   --source "https://sketchfab.com/3d-models/umamusume-haru-urara-race-e7d6fb19f0724eb7b90c2bdf2f4e4e74" \
   --description-file description.txt
+
+# A Thing: its physics as Buzzar would work them out (a box fitted round it), how it's held, its sounds, what
+# it does (a water gun's HAVEN_sprayer), and its controls:
+node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- gun.glb out.glb --thing --thing-json hold.json \
+  --sound Spray=spray-loop.wav --sound Pump=pump.wav --sprayer-json sprayer.json \
+  --control use="Spray (hold)" --control secondary="Pump to refill" --control drop="Put down"
 ```
 
 | Option                                        | What it does                                                                                                                                                                                                                    |
@@ -39,5 +45,12 @@ node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- in.glb out.glb --avat
 | `--no-ear-motion`                             | With `--avatar`: turns idle ear motion off.                                                                                                                                                                                     |
 | `--name`, `--author`, `--source`, `--version` | Set those `HAVEN_metadata` fields. Fields you don't give are kept.                                                                                                                                                              |
 | `--description` / `--description-file`        | Set the description, from the command line or from a text file (for several lines).                                                                                                                                             |
+| `--thing`                                     | Writes `HAVEN_thing` from what Buzzar would do with the Thing now: a box collider fitted round it and how far off it appears. Whatever the file already says is kept.                                                           |
+| `--thing-json file`                           | Merges a JSON file into `HAVEN_thing` first, e.g. `{ "spawn": { "held": true }, "hold": { … } }`.                                                                                                                               |
+| `--sound Name=file`                           | Embeds a sound (`.wav`, `.mp3` or `.ogg`) as a KHR_audio source called Name. Repeat for each sound.                                                                                                                             |
+| `--sprayer-json file`                         | Writes `HAVEN_sprayer`. Its `sounds` can name sounds embedded with `--sound` (`"spray": "Spray"`) instead of giving source indices.                                                                                             |
+| `--control action=label`                      | A Thing's controls (`use`, `secondary`, `drop`, `throw`, `rotate`), shown when it's picked up. Repeat for each; replaces the file's list.                                                                                       |
+
+**Upload Thing** in Buzzar does part of this for you: with **Save to file** on, a Thing whose file doesn't say how it behaves physically gets Buzzar's fitted box written into it, and **Appears in Your Hold** is saved too.
 
 Then open the output's JSON (for example with `gltf-transform inspect` or any glTF editor) to tune it: change an ear's `stiffness`, make ear moves rarer with `earMotion.gapSeconds`, remove a chain you don't want to move, or add one Buzzar didn't find.

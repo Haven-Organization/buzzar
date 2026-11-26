@@ -39,8 +39,13 @@ export interface SprayerSpec {
   refill: number;
   /** Seconds one pump takes (no spraying meanwhile). */
   pumpTime: number;
-  /** KHR_audio source indices in the file. */
-  sounds: { spray?: number; pump?: number; empty?: number };
+  /**
+   * KHR_audio source indices in the file: `start` plays once when spraying begins, then `spray` loops (from
+   * `startLength` seconds in) for as long as it lasts; `pump` each stroke; `empty` when the tank runs dry.
+   */
+  sounds: { start?: number; spray?: number; pump?: number; empty?: number };
+  /** Seconds of the `start` sound before the `spray` loop takes over. */
+  startLength: number;
 }
 
 export const MAX_DROPS_PER_SECOND = 120;
@@ -72,7 +77,13 @@ export function readSprayer(gltf: { extensions?: AnyRecord } | undefined): Spray
     capacity,
     refill: num(ext.refill, 0.1, 600) ?? capacity,
     pumpTime: num(ext.pumpTime, 0, 10) ?? 1,
-    sounds: { spray: index(sounds.spray), pump: index(sounds.pump), empty: index(sounds.empty) },
+    sounds: {
+      start: index(sounds.start),
+      spray: index(sounds.spray),
+      pump: index(sounds.pump),
+      empty: index(sounds.empty),
+    },
+    startLength: num(ext.startLength, 0, 30) ?? 0,
   };
 }
 
@@ -87,17 +98,20 @@ export interface TankState {
 export const fullTank = (spec: SprayerSpec): TankState => ({ water: spec.capacity, pumping: 0 });
 
 /**
- * One frame of a sprayer in your hands: `trigger` held, `pump` pressed this frame. Returns whether it sprays this
- * frame, and what happened (a pump started, the tank ran dry).
+ * One frame of a sprayer in your hands: `trigger` held, `pump` pressed this frame, and `triggerPressed` when the
+ * trigger was pressed this frame (with the tank empty, that pumps too, so you needn't switch to the pump button).
+ * Returns whether it sprays this frame, and what happened (a pump started, the tank ran dry).
  */
 export function stepTank(
   tank: TankState,
   spec: SprayerSpec,
   dt: number,
   trigger: boolean,
-  pump: boolean
+  pump: boolean,
+  triggerPressed = false
 ): { spraying: boolean; pumped: boolean; ranDry: boolean } {
   let pumped = false;
+  if (triggerPressed && tank.water <= 0 && tank.pumping === 0) pump = true;
   if (tank.pumping > 0) {
     tank.pumping -= dt;
     if (tank.pumping <= 0) {

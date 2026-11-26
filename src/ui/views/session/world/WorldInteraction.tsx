@@ -10,6 +10,7 @@ import { useMemoizedState } from "../../../hooks/useMemoizedState";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { aliasToRoomId, parseMatrixUri } from "../../../utils/matrixUtils";
 import { InteractionState, useWorldInteraction } from "../../../hooks/useWorldInteraction";
+import { EquipCard, useEquippedThing } from "../entity-tooltip/EquipCard";
 import { EntityTooltip } from "../entity-tooltip/EntityTooltip";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { OverlayWindow } from "../../../state/overlayWindow";
@@ -178,11 +179,14 @@ export function WorldInteraction({ session, world }: WorldInteractionProps) {
   );
 
   useWorldInteraction(mainThread, handleInteraction);
+  // Buzzar: a Thing's controls for a few seconds after you pick it up (in the hover card's place).
+  const equipped = useEquippedThing();
 
   return (
     <div>
       {!camRigModule.orbiting && <Reticle />}
-      {activeEntity && !camRigModule.orbiting && (
+      {equipped && !camRigModule.orbiting && <EquipCard key={equipped.at} equipped={equipped} />}
+      {activeEntity && !equipped && !camRigModule.orbiting && (
         <EntityTooltip activeEntity={activeEntity} portalProcess={portalProcess} />
       )}
     </div>

@@ -1,4 +1,5 @@
 import type { ThingVariables } from "../spawnables/thingVariables.common";
+import type { ThingControl } from "../../engine/gltf/assetMetadata";
 
 export enum ThirdRoomMessageType {
   EnterWorld = "enter-world",
@@ -29,6 +30,8 @@ export enum ThirdRoomMessageType {
   SetThingKeys = "set-thing-keys",
   /** Buzzar: your own Things (uploaded or bookmarked files), for their names and pictures on the action bar. */
   SetCustomThings = "set-custom-things",
+  /** Buzzar: you just picked up (or spawned into your hold) a Thing that lists its controls. */
+  ThingEquipped = "thing-equipped",
 }
 
 /**
@@ -203,4 +206,11 @@ export interface ObjectCapReachedMessage {
 export interface SetObjectCapMessage {
   type: ThirdRoomMessageType.SetObjectCap;
   value: number;
+}
+
+/** Buzzar: game → main: a Thing's name and controls (HAVEN_metadata controls), shown for a few seconds. */
+export interface ThingEquippedMessage {
+  type: ThirdRoomMessageType.ThingEquipped;
+  name: string;
+  controls: ThingControl[];
 }

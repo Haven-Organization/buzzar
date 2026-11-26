@@ -18,13 +18,13 @@ This extension makes a Thing spray a liquid when you hold it: a water gun, a spr
 
 While you hold a sprayer:
 
-- **Hold left click** (gamepad RT) to spray. The stream drains the tank and stops when the tank is empty.
-- **Right click** (gamepad X) works the pump. The pump sound plays, and when the stroke is done the tank has `refill` seconds more. You can't spray mid-stroke.
+- **Hold left click** (gamepad RT) to spray. With a `start` sound, that plays once and the `spray` loop carries on from where it leaves off. The stream drains the tank and stops when the tank is empty.
+- **Right click** (gamepad X) works the pump, and so does **left click** once the tank is empty. The pump sound plays, and when the stroke is done the tank has `refill` seconds more. You can't spray mid-stroke.
 - **E** (gamepad RB) puts it down. A sprayer can't be thrown.
 
 Whoever holds a sprayer tells everyone else when it starts and stops spraying and when it's pumped. Every client draws the stream from the Thing's nozzle and plays the sounds there. The tank itself is only kept by its holder.
 
-The drops fall under gravity and disappear when they hit anything solid.
+The stream is drawn as drops stretched along their flight and overlapping each other, so they read as one jet of water. Each drop falls under gravity, spreads as it ages, and disappears when it hits anything solid (players excepted).
 
 ## glTF Schema Updates
 
@@ -55,18 +55,19 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 }
 ```
 
-| Property   | Type       | Description                                                                                                                          | Default              |
-| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
-| `nozzle`   | `object`   | `position`: where the stream leaves (metres). `direction`: which way it leaves.                                                      | origin, `[0, 0, -1]` |
-| `speed`    | `number`   | Metres per second the stream leaves at (0.5–50).                                                                                     | 9                    |
-| `spread`   | `number`   | How much the stream wanders, in degrees (0–45).                                                                                      | 1.5                  |
-| `rate`     | `number`   | Drops per second (1–120): how solid the stream looks.                                                                                | 70                   |
-| `dropSize` | `number`   | Drop radius in metres.                                                                                                               | 0.025                |
-| `color`    | `number[]` | RGBA of the liquid (0–1). Alpha below 1 makes it see-through.                                                                        | light blue, 0.6      |
-| `capacity` | `number`   | Seconds of spraying a full tank holds.                                                                                               | 5                    |
-| `refill`   | `number`   | Seconds of spraying one pump adds.                                                                                                   | a full tank          |
-| `pumpTime` | `number`   | Seconds a pump stroke takes. Match it to the pump sound.                                                                             | 1                    |
-| `sounds`   | `object`   | KHR_audio **source** indices: `spray` (looped while spraying), `pump` (each stroke), `empty` (when the tank runs dry). All optional. | none                 |
+| Property      | Type       | Description                                                                                                                                                                               | Default              |
+| ------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `nozzle`      | `object`   | `position`: where the stream leaves (metres). `direction`: which way it leaves.                                                                                                           | origin, `[0, 0, -1]` |
+| `speed`       | `number`   | Metres per second the stream leaves at (0.5–50).                                                                                                                                          | 9                    |
+| `spread`      | `number`   | How much the stream wanders, in degrees (0–45).                                                                                                                                           | 1.5                  |
+| `rate`        | `number`   | Drops per second (1–120): how solid the stream looks.                                                                                                                                     | 70                   |
+| `dropSize`    | `number`   | Drop radius in metres.                                                                                                                                                                    | 0.025                |
+| `color`       | `number[]` | RGBA of the liquid (0–1). Alpha below 1 makes it see-through.                                                                                                                             | light blue, 0.6      |
+| `capacity`    | `number`   | Seconds of spraying a full tank holds.                                                                                                                                                    | 5                    |
+| `refill`      | `number`   | Seconds of spraying one pump adds.                                                                                                                                                        | a full tank          |
+| `pumpTime`    | `number`   | Seconds a pump stroke takes. Match it to the pump sound.                                                                                                                                  | 1                    |
+| `sounds`      | `object`   | KHR_audio **source** indices: `start` (once, when spraying begins), `spray` (looped while spraying, after `start`), `pump` (each stroke), `empty` (when the tank runs dry). All optional. | none                 |
+| `startLength` | `number`   | Seconds into `start` where the `spray` loop takes over. Make `start` a little longer and fade it out, so the two overlap rather than leave a gap.                                         | 0                    |
 
 ## Compatibility
 

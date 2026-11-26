@@ -46,3 +46,18 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Buzzar: the controls card shown when you pick up a Thing that lists its controls (EquipCard). */
+.EntityTooltip--equip {
+  animation: entity-tooltip-equip-out 6s ease-in forwards;
+}
+
+@keyframes entity-tooltip-equip-out {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

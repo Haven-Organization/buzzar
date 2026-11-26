@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readAssetMetadata } from "./assetMetadata";
+import { makeAssetMetadata, readAssetMetadata } from "./assetMetadata";
 
 describe("asset metadata", () => {
   it("reads HAVEN_metadata, keeping a multi-line description", () => {
@@ -47,5 +47,30 @@ describe("asset metadata", () => {
 
   it("ignores links that aren't web pages", () => {
     expect(readAssetMetadata({ extensions: { HAVEN_metadata: { sourceUrl: "javascript:alert(1)" } } })).toEqual({});
+  });
+});
+
+describe("a Thing's controls", () => {
+  it("reads controls by action, skipping unknown actions and empty labels (untrusted)", () => {
+    const meta = readAssetMetadata({
+      extensions: {
+        HAVEN_metadata: {
+          name: "Water Gun",
+          controls: [
+            { action: "use", label: "Spray (hold)" },
+            { action: "teleport", label: "Nope" },
+            { action: "secondary", label: "  " },
+            { action: "secondary", label: "Pump" },
+            "drop",
+          ],
+        },
+      },
+    });
+    expect(meta.controls).toEqual([
+      { action: "use", label: "Spray (hold)" },
+      { action: "secondary", label: "Pump" },
+    ]);
+    // Saving other details into the file keeps them.
+    expect(makeAssetMetadata({ ...meta, version: "2" }).controls).toEqual(meta.controls);
   });
 });

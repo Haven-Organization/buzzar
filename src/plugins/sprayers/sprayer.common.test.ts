@@ -25,7 +25,8 @@ describe("HAVEN_sprayer", () => {
     expect(spec.capacity).toBe(4);
     expect(spec.refill).toBe(4); // a full tank per pump
     expect(spec.speed).toBe(9); // out of range: the default
-    expect(spec.sounds).toEqual({ spray: 0, pump: 1, empty: undefined });
+    expect(spec.sounds).toEqual({ start: undefined, spray: 0, pump: 1, empty: undefined });
+    expect(spec.startLength).toBe(0);
   });
 });
 
@@ -48,5 +49,15 @@ describe("a sprayer's tank", () => {
     stepTank(tank, spec, 0.3, false, false);
     expect(tank.water).toBe(1);
     expect(stepTank(tank, spec, 0.1, true, false).spraying).toBe(true);
+  });
+
+  it("pumps when the trigger is pressed with the tank empty", () => {
+    const tank = { water: 0, pumping: 0 };
+    // Holding the trigger down after it ran dry doesn't pump; pressing it again does.
+    expect(stepTank(tank, spec, 0.1, true, false, false).pumped).toBe(false);
+    expect(stepTank(tank, spec, 0.1, true, false, true).pumped).toBe(true);
+    // With water left, pressing it just sprays.
+    const full = fullTank(spec);
+    expect(stepTank(full, spec, 0.1, true, false, true)).toEqual({ spraying: true, pumped: false, ranDry: false });
   });
 });

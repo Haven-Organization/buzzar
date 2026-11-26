@@ -9,6 +9,39 @@ export interface AssetMetadata {
   author?: string;
   sourceUrl?: string;
   version?: string;
+  /** A Thing's controls while you hold it, shown when you pick it up. */
+  controls?: ThingControl[];
+}
+
+/**
+ * The inputs a held Thing responds to, by what they do rather than which key: each client shows its own binding
+ * (left click / RT for `use`, and so on). `use`: the main action (fire, spray); `secondary`: the second one (pump,
+ * reload); `drop`: let go; `throw`; `rotate`: turn it in your hand.
+ */
+export const THING_CONTROL_ACTIONS = ["use", "secondary", "drop", "throw", "rotate"] as const;
+export type ThingControlAction = (typeof THING_CONTROL_ACTIONS)[number];
+
+export interface ThingControl {
+  action: ThingControlAction;
+  /** What it does with this Thing, e.g. "Spray (hold)". */
+  label: string;
+}
+
+/** At most this many controls are shown. */
+export const MAX_THING_CONTROLS = 8;
+
+function readControls(v: unknown): ThingControl[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const controls: ThingControl[] = [];
+  for (const entry of v) {
+    if (!isRecord(entry)) continue;
+    const action = entry.action as ThingControlAction;
+    const label = text(entry.label, 80);
+    if (!THING_CONTROL_ACTIONS.includes(action) || !label) continue;
+    controls.push({ action, label });
+    if (controls.length >= MAX_THING_CONTROLS) break;
+  }
+  return controls.length > 0 ? controls : undefined;
 }
 
 type AnyRecord = Record<string, unknown>;
@@ -45,6 +78,7 @@ export function readAssetMetadata(gltf: { asset?: unknown; extensions?: unknown 
       text(extras.author, 500)?.replace(/\s*\(https?:\/\/[^)]*\)\s*$/, ""),
     sourceUrl: link(own.sourceUrl) ?? link(vrm0.reference) ?? link(extras.source),
     version: text(own.version, 100) ?? text(vrm1.version, 100) ?? text(vrm0.version, 100),
+    controls: readControls(own.controls),
   };
   for (const key of Object.keys(out) as (keyof AssetMetadata)[]) if (out[key] === undefined) delete out[key];
   return out;
@@ -57,5 +91,7 @@ export function makeAssetMetadata(meta: AssetMetadata): AssetMetadata {
     const value = meta[key]?.trim();
     if (value) out[key] = value;
   }
+  // Kept as they are when other details are saved into the file.
+  if (meta.controls?.length) out.controls = meta.controls;
   return out;
 }

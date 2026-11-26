@@ -16,18 +16,27 @@ if [ "${1:-}" != "--no-build" ]; then
   yarn -s docs:build
 fi
 
+# Buzzar: build the new version next to the live one, then swap the two folders in one atomic rename
+# (mv --exchange), so a reload gets all of the old build or all of the new one, never a mix or a stale page
+# halfway through. The staging copy starts as hard links to the live build (instant, no extra space), which also
+# keeps old asset chunks for pages still running the previous build; rsync writes changed files as new files, so the
+# live build is untouched until the swap. The folder swapped out becomes the backup.
+STAGE="$WEB.next"
+rm -rf -- "$STAGE"
 if [ -d "$WEB" ]; then
-  BACKUP="$WEB.bak-$(date +%Y%m%d-%H%M%S)"
-  cp -a "$WEB" "$BACKUP"
-  echo "previous build backed up to $BACKUP"
-  # Keep the newest KEEP_BACKUPS backups (each is a whole build, ~200 MB); they used to pile up by the hundred.
-  ls -d "$WEB".bak-* 2>/dev/null | sort | head -n "-${KEEP_BACKUPS:-5}" | while read -r old; do rm -rf -- "$old"; done
+  cp -al "$WEB" "$STAGE"
+else
+  mkdir -p "$STAGE"
 fi
-
-mkdir -p "$WEB"
-# Local world previews (public/gltf/test/_tmp-*) are dev-only and large.
-# Earlier builds' hashed chunks in assets/ stay (P = protect from --delete) for a week: an app still open on the
-# previous build loads views it hasn't loaded yet from them, and a missing one was a blank white screen.
-rsync -a --delete --filter 'P /assets/**' --exclude 'gltf/test/_tmp-*' dist/ "$WEB/"
-find "$WEB/assets" -type f -mtime +7 -delete
+rsync -a --delete --filter 'P /assets/**' --exclude 'gltf/test/_tmp-*' dist/ "$STAGE/"
+find "$STAGE/assets" -type f -mtime +7 -delete
+if [ -d "$WEB" ]; then
+  mv --exchange -T "$STAGE" "$WEB"
+  BACKUP="$WEB.bak-$(date +%Y%m%d-%H%M%S)"
+  mv -T "$STAGE" "$BACKUP"
+  echo "previous build kept as $BACKUP"
+  ls -d "$WEB".bak-* 2>/dev/null | sort | head -n "-${KEEP_BACKUPS:-5}" | while read -r old; do rm -rf -- "$old"; done
+else
+  mv -T "$STAGE" "$WEB"
+fi
 echo "deployed $(du -sh "$WEB" | cut -f1) to $WEB"

@@ -2,7 +2,10 @@
 """
 Buzzar: turns the "Water gun" model by Mr.Nein (Sketchfab, CC-BY-4.0) into a Buzzar Thing that sprays water.
 
-    python3 scripts/buzzar/make-water-gun-thing.py water_gun.glb pump.wav spray-loop.wav out.glb
+    python3 scripts/buzzar/make-water-gun-thing.py water_gun.glb pump.wav spray-loop.wav out.glb \
+        [--spray-start start.wav] [--sound-credits "..."] [--version 0.3.0]
+
+With --spray-start, that clip plays once when spraying begins and the loop takes over where it ends.
 
 - Scales it to a real water gun's length (0.55 m) and puts its origin at the pistol grip.
 - Embeds the sounds (KHR_audio, as WAV): a pump stroke and a seamless spray loop, cut from Freesound 720433
@@ -14,9 +17,9 @@ Buzzar: turns the "Water gun" model by Mr.Nein (Sketchfab, CC-BY-4.0) into a Buz
 The geometry and textures are copied unchanged. Positions below were measured from the model (scene space, its
 own units): the nozzle tip is at z = -7.65 (y 1.78-2.20), the pistol grip around z 0.55, y -0.1.
 """
+import argparse
 import json
 import struct
-import sys
 import wave
 
 LENGTH_M = 0.55
@@ -64,7 +67,10 @@ def add_buffer_view(gltf, binary, payload):
     return len(gltf["bufferViews"]) - 1
 
 
-def main(src, pump_wav, spray_wav, out):
+CC0_SOUNDS = 'Sounds: "water gun sucking air" by ccovi and "Water Gun Shot" by belanhud, Freesound, CC0.'
+
+
+def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUNDS, version="0.2.0", start_length=None):
     gltf, binary = read_glb(src)
     s = LENGTH_M / MODEL_LENGTH
     scene = gltf["scenes"][gltf.get("scene", 0)]
@@ -100,19 +106,30 @@ def main(src, pump_wav, spray_wav, out):
         {"name": "Spray", "audio": 0, "loop": True, "gain": 0.8},
         {"name": "Pump", "audio": 1, "gain": 1.0},
     ]
+    sounds = {"spray": 0, "pump": 1}
+    if spray_start:
+        audio["audio"].append(
+            {"name": "Spray Start", "bufferView": add_buffer_view(gltf, binary, open(spray_start, "rb").read()), "mimeType": "audio/wav"}
+        )
+        audio["sources"].append({"name": "Spray Start", "audio": 2, "gain": 0.8})
+        sounds["start"] = 2
+        # Where the loop takes over: the clip's end, or earlier when the clip overlaps the loop's start.
+        start_length = round(start_length or wav_seconds(spray_start), 3)
 
     gltf["extensions"]["HAVEN_sprayer"] = {
         "nozzle": {"position": thing_space(NOZZLE), "direction": [0, 0, -1]},
         "speed": 10,
-        "spread": 1.2,
-        "rate": 80,
-        "dropSize": 0.018,
-        "color": [0.62, 0.83, 1, 0.6],
+        "spread": 0.8,
+        "rate": 110,
+        "dropSize": 0.013,
+        "color": [0.62, 0.83, 1, 0.55],
         "capacity": 6,
         "refill": 6,
         "pumpTime": round(wav_seconds(pump_wav), 2),
-        "sounds": {"spray": 0, "pump": 1},
+        "sounds": sounds,
     }
+    if start_length:
+        gltf["extensions"]["HAVEN_sprayer"]["startLength"] = start_length
     gltf["extensions"]["HAVEN_thing"] = {
         "collider": collider,
         "density": 300,
@@ -133,14 +150,19 @@ def main(src, pump_wav, spray_wav, out):
     gltf["extensions"]["HAVEN_metadata"] = {
         "name": "Water Gun",
         "description": (
-            "A pump-action water gun. Hold left click to spray; it runs dry after a few seconds. "
-            "Right click to pump it full again. E puts it down.\n\n"
+            "A pump-action water gun. It runs dry after a few seconds of spraying; pump it full again.\n\n"
             'Model: "Water gun" by Mr.Nein, CC-BY-4.0 (' + SOURCE_URL + ").\n"
-            'Sounds: "water gun sucking air" by ccovi and "Water Gun Shot" by belanhud, Freesound, CC0.'
+            + sound_credits
         ),
+        # What each input does with it (shown when you pick it up; each client shows its own keys).
+        "controls": [
+            {"action": "use", "label": "Spray (hold)"},
+            {"action": "secondary", "label": "Pump to refill"},
+            {"action": "drop", "label": "Put down"},
+        ],
         "author": "Mr.Nein",
         "sourceUrl": SOURCE_URL,
-        "version": "0.2.0",
+        "version": version,
     }
     used = set(gltf.get("extensionsUsed", []))
     used.update(["KHR_audio", "HAVEN_sprayer", "HAVEN_thing", "HAVEN_metadata"])
@@ -151,6 +173,14 @@ def main(src, pump_wav, spray_wav, out):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        sys.exit(__doc__)
-    main(*sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("model")
+    parser.add_argument("pump")
+    parser.add_argument("spray_loop")
+    parser.add_argument("out")
+    parser.add_argument("--spray-start")
+    parser.add_argument("--sound-credits", default=CC0_SOUNDS)
+    parser.add_argument("--version", default="0.2.0")
+    parser.add_argument("--start-length", type=float, help="seconds into the start clip where the loop takes over")
+    a = parser.parse_args()
+    main(a.model, a.pump, a.spray_loop, a.out, a.spray_start, a.sound_credits, a.version, a.start_length)

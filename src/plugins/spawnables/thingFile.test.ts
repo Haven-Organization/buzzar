@@ -81,3 +81,24 @@ describe("custom Things without HAVEN_thing", () => {
     expect(physicsFromBounds(undefined).collider.type).toBe("box");
   });
 });
+
+describe("baking a Thing's physics into its file", () => {
+  it("writes Buzzar's fitted box, keeping what the file already says", async () => {
+    const { bakedThingPhysics, thingPhysicsToJSON, readThingPhysics: read } = await import("./thingFile");
+    const gltf = {
+      scenes: [{ nodes: [0] }],
+      nodes: [{ mesh: 0 }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+      accessors: [{ min: [-0.1, 0, -0.3], max: [0.1, 0.2, 0.3] }],
+      extensions: { HAVEN_thing: { spawn: { held: true }, hold: { grip: { position: [0, 0, 0] } } } },
+    };
+    const json = thingPhysicsToJSON(bakedThingPhysics(gltf), gltf.extensions.HAVEN_thing);
+    expect(json.collider).toEqual({ type: "box", size: [0.2, 0.2, 0.6], offset: [0, 0.1, 0] });
+    expect(json.hold).toEqual({ grip: { position: [0, 0, 0] } });
+    // Reading the baked file back gives the same physics, whatever a client's own fallback is.
+    const back = read({ extensions: { HAVEN_thing: json } }, fallback);
+    expect(back.collider).toEqual(json.collider);
+    expect(back.rotation).toBe("free");
+    expect(back.spawn).toEqual({ distance: 1, upright: false, held: true });
+  });
+});

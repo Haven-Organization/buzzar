@@ -69,7 +69,12 @@ interface Sprayer {
   spec: SprayerSpec;
   /** At the nozzle; carries the sounds. */
   nozzle: RemoteNode;
-  sounds: { spray?: RemoteAudioSource; pump?: RemoteAudioSource; empty?: RemoteAudioSource };
+  sounds: {
+    start?: RemoteAudioSource;
+    spray?: RemoteAudioSource;
+    pump?: RemoteAudioSource;
+    empty?: RemoteAudioSource;
+  };
   /** Only meaningful for the holder. */
   tank: TankState;
   /** Spraying this frame (ours: from the tank; others': as their owner said). */
@@ -77,6 +82,9 @@ interface Sprayer {
   /** What we last told everyone. */
   announced: boolean;
   soundOn: boolean;
+  /** When the spray loop takes over from the start sound (Date.now()), and whether it has. */
+  loopAt: number;
+  loopOn: boolean;
   carry: number;
   mesh: RemoteMesh;
   drops: Drop[];
@@ -151,12 +159,14 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
   vec3.copy(nozzle.position, spec.nozzle);
   addChild(node, nozzle);
   const sounds = {
+    start: soundFor(resource, spec.sounds.start),
     spray: soundFor(resource, spec.sounds.spray),
     pump: soundFor(resource, spec.sounds.pump),
     empty: soundFor(resource, spec.sounds.empty),
   };
   if (sounds.spray) sounds.spray.loop = true;
-  const sources = [sounds.spray, sounds.pump, sounds.empty].filter((s): s is RemoteAudioSource => !!s);
+  if (sounds.start) sounds.start.loop = false;
+  const sources = [sounds.start, sounds.spray, sounds.pump, sounds.empty].filter((s): s is RemoteAudioSource => !!s);
   if (sources.length > 0) {
     nozzle.audioEmitter = new RemoteAudioEmitter(ctx.resourceManager, {
       type: AudioEmitterType.Positional,
@@ -184,6 +194,8 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
     spraying: false,
     announced: false,
     soundOn: false,
+    loopAt: 0,
+    loopOn: false,
     carry: 0,
     mesh,
     drops: [],
@@ -235,6 +247,28 @@ function emitDrop(ctx: GameContext, sprayer: Sprayer) {
   drop.life = DROP_LIFE;
   drop.active = true;
   drop.node.visible = true;
+  shapeDrop(sprayer, drop);
+}
+
+const FORWARD = vec3.fromValues(0, 0, 1);
+const _along = vec3.create();
+/** How much each drop overlaps the next along the stream, so they join up into one jet. */
+const OVERLAP = 1.9;
+
+/**
+ * Drops are stretched along their flight and overlap the next one, so together they draw a jet of water rather than
+ * a row of balls; older drops (further out) get wider and shorter, as a stream breaks up.
+ */
+function shapeDrop(sprayer: Sprayer, drop: Drop) {
+  const speed = vec3.length(drop.velocity);
+  if (speed < 1e-4) return;
+  vec3.scale(_along, drop.velocity, 1 / speed);
+  quat.rotationTo(drop.node.quaternion, FORWARD, _along);
+  const { rate, dropSize } = sprayer.spec;
+  const age = 1 - drop.life / DROP_LIFE;
+  const width = 1 + 1.2 * age;
+  const length = Math.max(1, ((speed / rate) * OVERLAP) / (2 * dropSize)) * (1 - 0.3 * age);
+  vec3.set(drop.node.scale, width, width, Math.max(width, length));
 }
 
 function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
@@ -262,6 +296,33 @@ function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
     p[0] += v[0] * dt;
     p[1] += v[1] * dt;
     p[2] += v[2] * dt;
+    shapeDrop(sprayer, drop);
+  }
+}
+
+/** The start sound once when spraying begins, then the loop for as long as it lasts; both stop with the spray. */
+function updateSpraySound(ctx: GameContext, sprayer: Sprayer) {
+  const { start, spray } = sprayer.sounds;
+  const now = Date.now();
+  if (sprayer.spraying && !sprayer.soundOn) {
+    sprayer.soundOn = true;
+    if (start) {
+      playAudio(ctx, start);
+      sprayer.loopAt = now + sprayer.spec.startLength * 1000;
+      sprayer.loopOn = false;
+    } else if (spray) {
+      playAudio(ctx, spray);
+      sprayer.loopOn = true;
+    }
+  } else if (!sprayer.spraying && sprayer.soundOn) {
+    sprayer.soundOn = false;
+    if (start) stopAudio(ctx, start);
+    if (spray && sprayer.loopOn) stopAudio(ctx, spray);
+    sprayer.loopOn = false;
+  }
+  if (sprayer.spraying && !sprayer.loopOn && spray && now >= sprayer.loopAt) {
+    playAudio(ctx, spray);
+    sprayer.loopOn = true;
   }
 }
 
@@ -284,7 +345,14 @@ export function SprayerSystem(ctx: GameContext) {
     const ours = hasComponent(ctx.world, Owned, eid);
     if (ours) {
       const holding = heldEid === eid;
-      const step = stepTank(sprayer.tank, sprayer.spec, dt, holding && !!use?.held, holding && !!pump?.pressed);
+      const step = stepTank(
+        sprayer.tank,
+        sprayer.spec,
+        dt,
+        holding && !!use?.held,
+        holding && !!pump?.pressed,
+        holding && !!use?.pressed
+      );
       sprayer.spraying = step.spraying;
       if (step.pumped && sprayer.sounds.pump) playOneShotAudio(ctx, sprayer.sounds.pump);
       if (step.ranDry && sprayer.sounds.empty) playOneShotAudio(ctx, sprayer.sounds.empty);
@@ -294,11 +362,7 @@ export function SprayerSystem(ctx: GameContext) {
       }
     }
 
-    if (sprayer.spraying !== sprayer.soundOn && sprayer.sounds.spray) {
-      if (sprayer.spraying) playAudio(ctx, sprayer.sounds.spray);
-      else stopAudio(ctx, sprayer.sounds.spray);
-    }
-    sprayer.soundOn = sprayer.spraying;
+    updateSpraySound(ctx, sprayer);
 
     if (sprayer.spraying) {
       sprayer.carry += sprayer.spec.rate * dt;
