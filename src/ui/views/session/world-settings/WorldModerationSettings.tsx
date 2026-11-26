@@ -1,13 +1,16 @@
 /**
- * Buzzar: World Settings → Moderation → the ban lists this world follows (src/matrix/policyLists.ts). Saved at once
- * in the world's `software.haven.world.moderation` event; every visitor's Buzzar then holds back anyone those lists
- * ban.
+ * Buzzar: World Settings → Moderation (src/matrix/policyLists.ts), saved at once:
+ * - the world's own bans: accounts and servers banned in the world room itself (standard `m.policy.rule.*` events);
+ * - the other ban lists it follows (`software.haven.world.moderation`).
+ * Every visitor's Buzzar holds back anyone they ban.
  */
 import { FormEvent, useEffect, useState } from "react";
 
 import { Room } from "../../../../matrix";
 import {
+  globMatches,
   MAX_POLICY_ROOMS,
+  serverOf,
   parseWorldModeration,
   PolicyRoomStatus,
   WORLD_MODERATION_EVENT,
@@ -31,7 +34,147 @@ function useListStatus(roomId: string): PolicyRoomStatus[] | undefined {
   return status;
 }
 
-export function WorldModerationSettings({ room, canEdit }: { room: Room; canEdit: boolean }) {
+const USER_RULE = "m.policy.rule.user";
+const SERVER_RULE = "m.policy.rule.server";
+
+/** A ban entry typed in: an account (`@name:server`, globs allowed) or a server name (globs allowed). */
+export function parseBanEntity(text: string): { kind: "user" | "server"; entity: string } | undefined {
+  const entity = text.trim();
+  if (!entity || entity.length > 255 || /\s/.test(entity)) return undefined;
+  if (entity.startsWith("@")) return /^@[^:]+:.+$/.test(entity) ? { kind: "user", entity } : undefined;
+  return /^[^@:/]+(:\d+)?$/.test(entity) ? { kind: "server", entity } : undefined;
+}
+
+/** The world room's own bans: ban accounts or whole servers here, or lift a ban. */
+function WorldBans({ room, canEdit }: { room: Room; canEdit: boolean }) {
+  const { session } = useMatrix(true);
+  const userRules = useStateEvents(room, USER_RULE);
+  const serverRules = useStateEvents(room, SERVER_RULE);
+  const rules = [
+    ...[...userRules].map(([key, event]) => ({ type: USER_RULE, key, content: event.content })),
+    ...[...serverRules].map(([key, event]) => ({ type: SERVER_RULE, key, content: event.content })),
+  ].filter((r) => typeof r.content?.entity === "string" && r.content?.recommendation === "m.ban");
+
+  const [entity, setEntity] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const ban = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(undefined);
+    const parsed = parseBanEntity(entity);
+    if (!parsed) {
+      setError("Enter an account like @name:example.org, or a server like example.org (* and ? match anything).");
+      return;
+    }
+    if (parsed.kind === "user" && globMatches(parsed.entity, session.userId)) {
+      setError("That would ban you.");
+      return;
+    }
+    if (parsed.kind === "server" && globMatches(parsed.entity, serverOf(session.userId))) {
+      setError("That would ban your own server, and you with it.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const content = { entity: parsed.entity, recommendation: "m.ban", reason: reason.trim() || undefined };
+      await session.hsApi
+        .sendState(room.id, parsed.kind === "user" ? USER_RULE : SERVER_RULE, `rule:${parsed.entity}`, content)
+        .response();
+      setEntity("");
+      setReason("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const lift = async (type: string, key: string) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      // A rule is removed by emptying its state event.
+      await session.hsApi.sendState(room.id, type, key, {}).response();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SettingTile label={<Label>Banned Accounts and Servers</Label>}>
+      <Text variant="b3" color="surface-low">
+        Every visitor&apos;s Buzzar holds these back at once: nobody sees their avatar or Things or hears them, and they
+        don&apos;t see or hear anyone. They&apos;re standard Matrix ban rules kept in this world&apos;s room, so
+        moderation bots (Meowlnir, Draupnir) can follow this world as a ban list too. To also remove someone from the
+        world&apos;s room and chat, use Ban in the People list.
+      </Text>
+      {rules.length === 0 ? (
+        <Text variant="b3">Nobody is banned here.</Text>
+      ) : (
+        <div className="flex flex-column gap-xs">
+          {rules.map((rule) => (
+            <div key={rule.type + rule.key} className="flex items-center gap-sm">
+              <div className="grow flex flex-column">
+                <Text variant="b2" weight="medium" className="truncate">
+                  {rule.content.entity}
+                  {rule.type === SERVER_RULE ? " (server)" : ""}
+                </Text>
+                {typeof rule.content.reason === "string" && rule.content.reason && (
+                  <Text variant="b3" color="surface-low" className="truncate">
+                    {rule.content.reason}
+                  </Text>
+                )}
+              </div>
+              {canEdit && (
+                <Button size="sm" fill="outline" onClick={() => lift(rule.type, rule.key)} disabled={busy}>
+                  Lift Ban
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {canEdit && (
+        <form className="flex flex-column gap-xs" onSubmit={ban}>
+          <div className="flex items-center gap-sm">
+            <Input
+              className="grow"
+              placeholder="@name:example.org or example.org"
+              value={entity}
+              onChange={(e) => setEntity(e.target.value)}
+              disabled={busy}
+            />
+            <Button type="submit" variant="danger" disabled={busy || !entity.trim()}>
+              Ban
+            </Button>
+          </div>
+          <Input
+            placeholder="Reason (optional, visible to everyone in the world)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={busy}
+          />
+        </form>
+      )}
+      {error && (
+        <Text variant="b3" color="danger">
+          {error}
+        </Text>
+      )}
+      {!canEdit && (
+        <Text variant="b3" color="surface-low">
+          You don&apos;t have permission to ban people here.
+        </Text>
+      )}
+    </SettingTile>
+  );
+}
+
+export function WorldModerationSettings({ room, canEdit, canBan }: { room: Room; canEdit: boolean; canBan: boolean }) {
   const { session } = useMatrix(true);
   const events = useStateEvents(room, WORLD_MODERATION_EVENT);
   const { policyRooms } = parseWorldModeration(events.get("")?.content);
@@ -40,6 +183,7 @@ export function WorldModerationSettings({ room, canEdit }: { room: Room; canEdit
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
 
   const save = async (next: string[]) => {
     const content = { ...(events.get("")?.content ?? {}), policy_rooms: next };
@@ -63,23 +207,37 @@ export function WorldModerationSettings({ room, canEdit }: { room: Room; canEdit
       return;
     }
     setBusy(true);
+    setNotice(undefined);
     try {
-      // Visitors read the list without joining it, so it has to be readable by anyone.
+      // Visitors read the list without joining it, which only works if anyone may read its history.
       const client = session.client;
       const roomId = entry.startsWith("#") ? (await client.getRoomIdForAlias(entry)).room_id : entry;
-      if (client.getRoom(roomId)?.getMyMembership() !== "join") await client.roomState(roomId);
+      let readable: boolean;
+      const joined = client.getRoom(roomId);
+      if (joined?.getMyMembership() === "join") {
+        const visibility = joined.currentState.getStateEvents("m.room.history_visibility", "")?.getContent();
+        readable = visibility?.history_visibility === "world_readable";
+      } else {
+        readable = await client.roomState(roomId).then(
+          () => true,
+          (e: { errcode?: string }) => {
+            if (e?.errcode === "M_FORBIDDEN") return false;
+            throw e;
+          }
+        );
+      }
       await save([...policyRooms, entry]);
       setDraft("");
+      if (!readable) {
+        setNotice(
+          "Followed, but visitors can't read this list without joining it (most big public lists are like that), so " +
+            "its bans don't apply on their own. A moderation bot that copies them into this world's bans makes them apply."
+        );
+      }
     } catch (e) {
       const code = (e as { errcode?: string })?.errcode;
       setError(
-        code === "M_FORBIDDEN"
-          ? "Visitors can't read that list: only lists whose history anyone can read (as public ban lists do) work here."
-          : code === "M_NOT_FOUND"
-          ? "There's no room at that address."
-          : e instanceof Error
-          ? e.message
-          : String(e)
+        code === "M_NOT_FOUND" ? "There's no room at that address." : e instanceof Error ? e.message : String(e)
       );
     } finally {
       setBusy(false);
@@ -100,12 +258,12 @@ export function WorldModerationSettings({ room, canEdit }: { room: Room; canEdit
 
   return (
     <div className="flex flex-column gap-md">
+      <WorldBans room={room} canEdit={canBan} />
       <SettingTile label={<Label>Ban Lists</Label>}>
         <Text variant="b3" color="surface-low">
-          Follow Matrix ban lists (policy lists, as Meowlnir, Draupnir and Mjolnir publish). Anyone they ban, by account
-          or by server, is held back by every visitor&apos;s Buzzar as soon as the list changes: nobody sees their
-          avatar or Things or hears them, and they don&apos;t see or hear anyone. No bot has to be running for this; a
-          moderation bot or a moderator can still ban them from the world&apos;s room and chat.
+          Follow other Matrix ban lists too (policy lists, as Meowlnir, Draupnir and Mjolnir publish). Lists anyone can
+          read apply straight away, like the bans above. Most big public lists can only be read by joining them;
+          visitors don&apos;t join, so their bans apply once a moderation bot copies them into this world&apos;s bans.
         </Text>
         {policyRooms.length === 0 ? (
           <Text variant="b3">This world doesn&apos;t follow any ban lists.</Text>
@@ -149,6 +307,7 @@ export function WorldModerationSettings({ room, canEdit }: { room: Room; canEdit
             </Button>
           </form>
         )}
+        {notice && <Text variant="b3">{notice}</Text>}
         {error && (
           <Text variant="b3" color="danger">
             {error}

@@ -54,3 +54,16 @@ describe("world ban lists", () => {
     expect(findBan(rules, "@x.evil:x.org")).toBeUndefined();
   });
 });
+
+describe("ban entries typed in World Settings", () => {
+  it("tells accounts from servers", async () => {
+    const { parseBanEntity } = await import("../ui/views/session/world-settings/WorldModerationSettings");
+    expect(parseBanEntity(" @troll:x.org ")).toEqual({ kind: "user", entity: "@troll:x.org" });
+    expect(parseBanEntity("@*:spam.example")).toEqual({ kind: "user", entity: "@*:spam.example" });
+    expect(parseBanEntity("*.evil")).toEqual({ kind: "server", entity: "*.evil" });
+    expect(parseBanEntity("x.org:8448")).toEqual({ kind: "server", entity: "x.org:8448" });
+    expect(parseBanEntity("@nocolon")).toBeUndefined();
+    expect(parseBanEntity("two words")).toBeUndefined();
+    expect(parseBanEntity("https://x.org")).toBeUndefined();
+  });
+});

@@ -5,10 +5,15 @@
  * way. That works without any bot running, and takes effect as soon as a list changes. A moderation bot or a
  * moderator then follows up in Matrix (room bans, redactions).
  *
- * Lists are read from the synced room when you've joined it, otherwise from the server (rooms whose history is
- * world-readable, as public ban lists are), refreshed every few minutes.
+ * The world room is a ban list itself: its own `m.policy.rule.*` state events (the spec allows policy rules in any
+ * room) always apply. Moderators ban accounts and servers there (World Settings → Moderation), and a moderation bot
+ * copies in rules from lists visitors can't read. Every visitor already has the world room's state, so these apply
+ * without joining anything.
+ *
+ * Other followed lists are read from the synced room when you've joined it, otherwise from the server (only rooms
+ * whose history anyone can read; most big public lists aren't), refreshed every few minutes.
  */
-import { ClientEvent, MatrixClient, MatrixEvent, RoomStateEvent } from "matrix-js-sdk";
+import { ClientEvent, MatrixClient, MatrixEvent, Room, RoomStateEvent } from "matrix-js-sdk";
 
 export const WORLD_MODERATION_EVENT = "software.haven.world.moderation";
 
@@ -32,8 +37,12 @@ export function parseWorldModeration(content: unknown): WorldModeration {
   return { policyRooms };
 }
 
-const USER_RULE_TYPES = new Set(["m.policy.rule.user", "m.room.rule.user", "org.matrix.mjolnir.rule.user"]);
-const SERVER_RULE_TYPES = new Set(["m.policy.rule.server", "m.room.rule.server", "org.matrix.mjolnir.rule.server"]);
+export const USER_RULE_TYPES = new Set(["m.policy.rule.user", "m.room.rule.user", "org.matrix.mjolnir.rule.user"]);
+export const SERVER_RULE_TYPES = new Set([
+  "m.policy.rule.server",
+  "m.room.rule.server",
+  "org.matrix.mjolnir.rule.server",
+]);
 const BAN_RECOMMENDATIONS = new Set(["m.ban", "org.matrix.mjolnir.ban"]);
 
 export interface PolicyRule {
@@ -127,6 +136,8 @@ export class WorldBanList {
 
   /** The rule banning this user in this world, if any. */
   banOf(userId: string): PolicyRule | undefined {
+    const own = findBan(this.worldRules, userId);
+    if (own) return own;
     for (const rules of this.rulesByRoom.values()) {
       const rule = findBan(rules, userId);
       if (rule) return rule;
@@ -145,8 +156,13 @@ export class WorldBanList {
   private onState = (event: MatrixEvent) => {
     const roomId = event.getRoomId();
     if (!roomId) return;
-    if (roomId === this.worldRoomId && event.getType() === WORLD_MODERATION_EVENT) {
-      void this.refresh();
+    if (roomId === this.worldRoomId) {
+      const type = event.getType();
+      if (USER_RULE_TYPES.has(type) || SERVER_RULE_TYPES.has(type)) {
+        // The world's own bans: read straight from its state, no round trip.
+        this.readWorldRules();
+        for (const listener of this.listeners) listener();
+      } else if (type === WORLD_MODERATION_EVENT) void this.refresh();
       return;
     }
     // A followed list we've joined changed: read it again from the synced room.
@@ -179,7 +195,16 @@ export class WorldBanList {
     return this.refreshing;
   }
 
+  /** The world room's own ban rules. */
+  private worldRules: PolicyRule[] = [];
+
+  private readWorldRules() {
+    const world = this.client.getRoom(this.worldRoomId);
+    this.worldRules = world ? parsePolicyRules(syncedRuleEvents(world)) : [];
+  }
+
   private async load() {
+    this.readWorldRules();
     const world = this.client.getRoom(this.worldRoomId);
     const content = world?.currentState.getStateEvents(WORLD_MODERATION_EVENT, "")?.getContent();
     const { policyRooms } = parseWorldModeration(content);
@@ -223,18 +248,19 @@ export class WorldBanList {
 
   private async stateOf(roomId: string): Promise<{ type: string; content: unknown }[]> {
     const joined = this.client.getRoom(roomId);
-    if (joined?.getMyMembership() === "join") {
-      const events: { type: string; content: unknown }[] = [];
-      for (const type of [...USER_RULE_TYPES, ...SERVER_RULE_TYPES]) {
-        for (const event of joined.currentState.getStateEvents(type)) {
-          events.push({ type, content: event.getContent() });
-        }
-      }
-      return events;
-    }
+    if (joined?.getMyMembership() === "join") return syncedRuleEvents(joined);
     const state = await this.client.roomState(roomId);
     return state.map((event) => ({ type: event.type, content: event.content }));
   }
+}
+
+/** A synced room's user and server rules, as state events. */
+function syncedRuleEvents(room: Room): { type: string; content: unknown }[] {
+  const events: { type: string; content: unknown }[] = [];
+  for (const type of [...USER_RULE_TYPES, ...SERVER_RULE_TYPES]) {
+    for (const event of room.currentState.getStateEvents(type)) events.push({ type, content: event.getContent() });
+  }
+  return events;
 }
 
 function describe(error: unknown): string {

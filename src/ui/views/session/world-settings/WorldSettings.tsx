@@ -487,6 +487,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                         <WorldModerationSettings
                           room={room}
                           canEdit={canSendStateEvent(WORLD_MODERATION_EVENT, myPowerLevel)}
+                          canBan={
+                            canSendStateEvent("m.policy.rule.user", myPowerLevel) &&
+                            canSendStateEvent("m.policy.rule.server", myPowerLevel)
+                          }
                         />
                       </div>
                       <div className="WorldSettings__section" hidden={category !== "things"}>
