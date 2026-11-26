@@ -541,6 +541,8 @@ export function InteractionSystem(ctx: GameContext) {
   }
 
   const eid = ourPlayerQuery(ctx.world)[0];
+  const heldEid = eid && hasComponent(ctx.world, GrabComponent, eid) ? GrabComponent.grabbedEntity[eid] : 0;
+  heldBodyToSkip = heldEid ? getRemoteResource<RemoteNode>(ctx, heldEid)?.physicsBody?.body : undefined;
 
   if (eid) {
     const rig = tryGetRemoteResource<RemoteNode>(ctx, eid);
@@ -663,6 +665,12 @@ function updateOrbitInteraction(
   }
 }
 
+/**
+ * Buzzar: what we're holding, which aiming never picks: held in the hands it sits right in front of the camera, so
+ * looking at anything (a mirror, say) brought up its own prompt, Delete included. Let go of it (E) to use it.
+ */
+let heldBodyToSkip: RAPIER.RigidBody | undefined;
+
 function hitscan(physics: PhysicsModuleState, node: RemoteNode, collisionGroup: number, distance: number) {
   const worldMatrix = node.worldMatrix;
   getRotationNoAlloc(_worldQuat, worldMatrix);
@@ -688,7 +696,9 @@ function hitscan(physics: PhysicsModuleState, node: RemoteNode, collisionGroup: 
     distance,
     true,
     0 as never,
-    collisionGroup
+    collisionGroup,
+    undefined,
+    heldBodyToSkip
   );
   return hit;
 }
