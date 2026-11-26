@@ -1,0 +1,22 @@
+{
+  "name": "buzzar-moderation-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fills the gaps general Matrix moderation tools leave for Buzzar worlds",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/main.ts",
+    "check": "tsc -p ."
+  },
+  "dependencies": {
+    "matrix-js-sdk": "45.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}

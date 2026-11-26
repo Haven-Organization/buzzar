@@ -1,4 +1,4 @@
-import { RoomStateEvent } from "matrix-js-sdk";
+import { MatrixEvent, RoomMember, RoomMemberEvent, RoomStateEvent } from "matrix-js-sdk";
 
 import {
   CallIntent,
@@ -56,7 +56,8 @@ function isOlderThanLocalHost(groupCall: GroupCall, member: Member): boolean {
   return groupCall.eventTimestamp! < member.eventTimestamp;
 }
 
-/** Buzzar: players this client holds back (blocked, or banned by the world's ban lists: heldBack.ts). */
+/** Buzzar: players this client holds back (blocked, banned by the world's ban lists (heldBack.ts), or no longer in the
+ * world room). */
 let isHeldBack: (userId: string) => boolean = () => false;
 
 function getReliableHost(groupCall: GroupCall): Member | undefined {
@@ -266,13 +267,26 @@ export async function createMatrixNetworkInterface(
 
   // Buzzar: players you blocked and players the world's ban lists ban are held back: they get no network peer (no
   // avatar, voice, movement or Things either way), and on LiveKit the server doesn't send them our voice.
+  // Anyone no longer in the world room (banned or kicked by a moderator or a moderation bot) is held back too: the
+  // call server only checks room membership when someone connects, so they could otherwise stay in the instance.
+  // Members not loaded yet (lazy loading) count as still in.
   let resyncPeers: (() => void) | undefined;
-  const heldBack = followHeldBack(session.client, world.id, userId, () => {
-    groupCall.setHeldBack(heldBack.isHeldBack);
+  const notInWorld = (id: string) => {
+    const membership = session.client.getRoom(world.id)?.getMember(id)?.membership;
+    return membership !== undefined && membership !== "join";
+  };
+  const isHeldBackHere = (id: string) => heldBack.isHeldBack(id) || notInWorld(id);
+  const heldBackChanged = () => {
+    groupCall.setHeldBack(isHeldBackHere);
     resyncPeers?.();
-  });
-  isHeldBack = heldBack.isHeldBack;
-  groupCall.setHeldBack(heldBack.isHeldBack);
+  };
+  const heldBack = followHeldBack(session.client, world.id, userId, heldBackChanged);
+  const onMembership = (_event: MatrixEvent, member: RoomMember) => {
+    if (member.roomId === world.id && member.userId !== userId) heldBackChanged();
+  };
+  session.client.on(RoomMemberEvent.Membership, onMembership);
+  isHeldBack = isHeldBackHere;
+  groupCall.setHeldBack(isHeldBackHere);
 
   const initialHostId = await getInitialHost(groupCall, userId);
   await joinWorld(groupCall, userId, initialHostId === userId);
@@ -350,7 +364,7 @@ export async function createMatrixNetworkInterface(
           member,
           userId: member.userId,
           deviceId: member.deviceId,
-          usable: !!(member.isConnected && member.dataChannel) && !heldBack.isHeldBack(member.userId),
+          usable: !!(member.isConnected && member.dataChannel) && !isHeldBackHere(member.userId),
         })),
         userId
       );
@@ -456,6 +470,7 @@ export async function createMatrixNetworkInterface(
     dispose: () => {
       window.removeEventListener("pagehide", leaveOnPageHide);
       heldBack.dispose();
+      session.client.off(RoomMemberEvent.Membership, onMembership);
       isHeldBack = () => false;
       stopVoiceAudibility();
       setCurrentInstance(undefined);

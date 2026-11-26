@@ -39,6 +39,7 @@ export default defineConfig({
         { text: "Asset Files", link: "/guides/asset-files" },
         { text: "Importing Worlds", link: "/guides/importing-worlds" },
         { text: "Coming from Third Room", link: "/guides/third-room" },
+        { text: "Moderation Bot", link: "/guides/moderation-bot" },
         {
           text: "Web Scene Graph",
           items: [

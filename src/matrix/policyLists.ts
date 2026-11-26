@@ -15,85 +15,17 @@
  */
 import { ClientEvent, MatrixClient, MatrixEvent, Room, RoomStateEvent } from "matrix-js-sdk";
 
-export const WORLD_MODERATION_EVENT = "software.haven.world.moderation";
+import {
+  findBan,
+  parsePolicyRules,
+  parseWorldModeration,
+  PolicyRule,
+  SERVER_RULE_TYPES,
+  USER_RULE_TYPES,
+  WORLD_MODERATION_EVENT,
+} from "./policyRules";
 
-/** The world's moderation settings, from its state event (untrusted). */
-export interface WorldModeration {
-  /** Room IDs or aliases of the policy lists the world follows. */
-  policyRooms: string[];
-}
-
-export const MAX_POLICY_ROOMS = 20;
-
-export function parseWorldModeration(content: unknown): WorldModeration {
-  const raw = (content as { policy_rooms?: unknown } | undefined)?.policy_rooms;
-  const policyRooms = Array.isArray(raw)
-    ? [
-        ...new Set(
-          raw.filter((id): id is string => typeof id === "string" && /^[!#][^:\s]+:\S+$/.test(id) && id.length <= 255)
-        ),
-      ].slice(0, MAX_POLICY_ROOMS)
-    : [];
-  return { policyRooms };
-}
-
-export const USER_RULE_TYPES = new Set(["m.policy.rule.user", "m.room.rule.user", "org.matrix.mjolnir.rule.user"]);
-export const SERVER_RULE_TYPES = new Set([
-  "m.policy.rule.server",
-  "m.room.rule.server",
-  "org.matrix.mjolnir.rule.server",
-]);
-const BAN_RECOMMENDATIONS = new Set(["m.ban", "org.matrix.mjolnir.ban"]);
-
-export interface PolicyRule {
-  kind: "user" | "server";
-  /** A user ID or server name, possibly with `*` and `?` globs. */
-  entity: string;
-  reason?: string;
-}
-
-/** The ban rules among a policy room's state events. Rules with other recommendations, or removed ones, are skipped. */
-export function parsePolicyRules(events: { type: string; content: unknown }[]): PolicyRule[] {
-  const rules: PolicyRule[] = [];
-  for (const { type, content } of events) {
-    const kind = USER_RULE_TYPES.has(type) ? "user" : SERVER_RULE_TYPES.has(type) ? "server" : undefined;
-    if (!kind) continue;
-    const c = content as { entity?: unknown; recommendation?: unknown; reason?: unknown } | undefined;
-    if (typeof c?.entity !== "string" || !c.entity || c.entity.length > 512) continue;
-    if (typeof c.recommendation !== "string" || !BAN_RECOMMENDATIONS.has(c.recommendation)) continue;
-    rules.push({ kind, entity: c.entity, reason: typeof c.reason === "string" ? c.reason.slice(0, 500) : undefined });
-  }
-  return rules;
-}
-
-const globCache = new Map<string, RegExp>();
-
-/** Matrix policy globs: `*` any run of characters, `?` one character; everything else literal, case-sensitive. */
-export function globMatches(glob: string, value: string): boolean {
-  if (!glob.includes("*") && !glob.includes("?")) return glob === value;
-  let pattern = globCache.get(glob);
-  if (!pattern) {
-    const source = glob
-      .split("")
-      .map((ch) => (ch === "*" ? ".*" : ch === "?" ? "." : ch.replace(/[\\^$.|+()[\]{}]/g, "\\$&")))
-      .join("");
-    pattern = new RegExp(`^${source}$`, "s");
-    if (globCache.size > 2000) globCache.clear();
-    globCache.set(glob, pattern);
-  }
-  return pattern.test(value);
-}
-
-/** The server name of a user ID (`@name:server` → `server`). */
-export function serverOf(userId: string): string {
-  return userId.slice(userId.indexOf(":") + 1);
-}
-
-/** The first rule that bans this user, if any. */
-export function findBan(rules: PolicyRule[], userId: string): PolicyRule | undefined {
-  const server = serverOf(userId);
-  return rules.find((rule) => globMatches(rule.entity, rule.kind === "user" ? userId : server));
-}
+export * from "./policyRules";
 
 /** How one followed list could be read. */
 export interface PolicyRoomStatus {

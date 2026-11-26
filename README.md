@@ -45,6 +45,44 @@ longer running.)
   Buzzar offers one when a LiveKit call can't connect. Those connect players directly, through your homeserver's TURN
   relay when a direct path fails; see Synapse's [TURN guide](https://element-hq.github.io/synapse/latest/turn-howto.html).
 
+## Moderation Bot
+
+The repository includes a small moderation bot for world hosts, in [`bot/`](./bot/). It runs on an ordinary Matrix
+account on any homeserver, so you don't need to host a homeserver. It only does what general Matrix moderation tools
+(Draupnir, Meowlnir) can't do for Buzzar worlds, such as copying bans from lists visitors can't read into your world.
+Run one of those next to it for room bans, redactions and spam checks.
+
+### Quickstart
+
+You need [Node](https://nodejs.org) 22.18 or newer and a Matrix account for the bot (make a new one).
+
+```bash
+cd bot
+npm install
+cp config.example.json config.json
+```
+
+Fill in `config.json` with the bot account's homeserver, user ID and password, and your own account as an owner:
+
+```json
+{
+  "homeserverUrl": "https://matrix.example.org",
+  "userId": "@buzzar-bot:example.org",
+  "password": "the bot account's password",
+  "owners": ["@you:example.org"]
+}
+```
+
+Start it with `npm start`. It logs in once and keeps its session in `bot/data/`, so you can remove the password from
+`config.json` afterwards. Then, in Buzzar:
+
+1. In your world's People list, choose **Invite to World** and invite the bot. It accepts invites only from its owners.
+2. Open the ⋯ menu next to the bot and choose **Make Moderator**.
+3. Follow ban lists in **World Settings → Moderation & Safety → Ban Lists**. The bot's report shows up under each list.
+
+What the bot does, how to turn each feature on in a world, every setting, and how to keep it running are covered in the
+**[Moderation Bot guide](https://haven.software/buzzar/docs/guides/moderation-bot)**.
+
 ## About Buzzar
 
 Buzzar enables people to discover and create virtual worlds while protecting their privacy and giving them ownership over their data. We use open standards to ensure that both the 3d content and social networking data is portable and interoperable with other platforms. We empower creators to design and program rich and interactive virtual worlds and avatars using a wide variety of 3D content creation tools and harnessing the power of the glTF file format.

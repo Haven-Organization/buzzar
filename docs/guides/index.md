@@ -138,8 +138,8 @@ A world's moderators can ban accounts, or whole servers, in **World Settings →
 banned players back straight away: nobody in the world sees or hears them. These are standard Matrix ban rules kept in
 the world's room, so moderation bots like Meowlnir or Draupnir can follow a world as a ban list. A world can also
 follow other ban lists. Lists anyone can read apply directly; most big public lists can only be read by joining them,
-so their bans apply once a moderation bot copies them into the world. To remove someone from the world's room and
-chat as well, use **Ban** in the People list.
+so their bans apply once the [Buzzar moderation bot](./moderation-bot.md) copies them into the world. To remove someone
+from the world's room and chat as well, use **Ban** in the People list.
 
 World bans can be waived on your own screen, in **Settings → Moderation & Safety**: friends (people you have direct messages
 with) get through by default, and you can let through people you share another room with too. Everyone else in the

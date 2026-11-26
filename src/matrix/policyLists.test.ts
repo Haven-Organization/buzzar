@@ -1,15 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { findBan, globMatches, parsePolicyRules, parseWorldModeration } from "./policyLists";
+import {
+  copiedFrom,
+  findBan,
+  globMatches,
+  parseBotStatus,
+  parsePolicyRules,
+  parseWorldModeration,
+} from "./policyLists";
 
 describe("world ban lists", () => {
   it("reads the world's followed lists (untrusted)", () => {
     expect(parseWorldModeration(undefined).policyRooms).toEqual([]);
     expect(
       parseWorldModeration({
-        policy_rooms: ["!a:x.org", "#bans:x.org", "!a:x.org", "nonsense", 5, "@user:x.org", "#no-server"],
+        policy_rooms: [
+          "!a:x.org",
+          "#bans:x.org",
+          "!a:x.org",
+          "!AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcdE",
+          "nonsense",
+          5,
+          "@user:x.org",
+          "#no-server",
+          "!with space",
+        ],
       }).policyRooms
-    ).toEqual(["!a:x.org", "#bans:x.org"]);
+    ).toEqual(["!a:x.org", "#bans:x.org", "!AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcdE"]);
   });
 
   it("keeps only ban rules, in every rule type's spelling", () => {
@@ -52,6 +69,28 @@ describe("world ban lists", () => {
     expect(findBan(rules, "@someone:x.org")).toBeUndefined();
     // A server rule is about the server name, not the whole user ID.
     expect(findBan(rules, "@x.evil:x.org")).toBeUndefined();
+  });
+});
+
+describe("the moderation bot's marks", () => {
+  it("reads copied rules and the bot's report (untrusted)", () => {
+    expect(copiedFrom({ entity: "x", "software.haven.copied_from": "#cme:x.org" })).toBe("#cme:x.org");
+    expect(copiedFrom({ entity: "x" })).toBeUndefined();
+    expect(parseBotStatus({ lists: [] })).toBeUndefined();
+    expect(
+      parseBotStatus({
+        lists: [{ room: "#cme:x.org", copied: 3, rules: 900 }, { copied: 1 }, { room: "!r", readable: true }],
+        error: "no permission",
+        checked_ts: 5,
+      })
+    ).toEqual({
+      lists: [
+        { room: "#cme:x.org", copied: 3, rules: 900, readable: undefined, error: undefined },
+        { room: "!r", copied: 0, rules: 0, readable: true, error: undefined },
+      ],
+      error: "no permission",
+      checkedTs: 5,
+    });
   });
 });
 

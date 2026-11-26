@@ -1,0 +1,7 @@
+{
+  "homeserverUrl": "https://matrix.example.org",
+  "userId": "@buzzar-bot:example.org",
+  "password": "",
+  "accessToken": "",
+  "owners": ["@you:example.org"]
+}

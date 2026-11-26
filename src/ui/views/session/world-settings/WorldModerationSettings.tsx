@@ -8,8 +8,12 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { Room } from "../../../../matrix";
 import {
+  BOT_STATUS_EVENT,
+  BotStatus,
+  copiedFrom,
   globMatches,
   MAX_POLICY_ROOMS,
+  parseBotStatus,
   serverOf,
   parseWorldModeration,
   PolicyRoomStatus,
@@ -34,6 +38,17 @@ function useListStatus(roomId: string): PolicyRoomStatus[] | undefined {
   return status;
 }
 
+/** The latest report from a moderation bot in this world, and which bot sent it. */
+function useBotStatus(room: Room): (BotStatus & { botId: string }) | undefined {
+  const events = useStateEvents(room, BOT_STATUS_EVENT);
+  let latest: (BotStatus & { botId: string }) | undefined;
+  for (const [botId, event] of events) {
+    const status = parseBotStatus(event.content);
+    if (status && (!latest || status.checkedTs > latest.checkedTs)) latest = { ...status, botId };
+  }
+  return latest;
+}
+
 const USER_RULE = "m.policy.rule.user";
 const SERVER_RULE = "m.policy.rule.server";
 
@@ -54,6 +69,9 @@ function WorldBans({ room, canEdit }: { room: Room; canEdit: boolean }) {
     ...[...userRules].map(([key, event]) => ({ type: USER_RULE, key, content: event.content })),
     ...[...serverRules].map(([key, event]) => ({ type: SERVER_RULE, key, content: event.content })),
   ].filter((r) => typeof r.content?.entity === "string" && r.content?.recommendation === "m.ban");
+  // Bans a moderation bot copied in from followed lists are summed up under Ban Lists, not listed here.
+  const copies = rules.filter((r) => copiedFrom(r.content)).length;
+  const ownRules = rules.filter((r) => !copiedFrom(r.content));
 
   const [entity, setEntity] = useState("");
   const [reason, setReason] = useState("");
@@ -112,11 +130,11 @@ function WorldBans({ room, canEdit }: { room: Room; canEdit: boolean }) {
         moderation bots (Meowlnir, Draupnir) can follow this world as a ban list too. To also remove someone from the
         world&apos;s room and chat, use Ban in the People list.
       </Text>
-      {rules.length === 0 ? (
+      {ownRules.length === 0 ? (
         <Text variant="b3">Nobody is banned here.</Text>
       ) : (
         <div className="flex flex-column gap-xs">
-          {rules.map((rule) => (
+          {ownRules.map((rule) => (
             <div key={rule.type + rule.key} className="flex items-center gap-sm">
               <div className="grow flex flex-column">
                 <Text variant="b2" weight="medium" className="truncate">
@@ -137,6 +155,11 @@ function WorldBans({ room, canEdit }: { room: Room; canEdit: boolean }) {
             </div>
           ))}
         </div>
+      )}
+      {copies > 0 && (
+        <Text variant="b3" color="surface-low">
+          Plus {copies} ban{copies === 1 ? "" : "s"} the moderation bot copied in from the lists below.
+        </Text>
       )}
       {canEdit && (
         <form className="flex flex-column gap-xs" onSubmit={ban}>
@@ -179,6 +202,7 @@ export function WorldModerationSettings({ room, canEdit, canBan }: { room: Room;
   const events = useStateEvents(room, WORLD_MODERATION_EVENT);
   const { policyRooms } = parseWorldModeration(events.get("")?.content);
   const status = useListStatus(room.id);
+  const bot = useBotStatus(room);
 
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -231,7 +255,8 @@ export function WorldModerationSettings({ room, canEdit, canBan }: { room: Room;
       if (!readable) {
         setNotice(
           "Followed, but visitors can't read this list without joining it (most big public lists are like that), so " +
-            "its bans don't apply on their own. A moderation bot that copies them into this world's bans makes them apply."
+            "its bans only apply once a Buzzar moderation bot copies them into this world's bans" +
+            (bot ? " (this world's bot will pick it up shortly)." : ": invite one and make it a Moderator.")
         );
       }
     } catch (e) {
@@ -263,23 +288,43 @@ export function WorldModerationSettings({ room, canEdit, canBan }: { room: Room;
         <Text variant="b3" color="surface-low">
           Follow other Matrix ban lists too (policy lists, as Meowlnir, Draupnir and Mjolnir publish). Lists anyone can
           read apply straight away, like the bans above. Most big public lists can only be read by joining them;
-          visitors don&apos;t join, so their bans apply once a moderation bot copies them into this world&apos;s bans.
+          visitors don&apos;t join, so their bans apply once a Buzzar moderation bot copies them into this world&apos;s
+          bans (see the moderation bot guide in the Buzzar docs).
         </Text>
+        {bot && (
+          <Text variant="b3" color={bot.error ? "danger" : "surface-low"}>
+            Moderation bot {bot.botId}
+            {bot.error ? `: ${bot.error}` : `, last checked ${new Date(bot.checkedTs).toLocaleString()}.`}
+          </Text>
+        )}
         {policyRooms.length === 0 ? (
           <Text variant="b3">This world doesn&apos;t follow any ban lists.</Text>
         ) : (
           <div className="flex flex-column gap-xs">
             {policyRooms.map((entry) => {
               const s = status?.find((x) => x.room === entry);
+              const b = bot?.lists.find((x) => x.room === entry);
+              // The bot's word wins for lists visitors can't read; the client's own reading for the rest.
+              const line =
+                b && !b.readable
+                  ? {
+                      error: !!b.error && b.copied === 0,
+                      text: b.error
+                        ? `Moderation bot: ${b.error}`
+                        : `Moderation bot copied ${b.copied} of ${b.rules} ban${
+                            b.rules === 1 ? "" : "s"
+                          } (servers, and ` + "people who come here)",
+                    }
+                  : s && { error: !!s.error, text: s.error ?? `${s.rules} ban${s.rules === 1 ? "" : "s"}` };
               return (
                 <div key={entry} className="flex items-center gap-sm">
                   <div className="grow flex flex-column">
                     <Text variant="b2" weight="medium">
                       {entry}
                     </Text>
-                    {s && (
-                      <Text variant="b3" color={s.error ? "danger" : "surface-low"}>
-                        {s.error ?? `${s.rules} ban${s.rules === 1 ? "" : "s"}`}
+                    {line && (
+                      <Text variant="b3" color={line.error ? "danger" : "surface-low"}>
+                        {line.text}
                       </Text>
                     )}
                   </div>
