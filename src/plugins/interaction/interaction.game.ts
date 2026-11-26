@@ -50,6 +50,7 @@ import { PlayerModule } from "../../engine/player/Player.game";
 import { ZoomComponent, orbitAnchorQuery, OrbitAnchor, CameraRigAction } from "../../engine/player/CameraRig";
 import { heldRotation } from "../../engine/player/heldRotation";
 import { usableThings } from "./usable";
+import { endLocalHold, getLocalHold } from "../../engine/avatar/holdPose";
 import {
   GameRendererModuleState,
   notifyUICanvasFocus,
@@ -819,6 +820,8 @@ function updateGrabThrow(
       throw new Error(`No physics body found on entity ${heldEntity}`);
     }
 
+    // Buzzar: a Thing held in the hands is kinematic; make it physical again before it flies.
+    if (getLocalHold()?.eid === heldEntity) endLocalHold(ctx);
     heldNode.physicsBody.body.applyImpulse(_impulse, true);
 
     if (ourPlayer) {
@@ -834,6 +837,7 @@ function updateGrabThrow(
   } else if (releasePressed && heldEntity) {
     // release (Buzzar: throwing something that can't be thrown just lets go)
     removeComponent(ctx.world, GrabComponent, rig.eid, true);
+    if (getLocalHold()?.eid === heldEntity) endLocalHold(ctx);
     const droppedBody = getRemoteResource<RemoteNode>(ctx, heldEntity)?.physicsBody?.body;
     if (droppedBody) {
       if (heldBehaviour?.stayPut) stopBody(droppedBody);
@@ -940,7 +944,8 @@ function updateGrabThrow(
 
   const heldNode = getRemoteResource<RemoteNode>(ctx, heldEntity);
 
-  if (heldNode) {
+  // Buzzar: a Thing held in your avatar's hands is placed by the avatar (engine/avatar/holdPose.ts).
+  if (heldNode && getLocalHold()?.eid !== heldNode.eid) {
     // Buzzar: R does two things. Tap it: straighten what you hold. Hold it and move the mouse (or right stick): turn
     // it, while the view stays still. A 45° step comes from Turn Held (touch controls).
     const rKey = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;

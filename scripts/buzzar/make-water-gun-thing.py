@@ -8,7 +8,7 @@ Buzzar: turns the "Water gun" model by Mr.Nein (Sketchfab, CC-BY-4.0) into a Buz
 - Embeds the sounds (KHR_audio, as WAV): a pump stroke and a seamless spray loop, cut from Freesound 720433
   ("water gun sucking air" by ccovi, CC0) and 537941 ("Water Gun Shot" by belanhud, CC0).
 - HAVEN_sprayer: the nozzle, the stream, a tank of 6 seconds' spraying, a pump that refills it.
-- HAVEN_thing: a box collider, and it spawns straight into your hold.
+- HAVEN_thing: a box collider, it spawns straight into your hold, and how your avatar holds it (hold).
 - HAVEN_metadata: name, description with the credits, author and source.
 
 The geometry and textures are copied unchanged. Positions below were measured from the model (scene space, its
@@ -119,6 +119,16 @@ def main(src, pump_wav, spray_wav, out):
         "rotation": "free",
         "upright": False,
         "spawn": {"distance": 1, "upright": False, "held": True},
+        # Held like a Super Soaker: right hand round the pistol grip (it leans 25.5° forward at the top, so the
+        # handshake frame is turned about X; the palm sits just right of the grip), left hand under the pump,
+        # palm up (the left handshake frame turned 90° about Z). It aims along the nozzle (HAVEN_sprayer).
+        "hold": {
+            "pose": "aim",
+            "hand": "right",
+            "grip": {"position": [0.022, 0, 0], "rotation": [-0.2207, 0, 0, 0.9753]},
+            "offhand": {"position": thing_space((0, 0.85, -3.75)), "rotation": [0, 0, 0.7071, 0.7071]},
+            "curl": 75,
+        },
     }
     gltf["extensions"]["HAVEN_metadata"] = {
         "name": "Water Gun",
@@ -130,7 +140,7 @@ def main(src, pump_wav, spray_wav, out):
         ),
         "author": "Mr.Nein",
         "sourceUrl": SOURCE_URL,
-        "version": "0.1.0",
+        "version": "0.2.0",
     }
     used = set(gltf.get("extensionsUsed", []))
     used.update(["KHR_audio", "HAVEN_sprayer", "HAVEN_thing", "HAVEN_metadata"])

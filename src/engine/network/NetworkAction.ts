@@ -25,6 +25,8 @@ export enum NetworkAction {
   HavenTakeOwnership,
   /** Buzzar: a sprayer (water gun) of mine started or stopped spraying, or was pumped. See plugins/sprayers. */
   HavenSpray,
+  /** Buzzar: "I'm holding <network ID> in my hands" (0: nothing), so others pose my arms. See avatar/holdPose.ts. */
+  HavenHold,
 }
 
 export const UnreliableNetworkActions = [NetworkAction.UpdateChanged, NetworkAction.UpdateSnapshot];

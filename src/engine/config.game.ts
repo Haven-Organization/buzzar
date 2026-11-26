@@ -23,6 +23,7 @@ import { GameContext } from "./GameTypes";
 import { RendererModule } from "./renderer/renderer.game";
 import { SpawnablesModule } from "../plugins/spawnables/spawnables.game";
 import { SprayerModule, SprayerSystem } from "../plugins/sprayers/sprayer.game";
+import { HoldingModule, HoldingSystem } from "../plugins/interaction/holding.game";
 import {
   RecycleResourcesSystem,
   ResourceDisposalSystem,
@@ -99,6 +100,7 @@ export default defineConfig<GameContext>({
     InteractionModule,
     SpawnablesModule,
     SprayerModule,
+    HoldingModule,
     NametagModule,
     WorldMapModule,
     AvatarModule,
@@ -130,6 +132,8 @@ export default defineConfig<GameContext>({
     FlyControllerSystem,
     SetWebXRReferenceSpaceSystem,
     InteractionSystem,
+    // Buzzar: picking up or letting go of a Thing held in the hands (after grabbing).
+    HoldingSystem,
     XRInteractionSystem,
     // Buzzar (Third Room #398): after grabbing, so a carried screen handle reports where it went.
     ScreenHandleSystem,

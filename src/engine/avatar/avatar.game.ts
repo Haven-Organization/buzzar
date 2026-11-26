@@ -77,6 +77,7 @@ import {
   showCulledAvatarPlaceholder,
 } from "./placeholder.game";
 import { isAvatarCulled } from "./avatarCulling.game";
+import { createHoldRig, HoldRig, registerHoldNetwork, updateHoldPose } from "./holdPose";
 
 export const DEFAULT_AVATAR_URL = "/gltf/full-animation-rig.glb";
 const NAMETAG_ABOVE_EYES = 0.35;
@@ -215,6 +216,7 @@ export const AvatarModule = defineModule<GameContext, AvatarModuleState>({
       writeMetadata(announceView, NetworkAction.HavenAvatarChanged);
       broadcastReliable(ctx, network, sliceCursorView(announceView));
     });
+    registerHoldNetwork(ctx);
     registerInboundMessageHandler(network, NetworkAction.HavenAvatarChanged, (ctx, _v, peerId) => {
       const avatars = getModule(ctx, AvatarModule);
       // Forget what we had: AvatarSystem shows "Looking up avatar…" until the new one is resolved and loads.
@@ -583,6 +585,18 @@ function createAvatarAnimationExtras(
     return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
   };
 
+  // Buzzar: arms and hands for holding Things (holdPose.ts), from the bind pose the skeleton is in now.
+  let holdRig: HoldRig | undefined;
+  try {
+    rootObj.updateMatrixWorld(true);
+    holdRig = createHoldRig((bone) => {
+      const index = mapping.bones.get(bone);
+      return index === undefined ? undefined : objectFor(index);
+    });
+  } catch (error) {
+    console.warn("Avatar hold poses disabled:", error);
+  }
+
   let springRig: SpringRig | undefined;
   try {
     const chains = getSpringChains(loaderCtx.resource.root, mapping);
@@ -637,10 +651,11 @@ function createAvatarAnimationExtras(
     console.warn("Avatar face animation disabled:", error);
   }
 
-  if (!springRig && !faceRig) return undefined;
+  if (!springRig && !faceRig && !holdRig) return undefined;
   return (dt, rootWorldMatrix, node) => {
     if (springRig) updateSpringRig(springRig, rootObj, rootWorldMatrix, dt);
     else syncRootMatrix(rootObj, rootWorldMatrix);
+    if (holdRig) updateHoldPose(ctx, holdRig, node);
     if (faceRig) {
       faceRig.forceBlink = forcedBlink;
       const visemes = faceRig.hasMouth ? forcedVisemes ?? voiceFor(ctx, node) : undefined;

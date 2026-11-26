@@ -5,6 +5,9 @@
  */
 import { mat4, vec3 as v3 } from "gl-matrix";
 
+import { HoldSpec, readHold } from "../../engine/avatar/holdSpec";
+import { isCustomThingId } from "../../engine/network/spawnRules.common";
+
 type AnyRecord = Record<string, unknown>;
 const isRecord = (v: unknown): v is AnyRecord => typeof v === "object" && v !== null && !Array.isArray(v);
 const positive = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined);
@@ -164,4 +167,9 @@ export function physicsFromBounds(bounds: ReturnType<typeof gltfBounds>): ThingP
     upright: false,
     spawn: { distance: Math.max(1, Math.max(size[0], size[2]) / 2 + 0.6), upright: false },
   };
+}
+
+/** How a Thing is held in the hands (HAVEN_thing hold), once its file has loaded; stock Things don't say. */
+export function thingHoldOf(prefab: string | undefined): HoldSpec | undefined {
+  return prefab && isCustomThingId(prefab) ? readHold(loadedThingFile(prefab)) : undefined;
 }

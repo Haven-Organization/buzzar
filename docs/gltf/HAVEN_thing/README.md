@@ -46,19 +46,51 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 }
 ```
 
-| Property   | Type      | Description                                                                                                                             | Default                    |
-| ---------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `collider` | `object`  | The collision shape (below).                                                                                                            | The client's own           |
-| `density`  | `number`  | Kilograms per cubic metre of the collider, which sets its weight.                                                                       | The client's own           |
-| `rotation` | `string`  | `"free"`: turns any way. `"yaw"`: only turns about the vertical, so it can't tip over.                                                  | `"free"`                   |
-| `upright`  | `boolean` | When held, it only turns to face the way you face, and when left tilted it settles back level.                                          | `false`                    |
+| Property   | Type      | Description                                                                                                                                                                                                                                | Default                              |
+| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| `collider` | `object`  | The collision shape (below).                                                                                                                                                                                                               | The client's own                     |
+| `density`  | `number`  | Kilograms per cubic metre of the collider, which sets its weight.                                                                                                                                                                          | The client's own                     |
+| `rotation` | `string`  | `"free"`: turns any way. `"yaw"`: only turns about the vertical, so it can't tip over.                                                                                                                                                     | `"free"`                             |
+| `upright`  | `boolean` | When held, it only turns to face the way you face, and when left tilted it settles back level.                                                                                                                                             | `false`                              |
 | `spawn`    | `object`  | `{ "distance": metres, "upright": boolean, "held": boolean }`: how far in front of you it appears, whether it's stood level facing the way you look, and whether it appears in your hold (for things you carry) instead of being set down. | 1 m, tilted like your hand, not held |
 
 ### spawn.held
 
 A Thing with `"held": true` appears where held things sit (1.5 m in front of you), already in your hold, as if you had just grabbed it. That way a hand-held Thing doesn't have to be picked up off the floor. When you're already holding something, or in VR (where controllers hold with squeeze), it's set down as usual. **Upload Thing → Appears in Your Hold** writes this into the file.
 
-Planned: a `hold` property saying how a Thing is held: which hand or both, where the grip is, and how the arms aim (for example a torch in one hand, or a two-handed tool). Buzzar would then attach the Thing to your avatar's hand and pose your arms to match, instead of carrying it in front of you.
+### hold
+
+How your avatar holds the Thing in its hands. Without it, a held Thing floats in front of you. With it, Buzzar places the Thing for your pose, and turns your arms (two-bone IK), wrists and fingers so your hands sit on its grips. Everyone else sees your avatar holding it.
+
+```json
+"hold": {
+  "pose": "aim",
+  "hand": "right",
+  "grip": { "position": [0.022, 0, 0], "rotation": [-0.2207, 0, 0, 0.9753] },
+  "offhand": { "position": [0, 0.045, -0.206], "rotation": [0, 0, 0.7071, 0.7071] },
+  "curl": 75
+}
+```
+
+| Property  | Type     | Description                                                                                                                                                               | Default                                         |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `pose`    | `string` | `"aim"`: held out from your shoulder and pointed where you look (a gun's aim follows your crosshair). `"hand"`: carried in your hand, swinging with your arm as you walk. | `"aim"`                                         |
+| `hand`    | `string` | `"right"` or `"left"`: the hand on `grip`.                                                                                                                                | `"right"`                                       |
+| `grip`    | `object` | Where that hand holds it: a hand frame (below). Required.                                                                                                                 |                                                 |
+| `offhand` | `object` | Where the other hand holds it, for two-handed Things. Leave it out for one hand.                                                                                          | none                                            |
+| `curl`    | `number` | Degrees the fingers curl round the grip (the thumb half as much), 0–120.                                                                                                  | 70                                              |
+| `aim`     | `object` | `{ "position", "direction" }`: what points where you look in the `"aim"` pose.                                                                                            | a HAVEN_sprayer's nozzle, else -Z from the grip |
+
+A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the Thing's space. Picture a hand held out for a handshake, with:
+
+- the palm's centre at `position`;
+- the fingers pointing along -Z;
+- the thumb up (+Y);
+- the palm facing the other hand: -X for a right hand, +X for a left.
+
+`rotation` turns that hand onto the grip. A vertical handle held in a fist runs along +Y through the curled fingers, so a pistol grip is a handshake frame tilted to match the handle. A hand under a forend, palm up, is the left handshake frame turned 90° about Z.
+
+In VR, your controllers are your hands, so `hold` isn't used there.
 
 ### collider
 
