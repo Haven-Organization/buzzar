@@ -435,8 +435,9 @@ a tier, earlier items come first.
 1. Personal safety (§5): ~~block through `m.ignored_user_list`~~ (done 2026-11-25), per-user volume, mute,
    hide avatar, personal space bubble.
 2. Report user/content (`/report`); ~~world ban rules and followed policy lists, enforced by every client~~ (done
-   2026-11-25); the Buzzar moderation bot (client-server API, each world host runs their own) to copy in lists
-   visitors can't read and follow up in Matrix (room bans, redactions, flood checks).
+   2026-11-25); a small Buzzar moderation bot (client-server API, each world host runs their own) that only fills
+   the gaps general tools (Draupnir, Meowlnir) leave for worlds, such as copying in lists visitors can't read. Room
+   bans, redactions and flood checks stay with those tools, which can protect the world room and follow it as a list.
 3. Moderator in-world tools (§5): kick from instance, mute for everyone, delete anyone's Things, hide an avatar for
    everyone; audit log for the instance-level ones.
 4. Avatar performance ranking and hard limits, then the fallback avatar for blocked or over-limit ones (§1; the
