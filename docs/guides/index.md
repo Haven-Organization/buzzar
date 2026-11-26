@@ -141,6 +141,11 @@ follow other ban lists. Lists anyone can read apply directly; most big public li
 so their bans apply once a moderation bot copies them into the world. To remove someone from the world's room and
 chat as well, use **Ban** in the People list.
 
+World bans can be waived on your own screen, in **Settings → Safety**: friends (people you have direct messages
+with) get through by default, and you can let through people you share another room with too. Everyone else in the
+world still holds them back. With Developer Mode on, **Settings → Developer → Ignore World Ban Lists** turns world
+bans off for you entirely. People you've blocked yourself stay blocked either way.
+
 ### 5. Set up your profile
 
 ![Screenshot of the profile menu](/images/ViewProfile.png)
