@@ -40,13 +40,29 @@ export function isThingId(id: string) {
   return (STOCK_SPAWNABLES as readonly string[]).includes(id) || MXC_THING.test(id);
 }
 
+/** Whether `id` is a custom Thing: a .glb file on Matrix, named by its mxc:// URI. */
+export function isCustomThingId(id: string) {
+  return MXC_THING.test(id);
+}
+
+/** Behaviours of custom Thing files, learnt as each file loads (until then a custom Thing has none we know of). */
+const fileBehaviours = new Map<string, readonly string[]>();
+
+/** Records which behaviours (glTF extensions in THING_BEHAVIOURS) a custom Thing's file uses. */
+export function rememberThingBehaviours(id: string, extensionsUsed: unknown) {
+  const used = Array.isArray(extensionsUsed) ? extensionsUsed : [];
+  fileBehaviours.set(
+    id,
+    THING_BEHAVIOURS.filter((b) => used.includes(b))
+  );
+}
+
 /**
- * The behaviours a Thing is known to have. Custom Thing files can't be spawned yet (checkCreate rejects unknown
- * object types), so stock Things are all there is. When custom files become spawnable, read their glTF extensions on
- * every receiving client as the file loads, and drop the object if it has a blocked behaviour.
+ * The behaviours a Thing is known to have: a stock Thing's from this list, a custom Thing's once its file has loaded.
+ * Every client checks again as a custom file loads (spawnables.game.ts), dropping the object if the world blocks one.
  */
 export function thingBehaviours(id: string): readonly string[] {
-  return STOCK_BEHAVIOURS[id] ?? [];
+  return STOCK_BEHAVIOURS[id] ?? fileBehaviours.get(id) ?? [];
 }
 
 /** One Thing on a world's list. `name` and `preview_url` are only for showing it in World Settings. */

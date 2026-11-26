@@ -102,6 +102,12 @@ export const AvatarPedestalModule = defineModule<GameContext, PedestalModuleStat
   },
 });
 
+/** Buzzar: a loadable URL for an mxc:// file (undefined until the main thread has said which homeserver to use). */
+export function resolveMxcUri(ctx: GameContext, mxc: string): string | undefined {
+  const { homeserver } = getModule(ctx, AvatarPedestalModule);
+  return homeserver ? mxcToHttp(mxc, homeserver) : undefined;
+}
+
 /** Resolves a world-supplied avatar URI to a loadable URL, or undefined if it isn't allowed. */
 export function resolvePedestalUri(uri: string, gltfUrl: string, homeserver?: string): string | undefined {
   if (uri.startsWith("mxc://")) return homeserver ? mxcToHttp(uri, homeserver) : undefined;

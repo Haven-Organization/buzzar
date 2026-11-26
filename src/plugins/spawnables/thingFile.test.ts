@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readThingPhysics, ThingPhysics } from "./thingFile";
+import { gltfBounds, physicsFromBounds, readThingPhysics, ThingPhysics } from "./thingFile";
 
 const fallback: ThingPhysics = {
   collider: { type: "cylinder", radius: 1.5, height: 0.53, offset: [0, 0.265, 0] },
@@ -46,5 +46,38 @@ describe("HAVEN_thing", () => {
       fallback
     );
     expect(physics.collider).toEqual(fallback.collider);
+  });
+});
+
+describe("Things spawned into your hold", () => {
+  it("reads spawn.held", () => {
+    const held = readThingPhysics({ extensions: { HAVEN_thing: { spawn: { held: true } } } }, fallback);
+    expect(held.spawn).toEqual({ distance: 2.4, upright: true, held: true });
+    const notHeld = readThingPhysics({ extensions: { HAVEN_thing: { spawn: { held: "yes" } } } }, fallback);
+    expect(notHeld.spawn).toEqual({ distance: 2.4, upright: true });
+  });
+});
+
+describe("custom Things without HAVEN_thing", () => {
+  it("fits a box around the file's scene, through node transforms", () => {
+    const gltf = {
+      scene: 0,
+      scenes: [{ nodes: [0] }],
+      nodes: [
+        { translation: [0, 1, 0], children: [1] },
+        { mesh: 0, scale: [2, 1, 1] },
+      ],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+      accessors: [{ min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }],
+    };
+    expect(gltfBounds(gltf)).toEqual({ min: [-1, 0.5, -0.5], max: [1, 1.5, 0.5] });
+    const physics = physicsFromBounds(gltfBounds(gltf));
+    expect(physics.collider).toEqual({ type: "box", size: [2, 1, 1], offset: [0, 1, 0] });
+    expect(physics.spawn?.distance).toBeCloseTo(1.6);
+  });
+
+  it("falls back to a small box for a file with no geometry", () => {
+    expect(gltfBounds({ scenes: [{ nodes: [] }] })).toBeUndefined();
+    expect(physicsFromBounds(undefined).collider.type).toBe("box");
   });
 });

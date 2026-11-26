@@ -47,3 +47,11 @@ describe("Thing keys", () => {
     expect(moveMapped(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"], "z", 0)).toBeUndefined();
   });
 });
+
+describe("your own Things on keys", () => {
+  it("keeps custom Things (mxc) on keys", () => {
+    const keys = parseThingKeys({ keys: ["mxc://example.org/lamp1", "mxc://bad"] }, ["small-crate"]);
+    expect(keys[0]).toBe("mxc://example.org/lamp1");
+    expect(keys[1]).toBeNull();
+  });
+});

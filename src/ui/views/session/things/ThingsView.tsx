@@ -52,7 +52,7 @@ import { UploadThing } from "./UploadThing";
 import { describeVariables, ThingCloneDialog } from "./ThingCloneDialog";
 import { Dialog } from "../../../atoms/dialog/Dialog";
 import { thingClonesAtom } from "../../../state/thingClones";
-import { useAllowedThings, useSetThingClones } from "../../../hooks/useThingClones";
+import { sendCustomThings, useAllowedThings, useSetThingClones } from "../../../hooks/useThingClones";
 import { ThingClone } from "../../../../plugins/thirdroom/thirdroom.common";
 import "./ThingsView.css";
 
@@ -83,6 +83,11 @@ export function ThingsView() {
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [getAuth, session]);
 
+  // The game shows your own Things' names and pictures on the action bar.
+  useEffect(() => {
+    if (collection) sendCustomThings(mainThread, session, collection);
+  }, [mainThread, session, collection]);
+
   const [uploadOpen, setUploadOpen] = useState(false);
   const keys = useAtomValue(thingKeysAtom);
   const setThingKeys = useSetThingKeys();
@@ -94,10 +99,25 @@ export function ThingsView() {
   const cloneThings: StockThing[] = clones.flatMap((clone) => {
     const base = STOCK_THINGS.find((t) => t.id === clone.base);
     return base
-      ? [{ id: clone.id, name: clone.name, preview: base.preview, description: describeVariables(clone.base, clone.variables) }]
+      ? [
+          {
+            id: clone.id,
+            name: clone.name,
+            preview: base.preview,
+            description: describeVariables(clone.base, clone.variables),
+          },
+        ]
       : [];
   });
-  const allThings = [...STOCK_THINGS, ...cloneThings];
+  // Your own Things (uploaded or bookmarked files) work like the rest: spawn them, put them on keys.
+  const customThings: StockThing[] = (collection?.things ?? []).map((thing) => ({
+    id: thing.url,
+    name: thing.name || "Thing",
+    preview: "",
+    description: thing.added_ts ? `Saved ${new Date(thing.added_ts).toLocaleDateString()}` : "Saved Thing",
+    custom: thing,
+  }));
+  const allThings = [...STOCK_THINGS, ...cloneThings, ...customThings];
   const cloneOf = (id: string) => clones.find((c) => c.id === id);
   // Things on keys (in key order) sit on the shelf; the rest are in My Things below.
   const mapped = (keys ?? [])
@@ -114,7 +134,9 @@ export function ThingsView() {
   const deleteClone = (id: string) => {
     setError(undefined);
     if (keys?.includes(id)) changeKeys(unmapThing(keys, id));
-    setThingClones(clones.filter((c) => c.id !== id)).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    setThingClones(clones.filter((c) => c.id !== id)).catch((e) =>
+      setError(e instanceof Error ? e.message : String(e))
+    );
   };
   // Menu items for cloning a stock Thing, or editing/deleting a clone.
   const cloneMenu = (id: string) => {
@@ -125,12 +147,25 @@ export function ThingsView() {
         <>
           {base && <DropdownMenuItem onSelect={() => setCloning({ base, existing: clone })}>Edit…</DropdownMenuItem>}
           {base && (
-            <DropdownMenuItem onSelect={() => setCloning({ base, existing: { ...clone, id: "", name: `${clone.name} copy` } })}>
+            <DropdownMenuItem
+              onSelect={() => setCloning({ base, existing: { ...clone, id: "", name: `${clone.name} copy` } })}
+            >
               Clone…
             </DropdownMenuItem>
           )}
           <DropdownMenuItem variant="danger" onSelect={() => deleteClone(id)}>
             Delete Clone
+          </DropdownMenuItem>
+        </>
+      );
+    }
+    const custom = collection?.things.find((t) => t.url === id);
+    if (custom) {
+      return (
+        <>
+          <DropdownMenuItem onSelect={() => copyToClipboard(custom.url)}>Copy Thing Link</DropdownMenuItem>
+          <DropdownMenuItem variant="danger" onSelect={() => unbookmark(custom.url)}>
+            Remove Bookmark
           </DropdownMenuItem>
         </>
       );
@@ -158,6 +193,7 @@ export function ThingsView() {
 
   const unbookmark = async (url: string) => {
     setError(undefined);
+    if (keys?.includes(url)) changeKeys(unmapThing(keys, url));
     try {
       setCollection(await removeFromThingCollection(await getAuth(), session.userId, url));
     } catch (e) {
@@ -238,9 +274,6 @@ export function ThingsView() {
                     onChangeKeys={changeKeys}
                   />
                 </DraggableThing>
-              ))}
-              {collection?.things.map((thing) => (
-                <SavedThingTile key={thing.url} thing={thing} onRemove={() => unbookmark(thing.url)} />
               ))}
             </MyThingsDropArea>
             {!collection
@@ -447,8 +480,44 @@ function MyThingsDropArea({
   );
 }
 
+interface ThingTileProps {
+  thing: StockThing;
+  slot?: number;
+  keys?: ThingKeys;
+  action?: ReactNode;
+  menu?: ReactNode;
+  extraMenu?: ReactNode;
+  onChangeKeys?: (keys: ThingKeys) => void;
+}
+
+/** A Thing's tile: a built-in one's picture, or your own Thing's preview (rendered from its file if it has none). */
+function StockThingTile(props: ThingTileProps) {
+  return props.thing.custom ? (
+    <SavedThingTile {...props} saved={props.thing.custom} />
+  ) : (
+    <BuiltinThingTile {...props} />
+  );
+}
+
+/** The "Add to Shortcuts" item, or the shelf's own menu. */
+function tileMenu({ thing, keys, menu, extraMenu, onChangeKeys }: ThingTileProps) {
+  const free = keys ? keys.indexOf(null) : -1;
+  return (
+    menu ?? (
+      <>
+        {keys && onChangeKeys && (
+          <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
+            {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
+          </DropdownMenuItem>
+        )}
+        {extraMenu}
+      </>
+    )
+  );
+}
+
 /** A stock Thing's tile: its key badge when it's a shortcut, and Add to Shortcuts (or the shelf's own menu). */
-function StockThingTile({
+function BuiltinThingTile({
   thing,
   slot,
   keys,
@@ -505,11 +574,10 @@ function StockThingTile({
   );
 }
 
-/** A bookmarked Thing: its preview (rendered from the file when it has none). */
-function SavedThingTile({ thing, onRemove }: { thing: SavedThing; onRemove: () => void }) {
-  const { src, rendered, loading } = useThingPreview(thing.url, thing.preview_url);
-
-  const name = thing.name || "Thing";
+/** One of your own Things: its preview (rendered from the file when it has none). */
+function SavedThingTile(props: ThingTileProps & { saved: SavedThing }) {
+  const { saved, thing, slot, action } = props;
+  const { src, rendered, loading } = useThingPreview(saved.url, saved.preview_url);
   const openDetails = useOpenDetails();
   return (
     <WorldTile
@@ -524,27 +592,21 @@ function SavedThingTile({ thing, onRemove }: { thing: SavedThing; onRemove: () =
             </Text>
           </div>
         ) : (
-          <TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(thing.url)})`} />
+          <TileFallback name={thing.name} color={`var(--usercolor${getIdentifierColorNumber(saved.url)})`} />
         )
       }
-      title={name}
+      title={thing.name}
       onTitleClick={() =>
-        openDetails({ kind: "thing", name, url: thing.url, previewUrl: thing.preview_url ?? rendered })
+        openDetails({ kind: "thing", name: thing.name, url: saved.url, previewUrl: saved.preview_url ?? rendered })
       }
+      badge={slot !== undefined ? `Key ${thingKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
-          {thing.added_ts ? `Saved ${new Date(thing.added_ts).toLocaleDateString()}` : "Saved Thing"} · spawning your
-          own Things is coming soon
+          {thing.description}
         </Text>
       }
-      menu={
-        <>
-          <DropdownMenuItem onSelect={() => copyToClipboard(thing.url)}>Copy Thing Link</DropdownMenuItem>
-          <DropdownMenuItem variant="danger" onSelect={onRemove}>
-            Remove Bookmark
-          </DropdownMenuItem>
-        </>
-      }
+      action={action}
+      menu={tileMenu(props)}
     />
   );
 }

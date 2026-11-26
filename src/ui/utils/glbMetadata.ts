@@ -54,29 +54,21 @@ export function metadataDiffers(file: AssetMetadata, typed: EditableMetadata): b
 }
 
 /**
- * A copy of the .glb with `typed` written into its HAVEN_metadata (fields left empty keep the file's own). The binary
- * chunk is copied byte for byte.
+ * A copy of the .glb with its glTF JSON changed by `change`. The binary chunk is copied byte for byte.
  */
-export async function bakeFileMetadata(blob: Blob, typed: EditableMetadata): Promise<Blob> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function editGlbJson(blob: Blob, change: (json: Record<string, any>) => void): Promise<Blob> {
   const buffer = await bytesOf(blob);
   const view = new DataView(buffer);
   if (view.getUint32(0, true) !== GLB_MAGIC || view.getUint32(16, true) !== JSON_CHUNK) {
     throw new Error("Only .glb and .vrm files can carry details");
   }
   const jsonLength = view.getUint32(12, true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, jsonLength))) as Record<string, any>;
   const rest = new Uint8Array(buffer, 20 + jsonLength);
 
-  json.extensions ??= {};
-  const current = (json.extensions.HAVEN_metadata ?? {}) as AssetMetadata;
-  json.extensions.HAVEN_metadata = makeAssetMetadata({
-    ...current,
-    ...(clean(typed.description) ? { description: clean(typed.description) } : {}),
-    ...(clean(typed.version) ? { version: clean(typed.version) } : {}),
-  });
-  const used = new Set<string>(Array.isArray(json.extensionsUsed) ? json.extensionsUsed : []);
-  used.add("HAVEN_metadata");
-  json.extensionsUsed = Array.from(used);
+  change(json);
 
   let jsonBytes = new TextEncoder().encode(JSON.stringify(json));
   const pad = (4 - (jsonBytes.length % 4)) % 4;
@@ -95,4 +87,29 @@ export async function bakeFileMetadata(blob: Blob, typed: EditableMetadata): Pro
   out.set(jsonBytes, 20);
   out.set(rest, 20 + jsonBytes.length);
   return new Blob([out], { type: blob.type || "model/gltf-binary" });
+}
+
+/** Adds an extension name to a glTF JSON's extensionsUsed. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function markExtensionUsed(json: Record<string, any>, name: string) {
+  const used = new Set<string>(Array.isArray(json.extensionsUsed) ? json.extensionsUsed : []);
+  used.add(name);
+  json.extensionsUsed = Array.from(used);
+}
+
+/**
+ * A copy of the .glb with `typed` written into its HAVEN_metadata (fields left empty keep the file's own). The binary
+ * chunk is copied byte for byte.
+ */
+export function bakeFileMetadata(blob: Blob, typed: EditableMetadata): Promise<Blob> {
+  return editGlbJson(blob, (json) => {
+    json.extensions ??= {};
+    const current = (json.extensions.HAVEN_metadata ?? {}) as AssetMetadata;
+    json.extensions.HAVEN_metadata = makeAssetMetadata({
+      ...current,
+      ...(clean(typed.description) ? { description: clean(typed.description) } : {}),
+      ...(clean(typed.version) ? { version: clean(typed.version) } : {}),
+    });
+    markExtensionUsed(json, "HAVEN_metadata");
+  });
 }

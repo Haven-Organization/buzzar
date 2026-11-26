@@ -28,7 +28,7 @@ import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
 import { useThingKeysSync } from "../../hooks/useThingKeys";
-import { useThingClonesSync } from "../../hooks/useThingClones";
+import { useCustomThingsSync, useThingClonesSync } from "../../hooks/useThingClones";
 import { useAutoRunSync } from "../../hooks/useAutoRun";
 import { ConfirmDialogHost } from "../components/confirm-dialog/ConfirmDialog";
 import { CallMethodDialogHost } from "../components/call-method-dialog/CallMethodDialog";
@@ -138,6 +138,7 @@ export default function SessionView() {
 function ThingKeysSync() {
   useThingKeysSync();
   useThingClonesSync();
+  useCustomThingsSync();
   return null;
 }
 

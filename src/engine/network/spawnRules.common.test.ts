@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { isSpawnAllowed, parseListedThings, parseSpawnRules, serializeObjectRules } from "./spawnRules.common";
+import {
+  isCustomThingId,
+  isSpawnAllowed,
+  parseListedThings,
+  parseSpawnRules,
+  rememberThingBehaviours,
+  serializeObjectRules,
+} from "./spawnRules.common";
 
 const LAMP = "mxc://example.org/lamp1";
 const OTHER = "mxc://example.org/other";
@@ -61,5 +68,18 @@ describe("world Thing rules", () => {
     expect(out.allowed).toEqual(["small-ball"]);
     expect(out.max_per_user).toBe(3);
     expect(parseSpawnRules({ objects: out }).things).toEqual({ "small-ball": true });
+  });
+});
+
+describe("custom Things' behaviours", () => {
+  const mxc = "mxc://example.org/abcDEF123";
+  it("are learnt from the file, and a world can block them", () => {
+    expect(isCustomThingId(mxc)).toBe(true);
+    expect(isCustomThingId("trampoline")).toBe(false);
+    const rules = parseSpawnRules({ objects: { blocked_behaviours: ["HAVEN_trampoline"] } });
+    // Not known until the file has loaded.
+    expect(isSpawnAllowed(rules, mxc)).toBe(true);
+    rememberThingBehaviours(mxc, ["KHR_materials_unlit", "HAVEN_trampoline"]);
+    expect(isSpawnAllowed(rules, mxc)).toBe(false);
   });
 });

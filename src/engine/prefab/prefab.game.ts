@@ -42,6 +42,35 @@ export const Prefab: Map<number, string> = new Map();
  */
 export const PrefabCreateData: Map<number, ArrayBuffer> = new Map();
 
+/**
+ * Buzzar: makes prefab templates on demand for names that aren't registered up front, such as a custom Thing's file
+ * (its mxc:// URI). Returns undefined for names it doesn't handle.
+ */
+export type PrefabResolver = (ctx: GameContext, name: string) => PrefabTemplate | undefined;
+const resolvers: PrefabResolver[] = [];
+
+export function registerPrefabResolver(resolver: PrefabResolver) {
+  resolvers.push(resolver);
+  return () => {
+    const index = resolvers.indexOf(resolver);
+    if (index !== -1) resolvers.splice(index, 1);
+  };
+}
+
+function resolvePrefab(ctx: GameContext, name: string): PrefabTemplate | undefined {
+  const prefabModule = getModule(ctx, PrefabModule);
+  const known = prefabModule.prefabTemplateMap.get(name);
+  if (known) return known;
+  for (const resolver of resolvers) {
+    const template = resolver(ctx, name);
+    if (template) {
+      registerPrefab(ctx, template);
+      return prefabModule.prefabTemplateMap.get(name);
+    }
+  }
+  return undefined;
+}
+
 export function registerPrefab(ctx: GameContext, template: PrefabTemplate) {
   const prefabModule = getModule(ctx, PrefabModule);
   if (prefabModule.prefabTemplateMap.has(template.name)) {
@@ -71,22 +100,19 @@ export function PrefabDisposalSystem(ctx: GameContext) {
 }
 
 export function getPrefabTemplate(ctx: GameContext, name: string) {
-  const prefabModule = getModule(ctx, PrefabModule);
-
-  const template = prefabModule.prefabTemplateMap.get(name);
+  const template = resolvePrefab(ctx, name);
   if (!template) throw new Error("could not find template for prefab name: " + name);
 
   return template;
 }
 
-/** Buzzar: whether a prefab name is registered (peers may send any string). */
+/** Buzzar: whether a prefab name is registered, or can be made on demand (peers may send any string). */
 export function hasPrefabTemplate(ctx: GameContext, name: string) {
-  return getModule(ctx, PrefabModule).prefabTemplateMap.has(name);
+  return !!resolvePrefab(ctx, name);
 }
 
 export const createPrefabEntity = (ctx: GameContext, prefab: string, options = {}): RemoteNode => {
-  const prefabModule = getModule(ctx, PrefabModule);
-  const create = prefabModule.prefabTemplateMap.get(prefab)?.create;
+  const create = resolvePrefab(ctx, prefab)?.create;
 
   if (!create) {
     throw new Error(`Could not find prefab "${prefab}"`);

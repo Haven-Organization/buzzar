@@ -33,6 +33,8 @@ export interface StockThing {
   name: string;
   preview: string;
   description: string;
+  /** Buzzar: set for one of your own Things (an uploaded or bookmarked file; its id is the file's mxc). */
+  custom?: SavedThing;
 }
 
 export const STOCK_THINGS: StockThing[] = [

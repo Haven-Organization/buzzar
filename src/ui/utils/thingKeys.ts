@@ -11,6 +11,7 @@ import {
   THING_KEY_COUNT,
   ThingKeys,
 } from "../../plugins/thirdroom/thirdroom.common";
+import { isCustomThingId } from "../../engine/network/spawnRules.common";
 
 export const THING_KEYS_TYPE = "software.haven.world.thing_keys";
 
@@ -22,7 +23,8 @@ export function parseThingKeys(value: unknown, known: readonly string[]): ThingK
   for (let i = 0; i < THING_KEY_COUNT; i++) {
     const id = list[i];
     // Cloned Things (clone:…) are kept even before your clones have loaded; the game ignores ones it doesn't know.
-    const valid = typeof id === "string" && (known.includes(id) || isThingCloneId(id));
+    // Your own Things (mxc://…) are kept too, even before your collection has loaded.
+    const valid = typeof id === "string" && (known.includes(id) || isThingCloneId(id) || isCustomThingId(id));
     keys.push(valid && !keys.includes(id) ? id : null);
   }
   return keys;

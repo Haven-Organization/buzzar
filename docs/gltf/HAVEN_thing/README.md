@@ -20,6 +20,8 @@ Buzzar's stock Trampoline uses it: a heavy drum that only turns about the vertic
 
 Buzzar keeps its own values for each stock Thing as a fallback, used until the file has loaded and for any property the file leaves out or gets wrong.
 
+Your own Things (a `.glb` you upload or bookmark in **Things**) work the same way. Without `HAVEN_thing`, Buzzar fits a box collider around the file's scene and spawns it just clear of you. Your Buzzar loads the file before spawning it, so it has its own shape from the start. Other players' Buzzar loads it when the object arrives: it starts as a small box and takes the file's collider once the file has loaded. Each client also checks the file's behaviours (like `HAVEN_trampoline`) against the world's Things rules as it loads.
+
 ## glTF Schema Updates
 
 Usage of the extension must be listed in the `extensionsUsed` array:
@@ -50,7 +52,13 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 | `density`  | `number`  | Kilograms per cubic metre of the collider, which sets its weight.                                                                       | The client's own           |
 | `rotation` | `string`  | `"free"`: turns any way. `"yaw"`: only turns about the vertical, so it can't tip over.                                                  | `"free"`                   |
 | `upright`  | `boolean` | When held, it only turns to face the way you face, and when left tilted it settles back level.                                          | `false`                    |
-| `spawn`    | `object`  | `{ "distance": metres, "upright": boolean }`: how far in front of you it appears, and whether it's stood level facing the way you look. | 1 m, tilted like your hand |
+| `spawn`    | `object`  | `{ "distance": metres, "upright": boolean, "held": boolean }`: how far in front of you it appears, whether it's stood level facing the way you look, and whether it appears in your hold (for things you carry) instead of being set down. | 1 m, tilted like your hand, not held |
+
+### spawn.held
+
+A Thing with `"held": true` appears where held things sit (1.5 m in front of you), already in your hold, as if you had just grabbed it. That way a hand-held Thing doesn't have to be picked up off the floor. When you're already holding something, or in VR (where controllers hold with squeeze), it's set down as usual. **Upload Thing → Appears in Your Hold** writes this into the file.
+
+Planned: a `hold` property saying how a Thing is held: which hand or both, where the grip is, and how the arms aim (for example a torch in one hand, or a two-handed tool). Buzzar would then attach the Thing to your avatar's hand and pose your arms to match, instead of carrying it in front of you.
 
 ### collider
 
@@ -88,7 +96,8 @@ Every collider can have an `offset` (`[x, y, z]`, metres) from the Thing's origi
       "type": "object",
       "properties": {
         "distance": { "type": "number", "exclusiveMinimum": 0 },
-        "upright": { "type": "boolean" }
+        "upright": { "type": "boolean" },
+        "held": { "type": "boolean" }
       }
     },
     "extensions": {},

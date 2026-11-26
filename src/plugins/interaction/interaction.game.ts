@@ -284,6 +284,8 @@ export const GrabComponent = defineComponent(
 
 const MAX_FOCUS_DISTANCE = 3.3;
 const MIN_HELD_DISTANCE = 1.5;
+/** Buzzar: how far in front of you a Thing spawned into your hold appears (where held things sit). */
+export const HELD_SPAWN_DISTANCE = MIN_HELD_DISTANCE;
 const MAX_HELD_DISTANCE = 8;
 export const GRAB_DISTANCE = 3.3;
 /** Buzzar: how close (metres) you must be to focus/press an interactable (~arm's length plus a step). */
@@ -1202,4 +1204,27 @@ export function getOurFocusedEntity(ctx: GameContext): number {
   const rigEid = ourPlayerQuery(ctx.world)[0];
   if (!rigEid || !hasComponent(ctx.world, FocusComponent, rigEid)) return 0;
   return FocusComponent.focusedEntity[rigEid];
+}
+
+/**
+ * Buzzar: whether a Thing spawned now can go straight into our hold: not in XR (controllers hold with squeeze), and
+ * not already holding something.
+ */
+export function canHoldSpawned(ctx: GameContext): boolean {
+  const rigEid = ourPlayerQuery(ctx.world)[0];
+  if (!rigEid) return false;
+  const xr = XRAvatarRig.get(rigEid);
+  if (xr && xr.leftRayEid && xr.rightRayEid) return false;
+  return !(hasComponent(ctx.world, GrabComponent, rigEid) && GrabComponent.grabbedEntity[rigEid]);
+}
+
+/** Buzzar: puts a Thing we just spawned in our hold, as if we'd grabbed it (HAVEN_thing spawn.held). */
+export function holdSpawnedObject(ctx: GameContext, eid: number) {
+  const rigEid = ourPlayerQuery(ctx.world)[0];
+  if (!rigEid || !canHoldSpawned(ctx)) return false;
+  addComponent(ctx.world, GrabComponent, rigEid);
+  GrabComponent.grabbedEntity[rigEid] = eid;
+  GrabComponent.heldOffset[rigEid] = 0;
+  sendInteractionMessage(ctx, InteractableAction.Grab, eid);
+  return true;
 }

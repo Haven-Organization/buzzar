@@ -243,8 +243,9 @@ the rules in §5 matter more for Buzzar than they do there.
 | | Item | Size | Notes |
 |---|---|---|---|
 | ✅ | 7 hard-coded prefabs (3 crates, 4 balls); grab/throw/scroll-distance/delete own | – | Action bar keys 1–9; XR maps only slot 1. |
-| ❌ | **Prop format**: glb + optional WebSG script + manifest (name, size, scripted capabilities, per-user limit) | M | 🅼 `software.haven.prop` asset; share via repository rooms (MSC3948-style) or the user's own inventory room. |
-| ❌ | Inventory UI (my props, favourites, world-provided props) | M | |
+| 🟡 | **Prop format**: glb + optional WebSG script + manifest (name, size, scripted capabilities, per-user limit) | M | **Buzzar (2026-11-26):** your own Things are .glb files on Matrix (named by their mxc), spawned like stock ones: physics from `HAVEN_thing` or a box fitted around the file, behaviours checked against world rules by every client as the file loads. `HAVEN_thing` `spawn.held` puts a Thing straight in your hold (Upload Thing → Appears in Your Hold). Still to do: per-Thing scripts, sharing through repository rooms. |
+| 🟡 | Inventory UI (my props, favourites, world-provided props) | M | **Buzzar:** the Things screen: stock Things, clones, and your uploaded or bookmarked Things, spawnable and on number keys (Shortcuts shelf). Still to do: world-provided Things. |
+| ❌ | **Held poses** (VRChat's pickup orientation and grips): a Thing says how it's held (which hand or both, grip point, arm pose for aiming) and sits in the avatar's hand | L | Planned as `HAVEN_thing` `hold`: attach to the hand bone and solve the arms with IK, shown to everyone; today held Things float in front of you. |
 | ❌ | Per-prop scripts with held/use/drop/collide hooks (gun, laser, flower-petal picker) | L | Needs multi-script runtime + per-prop sandbox (§7). |
 | ❌ | Network ownership rules for props (who can grab others' props; spawner keeps rights) | M | Grabbing someone else's object currently despawns and re-creates it. |
 | ❌ | Physics interaction props (trampoline = bounce volume; needs a player-impulse API) | S | |

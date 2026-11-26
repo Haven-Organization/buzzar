@@ -4,6 +4,8 @@
  */
 import { useEffect, useState } from "react";
 
+import { Switch } from "../../../atoms/button/Switch";
+import { editGlbJson, markExtensionUsed, readGlbJson } from "../../../utils/glbMetadata";
 import { Modal } from "../../../atoms/modal/Modal";
 import { ModalContent } from "../../../atoms/modal/ModalContent";
 import { Content } from "../../../atoms/content/Content";
@@ -45,6 +47,21 @@ export function UploadThing({
   useEffect(() => {
     if (file) loadFrom(file);
   }, [file, loadFrom]);
+
+  // Whether it appears in your hold when spawned (HAVEN_thing spawn.held), as the file says and as chosen here.
+  const [fileHeld, setFileHeld] = useState(false);
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    if (!file) return;
+    readGlbJson(file)
+      .then((json) => {
+        const thing = (json?.extensions as Record<string, { spawn?: { held?: unknown } }> | undefined)?.HAVEN_thing;
+        const value = thing?.spawn?.held === true;
+        setFileHeld(value);
+        setHeld(value);
+      })
+      .catch(() => undefined);
+  }, [file]);
   useEffect(() => {
     if (file) setName(fileMeta.name ?? file.name?.replace(/\.glb$/i, "") ?? "");
   }, [file, fileMeta.name]);
@@ -56,7 +73,15 @@ export function UploadThing({
     try {
       const auth = await getSessionAuth(platform, client.sessionId);
       if (!auth) throw new Error("Not signed in");
-      const baked = await details.prepare(file);
+      let baked = await details.prepare(file);
+      if (held !== fileHeld) {
+        baked = await editGlbJson(baked ?? file, (json) => {
+          json.extensions ??= {};
+          const thing = (json.extensions.HAVEN_thing ??= {});
+          thing.spawn = { ...(thing.spawn ?? {}), held };
+          markExtensionUsed(json, "HAVEN_thing");
+        });
+      }
       const url = baked ? await uploadMedia(auth, baked, file.name ?? "thing.glb") : fileInfo.mxc;
       onSaved(await saveToThingCollection(auth, session.userId, { url, name: name.trim() || undefined }));
       onOpenChange(false);
@@ -96,6 +121,15 @@ export function UploadThing({
                       <>
                         <SettingTile label={<Label>Name</Label>}>
                           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
+                        </SettingTile>
+                        <SettingTile
+                          label={<Label>Appears in Your Hold</Label>}
+                          options={<Switch checked={held} onCheckedChange={setHeld} />}
+                        >
+                          <Text variant="b3" color="surface-low">
+                            For things you carry (a torch, a tool): spawning it puts it straight in your hold instead of
+                            setting it down in front of you. Saved into the file.
+                          </Text>
                         </SettingTile>
                         <FileDetailsFields details={details} descriptionLabel="Description" fileLabel="Thing file" />
                       </>

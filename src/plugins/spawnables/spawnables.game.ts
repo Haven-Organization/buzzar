@@ -6,7 +6,7 @@ import { getLimitOverrides } from "../../engine/player/movement.game";
 import { playOneShotAudio } from "../../engine/audio/audio.game";
 import { Player } from "../../engine/player/Player";
 import { GameContext } from "../../engine/GameTypes";
-import { createNodeFromGLTFURI, loadGLTF } from "../../engine/gltf/gltf.game";
+import { createNodeFromGLTFURI, loadDefaultGLTFScene, loadGLTF } from "../../engine/gltf/gltf.game";
 import { createSphereMesh } from "../../engine/mesh/mesh.game";
 import { defineModule, getModule, Thread } from "../../engine/module/module.common";
 import { ownedNetworkedQuery } from "../../engine/network/network.game";
@@ -29,15 +29,27 @@ import {
   registerCollisionHandler,
 } from "../../engine/physics/physics.game";
 import { markUpright } from "../../engine/physics/upright";
-import { rememberThingFile, thingPhysics, ThingPhysics } from "./thingFile";
+import {
+  gltfBounds,
+  loadedThingFile,
+  physicsFromBounds,
+  readThingPhysics,
+  rememberThingFile,
+  thingPhysics,
+  ThingPhysics,
+} from "./thingFile";
 import {
   createPrefabEntity,
   Prefab,
   PrefabCreateData,
   PrefabType,
   registerPrefab,
+  registerPrefabResolver,
 } from "../../engine/prefab/prefab.game";
-import { getSpawnRules, isSpawnAllowed, isStockSpawnable, TakenObject } from "../../engine/network/spawnRules.game";
+import { getSpawnRules, isSpawnAllowed, TakenObject } from "../../engine/network/spawnRules.game";
+import { isCustomThingId, isThingId, rememberThingBehaviours } from "../../engine/network/spawnRules.common";
+import { resolveMxcUri } from "../avatar-pedestals/pedestals.game";
+import { getRemoteResource } from "../../engine/resource/resource.game";
 import {
   addObjectToWorld,
   removeObjectFromWorld,
@@ -58,7 +70,12 @@ import {
 } from "../../engine/resource/schema";
 import { createDisposables } from "../../engine/utils/createDisposables";
 import randomRange from "../../engine/utils/randomRange";
-import { addInteractableComponent } from "../interaction/interaction.game";
+import {
+  addInteractableComponent,
+  canHoldSpawned,
+  HELD_SPAWN_DISTANCE,
+  holdSpawnedObject,
+} from "../interaction/interaction.game";
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
 import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { ThirdRoomModule } from "../thirdroom/thirdroom.game";
@@ -173,7 +190,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       type: PrefabType.Object,
       create: (ctx, options: ThingPrefabOptions) => {
         const v = thingVariablesFor("mirror-ball", options);
-        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, mirrorMaterial, v.tint, v.glow) : mirrorMaterial;
+        const material =
+          v.tint || v.glow !== undefined ? variantMaterial(ctx, mirrorMaterial, v.tint, v.glow) : mirrorMaterial;
         return createBall(ctx, module, physics, 1 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
@@ -183,7 +201,10 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       type: PrefabType.Object,
       create: (ctx, options: ThingPrefabOptions) => {
         const v = thingVariablesFor("black-mirror-ball", options);
-        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, blackMirrorMaterial, v.tint, v.glow) : blackMirrorMaterial;
+        const material =
+          v.tint || v.glow !== undefined
+            ? variantMaterial(ctx, blackMirrorMaterial, v.tint, v.glow)
+            : blackMirrorMaterial;
         return createBall(ctx, module, physics, 1 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
@@ -193,7 +214,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       type: PrefabType.Object,
       create: (ctx, options: ThingPrefabOptions) => {
         const v = thingVariablesFor("emissive-ball", options);
-        const material = v.tint || v.glow !== undefined ? variantMaterial(ctx, emissiveMaterial, v.tint, v.glow) : emissiveMaterial;
+        const material =
+          v.tint || v.glow !== undefined ? variantMaterial(ctx, emissiveMaterial, v.tint, v.glow) : emissiveMaterial;
         return createBall(ctx, module, physics, 2 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
       },
     });
@@ -249,7 +271,19 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       }
     });
 
-    return createDisposables([disposeCollisionHandler]);
+    // Buzzar: custom Things, named by their file's mxc:// URI, get a prefab the first time they're spawned or seen.
+    const disposeResolver = registerPrefabResolver((_ctx, name) =>
+      isCustomThingId(name)
+        ? {
+            name,
+            type: PrefabType.Object,
+            create: (ctx: GameContext, options: ThingPrefabOptions) =>
+              createFileThing(ctx, physics, name, !!options.kinematic),
+          }
+        : undefined
+    );
+
+    return createDisposables([disposeCollisionHandler, disposeResolver]);
   },
 });
 
@@ -341,7 +375,11 @@ function createCrate(
   variables: ThingVariables = {}
 ) {
   const tint = variables.tint;
-  const node = createNodeFromGLTFURI(ctx, CRATE_GLTF_URI, tint ? (loaded) => tintNodeTree(ctx, loaded, tint) : undefined);
+  const node = createNodeFromGLTFURI(
+    ctx,
+    CRATE_GLTF_URI,
+    tint ? (loaded) => tintNodeTree(ctx, loaded, tint) : undefined
+  );
 
   node.scale.set([size, size, size]);
 
@@ -472,12 +510,132 @@ const THING_FILES: Record<string, { uri: string; physics: ThingPhysics }> = {
 };
 
 /**
- * Buzzar: how far in front of you a Thing appears (metres; default 1), and whether it's stood upright (turned only
- * to face the way you look) rather than tilted like your hand or view. From the Thing's file (HAVEN_thing spawn).
+ * Buzzar: how far in front of you a Thing appears (metres; default 1), whether it's stood upright (turned only
+ * to face the way you look) rather than tilted like your hand or view, and whether it appears in your hold. From the
+ * Thing's file (HAVEN_thing spawn).
  */
 function spawnPlacement(prefabId: string) {
+  if (isCustomThingId(prefabId)) return fileThingPhysics(prefabId).spawn;
   const thing = THING_FILES[prefabId];
   return thing ? thingPhysics(thing.uri, thing.physics).spawn : undefined;
+}
+
+/**
+ * Buzzar: a custom Thing's physics: its file's HAVEN_thing, over a box fitted around it (before the file has loaded,
+ * a small box).
+ */
+function fileThingPhysics(mxc: string): ThingPhysics {
+  const file = loadedThingFile(mxc);
+  return readThingPhysics(file, physicsFromBounds(file ? gltfBounds(file) : undefined));
+}
+
+type FileThingState = { status: "loading" | "ready" | "failed"; waiting: (() => void)[] };
+/** Buzzar: custom Thing files by mxc:// URI, as they load. */
+const fileThings = new Map<string, FileThingState>();
+
+/** Loads a custom Thing's file (once), learning its physics and behaviours. */
+function loadFileThing(ctx: GameContext, mxc: string) {
+  const url = resolveMxcUri(ctx, mxc);
+  if (!url) return Promise.reject(new Error("The homeserver for Matrix files isn't known yet"));
+  return loadGLTF(ctx, url).then((resource) => {
+    rememberThingFile(mxc, resource.root as never);
+    rememberThingBehaviours(mxc, resource.root.extensionsUsed);
+    return resource;
+  });
+}
+
+/**
+ * Buzzar: whether a custom Thing's file is ready to spawn. If it isn't yet, starts loading it and calls `then` once
+ * it is ("pending"); "failed" if it can't be loaded.
+ */
+export function customThingReady(ctx: GameContext, mxc: string, then: () => void): "ready" | "pending" | "failed" {
+  const known = fileThings.get(mxc);
+  if (known?.status === "ready" || known?.status === "failed") return known.status;
+  if (known) {
+    known.waiting.push(then);
+    return "pending";
+  }
+  const state: FileThingState = { status: "loading", waiting: [then] };
+  fileThings.set(mxc, state);
+  loadFileThing(ctx, mxc)
+    .then(() => {
+      state.status = "ready";
+      for (const done of state.waiting.splice(0)) done();
+    })
+    .catch((error) => {
+      console.warn(`Couldn't load the Thing ${mxc}:`, error);
+      // Let a later spawn try again (the homeserver may not have been known yet).
+      fileThings.delete(mxc);
+      state.status = "failed";
+      state.waiting.length = 0;
+    });
+  return "pending";
+}
+
+/**
+ * Buzzar: a Thing made from someone's own .glb on Matrix. Ours are only spawned once the file has loaded, so their
+ * physics come from it straight away; one another player spawns may arrive first, so it starts as a small box and is
+ * given the file's collider once the file loads. The world's rules are checked again then, against the behaviours
+ * the file turns out to have.
+ */
+function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: string, kinematic: boolean) {
+  const node = new RemoteNode(ctx.resourceManager);
+  const used = fileThingPhysics(mxc);
+  addThingPhysics(ctx, physics, node, used, kinematic);
+  const url = resolveMxcUri(ctx, mxc);
+  if (!url) return node;
+  (loadedThingFile(mxc) ? loadGLTF(ctx, url) : loadFileThing(ctx, mxc))
+    .then((resource) => {
+      if (!getRemoteResource<RemoteNode>(ctx, node.eid)) return; // removed while it loaded
+      const ours = hasComponent(ctx.world, Owned, node.eid);
+      if (!isSpawnAllowed(getSpawnRules(ctx), mxc) && !(ours && getLimitOverrides(ctx).ignoreOwn)) {
+        // A behaviour this world blocks. Ours goes away; someone else's stays invisible and can't be touched (its
+        // owner's network updates still refer to it).
+        if (ours) removeObjectFromWorld(ctx, node);
+        else removeColliders(physics, node);
+        return;
+      }
+      loadDefaultGLTFScene(ctx, resource, { existingNode: node });
+      const settings = fileThingPhysics(mxc);
+      if (JSON.stringify(settings) !== JSON.stringify(used)) replaceThingPhysics(physics, node, settings);
+    })
+    .catch((error) => console.warn(`Couldn't load the Thing ${mxc}:`, error));
+  return node;
+}
+
+function removeColliders(physics: PhysicsModuleState, node: RemoteNode) {
+  const body = node.physicsBody?.body;
+  if (!body) return;
+  for (let i = body.numColliders() - 1; i >= 0; i--) {
+    const old = body.collider(i);
+    physics.handleToEid.delete(old.handle);
+    physics.physicsWorld.removeCollider(old, false);
+  }
+}
+
+/** Gives a Thing's body a new collider (and rotation lock), once its file says what they are. */
+function replaceThingPhysics(physics: PhysicsModuleState, node: RemoteNode, settings: ThingPhysics) {
+  const body = node.physicsBody?.body;
+  if (!body) return;
+  removeColliders(physics, node);
+  const c = settings.collider;
+  const desc =
+    c.type === "box"
+      ? RAPIER.ColliderDesc.cuboid(c.size[0] / 2, c.size[1] / 2, c.size[2] / 2)
+      : c.type === "sphere"
+      ? RAPIER.ColliderDesc.ball(c.radius)
+      : RAPIER.ColliderDesc.cylinder(c.height / 2, c.radius);
+  desc.setTranslation(c.offset[0], c.offset[1], c.offset[2]);
+  desc.setCollisionGroups(dynamicObjectCollisionGroups);
+  desc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+  if (settings.density) desc.setDensity(settings.density);
+  // As addPhysicsBody does: the body's mass, or 1 kg.
+  desc.setMass(node.physicsBody?.mass || 1);
+  const collider = physics.physicsWorld.createCollider(desc, body);
+  physics.handleToEid.set(collider.handle, node.eid);
+  body.setEnabledRotations(true, true, true, true);
+  if (settings.rotation === "yaw") body.setEnabledRotations(false, true, false, true);
+  if (settings.upright) markUpright(node);
 }
 
 /** Buzzar: how far up, in steps of SPAWN_LIFT_STEP (m), a spawned object may be moved to clear what's already there. */
@@ -569,7 +727,10 @@ function stopAtObstacle(
   }
   if (nearest >= distance) return "clear";
   const at = Math.max(0, nearest - 0.02);
-  body.setTranslation({ x: origin[0] + direction[0] * at, y: origin[1] + direction[1] * at, z: origin[2] + direction[2] * at }, true);
+  body.setTranslation(
+    { x: origin[0] + direction[0] * at, y: origin[1] + direction[1] * at, z: origin[2] + direction[2] * at },
+    true
+  );
   physicsWorld.propagateModifiedBodyPositionsToColliders();
   for (let i = 0; i < body.numColliders(); i++) {
     const c = body.collider(i);
@@ -626,7 +787,7 @@ export function spawnPrefab(
   let ownedStock = 0;
   for (let i = 0; i < ownedEnts.length; i++) {
     const prefab = Prefab.get(ownedEnts[i]);
-    if (prefab && isStockSpawnable(prefab) && !hasComponent(ctx.world, TakenObject, ownedEnts[i])) ownedStock++;
+    if (prefab && isThingId(prefab) && !hasComponent(ctx.world, TakenObject, ownedEnts[i])) ownedStock++;
   }
   // bounce out of the function if we hit the max object cap
   if (ownedStock >= limit) {
@@ -655,6 +816,9 @@ export function spawnPrefab(
 
   // place object at direction
   const placement = spawnPlacement(prefabId);
+  // Buzzar: a Thing made to be carried (HAVEN_thing spawn.held) appears where held things sit, already in your hold.
+  const intoHold = !!placement?.held && canHoldSpawned(ctx);
+  const distance = intoHold ? HELD_SPAWN_DISTANCE : placement?.distance;
   if (placement?.upright) {
     // Level, facing the way you look (so it lands flat and comes out the same way round each time).
     direction[1] = 0;
@@ -662,12 +826,12 @@ export function spawnPrefab(
     vec3.normalize(direction, direction);
     quat.setAxisAngle(_spawnWorldQuat, [0, 1, 0], Math.atan2(-direction[0], -direction[2]));
   }
-  const spawnDistance = placement ? placement.distance : vec3.length(direction);
+  const spawnDistance = distance ?? vec3.length(direction);
   vec3.copy(_spawnOrigin, prefab.position);
-  if (placement) vec3.scale(direction, direction, placement.distance);
+  if (distance !== undefined) vec3.scale(direction, direction, distance);
   vec3.add(prefab.position, prefab.position, direction);
   prefab.quaternion.set(_spawnWorldQuat);
-  if (placement) vec3.normalize(direction, direction);
+  if (distance !== undefined) vec3.normalize(direction, direction);
 
   const body = prefab.physicsBody?.body;
 
@@ -679,7 +843,13 @@ export function spawnPrefab(
   applyTransformToRigidBody(body, prefab);
   // Third Room #300: don't spawn on the far side of a window or wall you can't throw through. Right up against
   // one, there's no room on your side: spawn nothing rather than inside you.
-  const blocked = stopAtObstacle(getModule(ctx, PhysicsModule).physicsWorld, body, _spawnOrigin, direction, spawnDistance);
+  const blocked = stopAtObstacle(
+    getModule(ctx, PhysicsModule).physicsWorld,
+    body,
+    _spawnOrigin,
+    direction,
+    spawnDistance
+  );
   if (blocked === "no-room") {
     removeObjectFromWorld(ctx, prefab);
     return true;
@@ -693,9 +863,9 @@ export function spawnPrefab(
     vec3.set(prefab.position, t.x, t.y, t.z);
   }
   // Buzzar: a gentle, slightly random toss, so objects spawned in a row don't all drop along the same path
-  // (Third Room #297).
-  vec3.scale(direction, direction, SPAWN_TOSS_SPEED);
-  jitterDirection(direction, SPAWN_TOSS_JITTER);
+  // (Third Room #297). One going into your hold stays put.
+  vec3.scale(direction, direction, intoHold ? 0 : SPAWN_TOSS_SPEED);
+  if (!intoHold) jitterDirection(direction, SPAWN_TOSS_JITTER);
   _spawnVelocity.x = direction[0];
   _spawnVelocity.y = direction[1];
   _spawnVelocity.z = direction[2];
@@ -708,6 +878,7 @@ export function spawnPrefab(
   }
 
   addObjectToWorld(ctx, prefab);
+  if (intoHold) holdSpawnedObject(ctx, eid);
 
   return true;
 }

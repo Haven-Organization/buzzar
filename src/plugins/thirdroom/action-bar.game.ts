@@ -9,10 +9,12 @@ import { getCamera } from "../../engine/player/getCamera";
 import { RemoteNode } from "../../engine/resource/RemoteResources";
 import { tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { ScriptComponent, scriptQuery } from "../../engine/scripting/scripting.game";
-import { spawnPrefab } from "../spawnables/spawnables.game";
+import { customThingReady, spawnPrefab } from "../spawnables/spawnables.game";
+import { isCustomThingId } from "../../engine/network/spawnRules.common";
 import { getSpawnRules, isSpawnAllowed } from "../../engine/network/spawnRules.game";
 import {
   ActionBarItem,
+  CustomThingInfo,
   DEFAULT_THING_KEYS,
   SetActionBarItemsMessage,
   THING_KEY_COUNT,
@@ -103,8 +105,26 @@ let thingKeys: ThingKeys = DEFAULT_THING_KEYS;
 /** Buzzar: your cloned Things, by id. */
 const thingClones = new Map<string, ThingClone>();
 
-/** Buzzar: what a Thing id spawns: a stock prefab, with a clone's variables and name. */
+/** Buzzar: your own Things' names and pictures, by mxc (a custom Thing not listed here still spawns, as "Thing"). */
+const customThings = new Map<string, CustomThingInfo>();
+
+export function setCustomThings(ctx: GameContext, things: CustomThingInfo[]) {
+  const { actionBarItems } = getModule(ctx, ThirdRoomModule);
+  const stock = isStockBar(actionBarItems);
+  customThings.clear();
+  for (const thing of things) if (isCustomThingId(thing.id)) customThings.set(thing.id, thing);
+  if (stock) setDefaultActionBarItems(ctx);
+}
+
+/** Buzzar: what a Thing id spawns: a stock prefab, with a clone's variables and name, or a custom Thing's file. */
 function resolveThing(id: string): { item: ActionBarItem; prefab: string; variables?: ThingVariables } | undefined {
+  if (isCustomThingId(id)) {
+    const info = customThings.get(id);
+    return {
+      item: { id, label: info?.name || "Thing", thumbnail: info?.thumbnail ?? "", spawnable: true },
+      prefab: id,
+    };
+  }
   const clone = isThingCloneId(id) ? thingClones.get(id) : undefined;
   const base = defaultActionBarItems.find((d) => d.id === (clone ? clone.base : id));
   if (!base) return undefined;
@@ -142,6 +162,11 @@ export function queueThingSpawn(id: string) {
 function spawnThing(ctx: GameContext, from: RemoteNode, id: string, isXR: boolean) {
   const thing = resolveThing(id);
   if (!thing) return;
+  // A custom Thing spawns once its file has loaded (so it has its own shape from the start).
+  if (isCustomThingId(id)) {
+    const ready = customThingReady(ctx, id, () => pendingThingSpawns.push(id));
+    if (ready !== "ready") return;
+  }
   return spawnPrefab(ctx, from, thing.prefab, isXR, thing.variables);
 }
 
@@ -161,7 +186,7 @@ export function setDefaultActionBarItems(ctx: GameContext) {
   ctx.sendMessage<SetActionBarItemsMessage>(Thread.Main, {
     type: ThirdRoomMessageType.SetActionBarItems,
     actionBarItems: thirdroom.actionBarItems,
-    allowedThings: defaultActionBarItems.filter((d) => allowed(d.id)).map((d) => d.id),
+    allowedThings: [...defaultActionBarItems.map((d) => d.id), ...customThings.keys()].filter(allowed),
   });
 }
 

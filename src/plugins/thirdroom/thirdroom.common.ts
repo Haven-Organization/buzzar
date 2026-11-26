@@ -27,6 +27,8 @@ export enum ThirdRoomMessageType {
   SetThingClones = "set-thing-clones",
   /** Buzzar: which Thing is on each number key (from the Things screen). */
   SetThingKeys = "set-thing-keys",
+  /** Buzzar: your own Things (uploaded or bookmarked files), for their names and pictures on the action bar. */
+  SetCustomThings = "set-custom-things",
 }
 
 /**
@@ -73,9 +75,22 @@ export interface SetThingClonesMessage {
   clones: ThingClone[];
 }
 
+/** Buzzar: one of your own Things: a .glb file on Matrix, whose id is its mxc:// URI. */
+export interface CustomThingInfo {
+  id: string;
+  name: string;
+  /** A loadable picture of it, if it has one. */
+  thumbnail?: string;
+}
+
+export interface SetCustomThingsMessage {
+  type: ThirdRoomMessageType.SetCustomThings;
+  things: CustomThingInfo[];
+}
+
 export interface SpawnThingMessage {
   type: ThirdRoomMessageType.SpawnThing;
-  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"), or a clone's id. */
+  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"), a clone's id, or a custom Thing's mxc. */
   id: string;
 }
 
@@ -178,7 +193,7 @@ export interface ActionBarItem {
 export interface SetActionBarItemsMessage {
   type: ThirdRoomMessageType.SetActionBarItems;
   actionBarItems: ActionBarItem[];
-  /** Buzzar: the stock Things this world's rules allow (clones go by their base). */
+  /** Buzzar: the stock and custom Things this world's rules allow (clones go by their base). */
   allowedThings?: string[];
 }
 
