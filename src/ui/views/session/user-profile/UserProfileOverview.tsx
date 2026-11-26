@@ -203,8 +203,9 @@ export function UserProfileOverview() {
                   )}
                   {category === "safety" && (
                     <div className="UserProfileOverview__section">
-                      <BlockedPeopleSettings />
                       <WorldBanExemptionSettings />
+                      {/* Last: a long list of blocked people mustn't push the other settings off screen. */}
+                      <BlockedPeopleSettings />
                     </div>
                   )}
                   {category === "developer" && <DeveloperSettings />}
