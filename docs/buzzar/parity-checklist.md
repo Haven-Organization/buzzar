@@ -263,10 +263,10 @@ the rules in §5 matter more for Buzzar than they do there.
 | ❌ | **Delegated gatekeeper role** (can admit to zone X, but isn't a full moderator; can be any visitor) | M | 🅼 **Decided: pure Matrix.** Zone access and "gatekeeper for zone X" are both roles in the *Role model* below:<br>- access to a zone = a role whose control is that zone;<br>- gatekeeper = a role whose control is "admit to zone X".<br>Persistent grants are PL-gated per role event type (`software.haven.role.<role_id>`), so the homeserver enforces them. Visitor-held gatekeeper roles admit through the role-granter path.<br>**Limitation:** whatever is enforced by power levels is a single ladder (lobby → main → VIP). Arbitrary delegation goes through roles checked by clients, or through a bot. |
 | ❌ | **World roles** (Director, Gatekeeper, Actor, Stage crew, VIP, …) that **any visitor, even PL 0, can be given** | L | 🅼 See *Role model* below. Roles grant control of in-world things (gates, set changes, lights, picking volunteers) without touching `m.room.power_levels`. Can later be granted by entitlements (§7). |
 | ❌ | Moderator in-world tools: kick from instance (vs. room), mute for everyone, freeze, teleport-to-lobby, delete anyone's props, hide an avatar for everyone | M | Instance-level actions go over RTC as authenticated commands. Room-level actions use Matrix kick/ban. |
-| ❌ | **Personal safety**: per-user block (use Matrix `m.ignored_user_list`, not session-only), hide/show avatar, mute, personal space bubble, per-user volume | M | Today "ignore" lasts only for the session. |
+| 🟡 | **Personal safety**: per-user block (use Matrix `m.ignored_user_list`, not session-only), hide/show avatar, mute, personal space bubble, per-user volume | M | Today "ignore" lasts only for the session. **Buzzar (2026-11-25):** Block uses `m.ignored_user_list` (follows the account; Settings → Safety lists and unblocks). Blocked players are held back by your client: no peer, so no avatar, voice, movement or Things either way; on LiveKit the server is told not to send them your voice (track subscription permissions), on mesh your mic is taken off their connection. Tested live. Still to do: per-user volume, personal space bubble. |
 | ❌ | Safety "shield" presets by trust (friends / room members / strangers): toggle avatars, avatar audio, scripts, particles, animations | M | Matrix has no trust ranks. Use: DM/friend status, shared rooms, account age, moderation-list membership (MSC2313 policy lists). |
 | ❌ | **Anti-jumpscare / malicious-content protections** | M | - avatar audio loudness limiter<br>- max emote audio duration<br>- scale-rate limiting<br>- full-screen/near-camera geometry culling<br>- strobe/flash limiter<br>- script output rate limits<br>- per-user "panic" button that hides all non-friend avatars and props |
-| ❌ | Report user/content (`/report` API) + moderation policy list subscription (MSC2313) | S | |
+| 🟡 | Report user/content (`/report` API) + moderation policy list subscription (MSC2313) | S | **Buzzar (2026-11-25):** world rooms hold their own ban rules (standard `m.policy.rule.user`/`.server` events; the spec allows them in any room), set in World Settings → Moderation; a world can also follow other lists (`software.haven.world.moderation`). Every visitor's client holds back anyone banned, at once, with no bot running; a banned visitor is told. Lists visitors can't read without joining (most big public ones) need a moderation bot to copy their bans into the world room: the Buzzar bot (client-server API, self-hosted by each world host) is next. Tested live. Still to do: `/report`. |
 | ❌ | Group/community moderation across many worlds (VRChat Groups) | L | Matrix Spaces + shared policy lists + role sync. |
 | ❌ | Audit log of moderation actions | S | Most of it comes free from the room timeline. Instance-level actions need logging events. |
 | ❌ | Privacy: don't expose the Matrix ID on auto-join to crowded public worlds (#643); optional per-world display identity | M | |
@@ -432,9 +432,11 @@ a tier, earlier items come first.
 
 **P1. Safety and trust.** Buzzar is public and LiveKit instances hold 40 players, so this comes before growth.
 
-1. Personal safety (§5): block through `m.ignored_user_list` (today it lasts the session), per-user volume, mute,
+1. Personal safety (§5): ~~block through `m.ignored_user_list`~~ (done 2026-11-25), per-user volume, mute,
    hide avatar, personal space bubble.
-2. Report user/content (`/report`) and MSC2313 policy-list subscription (§5).
+2. Report user/content (`/report`); ~~world ban rules and followed policy lists, enforced by every client~~ (done
+   2026-11-25); the Buzzar moderation bot (client-server API, each world host runs their own) to copy in lists
+   visitors can't read and follow up in Matrix (room bans, redactions, flood checks).
 3. Moderator in-world tools (§5): kick from instance, mute for everyone, delete anyone's Things, hide an avatar for
    everyone; audit log for the instance-level ones.
 4. Avatar performance ranking and hard limits, then the fallback avatar for blocked or over-limit ones (§1; the
