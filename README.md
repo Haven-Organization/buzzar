@@ -51,8 +51,9 @@ or in one world only, or pick one up from a world's pedestal. See the
 
 Things are objects players spawn, grab and throw. Each is a glTF file whose physical behaviour (shape, weight, where it
 appears) travels with it in [`HAVEN_thing`](./docs/gltf/HAVEN_thing/README.md), and each world chooses which Things
-are allowed (**World Settings → Things**). Buzzar comes with a set of stock Things; spawning your own Thing files is
-still to come.
+are allowed (**World Settings → Things**). Spawn the stock Things, or clones of them with your own size, colour,
+bounciness, weight and glow. You can already upload your own Thing files to **My Things**; spawning them is still to
+come.
 
 ## Homeserver Requirements
 
