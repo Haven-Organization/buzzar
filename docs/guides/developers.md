@@ -2,6 +2,11 @@
 
 Buzzar is designed to be a flexible and extensible platform for creating and sharing virtual worlds. Using the Web Scene Graph API, anyone can create and share their own virtual worlds and experiences with the language of their choice. The Buzzar client is also completely open source (Apache-2.0), allowing you to self-host your own instance of Buzzar and customize it to meet your specific needs. The Buzzar web client is also designed to be just one client in a larger ecosystem of interoperable clients for browsing virtual worlds created with glTF and WebSG content.
 
+## How Buzzar is built
+
+[Engine and Architecture](./architecture) covers the Manifold engine (ECS, multithreading, rendering, physics, audio),
+how worlds use Matrix, and the networking behind world calls.
+
 ## Web Scene Graph
 
 WebSG is designed to provide a safe and performant way to manipulate glTF scene graphs from a WebAssembly module. The API can be accessed from any wasm-compatible language, giving you the flexibility to choose the programming language that best suits your needs and expertise.

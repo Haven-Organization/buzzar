@@ -40,6 +40,7 @@ export default defineConfig({
         { text: "Importing Worlds", link: "/guides/importing-worlds" },
         { text: "Coming from Third Room", link: "/guides/third-room" },
         { text: "Moderation Bot", link: "/guides/moderation-bot" },
+        { text: "Engine and Architecture", link: "/guides/architecture" },
         {
           text: "Web Scene Graph",
           items: [
