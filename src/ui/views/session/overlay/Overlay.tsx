@@ -26,6 +26,7 @@ import { useInvite } from "../../../hooks/useInvite";
 import { WorldSettings } from "../world-settings/WorldSettings";
 import { RoomListNotifications } from "../sidebar/RoomListNotifications";
 import { NowPlayingWorld } from "./NowPlayingWorld";
+import { InWorldBar } from "./InWorldBar";
 import { NowPlayingControls } from "./NowPlayingControls";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
@@ -100,6 +101,8 @@ export function Overlay() {
           )
         }
       />
+      {/* Buzzar: the full-screen windows hide the sidebar's "in this world" panel; say so up here instead. */}
+      {world && overlayWindow.type !== OverlayWindow.None && <InWorldBar world={world} onLeave={navigateExitWorld} />}
       {overlayWindow.type !== OverlayWindow.None ? (
         <div className="Overlay__window grow flex">
           {overlayWindow.type === OverlayWindow.CreateWorld && <CreateWorld scene={overlayWindow.scene} />}

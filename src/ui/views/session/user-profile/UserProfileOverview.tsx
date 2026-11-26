@@ -26,6 +26,7 @@ import { useFilePicker } from "../../../hooks/useFilePicker";
 import { uploadAttachment } from "../../../utils/matrixUtils";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import { LOCAL_STORAGE_SHOW_WORLD_NAME } from "../statusbar/StatusBar";
+import { IdleLeaveSetting } from "./IdleLeaveSetting";
 import { SelectInput } from "../../components/property-panel/SelectInput";
 import {
   LOCAL_STORAGE_RENDER_QUALITY,
@@ -199,6 +200,7 @@ export function UserProfileOverview() {
                       <HomeWorldSettings />
                       <BuzzarSpaceSetting />
                       <WorldScriptSettings />
+                      <IdleLeaveSetting />
                     </div>
                   )}
                   {category === "safety" && (

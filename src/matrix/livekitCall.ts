@@ -45,8 +45,25 @@ const DATA_TOPIC = "buzzar";
 /** Most packets kept from one player before we know them (a world snapshot is a few hundred at most). */
 const MAX_EARLY_PACKETS = 4000;
 const CALL_MEMBER_EVENT = "org.matrix.msc3401.call.member";
-/** How long our membership lasts unless refreshed (js-sdk refreshes it shortly before). */
+/**
+ * How long our membership lasts unless refreshed (js-sdk refreshes it shortly before; each refresh is a state event
+ * in the world room). On homeservers with delayed events (MSC4140) the server removes a vanished player's membership
+ * itself within seconds, so ours can last hours and is refreshed rarely. Without them it must expire on its own
+ * soon, or a player who closed the app stays listed.
+ */
 const MEMBERSHIP_EXPIRY_MS = 5 * 60 * 1000;
+const MEMBERSHIP_EXPIRY_WITH_DELAYED_EVENTS_MS = 4 * 60 * 60 * 1000;
+
+/** Whether the homeserver supports delayed events (MSC4140), asked once per session. */
+const delayedEventSupport = new WeakMap<Session, Promise<boolean>>();
+function supportsDelayedEvents(session: Session): Promise<boolean> {
+  let known = delayedEventSupport.get(session);
+  if (!known) {
+    known = session.client.doesServerSupportUnstableFeature("org.matrix.msc4140").catch(() => false);
+    delayedEventSupport.set(session, known);
+  }
+  return known;
+}
 const RTC_FOCI_KEY = "org.matrix.msc4143.rtc_foci";
 /** How long to wait for the homeserver's LiveKit details and for a LiveKit token (ms). */
 const WELL_KNOWN_TIMEOUT_MS = 10_000;
@@ -400,6 +417,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
       throw new Error(`The LiveKit server couldn't be reached (${error instanceof Error ? error.message : error}).`);
     }
 
+    const delayedEvents = await supportsDelayedEvents(this.session);
     this.rtc.join(
       {
         userId: this.session.userId,
@@ -416,9 +434,7 @@ export class LiveKitCall extends EventEmitter<{ change: undefined }> implements 
       {
         manageMediaKeys: false,
         callIntent: "audio",
-        // Short-lived and kept fresh while we're in the call: homeservers without delayed events (MSC4140) can't
-        // remove a membership when its client vanishes, so it must expire on its own soon.
-        membershipEventExpiryMs: MEMBERSHIP_EXPIRY_MS,
+        membershipEventExpiryMs: delayedEvents ? MEMBERSHIP_EXPIRY_WITH_DELAYED_EVENTS_MS : MEMBERSHIP_EXPIRY_MS,
       }
     );
     this.joined = true;

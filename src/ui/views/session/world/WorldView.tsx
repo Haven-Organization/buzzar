@@ -62,6 +62,7 @@ import { useAvatarCulling } from "../../../hooks/useAvatarCulling";
 import { useHeldBack } from "../../../hooks/useBlockedUsers";
 import { screenShareDialogAtom } from "../../../state/screenShareDialog";
 import { canShareScreens, ScreenShareDialog } from "./ScreenShareDialog";
+import { IdleLeave } from "./IdleLeave";
 import { ObjectCapReachedMessage, ThirdRoomMessageType } from "../../../../plugins/thirdroom/thirdroom.common";
 
 interface WorldViewProps {
@@ -416,6 +417,7 @@ export function WorldView({ world }: WorldViewProps) {
             </Text>
           </div>
         )}
+      {isWorldEntered && <IdleLeave world={world} />}
       <MuteButtonAction activeCall={activeCall} showToast={showToast} />
       <MembersDialogAction />
       <ShortcutDialogAction />

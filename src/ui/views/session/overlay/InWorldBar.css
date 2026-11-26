@@ -1,0 +1,13 @@
+.InWorldBar {
+  position: absolute;
+  top: var(--sp-xs);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--sp-md));
+  padding: var(--sp-xxs) var(--sp-xxs) var(--sp-xxs) var(--sp-sm);
+  border-radius: var(--br-sm);
+  background-color: var(--bg-surface);
+  box-shadow: var(--bs-surface);
+  pointer-events: all;
+  z-index: 2;
+}

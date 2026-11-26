@@ -66,7 +66,7 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
       }
       content={
         <>
-          <NowPlayingStatus status="connected">Connected</NowPlayingStatus>
+          <NowPlayingStatus status="connected">In this world: people can see and hear you</NowPlayingStatus>
           <NowPlayingTitle>{world.name || "Unnamed World"}</NowPlayingTitle>
         </>
       }
@@ -106,8 +106,8 @@ export function NowPlayingWorld({ world, activeCall, onExitWorld, platform }: No
               />
             </Tooltip>
           )}
-          <Tooltip content="Disconnect">
-            <IconButton variant="danger" label="Disconnect" iconSrc={CallCrossIC} onClick={onExitWorld} />
+          <Tooltip content="Leave World">
+            <IconButton variant="danger" label="Leave World" iconSrc={CallCrossIC} onClick={onExitWorld} />
           </Tooltip>
         </>
       }

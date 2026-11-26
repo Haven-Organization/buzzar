@@ -38,8 +38,7 @@ import { useRoomsOfType, RoomTypes } from "../../../hooks/useRoomsOfType";
 import { useCalls } from "../../../hooks/useCalls";
 import { useRoom } from "../../../hooks/useRoom";
 import { useDialog } from "../../../hooks/useDialog";
-import { useMainThreadContext } from "../../../hooks/useMainThread";
-import { markGameResumed, requestGamePointerLock } from "../../../utils/pointerLock";
+import { useReturnToWorld } from "../../../hooks/useReturnToWorld";
 import { usePowerLevels } from "../../../hooks/usePowerLevels";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
@@ -57,7 +56,6 @@ import {
 } from "../../../utils/worldDirectory";
 import { exploreConfig } from "../../../utils/exploreConfig";
 import { worldAtom } from "../../../state/world";
-import { overlayVisibilityAtom } from "../../../state/overlayVisibility";
 import { activeChatsAtom } from "../../../state/overlayChat";
 import { OverlayWindow, overlayWindowAtom, WorldsTab } from "../../../state/overlayWindow";
 import { sidebarTabAtom, SidebarTab } from "../../../state/sidebarTab";
@@ -230,18 +228,6 @@ function useJoinedWorldPreview(room: Room) {
     };
   }, [room]);
   return { preview, topic, hasScript };
-}
-
-/** Closes the overlay and takes the pointer back while the click still counts as a gesture. */
-function useReturnToWorld() {
-  const mainThread = useMainThreadContext();
-  const setOverlayVisibility = useSetAtom(overlayVisibilityAtom);
-  return () => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    markGameResumed();
-    requestGamePointerLock(mainThread.canvas);
-    setOverlayVisibility(false);
-  };
 }
 
 const NO_CALLS: GroupCall[] = [];

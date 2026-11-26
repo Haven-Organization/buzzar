@@ -127,6 +127,12 @@ Open **Instances** from a world's ⋯ menu to see who is in which instance, join
 
 In a world with a LiveKit call, press **Alt + S** or use the **Share Screen** button next to the call buttons in the Chat tab (on a computer) to show your screen to everyone there: as a floating screen in front of you, or on one of the world's own screens. A floating screen stands on a handle. Grab the handle to carry it, hold **R** and move the mouse to turn it around or tilt it, and press **X** while aiming at it to stop sharing. Its back tells people on the other side who is sharing. The world chooses who may share in **World Settings → Calls**. Your screen's sound isn't shared.
 
+#### Leaving a world
+
+Opening the menu doesn't take you out of a world: you stay in it, and its call, until you leave. People there can still see your avatar and hear you. While a full-screen window (Worlds, Things, Settings…) is open, a bar at the top says so, with **Return** and **Leave World**; the panel under the chat list has **Leave World** too.
+
+If you're away from a world (the menu open, or Buzzar hidden) for 15 minutes, Buzzar asks if you're still there, and a minute later takes you out of it. Choose how long, or **Never**, in **Settings → Worlds & Scripts → Leave Worlds When Away**.
+
 #### Blocking and bans
 
 To block someone, open the ⋯ menu next to their name in a world's People list and choose **Block**. In worlds you
