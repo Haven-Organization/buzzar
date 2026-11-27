@@ -26,6 +26,8 @@ export interface ArmChain {
   /** The palm's centre, in the hand bone's space. */
   palm: Vector3;
   fingers: Finger[];
+  /** The shoulder from between the eyes in the bind pose, in the avatar root's space (see restShoulder). */
+  shoulderFromEyes?: Vector3;
 }
 
 export interface HoldRig {
@@ -33,6 +35,8 @@ export interface HoldRig {
   left?: ArmChain;
   /** Bones we posed last frame: their rotation before, and what we left them at. */
   touched: Map<Object3D, { before: Quaternion; after: Quaternion }>;
+  /** The avatar's root, when the rig knows where the shoulders rest (restShoulder). */
+  root?: Object3D;
 }
 
 const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"] as const;
@@ -109,10 +113,36 @@ function buildArm(side: "left" | "right", boneFor: (bone: HumanBone) => Object3D
  * The hold rig for an avatar: its arm chains and hand frames, worked out from the skeleton as it is now (call while
  * it's in its bind pose, with world matrices up to date).
  */
-export function createHoldRig(boneFor: (bone: HumanBone) => Object3D | undefined): HoldRig | undefined {
+export function createHoldRig(
+  boneFor: (bone: HumanBone) => Object3D | undefined,
+  root?: Object3D
+): HoldRig | undefined {
   const right = buildArm("right", boneFor);
   const left = buildArm("left", boneFor);
-  return right || left ? { right, left, touched: new Map() } : undefined;
+  if (!right && !left) return undefined;
+  // Where each shoulder rests from the eyes (the first-person camera), so an aimed Thing can be placed from the
+  // camera alone: the live shoulder sways with the idle animation, and the Thing jumped with it.
+  const head = worldPos(boneFor("head"));
+  const leftEye = worldPos(boneFor("leftEye"));
+  const rightEye = worldPos(boneFor("rightEye"));
+  if (root && head) {
+    const up = root.localToWorld(new Vector3(0, 1, 0)).sub(root.localToWorld(new Vector3())).normalize();
+    const eyes =
+      leftEye && rightEye ? leftEye.clone().add(rightEye).multiplyScalar(0.5) : head.clone().addScaledVector(up, 0.08);
+    const local = (v: Vector3) => root.worldToLocal(v.clone());
+    for (const arm of [right, left]) if (arm) arm.shoulderFromEyes = local(worldPos(arm.upper)!).sub(local(eyes));
+  }
+  return { right, left, touched: new Map(), root };
+}
+
+/**
+ * Where `arm`'s shoulder rests for a camera at `eyes`: its bind-pose place turned with the avatar, not where the
+ * animation has it this frame. Falls back to the live shoulder.
+ */
+export function restShoulder(rig: HoldRig, arm: ArmChain, eyes: Vector3) {
+  if (!rig.root || !arm.shoulderFromEyes) return worldPos(arm.upper)!;
+  const origin = rig.root.localToWorld(new Vector3());
+  return rig.root.localToWorld(arm.shoulderFromEyes.clone()).sub(origin).add(eyes);
 }
 
 /** Undo last frame's posing on bones the animation didn't write this frame (else it would build up). */
@@ -266,10 +296,17 @@ const OFFHAND_REACH = 0.93;
  * grip, given where it would be (`position`, `rotation`). A long Thing held out from one shoulder can have its
  * forend out of the other arm's reach, which left that hand stretched and unable to follow a pump.
  */
-export function offhandPullback(rig: HoldRig, spec: HoldSpec, position: Vector3, rotation: Quaternion, back: Vector3) {
+export function offhandPullback(
+  rig: HoldRig,
+  spec: HoldSpec,
+  position: Vector3,
+  rotation: Quaternion,
+  back: Vector3,
+  eyes?: Vector3
+) {
   const arm = rig[spec.hand === "right" ? "left" : "right"];
   if (!arm || !spec.offhand) return 0;
-  const shoulder = worldPos(arm.upper)!;
+  const shoulder = eyes ? restShoulder(rig, arm, eyes) : worldPos(arm.upper)!;
   const elbow = worldPos(arm.lower)!;
   const wrist = worldPos(arm.hand)!;
   const palm = arm.hand.localToWorld(arm.palm.clone());

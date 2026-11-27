@@ -592,7 +592,7 @@ function createAvatarAnimationExtras(
     holdRig = createHoldRig((bone) => {
       const index = mapping.bones.get(bone);
       return index === undefined ? undefined : objectFor(index);
-    });
+    }, rootObj);
   } catch (error) {
     console.warn("Avatar hold poses disabled:", error);
   }

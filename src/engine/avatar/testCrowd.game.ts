@@ -68,8 +68,11 @@ export const TestCrowdModule = defineModule<GameContext, TestCrowdState>({
     return { avatars: [] };
   },
   init(ctx) {
-    return registerMessageHandler(ctx, SpawnCrowdMessage, (ctx: GameContext, message: { type: typeof SpawnCrowdMessage; count: number }) =>
-      spawnCrowd(ctx, Math.max(0, Math.min(200, Math.round(message.count))))
+    return registerMessageHandler(
+      ctx,
+      SpawnCrowdMessage,
+      (ctx: GameContext, message: { type: typeof SpawnCrowdMessage; count: number }) =>
+        spawnCrowd(ctx, Math.max(0, Math.min(200, Math.round(message.count))))
     );
   },
 });

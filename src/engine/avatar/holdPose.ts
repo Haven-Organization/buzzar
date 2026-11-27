@@ -30,7 +30,16 @@ import { OurPlayer } from "../player/Player";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import { HoldSpec } from "./holdSpec";
-import { ArmChain, gripMatrix, HoldRig, offhandPullback, poseHands, restoreUntouched, worldPos } from "./holdRig";
+import {
+  ArmChain,
+  gripMatrix,
+  HoldRig,
+  offhandPullback,
+  poseHands,
+  restoreUntouched,
+  restShoulder,
+  worldPos,
+} from "./holdRig";
 
 export { createHoldRig, handFrameNow, reachFor } from "./holdRig";
 export type { HoldRig } from "./holdRig";
@@ -187,7 +196,8 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
 
   let anchor: Vector3;
   if (arm) {
-    const shoulder = worldPos(arm.upper)!;
+    // From the camera, not the live shoulder bone: the idle animation's sway moved the Thing in your view.
+    const shoulder = rig ? restShoulder(rig, arm, camPos) : worldPos(arm.upper)!;
     const length =
       worldPos(arm.upper)!.distanceTo(worldPos(arm.lower)!) + worldPos(arm.lower)!.distanceTo(worldPos(arm.hand)!);
     anchor = shoulder
@@ -204,7 +214,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
   const position = anchor.clone().sub(new Vector3(...spec.grip.position).applyQuaternion(rotation));
   // Brought back towards you as far as the other hand needs to reach its grip.
   if (rig) {
-    const pull = offhandPullback(rig, spec, position, rotation, forward.clone().negate());
+    const pull = offhandPullback(rig, spec, position, rotation, forward.clone().negate(), camPos);
     anchor.addScaledVector(forward, -pull);
     position.addScaledVector(forward, -pull);
   }
@@ -296,7 +306,13 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   else if (ours) thingMatrix = placeAimed(ctx, player, ours, rig);
   else thingMatrix = new Matrix4().fromArray(thing.worldMatrix as unknown as number[]);
 
-  poseHands(rig, spec, thingMatrix, body, !(ours && spec.pose === "hand"), offhandShift.get(thing.eid),
+  poseHands(
+    rig,
+    spec,
+    thingMatrix,
+    body,
+    !(ours && spec.pose === "hand"),
+    offhandShift.get(thing.eid),
     thingsInUse.has(thing.eid)
   );
 }
