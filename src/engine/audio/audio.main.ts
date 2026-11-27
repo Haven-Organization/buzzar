@@ -446,47 +446,48 @@ function processAudioPlaybackRingBuffer(ctx: MainContext, audioModule: MainAudio
   for (let i = 0; i < audioPlaybackQueue.length; i++) {
     const item = audioPlaybackQueue[i];
 
-    if (item.tick >= ctx.tick) {
-      const audioSource = getLocalResource<MainAudioSource>(ctx, item.audioSourceId);
-      const audioSourceGainNode = audioSource?.gainNode;
+    // Buzzar: carry out every command in order, whatever its tick. Only taking those from the game tick the main
+    // thread is on (`item.tick >= ctx.tick`) left any sent while the game was a tick or more ahead (a slow frame, e.g.
+    // opening the overlay) in the queue for good: a Stop was lost and a looping sound played forever.
+    const audioSource = getLocalResource<MainAudioSource>(ctx, item.audioSourceId);
+    const audioSourceGainNode = audioSource?.gainNode;
 
-      if (!audioSource || !audioSourceGainNode) {
-        console.warn("One shot audio source not loaded yet.");
-        continue;
-      }
-
-      const audioData = audioSource.audio?.data;
-
-      if (!audioData) {
-        console.warn("Audio data not loaded yet.");
-        continue;
-      }
-
-      if (audioData instanceof MediaStream) {
-        console.warn("MediaStream audio sources cannot be controlled.");
-      } else {
-        switch (item.action) {
-          case AudioAction.Play:
-            playAudio(audioModule, audioSource, audioSourceGainNode, audioData, item.time);
-            break;
-          case AudioAction.PlayOneShot:
-            playOneShotAudio(audioModule, audioSourceGainNode, audioData, item.gain, item.playbackRate);
-            break;
-          case AudioAction.Pause:
-            pauseAudio(audioSource, audioData);
-            break;
-          case AudioAction.Seek:
-            seekAudio(audioSource, audioData, item.time);
-            break;
-          case AudioAction.Stop:
-            stopAudio(audioSource, audioData);
-            break;
-        }
-      }
-
-      audioPlaybackQueue.splice(i, 1);
-      i--;
+    if (!audioSource || !audioSourceGainNode) {
+      console.warn("One shot audio source not loaded yet.");
+      continue;
     }
+
+    const audioData = audioSource.audio?.data;
+
+    if (!audioData) {
+      console.warn("Audio data not loaded yet.");
+      continue;
+    }
+
+    if (audioData instanceof MediaStream) {
+      console.warn("MediaStream audio sources cannot be controlled.");
+    } else {
+      switch (item.action) {
+        case AudioAction.Play:
+          playAudio(audioModule, audioSource, audioSourceGainNode, audioData, item.time);
+          break;
+        case AudioAction.PlayOneShot:
+          playOneShotAudio(audioModule, audioSourceGainNode, audioData, item.gain, item.playbackRate);
+          break;
+        case AudioAction.Pause:
+          pauseAudio(audioSource, audioData);
+          break;
+        case AudioAction.Seek:
+          seekAudio(audioSource, audioData, item.time);
+          break;
+        case AudioAction.Stop:
+          stopAudio(audioSource, audioData);
+          break;
+      }
+    }
+
+    audioPlaybackQueue.splice(i, 1);
+    i--;
   }
 }
 
