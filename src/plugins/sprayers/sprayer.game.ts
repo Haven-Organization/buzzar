@@ -473,5 +473,50 @@ export function SprayerSystem(ctx: GameContext) {
       sprayer.newest = undefined;
     }
     updateDrops(ctx, sprayer, dt);
+    if (sprayer.spraying) debugStream(ctx, sprayer);
+  }
+}
+
+// TEMPORARY (stream glitch hunt): logs ticks where the stream or nozzle does something odd. Remove once found.
+let debugLogged = 0;
+const debugLast = new Map<number, { tick: number; nozzle: number[] }>();
+function debugStream(ctx: GameContext, sprayer: Sprayer) {
+  if (debugLogged > 300) return;
+  const nozzle = Array.from(mat4.getTranslation(vec3.create(), sprayer.nozzle.worldMatrix));
+  const gunWorld = Array.from(mat4.getTranslation(vec3.create(), sprayer.node.worldMatrix));
+  const gunLocal = Array.from(sprayer.node.position);
+  const last = debugLast.get(sprayer.node.eid);
+  debugLast.set(sprayer.node.eid, { tick: ctx.tick, nozzle });
+  const jump = last ? Math.hypot(...nozzle.map((v, i) => v - last.nozzle[i])) : 0;
+  let longest = 0;
+  let long = 0;
+  for (const drop of sprayer.drops) {
+    if (!drop.active) continue;
+    const len = drop.node.scale[2];
+    if (len > longest) longest = len;
+    if (len > 0.3) long++;
+  }
+  const newest = sprayer.newest;
+  const newestGap = newest ? Math.hypot(...nozzle.map((v, i) => v - newest.position[i])) : 0;
+  if (jump > 0.05 || long > 0 || newestGap > sprayer.spec.speed * ctx.dt * 1.5 + 0.05) {
+    debugLogged++;
+    const r = (v: number[]) => v.map((x) => +x.toFixed(3));
+    console.warn(
+      "[spray-debug]",
+      JSON.stringify({
+        tick: ctx.tick,
+        lastTick: last?.tick,
+        dt: +ctx.dt.toFixed(4),
+        jump: +jump.toFixed(3),
+        long,
+        longest: +longest.toFixed(3),
+        newestGap: +newestGap.toFixed(3),
+        nozzle: r(nozzle),
+        gunWorld: r(gunWorld),
+        gunLocal: r(gunLocal),
+        active: sprayer.drops.filter((d) => d.active).length,
+        pool: sprayer.drops.length,
+      })
+    );
   }
 }
