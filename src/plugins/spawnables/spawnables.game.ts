@@ -653,6 +653,8 @@ function replaceThingPhysics(physics: PhysicsModuleState, node: RemoteNode, sett
 
 /** Buzzar: how far up, in steps of SPAWN_LIFT_STEP (m), a spawned object may be moved to clear what's already there. */
 const SPAWN_LIFT_STEP = 0.1;
+/** Things reaching further than this from their centre (metres) are big: see spawnPrefab. */
+const BIG_THING_REACH = 1.5;
 const SPAWN_LIFT_STEPS = 20;
 // Solid, and pushes back: not sensors, nor players' capsules (no solver contacts, so they never shove objects).
 const pushesObjects = (collider: RAPIER.Collider) => !collider.isSensor() && collider.solverGroups() !== 0;
@@ -937,7 +939,12 @@ export function spawnPrefab(
     direction,
     spawnDistance
   );
-  if (blocked === "no-room") {
+  if (blocked === "no-room" && bodyReach(body) > BIG_THING_REACH) {
+    // A big Thing (a crate cloned at 4×) nearly always has something within its own size: keep the spot it was
+    // given, and the lift below raises it clear of whatever it overlaps there.
+    body.setTranslation({ x: prefab.position[0], y: prefab.position[1], z: prefab.position[2] }, true);
+    getModule(ctx, PhysicsModule).physicsWorld.propagateModifiedBodyPositionsToColliders();
+  } else if (blocked === "no-room") {
     console.warn(`Not spawning ${prefabId}: there's no room for it between you and what's in front of you`);
     removeObjectFromWorld(ctx, prefab);
     return true;
