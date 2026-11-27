@@ -66,7 +66,7 @@ How your avatar holds the Thing in its hands. Without it, a held Thing floats in
 "hold": {
   "pose": "aim",
   "hand": "right",
-  "grip": { "position": [0.022, 0, 0], "rotation": [-0.2207, 0, 0, 0.9753], "trigger": { "curl": 10, "pulled": 40 } },
+  "grip": { "position": [0.022, 0.03, -0.013], "rotation": [-0.2207, 0, 0, 0.9753], "trigger": { "position": [0, 0.035, -0.072], "pull": 25 } },
   "offhand": { "position": [-0.03, 0.045, -0.206], "rotation": [-0.5964, -0.3799, 0.3799, 0.5964], "curl": 40 },
   "curl": 75
 }
@@ -90,7 +90,7 @@ A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the
 
 `rotation` turns that hand onto the grip. A vertical handle held in a fist runs along +Y through the curled fingers, so a pistol grip is a handshake frame tilted to match the handle. A hand on a forend or pump handle holds it like a shotgun's: palm underneath, fingers across under it and up its far side, thumb along the near side pointing forward. For the left hand that maps the handshake frame's fingers (−Z) to +X, its thumb (+Y) to −Z and its palm (+X) to +Y, `[-0.5, -0.5, 0.5, 0.5]`; the water gun tilts that 25° so the palm faces up and a little outward. A slim handle needs less `curl` than a pistol grip, or the fingertips come over the top.
 
-A hand frame can also have a `trigger`: `{ "curl": 10, "pulled": 40 }` puts that hand's index finger on a trigger instead of round the grip. It curls `curl` degrees at each joint while the Thing is idle (default 15) and `pulled` while it's in use, such as a water gun spraying (default 30 more).
+A hand frame can also have a `trigger`: `{ "position": [0, 0.035, -0.072], "pull": 25 }` puts that hand's index finger on a trigger instead of round the grip. `position` is where the finger's pad touches the trigger, in the Thing's space; Buzzar turns and curls the finger to reach it, so it fits any hand. While the Thing is in use, such as a water gun spraying, the finger curls `pull` degrees further (default 25).
 
 An aimed Thing is held out from your shoulder, but never further than your other hand can reach its `offhand` grip: a long Thing comes back towards you until that arm reaches with its elbow a little bent.
 

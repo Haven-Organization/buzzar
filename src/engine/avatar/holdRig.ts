@@ -248,8 +248,11 @@ export function poseHands(
       frame.decompose(_a, _q2, _b);
       solveArm(rig, arm, _a.clone(), _q2.clone(), elbowPole(arm, body));
     }
-    const trigger = grip.trigger && (using ? grip.trigger.pulled : grip.trigger.curl);
-    curlFingers(rig, arm, grip.curl ?? spec.curl, trigger);
+    curlFingers(rig, arm, grip.curl ?? spec.curl, grip.trigger ? 0 : undefined);
+    if (grip.trigger) {
+      const target = new Vector3(...grip.trigger.position).applyMatrix4(thingMatrix);
+      reachTrigger(rig, arm, target, using ? grip.trigger.pull : 0);
+    }
   };
   pose(primary, spec.grip, movePrimary);
   pose(other, spec.offhand, true, true);
@@ -284,4 +287,68 @@ export function offhandPullback(rig: HoldRig, spec: HoldSpec, position: Vector3,
     pull += (distance - reach) / rate;
   }
   return Math.min(pull, length * 0.5);
+}
+
+/** The index finger's joints (proximal first), the point its pad touches with, and how far that is from `target`. */
+function indexPad(arm: ArmChain) {
+  const joints = arm.fingers.filter((f) => f.name === "Index");
+  const n = joints.length;
+  if (n < 2) return undefined;
+  const pad = () => {
+    // Halfway along the last bone, plus as far again past its joint as it is long (the fingertip's pad).
+    const last = worldPos(joints[n - 1].bone)!;
+    const before = worldPos(joints[n - 2].bone)!;
+    return last.clone().addScaledVector(last.clone().sub(before), 0.6);
+  };
+  return { joints, pad };
+}
+
+const MAX_TRIGGER_SWING = (35 * Math.PI) / 180;
+
+/**
+ * Puts the index finger's pad on a trigger at `target` (world space): turns the finger at its knuckle towards it
+ * (up to 35°) and curls it as far as brings the pad closest, then `pull` degrees more (squeezing).
+ */
+function reachTrigger(rig: HoldRig, arm: ArmChain, target: Vector3, pull: number) {
+  const index = indexPad(arm);
+  if (!index) return;
+  const { joints, pad } = index;
+  // The knuckle bone (skip a metacarpal: it hardly moves in a real hand).
+  const curling = joints.filter((f) => !/Metacarpal/.test(f.bone.name) || joints.length < 4);
+  const base = curling[0].bone;
+  const rest = curling.map((f) => f.bone.quaternion.clone());
+  const setCurl = (degrees: number) => {
+    const radians = (degrees * Math.PI) / 180;
+    curling.forEach((f, i) => f.bone.quaternion.copy(rest[i]).multiply(_q2.setFromAxisAngle(f.axis, radians)));
+    base.updateMatrixWorld(true);
+  };
+  const bestCurl = () => {
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let degrees = 0; degrees <= 90; degrees += 3) {
+      setCurl(degrees);
+      const distance = pad().distanceTo(target);
+      if (distance < bestDistance) [best, bestDistance] = [degrees, distance];
+    }
+    return best;
+  };
+  for (let pass = 0; pass < 2; pass++) {
+    const curl = bestCurl();
+    setCurl(curl);
+    // Turn at the knuckle so the pad meets the target, a little at most.
+    const origin = worldPos(base)!;
+    _q.setFromUnitVectors(pad().sub(origin).normalize(), target.clone().sub(origin).normalize());
+    const angle = 2 * Math.acos(Math.min(1, Math.abs(_q.w)));
+    if (angle > MAX_TRIGGER_SWING) _q.slerp(new Quaternion(), 1 - MAX_TRIGGER_SWING / angle);
+    const world = base.getWorldQuaternion(new Quaternion()).premultiply(_q);
+    const parentWorld = base.parent ? base.parent.getWorldQuaternion(new Quaternion()) : new Quaternion();
+    // The turned knuckle, with its curl taken back out, is the new rest for the curl search.
+    rest[0]
+      .copy(parentWorld.invert().multiply(world))
+      .multiply(_q2.setFromAxisAngle(curling[0].axis, (-curl * Math.PI) / 180));
+  }
+  const curl = bestCurl() + pull;
+  curling.forEach((f, i) =>
+    setLocalRotation(rig, f.bone, rest[i].clone().multiply(_q2.setFromAxisAngle(f.axis, (curl * Math.PI) / 180)))
+  );
 }

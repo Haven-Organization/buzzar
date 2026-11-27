@@ -20,10 +20,11 @@ export interface HoldGrip {
   /** Degrees this hand's fingers curl, when it differs from the hold's `curl` (a slim pump handle needs less). */
   curl?: number;
   /**
-   * This hand's index finger rests on a trigger: it curls `curl` degrees while the Thing is idle and `pulled` while
-   * it's in use (a water gun spraying), instead of curling with the other fingers.
+   * This hand's index finger rests on a trigger at `position` (in the Thing's space: where the finger's pad touches
+   * it), reaching for it whatever the hand's size, and curls `pull` degrees further while the Thing is in use (a water
+   * gun spraying).
    */
-  trigger?: { curl: number; pulled: number };
+  trigger?: { position: [number, number, number]; pull: number };
 }
 
 export interface HoldSpec {
@@ -53,11 +54,11 @@ function readGrip(v: unknown): HoldGrip | undefined {
     if (length > 1e-6) rotation = [r[0] / length, r[1] / length, r[2] / length, r[3] / length];
   }
   const curl = typeof v.curl === "number" && v.curl >= 0 && v.curl <= 120 ? v.curl : undefined;
-  const angle = (x: unknown) => (typeof x === "number" && x >= 0 && x <= 120 ? x : undefined);
   let trigger: HoldGrip["trigger"];
-  if (isRecord(v.trigger)) {
-    const rest = angle(v.trigger.curl) ?? 15;
-    trigger = { curl: rest, pulled: angle(v.trigger.pulled) ?? rest + 30 };
+  const at = isRecord(v.trigger) ? vec3(v.trigger.position) : undefined;
+  if (isRecord(v.trigger) && at) {
+    const pull = v.trigger.pull;
+    trigger = { position: at, pull: typeof pull === "number" && pull >= 0 && pull <= 90 ? pull : 25 };
   }
   return { position, rotation, curl, trigger };
 }
