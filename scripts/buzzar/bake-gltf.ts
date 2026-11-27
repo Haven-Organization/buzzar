@@ -243,6 +243,8 @@ if (flags.has("--map")) {
   console.log("map:", JSON.stringify(gltf.extensions.HAVEN_map), `${picture.length} bytes`);
 }
 
+// Items' extension under its old name (moved to HAVEN_item above) is no longer used.
+if (!gltf.extensions?.HAVEN_thing) used.delete("HAVEN_thing");
 gltf.extensionsUsed = Array.from(used);
 let json = Buffer.from(JSON.stringify(gltf), "utf8");
 json = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4, 0x20)]);

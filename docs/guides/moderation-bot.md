@@ -122,5 +122,5 @@ It re-checks every world every 10 minutes, as well as whenever a world's setting
 
 ## Planned
 
-- Watching Buzzar's own world settings (Things, avatars, world rules) and alerting moderators.
+- Watching Buzzar's own world settings (Items, avatars, world rules) and alerting moderators.
 - Acting on in-world reports: turning a report into a world ban.
