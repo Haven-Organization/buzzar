@@ -19,6 +19,11 @@ export interface HoldGrip {
   rotation: [number, number, number, number];
   /** Degrees this hand's fingers curl, when it differs from the hold's `curl` (a slim pump handle needs less). */
   curl?: number;
+  /**
+   * This hand's index finger rests on a trigger: it curls `curl` degrees while the Thing is idle and `pulled` while
+   * it's in use (a water gun spraying), instead of curling with the other fingers.
+   */
+  trigger?: { curl: number; pulled: number };
 }
 
 export interface HoldSpec {
@@ -48,7 +53,13 @@ function readGrip(v: unknown): HoldGrip | undefined {
     if (length > 1e-6) rotation = [r[0] / length, r[1] / length, r[2] / length, r[3] / length];
   }
   const curl = typeof v.curl === "number" && v.curl >= 0 && v.curl <= 120 ? v.curl : undefined;
-  return { position, rotation, curl };
+  const angle = (x: unknown) => (typeof x === "number" && x >= 0 && x <= 120 ? x : undefined);
+  let trigger: HoldGrip["trigger"];
+  if (isRecord(v.trigger)) {
+    const rest = angle(v.trigger.curl) ?? 15;
+    trigger = { curl: rest, pulled: angle(v.trigger.pulled) ?? rest + 30 };
+  }
+  return { position, rotation, curl, trigger };
 }
 
 /** A Thing file's `HAVEN_thing.hold` (untrusted), or undefined when it doesn't say how it's held. */

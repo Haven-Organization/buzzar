@@ -9,6 +9,7 @@ import { HumanBone } from "./humanoid";
 import { HoldGrip, HoldSpec } from "./holdSpec";
 
 interface Finger {
+  name: (typeof FINGERS)[number];
   bone: Object3D;
   /** Curl axis in the bone's own space. */
   axis: Vector3;
@@ -93,6 +94,7 @@ function buildArm(side: "left" | "right", boneFor: (bone: HumanBone) => Object3D
         if (!obj) continue;
         const inverse = obj.getWorldQuaternion(new Quaternion()).invert();
         fingers.push({
+          name: finger,
           bone: obj,
           axis: curl.clone().applyQuaternion(inverse).normalize(),
           amount: finger === "Thumb" ? 0.5 : 1,
@@ -197,10 +199,11 @@ export function handFrameNow(rig: HoldRig, side: "left" | "right") {
   };
 }
 
-export function curlFingers(rig: HoldRig, arm: ArmChain, degrees: number) {
-  const radians = (degrees * Math.PI) / 180;
+/** Curls a hand's fingers `degrees` at each joint (the thumb half as much), the index finger `index` if given. */
+export function curlFingers(rig: HoldRig, arm: ArmChain, degrees: number, index?: number) {
   for (const finger of arm.fingers) {
-    _q2.setFromAxisAngle(finger.axis, radians * finger.amount);
+    const amount = finger.name === "Index" && index !== undefined ? index : degrees;
+    _q2.setFromAxisAngle(finger.axis, ((amount * Math.PI) / 180) * finger.amount);
     setLocalRotation(rig, finger.bone, finger.bone.quaternion.clone().multiply(_q2));
   }
 }
@@ -228,7 +231,9 @@ export function poseHands(
   thingMatrix: Matrix4,
   body: Quaternion,
   movePrimary: boolean,
-  shift?: [number, number, number]
+  shift?: [number, number, number],
+  /** The Thing is in use (a water gun spraying): a hand on a `trigger` squeezes it. */
+  using = false
 ) {
   const primary = rig[spec.hand];
   const other = rig[spec.hand === "right" ? "left" : "right"];
@@ -243,8 +248,40 @@ export function poseHands(
       frame.decompose(_a, _q2, _b);
       solveArm(rig, arm, _a.clone(), _q2.clone(), elbowPole(arm, body));
     }
-    curlFingers(rig, arm, grip.curl ?? spec.curl);
+    const trigger = grip.trigger && (using ? grip.trigger.pulled : grip.trigger.curl);
+    curlFingers(rig, arm, grip.curl ?? spec.curl, trigger);
   };
   pose(primary, spec.grip, movePrimary);
   pose(other, spec.offhand, true, true);
+}
+
+/** How much of its full reach an arm stretches to for a grip: a little short, so the elbow stays slightly bent. */
+const OFFHAND_REACH = 0.93;
+
+/**
+ * How far to bring an aimed Thing back towards you (along `back`, metres) so the other hand can reach its `offhand`
+ * grip, given where it would be (`position`, `rotation`). A long Thing held out from one shoulder can have its
+ * forend out of the other arm's reach, which left that hand stretched and unable to follow a pump.
+ */
+export function offhandPullback(rig: HoldRig, spec: HoldSpec, position: Vector3, rotation: Quaternion, back: Vector3) {
+  const arm = rig[spec.hand === "right" ? "left" : "right"];
+  if (!arm || !spec.offhand) return 0;
+  const shoulder = worldPos(arm.upper)!;
+  const elbow = worldPos(arm.lower)!;
+  const wrist = worldPos(arm.hand)!;
+  const palm = arm.hand.localToWorld(arm.palm.clone());
+  const length = shoulder.distanceTo(elbow) + elbow.distanceTo(wrist);
+  const reach = (length + wrist.distanceTo(palm)) * OFFHAND_REACH;
+  const grip = new Vector3(...spec.offhand.position).applyQuaternion(rotation).add(position);
+  let pull = 0;
+  for (let i = 0; i < 6; i++) {
+    const at = grip.clone().addScaledVector(back, pull).sub(shoulder);
+    const distance = at.length();
+    if (distance <= reach + 1e-3) break;
+    // How fast the distance shrinks as it comes back; if it doesn't, coming back can't help.
+    const rate = -at.dot(back) / distance;
+    if (rate < 0.05) break;
+    pull += (distance - reach) / rate;
+  }
+  return Math.min(pull, length * 0.5);
 }

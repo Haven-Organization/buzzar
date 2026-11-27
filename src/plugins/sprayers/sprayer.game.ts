@@ -15,7 +15,7 @@ import { GameContext } from "../../engine/GameTypes";
 import { defineModule, getModule } from "../../engine/module/module.common";
 import { GLTFResource, loadGLTFAudioData } from "../../engine/gltf/gltf.game";
 import { addChild, findChild } from "../../engine/component/transform";
-import { offhandShift } from "../../engine/avatar/holdPose";
+import { offhandShift, thingsInUse } from "../../engine/avatar/holdPose";
 import { createMesh } from "../../engine/mesh/mesh.game";
 import { playAudio, playOneShotAudio, stopAudio } from "../../engine/audio/audio.game";
 import { InputModule } from "../../engine/input/input.game";
@@ -243,6 +243,7 @@ function disposeSprayer(ctx: GameContext, eid: number, sprayer: Sprayer) {
   sprayer.mesh.removeRef();
   usableThings.delete(eid);
   offhandShift.delete(eid);
+  thingsInUse.delete(eid);
   getModule(ctx, SprayerModule).sprayers.delete(eid);
 }
 
@@ -461,6 +462,8 @@ export function SprayerSystem(ctx: GameContext) {
 
     updatePumpStroke(sprayer);
     updateSpraySound(ctx, sprayer);
+    if (sprayer.spraying) thingsInUse.add(eid);
+    else thingsInUse.delete(eid);
 
     if (sprayer.spraying) {
       updateWobble(sprayer, dt);

@@ -30,7 +30,7 @@ import { OurPlayer } from "../player/Player";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import { HoldSpec } from "./holdSpec";
-import { ArmChain, gripMatrix, HoldRig, poseHands, restoreUntouched, worldPos } from "./holdRig";
+import { ArmChain, gripMatrix, HoldRig, offhandPullback, poseHands, restoreUntouched, worldPos } from "./holdRig";
 
 export { createHoldRig, handFrameNow, reachFor } from "./holdRig";
 export type { HoldRig } from "./holdRig";
@@ -154,6 +154,8 @@ export function registerHoldNetwork(ctx: GameContext) {
  * set while something moves it, such as a water gun's pump stroke (HAVEN_sprayer pumpStroke).
  */
 export const offhandShift = new Map<number, [number, number, number]>();
+/** Held Things in use right now (a water gun spraying), by entity, set by what uses them: a hand on a trigger squeezes. */
+export const thingsInUse = new Set<number>();
 
 /* ---------- Placing your own held Thing ---------- */
 
@@ -173,7 +175,7 @@ const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
  * Places an aimed Thing: pointed where you look, its grip held out from your shoulder (or, without an avatar, low
  * and to the side of your view), and turned slightly so its aim line meets what you're looking at.
  */
-function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, arm: ArmChain | undefined): Matrix4 {
+function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: HoldRig | undefined): Matrix4 {
   const { spec, node } = hold;
   const camera = getCamera(ctx, player);
   const camMatrix = new Matrix4().fromArray(camera.worldMatrix as unknown as number[]);
@@ -181,6 +183,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, arm: 
   const camRot = new Quaternion().setFromRotationMatrix(camMatrix);
   const forward = new Vector3(0, 0, -1).applyQuaternion(camRot);
   const side = spec.hand === "right" ? 1 : -1;
+  const arm = rig?.[spec.hand];
 
   let anchor: Vector3;
   if (arm) {
@@ -199,6 +202,12 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, arm: 
   const rotation = camRot.clone().multiply(new Quaternion().setFromUnitVectors(aimDir, new Vector3(0, 0, -1)));
   // Its grip's palm on the anchor.
   const position = anchor.clone().sub(new Vector3(...spec.grip.position).applyQuaternion(rotation));
+  // Brought back towards you as far as the other hand needs to reach its grip.
+  if (rig) {
+    const pull = offhandPullback(rig, spec, position, rotation, forward.clone().negate());
+    anchor.addScaledVector(forward, -pull);
+    position.addScaledVector(forward, -pull);
+  }
 
   // Converge: turn about the anchor so the aim line meets what's under the crosshair.
   const { physicsWorld } = getModule(ctx, PhysicsModule);
@@ -284,8 +293,10 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
 
   let thingMatrix: Matrix4;
   if (ours && spec.pose === "hand" && primary) thingMatrix = placeInHand(ctx, ours, primary);
-  else if (ours) thingMatrix = placeAimed(ctx, player, ours, primary);
+  else if (ours) thingMatrix = placeAimed(ctx, player, ours, rig);
   else thingMatrix = new Matrix4().fromArray(thing.worldMatrix as unknown as number[]);
 
-  poseHands(rig, spec, thingMatrix, body, !(ours && spec.pose === "hand"), offhandShift.get(thing.eid));
+  poseHands(rig, spec, thingMatrix, body, !(ours && spec.pose === "hand"), offhandShift.get(thing.eid),
+    thingsInUse.has(thing.eid)
+  );
 }
