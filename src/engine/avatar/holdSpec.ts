@@ -58,7 +58,7 @@ function readGrip(v: unknown): HoldGrip | undefined {
   const at = isRecord(v.trigger) ? vec3(v.trigger.position) : undefined;
   if (isRecord(v.trigger) && at) {
     const pull = v.trigger.pull;
-    trigger = { position: at, pull: typeof pull === "number" && pull >= 0 && pull <= 90 ? pull : 25 };
+    trigger = { position: at, pull: typeof pull === "number" && pull >= 0 && pull <= 90 ? pull : 10 };
   }
   return { position, rotation, curl, trigger };
 }

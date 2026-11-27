@@ -325,14 +325,14 @@ function reachTrigger(rig: HoldRig, arm: ArmChain, target: Vector3, pull: number
   const bestCurl = () => {
     let best = 0;
     let bestDistance = Infinity;
-    for (let degrees = 0; degrees <= 90; degrees += 3) {
+    for (let degrees = 0; degrees <= 100; degrees += 2) {
       setCurl(degrees);
       const distance = pad().distanceTo(target);
       if (distance < bestDistance) [best, bestDistance] = [degrees, distance];
     }
     return best;
   };
-  for (let pass = 0; pass < 2; pass++) {
+  for (let pass = 0; pass < 8; pass++) {
     const curl = bestCurl();
     setCurl(curl);
     // Turn at the knuckle so the pad meets the target, a little at most.
