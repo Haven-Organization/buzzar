@@ -7,14 +7,16 @@
  * on each client: drops leave the nozzle, fall, and vanish when they hit something.
  */
 import RAPIER from "@dimforge/rapier3d-compat";
-import { mat4, quat, vec3 } from "gl-matrix";
+import { mat3, mat4, quat, vec3 } from "gl-matrix";
 import { hasComponent } from "bitecs";
+import { CylinderGeometry } from "three";
 
 import { GameContext } from "../../engine/GameTypes";
 import { defineModule, getModule } from "../../engine/module/module.common";
 import { GLTFResource, loadGLTFAudioData } from "../../engine/gltf/gltf.game";
-import { addChild } from "../../engine/component/transform";
-import { createSphereMesh } from "../../engine/mesh/mesh.game";
+import { addChild, findChild } from "../../engine/component/transform";
+import { offhandShift } from "../../engine/avatar/holdPose";
+import { createMesh } from "../../engine/mesh/mesh.game";
 import { playAudio, playOneShotAudio, stopAudio } from "../../engine/audio/audio.game";
 import { InputModule } from "../../engine/input/input.game";
 import { ButtonActionState } from "../../engine/input/ActionMap";
@@ -49,7 +51,7 @@ import { AudioEmitterType, MaterialAlphaMode, MaterialType } from "../../engine/
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
 import { GrabComponent } from "../interaction/interaction.game";
 import { usableThings } from "../interaction/usable";
-import { fullTank, readSprayer, SprayerSpec, stepTank, TankState } from "./sprayer.common";
+import { fullTank, pumpStrokeAt, readSprayer, SprayerSpec, stepTank, TankState } from "./sprayer.common";
 
 /** How long a drop lives at most (seconds). */
 const DROP_LIFE = 1.6;
@@ -58,10 +60,17 @@ const GRAVITY = 9.81;
 const DRAG = 0.15;
 
 interface Drop {
+  /** Draws the stretch of stream from this drop to the one fired after it (or the nozzle). */
   node: RemoteNode;
+  position: vec3;
   velocity: vec3;
   life: number;
   active: boolean;
+  /** Changes each time the drop is fired, so a link to a drop that has since been reused is noticed. */
+  serial: number;
+  /** The drop fired just after this one in the same burst, which the stream joins up to. */
+  newer?: Drop;
+  newerSerial: number;
 }
 
 interface Sprayer {
@@ -88,6 +97,16 @@ interface Sprayer {
   carry: number;
   mesh: RemoteMesh;
   drops: Drop[];
+  /** Seconds left of the pump stroke in progress (ours: the tank's; others': from when they said they pumped). */
+  strokeLeft: number;
+  /** The part of the model that moves with the pump (pumpStroke.node), and where it rests. */
+  pumpNode?: RemoteNode;
+  pumpRest: vec3;
+  /** The newest drop of the current burst; the stream runs from it to the nozzle. */
+  newest?: Drop;
+  /** The nozzle's slow wander (radians about x and y), so neighbouring drops fly almost the same way. */
+  wobble: [number, number];
+  wobbleTarget: [number, number];
 }
 
 interface SprayerModuleState {
@@ -123,7 +142,10 @@ export const SprayerModule = defineModule<GameContext, SprayerModuleState>({
       const sprayer = eid !== undefined ? getModule(ctx, SprayerModule).sprayers.get(eid) : undefined;
       if (!sprayer || hasComponent(ctx.world, Owned, sprayer.node.eid)) return;
       sprayer.spraying = (flags & SPRAYING) !== 0;
-      if (flags & PUMPED && sprayer.sounds.pump) playOneShotAudio(ctx, sprayer.sounds.pump);
+      if (flags & PUMPED) {
+        if (sprayer.sounds.pump) playOneShotAudio(ctx, sprayer.sounds.pump);
+        sprayer.strokeLeft = sprayer.spec.pumpTime;
+      }
     });
   },
 });
@@ -182,8 +204,15 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
     metallicFactor: 0,
     roughnessFactor: 0.05,
   });
-  const mesh = createSphereMesh(ctx, spec.dropSize, material);
+  // A unit length of tube along +z: each drop's node stretches it to reach the next drop.
+  const tube = new CylinderGeometry(spec.dropSize / 2, spec.dropSize / 2, 1, 10, 1, true);
+  tube.rotateX(Math.PI / 2).translate(0, 0, 0.5);
+  const mesh = createMesh(ctx, tube, material);
+  tube.dispose();
   mesh.addRef();
+
+  const pumpName = spec.pumpStroke.node;
+  const pumpNode = pumpName ? findChild(node, (n) => n.name === pumpName) : undefined;
 
   module.sprayers.set(node.eid, {
     node,
@@ -199,6 +228,11 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
     carry: 0,
     mesh,
     drops: [],
+    wobble: [0, 0],
+    wobbleTarget: [0, 0],
+    strokeLeft: 0,
+    pumpNode,
+    pumpRest: pumpNode ? vec3.clone(pumpNode.position) : vec3.create(),
   });
   usableThings.add(node.eid);
 }
@@ -208,6 +242,7 @@ function disposeSprayer(ctx: GameContext, eid: number, sprayer: Sprayer) {
   sprayer.drops.length = 0;
   sprayer.mesh.removeRef();
   usableThings.delete(eid);
+  offhandShift.delete(eid);
   getModule(ctx, SprayerModule).sprayers.delete(eid);
 }
 
@@ -220,55 +255,89 @@ const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
 const isSolid = (collider: RAPIER.Collider) =>
   !collider.isSensor() && ((collider.collisionGroups() >>> 16) & CollisionGroup.Player) === 0;
 
-function emitDrop(ctx: GameContext, sprayer: Sprayer) {
+let dropSerial = 0;
+
+/** Fires a drop that left the nozzle `ago` seconds before now (drops in one frame are spaced out in time). */
+function emitDrop(ctx: GameContext, sprayer: Sprayer, ago: number) {
   let drop = sprayer.drops.find((d) => !d.active);
   if (!drop) {
     if (sprayer.drops.length >= Math.ceil(sprayer.spec.rate * DROP_LIFE) + 4) return;
-    const node = new RemoteNode(ctx.resourceManager, { name: "Water Drop", mesh: sprayer.mesh });
+    const node = new RemoteNode(ctx.resourceManager, { name: "Water Stream", mesh: sprayer.mesh });
     addObjectToWorld(ctx, node);
-    drop = { node, velocity: vec3.create(), life: 0, active: false };
+    drop = {
+      node,
+      position: vec3.create(),
+      velocity: vec3.create(),
+      life: 0,
+      active: false,
+      serial: 0,
+      newerSerial: 0,
+    };
     sprayer.drops.push(drop);
   }
   const { spec, node, nozzle } = sprayer;
   mat4.getTranslation(_nozzleWorld, nozzle.worldMatrix);
   getRotationNoAlloc(_rotation, node.worldMatrix);
   vec3.transformQuat(_direction, spec.direction, _rotation);
-  // Wander by up to `spread` degrees.
-  const spread = (spec.spread * Math.PI) / 180;
-  quat.fromEuler(
-    _jitter,
-    ((Math.random() - 0.5) * spread * 360) / Math.PI,
-    ((Math.random() - 0.5) * spread * 360) / Math.PI,
-    0
-  );
+  quat.fromEuler(_jitter, (sprayer.wobble[0] * 180) / Math.PI, (sprayer.wobble[1] * 180) / Math.PI, 0);
   vec3.transformQuat(_direction, _direction, _jitter);
-  vec3.scale(drop.velocity, _direction, spec.speed * (0.95 + Math.random() * 0.1));
-  vec3.copy(drop.node.position, _nozzleWorld);
-  drop.life = DROP_LIFE;
+  vec3.scale(drop.velocity, _direction, spec.speed);
+  vec3.scaleAndAdd(drop.position, _nozzleWorld, drop.velocity, ago);
+  drop.life = DROP_LIFE - ago;
   drop.active = true;
+  drop.serial = ++dropSerial;
+  drop.newer = undefined;
   drop.node.visible = true;
-  shapeDrop(sprayer, drop);
+  // The previous drop of this burst now joins up to this one instead of the nozzle.
+  const previous = sprayer.newest;
+  if (previous && previous.active) {
+    previous.newer = drop;
+    previous.newerSerial = drop.serial;
+  }
+  sprayer.newest = drop;
+}
+
+/** The nozzle wanders smoothly within `spread` degrees, so the jet sways a little instead of scattering. */
+function updateWobble(sprayer: Sprayer, dt: number) {
+  const spread = (sprayer.spec.spread * Math.PI) / 180;
+  const { wobble, wobbleTarget } = sprayer;
+  if (Math.random() < dt * 4) {
+    wobbleTarget[0] = (Math.random() - 0.5) * spread;
+    wobbleTarget[1] = (Math.random() - 0.5) * spread;
+  }
+  const k = Math.min(1, dt * 6);
+  wobble[0] += (wobbleTarget[0] - wobble[0]) * k;
+  wobble[1] += (wobbleTarget[1] - wobble[1]) * k;
 }
 
 const FORWARD = vec3.fromValues(0, 0, 1);
-const _along = vec3.create();
-/** How much each drop overlaps the next along the stream, so they join up into one jet. */
-const OVERLAP = 1.9;
+const _gap = vec3.create();
 
 /**
- * Drops are stretched along their flight and overlap the next one, so together they draw a jet of water rather than
- * a row of balls; older drops (further out) get wider and shorter, as a stream breaks up.
+ * Each drop draws a tube from itself to the drop fired after it, and the newest drop of a burst to the nozzle, so the
+ * stream is one unbroken jet. It thickens as it goes (the jet spreads); a drop whose neighbour is gone (it hit
+ * something, or the burst ended) is a short blob.
  */
 function shapeDrop(sprayer: Sprayer, drop: Drop) {
-  const speed = vec3.length(drop.velocity);
-  if (speed < 1e-4) return;
-  vec3.scale(_along, drop.velocity, 1 / speed);
-  quat.rotationTo(drop.node.quaternion, FORWARD, _along);
-  const { rate, dropSize } = sprayer.spec;
   const age = 1 - drop.life / DROP_LIFE;
-  const width = 1 + 1.2 * age;
-  const length = Math.max(1, ((speed / rate) * OVERLAP) / (2 * dropSize)) * (1 - 0.3 * age);
-  vec3.set(drop.node.scale, width, width, Math.max(width, length));
+  const width = 1 + 1.5 * age;
+  let target: vec3 | undefined;
+  if (drop.newer && drop.newer.active && drop.newer.serial === drop.newerSerial) target = drop.newer.position;
+  else if (drop === sprayer.newest && sprayer.spraying)
+    target = mat4.getTranslation(_nozzleWorld, sprayer.nozzle.worldMatrix);
+  let length: number;
+  if (target) {
+    vec3.subtract(_gap, target, drop.position);
+    length = vec3.length(_gap);
+  } else {
+    // Alone: a short blob pointing back along its flight.
+    vec3.negate(_gap, drop.velocity);
+    length = sprayer.spec.dropSize * width * 1.5;
+  }
+  const n = vec3.length(_gap);
+  if (n > 1e-6) quat.rotationTo(drop.node.quaternion, FORWARD, vec3.scale(_gap, _gap, 1 / n));
+  vec3.copy(drop.node.position, drop.position);
+  vec3.set(drop.node.scale, width, width, Math.max(1e-4, length));
 }
 
 function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
@@ -277,7 +346,7 @@ function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
   for (const drop of sprayer.drops) {
     if (!drop.active) continue;
     drop.life -= dt;
-    const p = drop.node.position;
+    const p = drop.position;
     const v = drop.velocity;
     v[1] -= GRAVITY * dt;
     vec3.scale(v, v, 1 - DRAG * dt);
@@ -296,7 +365,31 @@ function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
     p[0] += v[0] * dt;
     p[1] += v[1] * dt;
     p[2] += v[2] * dt;
-    shapeDrop(sprayer, drop);
+  }
+  // Shape after everything has moved, so each tube meets its neighbour where it is now.
+  for (const drop of sprayer.drops) if (drop.active) shapeDrop(sprayer, drop);
+}
+
+const _inverse = mat4.create();
+const _mat3 = mat3.create();
+const _toPart = mat4.create();
+const _offset = vec3.create();
+
+/** Slides the hand on the pump, and the pump itself, back and forth over a stroke. */
+function updatePumpStroke(sprayer: Sprayer) {
+  const { spec, node, pumpNode } = sprayer;
+  const t = spec.pumpTime > 0 ? 1 - sprayer.strokeLeft / spec.pumpTime : 1;
+  const travel = pumpStrokeAt(t);
+  const [x, y, z] = spec.pumpStroke.offset;
+  if (travel > 0) offhandShift.set(node.eid, [x * travel, y * travel, z * travel]);
+  else offhandShift.delete(node.eid);
+  if (pumpNode?.parent) {
+    // The offset is in the Thing's space; the part moves in its parent's.
+    mat4.invert(_inverse, pumpNode.parent.worldMatrix);
+    mat4.multiply(_toPart, _inverse, node.worldMatrix);
+    vec3.set(_offset, x * travel, y * travel, z * travel);
+    vec3.transformMat3(_offset, _offset, mat3.fromMat4(_mat3, _toPart));
+    vec3.add(pumpNode.position, sprayer.pumpRest, _offset);
   }
 }
 
@@ -354,24 +447,30 @@ export function SprayerSystem(ctx: GameContext) {
         holding && !!use?.pressed
       );
       sprayer.spraying = step.spraying;
+      sprayer.strokeLeft = sprayer.tank.pumping;
       if (step.pumped && sprayer.sounds.pump) playOneShotAudio(ctx, sprayer.sounds.pump);
       if (step.ranDry && sprayer.sounds.empty) playOneShotAudio(ctx, sprayer.sounds.empty);
       if (step.spraying !== sprayer.announced || step.pumped) {
         sendSprayState(ctx, eid, step.spraying, step.pumped);
         sprayer.announced = step.spraying;
       }
-    }
+    } else sprayer.strokeLeft = Math.max(0, sprayer.strokeLeft - dt);
 
+    updatePumpStroke(sprayer);
     updateSpraySound(ctx, sprayer);
 
     if (sprayer.spraying) {
-      sprayer.carry += sprayer.spec.rate * dt;
+      updateWobble(sprayer, dt);
+      const { rate } = sprayer.spec;
+      sprayer.carry += rate * dt;
       while (sprayer.carry >= 1) {
         sprayer.carry -= 1;
-        emitDrop(ctx, sprayer);
+        // `carry` drops' worth of time has passed since this one should have left the nozzle.
+        emitDrop(ctx, sprayer, sprayer.carry / rate);
       }
     } else {
       sprayer.carry = 0;
+      sprayer.newest = undefined;
     }
     updateDrops(ctx, sprayer, dt);
   }

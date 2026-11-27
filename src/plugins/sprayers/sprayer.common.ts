@@ -46,7 +46,15 @@ export interface SprayerSpec {
   sounds: { start?: number; spray?: number; pump?: number; empty?: number };
   /** Seconds of the `start` sound before the `spray` loop takes over. */
   startLength: number;
+  /**
+   * How a pump stroke moves: the hand on the pump (the hold's `offhand`), and the part of the model named `node` if
+   * there is one, slide by `offset` (the Thing's space, metres) and back again over `pumpTime`.
+   */
+  pumpStroke: { offset: [number, number, number]; node?: string };
 }
+
+/** How far through its travel a pump stroke is, `t` (0..1) of the way through it: out and back. */
+export const pumpStrokeAt = (t: number) => (t <= 0 || t >= 1 ? 0 : Math.sin(Math.PI * t));
 
 export const MAX_DROPS_PER_SECOND = 120;
 
@@ -84,7 +92,22 @@ export function readSprayer(gltf: { extensions?: AnyRecord } | undefined): Spray
       empty: index(sounds.empty),
     },
     startLength: num(ext.startLength, 0, 30) ?? 0,
+    pumpStroke: readPumpStroke(ext.pumpStroke, direction),
   };
+}
+
+const DEFAULT_PUMP_TRAVEL = 0.07;
+
+function readPumpStroke(raw: unknown, direction: [number, number, number]): SprayerSpec["pumpStroke"] {
+  const stroke = isRecord(raw) ? raw : {};
+  const given = vec3(stroke.offset);
+  // Metres, so anything longer than an arm is a mistake.
+  const offset: [number, number, number] =
+    given && Math.hypot(...given) <= 1
+      ? given
+      : [-direction[0] * DEFAULT_PUMP_TRAVEL, -direction[1] * DEFAULT_PUMP_TRAVEL, -direction[2] * DEFAULT_PUMP_TRAVEL];
+  const node = typeof stroke.node === "string" && stroke.node.length <= 200 ? stroke.node : undefined;
+  return { offset, node };
 }
 
 /** A sprayer's water and pump, as its holder sees them. */

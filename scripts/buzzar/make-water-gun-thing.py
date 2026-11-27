@@ -11,6 +11,8 @@ With --spray-start, that clip plays once when spraying begins and the loop takes
 - Embeds the sounds (KHR_audio, as WAV): a pump stroke and a seamless spray loop, cut from Freesound 720433
   ("water gun sucking air" by ccovi, CC0) and 537941 ("Water Gun Shot" by belanhud, CC0).
 - HAVEN_sprayer: the nozzle, the stream, a tank of 6 seconds' spraying, a pump that refills it.
+- Splits the pump handle (and the ring at its front) out of the single mesh into its own node, "Pump", so it slides
+  back and forth with the hand on it when you pump.
 - HAVEN_thing: a box collider, it spawns straight into your hold, and how your avatar holds it (hold).
 - HAVEN_metadata: name, description with the credits, author and source.
 
@@ -53,6 +55,106 @@ def write_glb(path, gltf, binary):
         f.write(struct.pack("<II", len(binary), 0x004E4942) + binary)
 
 
+# The pump handle: the pieces of the mesh that lie wholly inside this box (scene units), round the barrel's
+# underside from z -5.2 to -2.55 (the tube behind it, z -2.64 to -1.55, stays put).
+PUMP_BOX = ((-1.0, 0.95, -5.2), (1.0, 2.4, -2.55))
+PUMP_TRAVEL_M = 0.04  # its handle can slide about 5 cm before it meets the body
+
+
+def read_accessor(gltf, binary, index):
+    acc = gltf["accessors"][index]
+    view = gltf["bufferViews"][acc["bufferView"]]
+    fmt, size = {5126: ("f", 4), 5125: ("I", 4), 5123: ("H", 2), 5121: ("B", 1)}[acc["componentType"]]
+    count = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[acc["type"]]
+    stride = view.get("byteStride") or size * count
+    base = view.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    return [struct.unpack_from("<" + fmt * count, binary, base + i * stride) for i in range(acc["count"])]
+
+
+def node_matrix(node):
+    """The node's local transform as a function on points."""
+    if "matrix" in node:
+        m = node["matrix"]
+        return lambda p: tuple(m[i] * p[0] + m[4 + i] * p[1] + m[8 + i] * p[2] + m[12 + i] for i in range(3))
+    t = node.get("translation", [0, 0, 0])
+    x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+    sc = node.get("scale", [1, 1, 1])
+    r = [
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+    ]
+    return lambda p: tuple(sum(r[i][j] * p[j] * sc[j] for j in range(3)) + t[i] for i in range(3))
+
+
+def split_pump(gltf, binary):
+    """Moves the pump handle's triangles into a mesh of their own on a new node, "Pump", next to the gun's."""
+    # The one mesh node, and the chain of nodes above it (scene units are what those make of it).
+    parents = {c: i for i, n in enumerate(gltf["nodes"]) for c in n.get("children", [])}
+    mesh_node = next(i for i, n in enumerate(gltf["nodes"]) if "mesh" in n)
+    chain = [mesh_node]
+    while chain[-1] in parents:
+        chain.append(parents[chain[-1]])
+    transforms = [node_matrix(gltf["nodes"][i]) for i in chain]
+
+    def to_scene(p):
+        for f in transforms:
+            p = f(p)
+        return p
+
+    mesh = gltf["meshes"][gltf["nodes"][mesh_node]["mesh"]]
+    assert len(mesh["primitives"]) == 1, "expected the model's single primitive"
+    prim = mesh["primitives"][0]
+    points = [to_scene(p) for p in read_accessor(gltf, binary, prim["attributes"]["POSITION"])]
+    tris = [t for t in zip(*[iter(i[0] for i in read_accessor(gltf, binary, prim["indices"]))] * 3)]
+
+    # Pieces: triangles joined by shared vertices (or vertices in the same place).
+    parent = list(range(len(points)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    seen = {}
+    for i, p in enumerate(points):
+        key = tuple(round(c, 5) for c in p)
+        if key in seen:
+            parent[find(i)] = find(seen[key])
+        else:
+            seen[key] = i
+    for a, b, c in tris:
+        parent[find(b)] = find(a)
+        parent[find(c)] = find(a)
+    pieces = {}
+    for t in tris:
+        pieces.setdefault(find(t[0]), []).append(t)
+    lo, hi = PUMP_BOX
+    inside = lambda p: all(lo[k] <= p[k] <= hi[k] for k in range(3))
+    pump, rest = [], []
+    for piece in pieces.values():
+        (pump if all(inside(points[v]) for t in piece for v in t) else rest).extend(piece)
+    assert len(pump) > 1000, f"didn't find the pump handle ({len(pump)} triangles)"
+
+    def index_accessor(triangles):
+        flat = [v for t in triangles for v in t]
+        view = add_buffer_view(gltf, binary, struct.pack("<%dI" % len(flat), *flat))
+        gltf["accessors"].append({"bufferView": view, "componentType": 5125, "count": len(flat), "type": "SCALAR"})
+        return len(gltf["accessors"]) - 1
+
+    prim["indices"] = index_accessor(rest)
+    pump_prim = dict(prim, indices=index_accessor(pump))
+    gltf["meshes"].append({"name": "Pump", "primitives": [pump_prim]})
+    # Same place as the gun's mesh node, under the same parent, so it sits where it was until it moves.
+    original = gltf["nodes"][mesh_node]
+    pump_node = {k: v for k, v in original.items() if k in ("translation", "rotation", "scale", "matrix")}
+    pump_node.update(name="Pump", mesh=len(gltf["meshes"]) - 1)
+    gltf["nodes"].append(pump_node)
+    gltf["nodes"][parents[mesh_node]]["children"].append(len(gltf["nodes"]) - 1)
+    return len(pump), len(rest)
+
+
 def wav_seconds(path):
     with wave.open(path) as w:
         return w.getnframes() / w.getframerate()
@@ -72,6 +174,7 @@ CC0_SOUNDS = 'Sounds: "water gun sucking air" by ccovi and "Water Gun Shot" by b
 
 def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUNDS, version="0.2.0", start_length=None):
     gltf, binary = read_glb(src)
+    pump_tris, rest_tris = split_pump(gltf, binary)
     s = LENGTH_M / MODEL_LENGTH
     scene = gltf["scenes"][gltf.get("scene", 0)]
 
@@ -126,6 +229,8 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
         "capacity": 6,
         "refill": 6,
         "pumpTime": round(wav_seconds(pump_wav), 2),
+        # The handle slides back towards you and forward again; the hand on it goes with it.
+        "pumpStroke": {"offset": [0, 0, PUMP_TRAVEL_M], "node": "Pump"},
         "sounds": sounds,
     }
     if start_length:
@@ -169,6 +274,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
     gltf["extensionsUsed"] = sorted(used)
 
     write_glb(out, gltf, binary)
+    print(f"pump: {pump_tris} triangles split off, {rest_tris} left")
     print(f"wrote {out}: scale {s:.5f}, nozzle {thing_space(NOZZLE)}, collider {collider}")
 
 

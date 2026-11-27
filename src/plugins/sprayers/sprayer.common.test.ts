@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fullTank, readSprayer, stepTank } from "./sprayer.common";
+import { fullTank, pumpStrokeAt, readSprayer, stepTank } from "./sprayer.common";
 
 describe("HAVEN_sprayer", () => {
   it("is absent unless the file has it", () => {
@@ -59,5 +59,24 @@ describe("a sprayer's tank", () => {
     // With water left, pressing it just sprays.
     const full = fullTank(spec);
     expect(stepTank(full, spec, 0.1, true, false, true)).toEqual({ spraying: true, pumped: false, ranDry: false });
+  });
+});
+
+describe("a pump stroke", () => {
+  it("goes out and comes back", () => {
+    expect(pumpStrokeAt(0)).toBe(0);
+    expect(pumpStrokeAt(0.5)).toBeCloseTo(1);
+    expect(pumpStrokeAt(1)).toBe(0);
+  });
+
+  it("pulls straight back from the nozzle unless the file says otherwise", () => {
+    const back = readSprayer({ extensions: { HAVEN_sprayer: { nozzle: { direction: [0, 0, -1] } } } })!;
+    expect(back.pumpStroke.offset[2]).toBeCloseTo(0.07);
+    const given = readSprayer({
+      extensions: { HAVEN_sprayer: { pumpStroke: { offset: [0, 0, 0.1], node: "Pump" } } },
+    })!;
+    expect(given.pumpStroke).toEqual({ offset: [0, 0, 0.1], node: "Pump" });
+    const silly = readSprayer({ extensions: { HAVEN_sprayer: { pumpStroke: { offset: [0, 0, 5] } } } })!;
+    expect(silly.pumpStroke.offset[2]).toBeCloseTo(0.07);
   });
 });

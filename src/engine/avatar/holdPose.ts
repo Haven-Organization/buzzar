@@ -146,6 +146,12 @@ export function registerHoldNetwork(ctx: GameContext) {
   });
 }
 
+/**
+ * How far the off hand has moved from its `offhand` grip right now, in the Thing's space (metres), by Thing entity:
+ * set while something moves it, such as a water gun's pump stroke (HAVEN_sprayer pumpStroke).
+ */
+export const offhandShift = new Map<number, [number, number, number]>();
+
 /* ---------- The avatar's arms ---------- */
 
 interface Finger {
@@ -490,8 +496,13 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   else if (ours) thingMatrix = placeAimed(ctx, player, ours, primary);
   else thingMatrix = new Matrix4().fromArray(thing.worldMatrix as unknown as number[]);
 
-  const pose = (arm: ArmChain | undefined, grip: HoldGrip | undefined, move: boolean) => {
+  const shift = offhandShift.get(thing.eid);
+  const pose = (arm: ArmChain | undefined, grip: HoldGrip | undefined, move: boolean, shifted = false) => {
     if (!arm || !grip) return;
+    if (shifted && shift) {
+      const [x, y, z] = grip.position;
+      grip = { ...grip, position: [x + shift[0], y + shift[1], z + shift[2]] };
+    }
     if (move) {
       const frame = thingMatrix.clone().multiply(gripMatrix(grip));
       frame.decompose(_a, _q2, _b);
@@ -501,5 +512,5 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   };
   // A carried Thing follows the animated hand, which needn't move; an aimed one is reached for.
   pose(primary, spec.grip, !(ours && spec.pose === "hand"));
-  pose(other, spec.offhand, true);
+  pose(other, spec.offhand, true, true);
 }
