@@ -168,11 +168,6 @@ export const thingsInUse = new Set<number>();
 
 /* ---------- Placing your own held Thing ---------- */
 
-// TEMPORARY (first-person jitter hunt).
-let debugPull = 0;
-let debugLastInCam: Vector3 | undefined;
-let debugLogged = 0;
-
 const AIM_REACH = 0.62; // of the arm's length, out from the shoulder
 /** Where an aimed Thing's grip sits from that point, in view space (x towards the holding hand's side): out past
  * the shoulder and a little down, so it's held low at the side of the view like a first-person shooter's, not
@@ -219,7 +214,6 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
   // Brought back towards you as far as the other hand needs to reach its grip.
   if (rig) {
     const pull = offhandPullback(rig, spec, position, rotation, forward.clone().negate(), camPos);
-    debugPull = pull;
     anchor.addScaledVector(forward, -pull);
     position.addScaledVector(forward, -pull);
   }
@@ -252,34 +246,6 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
     rotation.premultiply(turn);
   }
 
-  // TEMPORARY (first-person jitter hunt): log ticks where the Thing moves relative to the camera.
-  {
-    const inCam = position.clone().sub(camPos).applyQuaternion(camRot.clone().invert());
-    const last = debugLastInCam;
-    debugLastInCam = inCam;
-    if (last && inCam.distanceTo(last) > 0.01 && debugLogged++ < 200) {
-      const r = (v: Vector3) => v.toArray().map((x) => +x.toFixed(3));
-      const shoulder = arm ? (rig ? restShoulder(rig, arm, camPos) : worldPos(arm.upper)!) : undefined;
-      console.warn(
-        "[hold-debug]",
-        JSON.stringify({
-          tick: ctx.tick,
-          prevPlaced: hold.placedTick,
-          path: rig ? "aimed" : "fallback",
-          moved: +inCam.distanceTo(last).toFixed(3),
-          inCam: r(inCam),
-          was: r(last),
-          pull: +debugPull.toFixed(3),
-          hit: hit ? +hit.toi.toFixed(2) : null,
-          converge: +((angle * 180) / Math.PI).toFixed(2),
-          shoulderInCam: shoulder ? r(shoulder.clone().sub(camPos).applyQuaternion(camRot.clone().invert())) : null,
-          liveShoulderInCam: arm ? r(worldPos(arm.upper)!.sub(camPos).applyQuaternion(camRot.clone().invert())) : null,
-          cam: r(camPos),
-        })
-      );
-    }
-    debugPull = 0;
-  }
   position.toArray(node.position);
   rotation.toArray(node.quaternion);
   hold.placedTick = ctx.tick;
