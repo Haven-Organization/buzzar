@@ -360,6 +360,11 @@ function elbowPole(arm: ArmChain, body: Quaternion) {
 /* ---------- Placing your own held Thing ---------- */
 
 const AIM_REACH = 0.62; // of the arm's length, out from the shoulder
+/** Where an aimed Thing's grip sits from that point, in view space (x towards the holding hand's side): out past
+ * the shoulder and a little down, so it's held low at the side of the view like a first-person shooter's, not
+ * in the middle. */
+const AIM_SIDE = 0.06;
+const AIM_DROP = 0.08;
 const MAX_AIM_DISTANCE = 30;
 const MIN_AIM_DISTANCE = 1.5;
 const MAX_CONVERGE = (12 * Math.PI) / 180;
@@ -386,9 +391,9 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, arm: 
       worldPos(arm.upper)!.distanceTo(worldPos(arm.lower)!) + worldPos(arm.lower)!.distanceTo(worldPos(arm.hand)!);
     anchor = shoulder
       .addScaledVector(forward, length * AIM_REACH)
-      .add(new Vector3(-0.06 * side, -0.04, 0).applyQuaternion(camRot));
+      .add(new Vector3(AIM_SIDE * side, -AIM_DROP, 0).applyQuaternion(camRot));
   } else {
-    anchor = camPos.clone().add(new Vector3(0.16 * side, -0.24, -0.45).applyQuaternion(camRot));
+    anchor = camPos.clone().add(new Vector3(0.24 * side, -0.27, -0.45).applyQuaternion(camRot));
   }
 
   // Point the Thing's aim direction where the camera looks, keeping it upright with the view.
