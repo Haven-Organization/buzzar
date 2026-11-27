@@ -657,6 +657,49 @@ const SPAWN_LIFT_STEPS = 20;
 // Solid, and pushes back: not sensors, nor players' capsules (no solver contacts, so they never shove objects).
 const pushesObjects = (collider: RAPIER.Collider) => !collider.isSensor() && collider.solverGroups() !== 0;
 
+const _floorRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
+
+/** How far a body's solid shapes reach below its centre, in metres. */
+function bodyDepth(body: RAPIER.RigidBody) {
+  const centre = body.translation();
+  let depth = 0;
+  for (let i = 0; i < body.numColliders(); i++) {
+    const c = body.collider(i);
+    if (c.isSensor()) continue;
+    const shape = c.shape as { halfExtents?: { x: number; y: number; z: number }; radius?: number };
+    let half = 0.5;
+    if (shape.halfExtents) {
+      // The box's vertical half-extent as it's turned.
+      const r = c.rotation();
+      const { x, y, z } = shape.halfExtents;
+      const q = quat.fromValues(r.x, r.y, r.z, r.w);
+      const up = (v: vec3) => Math.abs(vec3.transformQuat(v, v, q)[1]);
+      half = up(vec3.fromValues(x, 0, 0)) + up(vec3.fromValues(0, y, 0)) + up(vec3.fromValues(0, 0, z));
+    } else if (typeof shape.radius === "number") half = shape.radius;
+    depth = Math.max(depth, centre.y - c.translation().y + half);
+  }
+  return depth;
+}
+
+/**
+ * Raises a body whose bottom would be below the floor under it so it stands on the floor. Returns whether it moved.
+ */
+function standOnFloor(physicsWorld: RAPIER.World, body: RAPIER.RigidBody): boolean {
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+  const t = body.translation();
+  const depth = bodyDepth(body);
+  // Look for the floor from its centre down past its bottom (only big Things can be this deep).
+  if (depth < 1) return false;
+  _floorRay.origin = { x: t.x, y: t.y, z: t.z };
+  const hit = physicsWorld.castRay(_floorRay, depth + 2, true, undefined, undefined, undefined, body, notPlayer);
+  if (!hit) return false;
+  const floor = t.y - hit.toi;
+  if (t.y - depth >= floor) return false;
+  body.setTranslation({ x: t.x, y: floor + depth + 0.02, z: t.z }, true);
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+  return true;
+}
+
 /** How far a body's solid shapes reach from its centre, in metres (a bounding sphere's radius). */
 function bodyReach(body: RAPIER.RigidBody) {
   const centre = body.translation();
@@ -878,6 +921,13 @@ export function spawnPrefab(
   }
 
   applyTransformToRigidBody(body, prefab);
+  // Buzzar: a Thing taller than where it spawns (a crate cloned at 4× is 10 m) starts deep in the floor, and the
+  // sweep below then hits the floor at once and gives up ("no room"): stand it on the floor under its spawn point.
+  if (!intoHold && standOnFloor(getModule(ctx, PhysicsModule).physicsWorld, body)) {
+    const t = body.translation();
+    _spawnOrigin[1] += t.y - prefab.position[1];
+    vec3.set(prefab.position, t.x, t.y, t.z);
+  }
   // Third Room #300: don't spawn on the far side of a window or wall you can't throw through. Right up against
   // one, there's no room on your side: spawn nothing rather than inside you.
   const blocked = stopAtObstacle(
@@ -888,6 +938,7 @@ export function spawnPrefab(
     spawnDistance
   );
   if (blocked === "no-room") {
+    console.warn(`Not spawning ${prefabId}: there's no room for it between you and what's in front of you`);
     removeObjectFromWorld(ctx, prefab);
     return true;
   }
