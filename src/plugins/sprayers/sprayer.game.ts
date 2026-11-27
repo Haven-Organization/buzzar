@@ -288,6 +288,9 @@ function emitDrop(ctx: GameContext, sprayer: Sprayer, ago: number) {
   drop.serial = ++dropSerial;
   drop.newer = undefined;
   drop.node.visible = true;
+  // A reused drop jumps from wherever it last landed to the nozzle. Without this the renderer slid it there over a
+  // few frames (it smooths every node towards its new place), drawing a stray tube near the nozzle now and then.
+  drop.node.skipLerp = 10;
   // The previous drop of this burst now joins up to this one instead of the nozzle.
   const previous = sprayer.newest;
   if (previous && previous.active) {
