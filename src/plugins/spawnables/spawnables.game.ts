@@ -657,13 +657,33 @@ const SPAWN_LIFT_STEPS = 20;
 // Solid, and pushes back: not sensors, nor players' capsules (no solver contacts, so they never shove objects).
 const pushesObjects = (collider: RAPIER.Collider) => !collider.isSensor() && collider.solverGroups() !== 0;
 
+/** How far a body's solid shapes reach from its centre, in metres (a bounding sphere's radius). */
+function bodyReach(body: RAPIER.RigidBody) {
+  const centre = body.translation();
+  let reach = 0;
+  for (let i = 0; i < body.numColliders(); i++) {
+    const c = body.collider(i);
+    if (c.isSensor()) continue;
+    const t = c.translation();
+    const offset = Math.hypot(t.x - centre.x, t.y - centre.y, t.z - centre.z);
+    let size = 0.5;
+    const shape = c.shape as { halfExtents?: { x: number; y: number; z: number }; radius?: number };
+    if (shape.halfExtents) size = Math.hypot(shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z);
+    else if (typeof shape.radius === "number") size = shape.radius;
+    reach = Math.max(reach, offset + size);
+  }
+  return reach;
+}
+
 /**
  * Buzzar: an object spawned overlapping something solid (another object, a wall) was thrown out of it by the
- * physics solver, often high into the air. Raise it until it's clear, up to 2 m; past that, leave it where it was.
+ * physics solver, often high into the air. Raise it until it's clear, up to 2 m (or twice its reach, for a big one); past that, leave it where it was.
  * Returns whether it moved.
  */
 function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody): boolean {
   const start = body.translation();
+  // A big Thing (a crate cloned at 4×) can start deep in the floor: lift it as far as its own size, in as many steps.
+  const step = Math.max(SPAWN_LIFT_STEP, (2 * bodyReach(body)) / SPAWN_LIFT_STEPS);
   const overlaps = () => {
     physicsWorld.propagateModifiedBodyPositionsToColliders();
     for (let i = 0; i < body.numColliders(); i++) {
@@ -689,8 +709,8 @@ function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody)
     return false;
   };
   if (!overlaps()) return false;
-  for (let step = 1; step <= SPAWN_LIFT_STEPS; step++) {
-    body.setTranslation({ x: start.x, y: start.y + step * SPAWN_LIFT_STEP, z: start.z }, true);
+  for (let i = 1; i <= SPAWN_LIFT_STEPS; i++) {
+    body.setTranslation({ x: start.x, y: start.y + i * step, z: start.z }, true);
     if (!overlaps()) return true;
   }
   body.setTranslation(start, true);
@@ -831,7 +851,7 @@ export function spawnPrefab(
   const placement = spawnPlacement(prefabId);
   // Buzzar: a Thing made to be carried (HAVEN_thing spawn.held) appears where held things sit, already in your hold.
   const intoHold = !!placement?.held && canHoldSpawned(ctx);
-  const distance = intoHold ? HELD_SPAWN_DISTANCE : placement?.distance;
+  let distance = intoHold ? HELD_SPAWN_DISTANCE : placement?.distance;
   if (placement?.upright) {
     // Level, facing the way you look (so it lands flat and comes out the same way round each time).
     direction[1] = 0;
@@ -839,6 +859,10 @@ export function spawnPrefab(
     vec3.normalize(direction, direction);
     quat.setAxisAngle(_spawnWorldQuat, [0, 1, 0], Math.atan2(-direction[0], -direction[2]));
   }
+  // Buzzar: far enough out that it doesn't start round you (a crate cloned at 4× is 10 m across).
+  const body0 = prefab.physicsBody?.body;
+  const clear = body0 && !intoHold ? bodyReach(body0) + 0.6 : 0;
+  if (clear > (distance ?? 1)) distance = clear;
   const spawnDistance = distance ?? vec3.length(direction);
   vec3.copy(_spawnOrigin, prefab.position);
   if (distance !== undefined) vec3.scale(direction, direction, distance);
