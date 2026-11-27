@@ -17,6 +17,8 @@ const vec3 = (v: unknown): [number, number, number] | undefined =>
 export interface HoldGrip {
   position: [number, number, number];
   rotation: [number, number, number, number];
+  /** Degrees this hand's fingers curl, when it differs from the hold's `curl` (a slim pump handle needs less). */
+  curl?: number;
 }
 
 export interface HoldSpec {
@@ -45,7 +47,8 @@ function readGrip(v: unknown): HoldGrip | undefined {
     const length = Math.hypot(r[0], r[1], r[2], r[3]);
     if (length > 1e-6) rotation = [r[0] / length, r[1] / length, r[2] / length, r[3] / length];
   }
-  return { position, rotation };
+  const curl = typeof v.curl === "number" && v.curl >= 0 && v.curl <= 120 ? v.curl : undefined;
+  return { position, rotation, curl };
 }
 
 /** A Thing file's `HAVEN_thing.hold` (untrusted), or undefined when it doesn't say how it's held. */

@@ -67,7 +67,7 @@ How your avatar holds the Thing in its hands. Without it, a held Thing floats in
   "pose": "aim",
   "hand": "right",
   "grip": { "position": [0.022, 0, 0], "rotation": [-0.2207, 0, 0, 0.9753] },
-  "offhand": { "position": [0, 0.045, -0.206], "rotation": [0, 0, 0.7071, 0.7071] },
+  "offhand": { "position": [-0.03, 0.045, -0.206], "rotation": [-0.5964, -0.3799, 0.3799, 0.5964], "curl": 40 },
   "curl": 75
 }
 ```
@@ -78,7 +78,7 @@ How your avatar holds the Thing in its hands. Without it, a held Thing floats in
 | `hand`    | `string` | `"right"` or `"left"`: the hand on `grip`.                                                                                                                                | `"right"`                                       |
 | `grip`    | `object` | Where that hand holds it: a hand frame (below). Required.                                                                                                                 |                                                 |
 | `offhand` | `object` | Where the other hand holds it, for two-handed Things. Leave it out for one hand.                                                                                          | none                                            |
-| `curl`    | `number` | Degrees the fingers curl round the grip (the thumb half as much), 0–120.                                                                                                  | 70                                              |
+| `curl`    | `number` | Degrees the fingers curl round the grip (the thumb half as much), 0–120. `grip` and `offhand` can each give their own `curl`.                                             | 70                                              |
 | `aim`     | `object` | `{ "position", "direction" }`: what points where you look in the `"aim"` pose.                                                                                            | a HAVEN_sprayer's nozzle, else -Z from the grip |
 
 A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the Thing's space. Picture a hand held out for a handshake, with:
@@ -88,7 +88,7 @@ A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the
 - the thumb up (+Y);
 - the palm facing the other hand: -X for a right hand, +X for a left.
 
-`rotation` turns that hand onto the grip. A vertical handle held in a fist runs along +Y through the curled fingers, so a pistol grip is a handshake frame tilted to match the handle. A hand under a forend, palm up, is the left handshake frame turned 90° about Z.
+`rotation` turns that hand onto the grip. A vertical handle held in a fist runs along +Y through the curled fingers, so a pistol grip is a handshake frame tilted to match the handle. A hand on a forend or pump handle holds it like a shotgun's: palm underneath, fingers across under it and up its far side, thumb along the near side pointing forward. For the left hand that maps the handshake frame's fingers (−Z) to +X, its thumb (+Y) to −Z and its palm (+X) to +Y, `[-0.5, -0.5, 0.5, 0.5]`; the water gun tilts that 25° so the palm faces up and a little outward. A slim handle needs less `curl` than a pistol grip, or the fingertips come over the top.
 
 In VR, your controllers are your hands, so `hold` isn't used there.
 

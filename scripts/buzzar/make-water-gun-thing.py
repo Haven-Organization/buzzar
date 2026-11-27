@@ -242,13 +242,19 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
         "upright": False,
         "spawn": {"distance": 1, "upright": False, "held": True},
         # Held like a Super Soaker: right hand round the pistol grip (it leans 25.5° forward at the top, so the
-        # handshake frame is turned about X; the palm sits just right of the grip), left hand under the pump,
-        # palm up (the left handshake frame turned 90° about Z). It aims along the nozzle (HAVEN_sprayer).
+        # handshake frame is turned about X; the palm sits just right of the grip). Left hand on the pump like a
+        # shotgun's forend: palm under it (tilted 25° to face up and right), fingers across underneath and curled
+        # less (it's slim) so they come up its far side, thumb along the near side pointing forward. It aims along
+        # the nozzle (HAVEN_sprayer).
         "hold": {
             "pose": "aim",
             "hand": "right",
             "grip": {"position": [0.022, 0, 0], "rotation": [-0.2207, 0, 0, 0.9753]},
-            "offhand": {"position": thing_space((0, 0.85, -3.75)), "rotation": [0, 0, 0.7071, 0.7071]},
+            "offhand": {
+                "position": [-0.03, 0.045, thing_space((0, 0.85, -3.75))[2]],
+                "rotation": [-0.5964, -0.3799, 0.3799, 0.5964],
+                "curl": 40,
+            },
             "curl": 75,
         },
     }
