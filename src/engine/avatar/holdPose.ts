@@ -30,6 +30,7 @@ import { OurPlayer } from "../player/Player";
 import { RemoteNode } from "../resource/RemoteResources";
 import { getRemoteResource } from "../resource/resource.game";
 import { HoldSpec } from "./holdSpec";
+import { aimAlongSight, Ballistics } from "./ballistic";
 import {
   ArmChain,
   gripMatrix,
@@ -53,6 +54,8 @@ interface LocalHold {
   /** ctx.tick when the avatar last placed it (else holdFallback places it from the camera). */
   placedTick: number;
   announcedAt: number;
+  /** How far away what's under the crosshair is, smoothed (metres). */
+  aimDistance?: number;
 }
 
 let localHold: LocalHold | undefined;
@@ -165,6 +168,8 @@ export function registerHoldNetwork(ctx: GameContext) {
 export const offhandShift = new Map<number, [number, number, number]>();
 /** Held Things in use right now (a water gun spraying), by entity, set by what uses them: a hand on a trigger squeezes. */
 export const thingsInUse = new Set<number>();
+/** How the stream of a held Thing falls (a water gun's), by entity: its aim is lifted so the stream meets your crosshair. */
+export const aimBallistics = new Map<number, Ballistics>();
 
 /* ---------- Placing your own held Thing ---------- */
 
@@ -175,8 +180,12 @@ const AIM_REACH = 0.62; // of the arm's length, out from the shoulder
 const AIM_SIDE = 0.06;
 const AIM_DROP = 0.08;
 const MAX_AIM_DISTANCE = 30;
+/** Seconds the aim takes to settle on a new distance under the crosshair. */
+const AIM_DISTANCE_SMOOTHING = 0.12;
 const MIN_AIM_DISTANCE = 1.5;
 const MAX_CONVERGE = (12 * Math.PI) / 180;
+/** A falling stream may need lifting further than that to land where you look. */
+const MAX_BALLISTIC_CONVERGE = (30 * Math.PI) / 180;
 const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 });
 const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
 
@@ -233,15 +242,25 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
     exclude,
     (c) => isSolid(c) && c.parent() !== node.physicsBody?.body
   );
-  const distance = Math.max(MIN_AIM_DISTANCE, hit ? hit.toi : MAX_AIM_DISTANCE);
+  // Smoothed (in 1/distance, which the angle follows): running over bumpy ground, what's under the crosshair jumped
+  // nearer and further each tick and the Thing jittered with it.
+  const seen = Math.max(MIN_AIM_DISTANCE, hit ? hit.toi : MAX_AIM_DISTANCE);
+  const k = 1 - Math.exp(-ctx.dt / AIM_DISTANCE_SMOOTHING);
+  const distance = hold.aimDistance ? 1 / (1 / hold.aimDistance + (1 / seen - 1 / hold.aimDistance) * k) : seen;
+  hold.aimDistance = distance;
   const lookAt = camPos.clone().addScaledVector(forward, distance);
   const muzzle = new Vector3(...spec.aim.position).applyQuaternion(rotation).add(position);
   const current = aimDir.clone().applyQuaternion(rotation);
-  const wanted = lookAt.sub(muzzle).normalize();
+  // A stream that falls (a water gun's) is lifted so its arc, not its first few centimetres, meets the crosshair:
+  // pointed straight at it, the water dropped below the crosshair the more level you aimed.
+  const ballistics = aimBallistics.get(node.eid);
+  const wanted =
+    (ballistics && aimAlongSight(ballistics, muzzle, camPos, forward, distance)) ?? lookAt.sub(muzzle).normalize();
+  const maxTurn = ballistics ? MAX_BALLISTIC_CONVERGE : MAX_CONVERGE;
   const angle = current.angleTo(wanted);
   if (angle > 1e-4) {
     const turn = new Quaternion().setFromUnitVectors(current, wanted);
-    if (angle > MAX_CONVERGE) turn.slerp(new Quaternion(), 1 - MAX_CONVERGE / angle);
+    if (angle > maxTurn) turn.slerp(new Quaternion(), 1 - maxTurn / angle);
     position.sub(anchor).applyQuaternion(turn).add(anchor);
     rotation.premultiply(turn);
   }

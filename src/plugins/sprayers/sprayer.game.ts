@@ -15,7 +15,7 @@ import { GameContext } from "../../engine/GameTypes";
 import { defineModule, getModule } from "../../engine/module/module.common";
 import { GLTFResource, loadGLTFAudioData } from "../../engine/gltf/gltf.game";
 import { addChild, findChild } from "../../engine/component/transform";
-import { offhandShift, thingsInUse } from "../../engine/avatar/holdPose";
+import { aimBallistics, offhandShift, thingsInUse } from "../../engine/avatar/holdPose";
 import { createMesh } from "../../engine/mesh/mesh.game";
 import { playAudio, playOneShotAudio, stopAudio } from "../../engine/audio/audio.game";
 import { InputModule } from "../../engine/input/input.game";
@@ -214,6 +214,7 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
   const pumpName = spec.pumpStroke.node;
   const pumpNode = pumpName ? findChild(node, (n) => n.name === pumpName) : undefined;
 
+  aimBallistics.set(node.eid, { speed: spec.speed, gravity: GRAVITY, drag: DRAG, life: DROP_LIFE });
   module.sprayers.set(node.eid, {
     node,
     spec,
@@ -244,6 +245,7 @@ function disposeSprayer(ctx: GameContext, eid: number, sprayer: Sprayer) {
   usableThings.delete(eid);
   offhandShift.delete(eid);
   thingsInUse.delete(eid);
+  aimBallistics.delete(eid);
   getModule(ctx, SprayerModule).sprayers.delete(eid);
 }
 
