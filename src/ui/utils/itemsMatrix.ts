@@ -15,6 +15,8 @@ export interface ItemContent {
   url: string;
   name?: string;
   preview_url?: string;
+  /** The version its file gives (HAVEN_metadata), when saved; older entries don't have it. */
+  version?: string;
 }
 
 export interface SavedItem extends ItemContent {
@@ -77,6 +79,7 @@ export function parseItemCollection(value: unknown): ItemCollection {
     const item: SavedItem = { url: r.url, added_ts: typeof r.added_ts === "number" ? r.added_ts : 0 };
     if (typeof r.name === "string" && r.name.trim()) item.name = r.name.trim().slice(0, 200);
     if (typeof r.preview_url === "string" && MXC_REGEX.test(r.preview_url)) item.preview_url = r.preview_url;
+    if (typeof r.version === "string" && r.version.trim()) item.version = r.version.trim().slice(0, 100);
     collection.items.push(item);
   }
   return collection;
@@ -108,6 +111,7 @@ export async function saveToItemCollection(auth: MatrixAuth, userId: string, ite
   const existing = collection.items.find((t) => t.url === item.url);
   const saved: SavedItem = { ...existing, ...item, added_ts: existing?.added_ts ?? Date.now() };
   if (!saved.preview_url) delete saved.preview_url;
+  if (!saved.version) delete saved.version;
   collection.items = [saved, ...collection.items.filter((t) => t.url !== item.url)].slice(0, MAX_SAVED_ITEMS);
   await putItemCollection(auth, userId, collection);
   return collection;

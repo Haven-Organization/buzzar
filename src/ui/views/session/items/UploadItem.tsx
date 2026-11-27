@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 
 import { Switch } from "../../../atoms/button/Switch";
-import { editGlbJson, markExtensionUsed, readGlbJson } from "../../../utils/glbMetadata";
+import { editGlbJson, markExtensionUsed, readFileMetadata, readGlbJson } from "../../../utils/glbMetadata";
 import { bakedItemPhysics, itemPhysicsToJSON } from "../../../../plugins/spawnables/itemFile";
 import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { Modal } from "../../../atoms/modal/Modal";
@@ -111,6 +111,8 @@ export function UploadItem({
           url,
           name: name.trim() || undefined,
           preview_url: previewUrl,
+          // As the uploaded file says it (with any version typed here saved into it).
+          version: (await readFileMetadata(baked ?? file)).version,
         })
       );
       onOpenChange(false);

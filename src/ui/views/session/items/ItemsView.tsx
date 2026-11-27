@@ -35,6 +35,7 @@ import {
   ItemCollection,
 } from "../../../utils/itemsMatrix";
 import { useItemPreview } from "../../../hooks/useItemPreview";
+import { useItemVersion, versionLabel } from "../../../hooks/useItemVersion";
 import { worldAtom } from "../../../state/world";
 import { Thread } from "../../../../engine/module/module.common";
 import {
@@ -578,6 +579,7 @@ function BuiltinItemTile({
 function SavedItemTile(props: ItemTileProps & { saved: SavedItem }) {
   const { saved, item, slot, action } = props;
   const { src, rendered, loading } = useItemPreview(saved.url, saved.preview_url);
+  const version = useItemVersion(saved.url, saved.version);
   const openDetails = useOpenDetails();
   return (
     <WorldTile
@@ -602,7 +604,7 @@ function SavedItemTile(props: ItemTileProps & { saved: SavedItem }) {
       badge={slot !== undefined ? `Key ${itemKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
-          {item.description}
+          {version ? `${versionLabel(version)} · ${item.description}` : item.description}
         </Text>
       }
       action={action}
