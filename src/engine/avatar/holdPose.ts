@@ -127,11 +127,7 @@ export function updateLocalHold(ctx: GameContext, player: RemoteNode | undefined
     localHold.announcedAt = Date.now();
     announce(ctx, localHold.eid);
   }
-  if (player && localHold.placedTick < ctx.tick - 1) {
-    // TEMPORARY (stream glitch hunt).
-    console.warn("[spray-debug] hold fallback", JSON.stringify({ tick: ctx.tick, placedTick: localHold.placedTick }));
-    placeAimed(ctx, player, localHold, undefined);
-  }
+  if (player && localHold.placedTick < ctx.tick - 1) placeAimed(ctx, player, localHold, undefined);
 }
 
 export function registerHoldNetwork(ctx: GameContext) {
