@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isCustomThingId,
+  isCustomItemId,
   isSpawnAllowed,
-  parseListedThings,
+  parseListedItems,
   parseSpawnRules,
-  rememberThingBehaviours,
+  rememberItemBehaviours,
   serializeObjectRules,
 } from "./spawnRules.common";
 
 const LAMP = "mxc://example.org/lamp1";
 const OTHER = "mxc://example.org/other";
 
-describe("world Thing rules", () => {
-  it("allows every Thing when there are no rules", () => {
+describe("world Item rules", () => {
+  it("allows every Item when there are no rules", () => {
     const rules = parseSpawnRules(undefined);
     expect(isSpawnAllowed(rules, "trampoline")).toBe(true);
     expect(isSpawnAllowed(rules, LAMP)).toBe(true);
   });
 
-  it("reads old events' `allowed` as a block list of the stock Things left out", () => {
+  it("reads old events' `allowed` as a block list of the stock Items left out", () => {
     const rules = parseSpawnRules({ objects: { allowed: ["small-crate", "small-ball"] } });
     expect(rules.default).toBe("allow");
     expect(isSpawnAllowed(rules, "small-crate")).toBe(true);
@@ -27,14 +27,14 @@ describe("world Thing rules", () => {
     expect(isSpawnAllowed(rules, LAMP)).toBe(true);
   });
 
-  it("allow list: only the listed files, not stock Things or other files", () => {
-    const rules = parseSpawnRules({ objects: { default: "block", things: [{ id: LAMP, allow: true }] } });
+  it("allow list: only the listed files, not stock Items or other files", () => {
+    const rules = parseSpawnRules({ objects: { default: "block", items: [{ id: LAMP, allow: true }] } });
     expect(isSpawnAllowed(rules, LAMP)).toBe(true);
     expect(isSpawnAllowed(rules, OTHER)).toBe(false);
     expect(isSpawnAllowed(rules, "small-crate")).toBe(false);
   });
 
-  it("never applies to things that aren't spawnable Things", () => {
+  it("never applies to items that aren't spawnable Items", () => {
     const rules = parseSpawnRules({ objects: { default: "block" } });
     expect(isSpawnAllowed(rules, "avatar")).toBe(true);
     expect(isSpawnAllowed(rules, "scene-grabbable-12")).toBe(true);
@@ -42,15 +42,15 @@ describe("world Thing rules", () => {
 
   it("a blocked behaviour wins over the list", () => {
     const rules = parseSpawnRules({
-      objects: { things: [{ id: "trampoline", allow: true }], blocked_behaviours: ["HAVEN_trampoline"] },
+      objects: { items: [{ id: "trampoline", allow: true }], blocked_behaviours: ["HAVEN_trampoline"] },
     });
     expect(isSpawnAllowed(rules, "trampoline")).toBe(false);
     expect(isSpawnAllowed(rules, "small-ball")).toBe(true);
   });
 
   it("drops bad entries", () => {
-    const list = parseListedThings({
-      things: [
+    const list = parseListedItems({
+      items: [
         { id: "https://evil.example/x.glb", allow: true },
         { id: LAMP, allow: "yes" },
         { id: LAMP, allow: true, name: " Lamp ", preview_url: "javascript:1" },
@@ -63,23 +63,39 @@ describe("world Thing rules", () => {
   it("writes `allowed` for older clients and keeps other fields", () => {
     const out = serializeObjectRules(
       { max_per_user: 3 },
-      { default: "block", things: [{ id: "small-ball", allow: true }], blockedBehaviours: [] }
+      { default: "block", items: [{ id: "small-ball", allow: true }], blockedBehaviours: [] }
     );
     expect(out.allowed).toEqual(["small-ball"]);
     expect(out.max_per_user).toBe(3);
-    expect(parseSpawnRules({ objects: out }).things).toEqual({ "small-ball": true });
+    expect(parseSpawnRules({ objects: out }).items).toEqual({ "small-ball": true });
   });
 });
 
-describe("custom Things' behaviours", () => {
+describe("custom Items' behaviours", () => {
   const mxc = "mxc://example.org/abcDEF123";
   it("are learnt from the file, and a world can block them", () => {
-    expect(isCustomThingId(mxc)).toBe(true);
-    expect(isCustomThingId("trampoline")).toBe(false);
+    expect(isCustomItemId(mxc)).toBe(true);
+    expect(isCustomItemId("trampoline")).toBe(false);
     const rules = parseSpawnRules({ objects: { blocked_behaviours: ["HAVEN_trampoline"] } });
     // Not known until the file has loaded.
     expect(isSpawnAllowed(rules, mxc)).toBe(true);
-    rememberThingBehaviours(mxc, ["KHR_materials_unlit", "HAVEN_trampoline"]);
+    rememberItemBehaviours(mxc, ["KHR_materials_unlit", "HAVEN_trampoline"]);
     expect(isSpawnAllowed(rules, mxc)).toBe(false);
+  });
+});
+
+describe("world rules from before Items", () => {
+  it("still read a `things` list", () => {
+    const rules = parseSpawnRules({ objects: { default: "allow", things: [{ id: "small-ball", allow: false }] } });
+    expect(isSpawnAllowed(rules, "small-ball")).toBe(false);
+  });
+
+  it("are written with the list under both names", () => {
+    const objects = serializeObjectRules(undefined, {
+      default: "allow",
+      items: [{ id: "small-ball", allow: false }],
+      blockedBehaviours: [],
+    });
+    expect(objects.items).toEqual(objects.things);
   });
 });

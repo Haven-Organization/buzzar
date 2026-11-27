@@ -1,9 +1,9 @@
-.ThingCloneDialog {
+.ItemCloneDialog {
   padding: var(--sp-md);
 }
 
 /* Sliders: a visible track, filled in the primary colour up to the value (--fill is set on each slider). */
-.ThingCloneDialog input[type="range"] {
+.ItemCloneDialog input[type="range"] {
   width: 100%;
   height: 20px;
   margin: 0;
@@ -12,7 +12,7 @@
   appearance: none;
 }
 
-.ThingCloneDialog input[type="range"]::-webkit-slider-runnable-track {
+.ItemCloneDialog input[type="range"]::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(
@@ -22,19 +22,19 @@
   );
 }
 
-.ThingCloneDialog input[type="range"]::-moz-range-track {
+.ItemCloneDialog input[type="range"]::-moz-range-track {
   height: 6px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--tc-surface-low) 35%, transparent);
 }
 
-.ThingCloneDialog input[type="range"]::-moz-range-progress {
+.ItemCloneDialog input[type="range"]::-moz-range-progress {
   height: 6px;
   border-radius: 3px;
   background: var(--bg-primary);
 }
 
-.ThingCloneDialog input[type="range"]::-webkit-slider-thumb {
+.ItemCloneDialog input[type="range"]::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   margin-top: -5px;
@@ -45,7 +45,7 @@
   appearance: none;
 }
 
-.ThingCloneDialog input[type="range"]::-moz-range-thumb {
+.ItemCloneDialog input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border: 2px solid white;
@@ -54,12 +54,12 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
-.ThingCloneDialog input[type="range"]:focus-visible {
+.ItemCloneDialog input[type="range"]:focus-visible {
   outline: 2px solid var(--bg-primary);
   outline-offset: 2px;
 }
 
-.ThingCloneDialog input[type="color"] {
+.ItemCloneDialog input[type="color"] {
   width: 48px;
   height: 32px;
   padding: 0;

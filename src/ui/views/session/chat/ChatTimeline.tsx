@@ -183,7 +183,7 @@ function MediaBody({ item }: { item: MessageItem }) {
     const poster = content.info?.thumbnail_url ? resolveMxc(content.info.thumbnail_url) : undefined;
     body = <video className="ChatMedia__video" src={url} controls preload="metadata" poster={poster} />;
   } else if (content.url && !content.file && isModelFile(name, content.info?.mimetype)) {
-    // A 3D model (avatar, world or Thing): useChatEmbedPortals renders its tile here (ChatModelEmbed).
+    // A 3D model (avatar, world or Item): useChatEmbedPortals renders its tile here (ChatModelEmbed).
     body = (
       <div
         className="ChatEmbed"

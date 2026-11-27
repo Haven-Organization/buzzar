@@ -78,7 +78,7 @@ export function DeveloperSettings() {
           <SettingTile label={<Label>Ignore World Limits for My Actions</Label>}>
             <Switch checked={!!overrides.ignoreOwn} onCheckedChange={(on) => setOverride("ignoreOwn", on)} />
             <Text variant="b3" color="surface-low">
-              Lets you break a world&apos;s rules on your own screen: spawn Things it blocks or more than its limit,
+              Lets you break a world&apos;s rules on your own screen: spawn Items it blocks or more than its limit,
               fly, jump and move faster than it allows. Other players&apos; Buzzar still blocks all of that, so they
               won&apos;t see those objects and will see you held back. World moderators are told each time and may kick
               or ban you. For testing worlds; you&apos;re reminded when you enter a world with it on.
@@ -87,9 +87,9 @@ export function DeveloperSettings() {
           <SettingTile label={<Label>Don&apos;t Enforce World Limits on Others for Me</Label>}>
             <Switch checked={!!overrides.ignoreOthers} onCheckedChange={(on) => setOverride("ignoreOthers", on)} />
             <Text variant="b3" color="surface-low">
-              Shows what other players send even when it breaks the world&apos;s rules (blocked Things, too many
-              objects, moving too fast), so you may see things nobody else does. Useful for debugging, or for moderators
-              who want to see what a rule-breaker is doing. Nobody can move or delete someone else&apos;s things either
+              Shows what other players send even when it breaks the world&apos;s rules (blocked Items, too many
+              objects, moving too fast), so you may see items nobody else does. Useful for debugging, or for moderators
+              who want to see what a rule-breaker is doing. Nobody can move or delete someone else&apos;s items either
               way.
             </Text>
           </SettingTile>

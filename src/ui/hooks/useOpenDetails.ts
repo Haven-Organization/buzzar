@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 
 import { DetailsItem, OverlayWindow, overlayWindowAtom } from "../state/overlayWindow";
 
-/** Buzzar: opens the details page for a world, avatar or Thing; its back button returns to the current window. */
+/** Buzzar: opens the details page for a world, avatar or Item; its back button returns to the current window. */
 export function useOpenDetails() {
   const [current, setOverlayWindow] = useAtom(overlayWindowAtom);
   return useCallback(

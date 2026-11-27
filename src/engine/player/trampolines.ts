@@ -1,5 +1,5 @@
 /**
- * Buzzar: trampolines (the stock Trampoline Thing, or any node a world marks with HAVEN_trampoline).
+ * Buzzar: trampolines (the stock Trampoline Item, or any node a world marks with HAVEN_trampoline).
  *
  * Land on one and it throws you back up: at least `minBounceHeight` (so just walking or hopping on gets you bouncing
  * straight away), or `bounciness` × the height you fell from, so dropping on from high up sends you proportionally
@@ -29,7 +29,7 @@ export interface GLTFTrampolineExtension {
   /** Extra metres for each bounce you land holding jump (default 1.5). */
   jumpBoost?: number;
   /**
-   * Lowest bounce in metres for a Thing thrown or dropped on (default 2.7): its first landing only, so it then bounces
+   * Lowest bounce in metres for an Item thrown or dropped on (default 2.7): its first landing only, so it then bounces
    * lower each time and settles. 2.7 m off a stock trampoline's mat (0.5 m up) lifts a ball's underside to 3.2 m, just
    * over the top of the backboard's square in The Court (rim 2.66 m, square 3.15 m), so trick shots off it can score.
    */
@@ -89,7 +89,7 @@ export function addTrampoline(node: RemoteNode, width: number, depth: number, ex
 }
 
 /**
- * Buzzar: makes the trampolines at or under `root` (a spawned Trampoline Thing) bouncier or softer by `factor`: their
+ * Buzzar: makes the trampolines at or under `root` (a spawned Trampoline Item) bouncier or softer by `factor`: their
  * bounce heights and jump boost, and how much of a fall they give back (up to the usual limit).
  */
 export function scaleTrampolineBounce(root: RemoteNode, factor: number): Trampoline[] {

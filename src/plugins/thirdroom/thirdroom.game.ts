@@ -30,10 +30,10 @@ import {
   FindResourceRetainersMessage,
   ActionBarItem,
   SetObjectCapMessage,
-  SpawnThingMessage,
-  SetThingKeysMessage,
-  SetThingClonesMessage,
-  SetCustomThingsMessage,
+  SpawnItemMessage,
+  SetItemKeysMessage,
+  SetItemClonesMessage,
+  SetCustomItemsMessage,
   ReloadWorldMessage,
   LoadWorldOptions,
   ReloadedWorldMessage,
@@ -77,11 +77,11 @@ import { RemoteResource } from "../../engine/resource/RemoteResourceClass";
 import {
   actionBarMap,
   defaultActionBarItems,
-  queueThingSpawn,
+  queueItemSpawn,
   setDefaultActionBarItems,
-  setThingKeys,
-  setThingClones,
-  setCustomThings,
+  setItemKeys,
+  setItemClones,
+  setCustomItems,
 } from "./action-bar.game";
 import { onSpawnRulesChanged } from "../../engine/network/spawnRules.game";
 import { onMovementRulesChanged } from "../../engine/player/movement.game";
@@ -158,21 +158,21 @@ export const ThirdRoomModule = defineModule<GameContext, ThirdRoomModuleState>({
       registerMessageHandler(ctx, ThirdRoomMessageType.PrintResources, onPrintResources),
       registerMessageHandler(ctx, ThirdRoomMessageType.FindResourceRetainers, onFindResourceRetainers),
       registerMessageHandler(ctx, ThirdRoomMessageType.SetObjectCap, onSetObjectCap),
-      registerMessageHandler(ctx, ThirdRoomMessageType.SpawnThing, (_ctx: GameContext, message: SpawnThingMessage) =>
-        queueThingSpawn(message.id)
+      registerMessageHandler(ctx, ThirdRoomMessageType.SpawnItem, (_ctx: GameContext, message: SpawnItemMessage) =>
+        queueItemSpawn(message.id)
       ),
-      registerMessageHandler(ctx, ThirdRoomMessageType.SetThingKeys, (ctx: GameContext, message: SetThingKeysMessage) =>
-        setThingKeys(ctx, message.keys)
-      ),
-      registerMessageHandler(
-        ctx,
-        ThirdRoomMessageType.SetThingClones,
-        (ctx: GameContext, message: SetThingClonesMessage) => setThingClones(ctx, message.clones)
+      registerMessageHandler(ctx, ThirdRoomMessageType.SetItemKeys, (ctx: GameContext, message: SetItemKeysMessage) =>
+        setItemKeys(ctx, message.keys)
       ),
       registerMessageHandler(
         ctx,
-        ThirdRoomMessageType.SetCustomThings,
-        (ctx: GameContext, message: SetCustomThingsMessage) => setCustomThings(ctx, message.things)
+        ThirdRoomMessageType.SetItemClones,
+        (ctx: GameContext, message: SetItemClonesMessage) => setItemClones(ctx, message.clones)
+      ),
+      registerMessageHandler(
+        ctx,
+        ThirdRoomMessageType.SetCustomItems,
+        (ctx: GameContext, message: SetCustomItemsMessage) => setCustomItems(ctx, message.items)
       ),
       // Buzzar: refresh the stock action bar when the world's object rules change (not a script's own bar).
       onSpawnRulesChanged(ctx, () => refreshStockActionBar(ctx)),

@@ -2,7 +2,7 @@
  * Buzzar: the players this client holds back in the world you're in: the people you blocked (Matrix's
  * `m.ignored_user_list`, so it follows your account to every app and device) and the people the world's ban lists
  * ban (src/matrix/policyLists.ts). Held-back players get no network peer (createMatrixNetworkInterface.ts): you don't
- * see their avatar or Things or hear them, and nothing of yours is sent to them; on LiveKit calls the server is told
+ * see their avatar or Items or hear them, and nothing of yours is sent to them; on LiveKit calls the server is told
  * not to send them your voice.
  *
  * World bans can be waived on your own screen (Settings → Moderation & Safety): friends (people you have direct messages with) are

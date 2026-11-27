@@ -1,8 +1,8 @@
-# Builds Buzzar's stock Trampoline Thing (public/gltf/things/trampoline.glb) from the Sketchfab model:
+# Builds Buzzar's stock Trampoline Item (public/gltf/items/trampoline.glb) from the Sketchfab model:
 #   "Trampoline" by 1-3D.com, CC BY-SA 4.0, https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9
 # Changes: Z-up centimetres -> Y-up metres standing on y=0, the full Buzzar logo (bee + "buzzar",
 # res/brand/banner-purple.png) on the middle of the mat, and a HAVEN_trampoline node marking the mat as bouncy (docs/gltf/HAVEN_trampoline).
-# Needs Pillow. Usage: python3 scripts/buzzar/make-trampoline-thing.py <trampoline.glb> [out.glb]
+# Needs Pillow. Usage: python3 scripts/buzzar/make-trampoline-item.py <trampoline.glb> [out.glb]
 import io
 import json
 import struct
@@ -11,7 +11,7 @@ import sys
 from PIL import Image  # Pillow
 
 src = sys.argv[1]
-out = sys.argv[2] if len(sys.argv) > 2 else "public/gltf/things/trampoline.glb"
+out = sys.argv[2] if len(sys.argv) > 2 else "public/gltf/items/trampoline.glb"
 LOGO = "res/brand/banner-purple.png"
 
 b = open(src, "rb").read()
@@ -51,7 +51,7 @@ MAT_RADIUS = 1.28  # metres (the mat mesh is 2.56 m across)
 # The bouncy area reaches out over most of the purple pad (radius 1.21-1.5 m), leaving an 8 cm rim to stand on, so
 # things tossed at the trampoline don't have to hit the black mat itself to bounce.
 BOUNCY_RADIUS = 1.42
-THING = {
+ITEM = {
     "collider": {"type": "cylinder", "radius": 1.5, "height": 0.53, "offset": [0, 0.265, 0]},
     "density": 40,
     "rotation": "yaw",
@@ -135,25 +135,25 @@ bed = len(nodes) - 1
 nodes.append({"name": "Trampoline", "children": [model, logo, bed]})
 gltf["scene"] = scene
 gltf["scenes"][scene]["nodes"] = [len(nodes) - 1]
-gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline", "HAVEN_metadata", "HAVEN_thing"]))
-# How it behaves as an object (docs/gltf/HAVEN_thing): a heavy drum, about 150 kg, that only turns about the vertical,
+gltf["extensionsUsed"] = sorted(set(gltf.get("extensionsUsed", []) + ["HAVEN_trampoline", "HAVEN_metadata", "HAVEN_item"]))
+# How it behaves as an object (docs/gltf/HAVEN_item): a heavy drum, about 150 kg, that only turns about the vertical,
 # settles level, and appears clear of you, level and facing the way you look.
 gltf["extensions"] = gltf.get("extensions", {})
-gltf["extensions"]["HAVEN_thing"] = THING
+gltf["extensions"]["HAVEN_item"] = ITEM
 # What it is and where it's from (docs/gltf/HAVEN_metadata). Bump the version with each change to this file.
 gltf.setdefault("extensions", {})["HAVEN_metadata"] = {
     "name": "Trampoline",
     "description": (
         "A 3 m trampoline with the Buzzar logo on the mat.\n"
         "Land on it to bounce (at least 2.5 m, higher the further you fall). Hold jump as you land to go higher; "
-        "crouch to stop. Crates, balls and other Things bounce on it too.\n"
+        "crouch to stop. Crates, balls and other Items bounce on it too.\n"
         "Adapted from \"Trampoline\" by 1-3D.com (CC BY-SA 4.0); this adaptation is CC BY-SA 4.0 as well."
     ),
     "author": "1-3D.com",
     "sourceUrl": "https://sketchfab.com/3d-models/trampoline-052aaef6c5c34c5bac94607bcc12d2f9",
     "version": "0.1.4",
 }
-gltf["asset"]["generator"] = "Buzzar make-trampoline-thing.py (from Sketchfab-12.78.0)"
+gltf["asset"]["generator"] = "Buzzar make-trampoline-item.py (from Sketchfab-12.78.0)"
 gltf["asset"]["copyright"] = (
     '"Trampoline" by 1-3D.com (https://sketchfab.com/1-3D.com), CC BY-SA 4.0; adapted for Buzzar '
     "(rescaled, Buzzar logo added, bounce marker). This adaptation is also CC BY-SA 4.0."

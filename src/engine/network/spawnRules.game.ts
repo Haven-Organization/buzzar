@@ -3,7 +3,7 @@
  *
  * There's no server, so every honest client checks incoming messages itself: a peer can only create, move,
  * rename or delete objects whose network ID carries *its own* peer index, can only claim to be itself, and can
- * only spawn Things the world allows (its list and blocked behaviours), up to the per-person limit. Anything else is dropped (so a modified
+ * only spawn Items the world allows (its list and blocked behaviours), up to the per-person limit. Anything else is dropped (so a modified
  * client only sees its junk on its own screen) and reported to the UI, which tells moderators.
  */
 import { defineComponent, hasComponent } from "bitecs";
@@ -20,7 +20,7 @@ import { GameNetworkState, getPeerIndexFromNetworkId, NetworkModule } from "./ne
 import {
   DEFAULT_SPAWN_RULES,
   isSpawnAllowed,
-  isThingId,
+  isItemId,
   SetSpawnRulesMessage,
   SpawnRules,
   SpawnRulesMessageType,
@@ -88,7 +88,7 @@ export function countStockObjects(ctx: GameContext, network: GameNetworkState, p
     if (getPeerIndexFromNetworkId(nid) !== peerIndex) continue;
     if (hasComponent(ctx.world, TakenObject, eid)) continue;
     const prefab = Prefab.get(eid);
-    if (prefab && isThingId(prefab)) count++;
+    if (prefab && isItemId(prefab)) count++;
   }
   return count;
 }
@@ -148,7 +148,7 @@ export function checkCreate(
 ): { reject?: string; taken?: boolean; replacesNid?: number } {
   if (!peerOwnsNetworkId(network, peerId, nid)) return { reject: "created an object under someone else's ID" };
   if (!knownPrefab) return { reject: `spawned an unknown object type "${prefab.slice(0, 60)}"` };
-  if (!isThingId(prefab)) return {};
+  if (!isItemId(prefab)) return {};
   // "Don't enforce world limits on others for me" (Developer settings): show what they spawn. Ownership above stays.
   if (getLimitOverrides(ctx).ignoreOthers) return {};
   const rules = getSpawnRules(ctx);

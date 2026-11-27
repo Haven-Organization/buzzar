@@ -10,7 +10,7 @@ import { useMemoizedState } from "../../../hooks/useMemoizedState";
 import { overlayWorldAtom } from "../../../state/overlayWorld";
 import { aliasToRoomId, parseMatrixUri } from "../../../utils/matrixUtils";
 import { InteractionState, useWorldInteraction } from "../../../hooks/useWorldInteraction";
-import { EquipCard, useEquippedThing } from "../entity-tooltip/EquipCard";
+import { EquipCard, useEquippedItem } from "../entity-tooltip/EquipCard";
 import { EntityTooltip } from "../entity-tooltip/EntityTooltip";
 import { useOpenOverlayWindow } from "../../../hooks/useOpenOverlayWindow";
 import { OverlayWindow } from "../../../state/overlayWindow";
@@ -179,8 +179,8 @@ export function WorldInteraction({ session, world }: WorldInteractionProps) {
   );
 
   useWorldInteraction(mainThread, handleInteraction);
-  // Buzzar: a Thing's controls for a few seconds after you pick it up (in the hover card's place).
-  const equipped = useEquippedThing();
+  // Buzzar: an Item's controls for a few seconds after you pick it up (in the hover card's place).
+  const equipped = useEquippedItem();
 
   return (
     <div>

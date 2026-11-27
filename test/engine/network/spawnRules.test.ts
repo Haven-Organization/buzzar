@@ -87,7 +87,7 @@ describe("Buzzar spawn rules and ownership", () => {
     getModule(ctx, SpawnRulesModule).rules = {
       ...DEFAULT_SPAWN_RULES,
       default: "block",
-      things: { "small-crate": true },
+      items: { "small-crate": true },
     };
     deserializeCreates(
       ctx,

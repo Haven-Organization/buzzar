@@ -18,7 +18,7 @@ import {
   MovementPrefs,
   parseMovementPrefs,
 } from "../../../../engine/player/movement.common";
-import "../things/ThingCloneDialog.css";
+import "../items/ItemCloneDialog.css";
 
 const fill = (value: number) =>
   ({ "--fill": `${(((value - MIN_PREF) / (MAX_PREF - MIN_PREF)) * 100).toFixed(1)}%` } as CSSProperties);
@@ -51,7 +51,7 @@ export function MovementSpeedSetting({ which }: { which: keyof MovementPrefs }) 
 
   return (
     <SettingTile label={<Label>{`${LABEL[which]}: ${Math.round(value * 100)}%`}</Label>}>
-      <div className="ThingCloneDialog flex flex-column gap-xxs" style={{ padding: 0 }}>
+      <div className="ItemCloneDialog flex flex-column gap-xxs" style={{ padding: 0 }}>
         <input
           type="range"
           min={MIN_PREF}

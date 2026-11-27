@@ -24,14 +24,14 @@
   pointer-events: auto;
 }
 
-.TouchHudMenu__things,
+.TouchHudMenu__items,
 .TouchHudMenu__actions {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
   gap: var(--sp-xs);
 }
 
-.TouchHudMenu__thing,
+.TouchHudMenu__item,
 .TouchHudMenu__action {
   min-width: 0;
   padding: var(--sp-xs);
@@ -46,19 +46,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.TouchHudMenu__thing:active,
+.TouchHudMenu__item:active,
 .TouchHudMenu__action:active {
   background-color: rgb(255 255 255 / 30%);
 }
 
-.TouchHudMenu__thing img {
+.TouchHudMenu__item img {
   width: 32px;
   height: 32px;
   object-fit: contain;
 }
 
 /* Names wrap onto two lines rather than being cut short. */
-.TouchHudMenu__thing .Text,
+.TouchHudMenu__item .Text,
 .TouchHudMenu__action .Text {
   max-width: 100%;
   font-size: 11px;

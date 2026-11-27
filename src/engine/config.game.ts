@@ -132,7 +132,7 @@ export default defineConfig<GameContext>({
     FlyControllerSystem,
     SetWebXRReferenceSpaceSystem,
     InteractionSystem,
-    // Buzzar: picking up or letting go of a Thing held in the hands (after grabbing).
+    // Buzzar: picking up or letting go of an Item held in the hands (after grabbing).
     HoldingSystem,
     XRInteractionSystem,
     // Buzzar (Third Room #398): after grabbing, so a carried screen handle reports where it went.
@@ -145,7 +145,7 @@ export default defineConfig<GameContext>({
     PostureSystem,
     SceneGrabbableSystem,
     ActionBarSystem,
-    // Buzzar: water guns and other sprayers you hold (after grabbing, so a Thing just picked up can spray).
+    // Buzzar: water guns and other sprayers you hold (after grabbing, so an Item just picked up can spray).
     SprayerSystem,
     EnableCharacterControllerSystem,
 

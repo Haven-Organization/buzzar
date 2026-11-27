@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { readHold } from "./holdSpec";
 
-describe("HAVEN_thing hold", () => {
+describe("HAVEN_item hold", () => {
   it("is absent without a grip", () => {
     expect(readHold(undefined)).toBeUndefined();
-    expect(readHold({ extensions: { HAVEN_thing: { hold: { pose: "aim" } } } })).toBeUndefined();
+    expect(readHold({ extensions: { HAVEN_item: { hold: { pose: "aim" } } } })).toBeUndefined();
   });
 
   it("reads grips and aims along a sprayer's nozzle by default (untrusted)", () => {
     const hold = readHold({
       extensions: {
-        HAVEN_thing: {
+        HAVEN_item: {
           hold: {
             pose: "wave",
             hand: "left",

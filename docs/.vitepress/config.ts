@@ -106,7 +106,7 @@ export default defineConfig({
             { text: "HAVEN_mirror", link: "/gltf/HAVEN_mirror/README" },
             { text: "HAVEN_seat", link: "/gltf/HAVEN_seat/README" },
             { text: "HAVEN_climbable", link: "/gltf/HAVEN_climbable/README" },
-            { text: "HAVEN_thing", link: "/gltf/HAVEN_thing/README" },
+            { text: "HAVEN_item", link: "/gltf/HAVEN_item/README" },
             { text: "HAVEN_sprayer", link: "/gltf/HAVEN_sprayer/README" },
             { text: "HAVEN_trampoline", link: "/gltf/HAVEN_trampoline/README" },
             { text: "HAVEN_voice", link: "/gltf/HAVEN_voice/README" },

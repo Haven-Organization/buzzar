@@ -1,5 +1,5 @@
 /**
- * Buzzar: the Description (or Topic) and Version fields on the upload screens for worlds, avatars and Things, and the
+ * Buzzar: the Description (or Topic) and Version fields on the upload screens for worlds, avatars and Items, and the
  * "Save to file" switch. Picking a file fills the fields from what the file says about itself (HAVEN_metadata);
  * with the switch on, anything typed that differs from the file is written into it before it's uploaded
  * (utils/glbMetadata).

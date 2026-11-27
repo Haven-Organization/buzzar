@@ -28,7 +28,7 @@ function makeArm() {
   return { root, rig: createHoldRig((bone: HumanBone) => bones.get(bone))! };
 }
 
-describe("holding Things: arm IK", () => {
+describe("holding Items: arm IK", () => {
   it("finds the handshake frame from the fingers (T-pose: thumb forward)", () => {
     const { rig } = makeArm();
     const frame = handFrameNow(rig, "right")!;

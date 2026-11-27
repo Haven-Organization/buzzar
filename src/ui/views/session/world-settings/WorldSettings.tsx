@@ -22,7 +22,7 @@ import { Footer } from "../../../atoms/footer/Footer";
 import { Button } from "../../../atoms/button/Button";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
-import { ThingRulesDraft, WorldThingRules } from "./WorldThingRules";
+import { ItemRulesDraft, WorldItemRules } from "./WorldItemRules";
 import { SettingsNav, SettingsNavItem } from "../user-profile/SettingsNav";
 import SettingIC from "../../../../../res/ic/setting.svg";
 import PlanetIC from "../../../../../res/ic/planet.svg";
@@ -44,7 +44,7 @@ import ShieldIC from "../../../../../res/ic/shield.svg";
 import { WORLD_MAP_EVENT } from "../../../../plugins/world-map/worldMap.common";
 import { serializeShadows, shadowsDraftFromRules, WorldShadowSettings, WorldShadowsDraft } from "./WorldShadowSettings";
 import {
-  parseListedThings,
+  parseListedItems,
   serializeObjectRules,
   WORLD_RULES_EVENT,
 } from "../../../../engine/network/spawnRules.common";
@@ -69,23 +69,23 @@ import { useStateEventKeyCallback } from "../../../hooks/useStateEventKeyCallbac
 import { confirmDialog } from "../../components/confirm-dialog/ConfirmDialog";
 
 // Buzzar: World Settings is split into categories down the left, like User Settings.
-type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "things" | "movement" | "calls" | "moderation";
+type WorldSettingsCategory = "general" | "scene" | "lighting" | "map" | "items" | "movement" | "calls" | "moderation";
 const CATEGORIES: SettingsNavItem<WorldSettingsCategory>[] = [
   { id: "general", label: "General", icon: SettingIC },
   { id: "scene", label: "Scene & Script", icon: PlanetIC },
   { id: "lighting", label: "Lighting", icon: LightingIC },
   { id: "map", label: "Map", icon: MapIC },
-  { id: "things", label: "Things", icon: BoxIC },
+  { id: "items", label: "Items", icon: BoxIC },
   { id: "movement", label: "Movement", icon: RunIC },
   { id: "calls", label: "Calls", icon: CallIC },
   { id: "moderation", label: "Moderation & Safety", icon: ShieldIC },
 ];
 
-function draftFromRules(content: Record<string, unknown> | undefined): ThingRulesDraft {
+function draftFromRules(content: Record<string, unknown> | undefined): ItemRulesDraft {
   const objects = (content?.objects ?? {}) as Record<string, unknown>;
   return {
     default: objects.default === "block" ? "block" : "allow",
-    things: parseListedThings(objects),
+    items: parseListedItems(objects),
     blockedBehaviours: Array.isArray(objects.blocked_behaviours)
       ? objects.blocked_behaviours.filter((b): b is string => typeof b === "string")
       : [],
@@ -124,10 +124,10 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const [scriptInfo, setScriptInfo] = useState<AutoUploadInfo>({});
   const [category, setCategory] = useState<WorldSettingsCategory>("general");
 
-  // Buzzar: the world's Thing rules, edited here and sent with Save.
+  // Buzzar: the world's Item rules, edited here and sent with Save.
   const rulesContent = useRef<Record<string, unknown>>();
-  const [savedRules, setSavedRules] = useState<ThingRulesDraft>(() => draftFromRules(undefined));
-  const [thingRules, setThingRules] = useState<ThingRulesDraft>(savedRules);
+  const [savedRules, setSavedRules] = useState<ItemRulesDraft>(() => draftFromRules(undefined));
+  const [itemRules, setItemRules] = useState<ItemRulesDraft>(savedRules);
   const rulesTouched = useRef(false);
   const [savedShadows, setSavedShadows] = useState<WorldShadowsDraft>(() => shadowsDraftFromRules(undefined));
   const [shadows, setShadows] = useState<WorldShadowsDraft>(savedShadows);
@@ -144,7 +144,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     rulesContent.current = event?.content as Record<string, unknown> | undefined;
     const draft = draftFromRules(rulesContent.current);
     setSavedRules(draft);
-    if (!rulesTouched.current) setThingRules(draft);
+    if (!rulesTouched.current) setItemRules(draft);
     const shadowsDraft = shadowsDraftFromRules(rulesContent.current);
     setSavedShadows(shadowsDraft);
     if (!shadowsTouched.current) setShadows(shadowsDraft);
@@ -156,9 +156,9 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     if (!screenShareTouched.current) setScreenShareRule(screenShareDraft);
   }, []);
   useStateEventKeyCallback(room, WORLD_RULES_EVENT, "", onRules);
-  const changeThingRules = (draft: ThingRulesDraft) => {
+  const changeItemRules = (draft: ItemRulesDraft) => {
     rulesTouched.current = true;
-    setThingRules(draft);
+    setItemRules(draft);
   };
   const changeMovement = (draft: MovementRules) => {
     movementTouched.current = true;
@@ -219,7 +219,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
   const canEditCalls = canSendStateEvent(WORLD_CALL_EVENT, myPowerLevel);
 
   const rulesChanged =
-    JSON.stringify(thingRules) !== JSON.stringify(savedRules) ||
+    JSON.stringify(itemRules) !== JSON.stringify(savedRules) ||
     JSON.stringify(shadows) !== JSON.stringify(savedShadows) ||
     JSON.stringify(serializeMovementRules(movement)) !== JSON.stringify(serializeMovementRules(savedMovement)) ||
     screenShareRule !== savedScreenShare;
@@ -301,7 +301,7 @@ export function WorldSettings({ room }: WorldSettingsProps) {
     if (canEditRules && (rulesChanged || capChanged)) {
       const content = rulesContent.current ?? {};
       const previous = (content.objects ?? {}) as Record<string, unknown>;
-      const objects = serializeObjectRules(previous, thingRules);
+      const objects = serializeObjectRules(previous, itemRules);
       // A per-person limit in the rules overrides the world's; keep the two the same.
       if (capChanged && objects.max_per_user !== undefined) objects.max_per_user = maxObjectCap;
       session.hsApi
@@ -493,13 +493,13 @@ export function WorldSettings({ room }: WorldSettingsProps) {
                           }
                         />
                       </div>
-                      <div className="WorldSettings__section" hidden={category !== "things"}>
+                      <div className="WorldSettings__section" hidden={category !== "items"}>
                         {canEditScene && (
-                          <SettingTile label={<Label>Max Spawned Things Per Person</Label>}>
+                          <SettingTile label={<Label>Max Spawned Items Per Person</Label>}>
                             <Input type="number" value={maxObjectCap} onChange={handleMaxObjectCapChange} required />
                           </SettingTile>
                         )}
-                        <WorldThingRules value={thingRules} onChange={changeThingRules} disabled={!canEditRules} />
+                        <WorldItemRules value={itemRules} onChange={changeItemRules} disabled={!canEditRules} />
                         {!canEditRules && (
                           <Text variant="b3" color="surface-low">
                             You don't have permission to change these rules.

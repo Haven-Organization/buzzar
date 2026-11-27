@@ -47,7 +47,7 @@
   overflow: hidden;
 }
 
-/* Buzzar: the controls card shown when you pick up a Thing that lists its controls (EquipCard). */
+/* Buzzar: the controls card shown when you pick up an Item that lists its controls (EquipCard). */
 .EntityTooltip--equip {
   animation: entity-tooltip-equip-out 6s ease-in forwards;
 }

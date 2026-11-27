@@ -32,7 +32,7 @@ import { useCalls } from "../../../hooks/useCalls";
 import { useRoomCall } from "../../../hooks/useRoomCall";
 import { WorldsView } from "../worlds/WorldsView";
 import { AvatarsView } from "../avatars/AvatarsView";
-import { ThingsView } from "../things/ThingsView";
+import { ItemsView } from "../items/ItemsView";
 import { DetailsView } from "../details/DetailsView";
 import { PeopleView } from "../people/PeopleView";
 import { activeChatsAtom, openedChatAtom } from "../../../state/overlayChat";
@@ -113,7 +113,7 @@ export function Overlay() {
           {/* Buzzar: full-screen Worlds (yours + Explore), Avatars and People. */}
           {overlayWindow.type === OverlayWindow.Worlds && <WorldsView />}
           {overlayWindow.type === OverlayWindow.Avatars && <AvatarsView />}
-          {overlayWindow.type === OverlayWindow.Things && <ThingsView />}
+          {overlayWindow.type === OverlayWindow.Items && <ItemsView />}
           {overlayWindow.type === OverlayWindow.People && <PeopleView />}
           {overlayWindow.type === OverlayWindow.Details && <DetailsView />}
         </div>

@@ -7,7 +7,7 @@
  * - The buttons on the right jump, crouch, grab or use, and throw. Straightening what you hold and flying are in the
  *   HUD's More panel (TouchHudMenu).
  *
- * Touches on the world never become mouse clicks, so looking around doesn't grab things. The menu, chat, people and
+ * Touches on the world never become mouse clicks, so looking around doesn't grab items. The menu, chat, people and
  * the other on-screen buttons still work by tapping them.
  */
 import { PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";

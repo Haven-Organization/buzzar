@@ -123,7 +123,7 @@ export function InstancesDialog({
     body = (
       <div className="flex flex-column gap-md">
         <Text variant="b3" color="surface-low">
-          Each instance is its own copy of this world: you only see and hear the people in yours, and Things you put
+          Each instance is its own copy of this world: you only see and hear the people in yours, and Items you put
           down stay in it. Chat is shared by all of them.
         </Text>
         {!instances ? (

@@ -10,7 +10,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Switch } from "../../../atoms/button/Switch";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { parseWorldShadows } from "../../../../engine/renderer/renderer.common";
-import "../things/ThingCloneDialog.css";
+import "../items/ItemCloneDialog.css";
 
 export interface WorldShadowsDraft {
   sun: boolean;
@@ -56,7 +56,7 @@ export function WorldShadowSettings({
 }) {
   const set = (patch: Partial<WorldShadowsDraft>) => onChange({ ...value, ...patch });
   return (
-    <div className="ThingCloneDialog flex flex-column gap-md" style={{ padding: 0 }}>
+    <div className="ItemCloneDialog flex flex-column gap-md" style={{ padding: 0 }}>
       <SettingTile label={<Label>Sun Shadows</Label>}>
         <div className="flex flex-column gap-xxs">
           <Switch
@@ -80,7 +80,7 @@ export function WorldShadowSettings({
             aria-label="Shadows in baked lighting"
           />
           <Text variant="b3" color="surface-low">
-            For worlds whose lighting is baked into lightmaps: moving things and people cast shadows from this direction
+            For worlds whose lighting is baked into lightmaps: moving items and people cast shadows from this direction
             (match it to the baked light), without relighting the world.
           </Text>
         </div>

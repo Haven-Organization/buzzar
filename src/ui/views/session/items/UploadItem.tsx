@@ -1,12 +1,12 @@
 /**
- * Buzzar: Upload Thing: add a .glb Thing to My Things (bookmarked in account data, see thingsMatrix.ts), with its
+ * Buzzar: Upload Item: add a .glb Item to My Items (bookmarked in account data, see itemsMatrix.ts), with its
  * name, description and version, saved into the file if you change them (components/file-details).
  */
 import { useEffect, useState } from "react";
 
 import { Switch } from "../../../atoms/button/Switch";
 import { editGlbJson, markExtensionUsed, readGlbJson } from "../../../utils/glbMetadata";
-import { bakedThingPhysics, thingPhysicsToJSON } from "../../../../plugins/spawnables/thingFile";
+import { bakedItemPhysics, itemPhysicsToJSON } from "../../../../plugins/spawnables/itemFile";
 import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { Modal } from "../../../atoms/modal/Modal";
 import { ModalContent } from "../../../atoms/modal/ModalContent";
@@ -25,17 +25,18 @@ import { AutoFileUpload, AutoUploadInfo } from "../../components/AutoFileUpload"
 import { FileDetailsFields, useFileDetails } from "../../components/file-details/FileDetails";
 import { useMatrix } from "../../../hooks/useMatrix";
 import { getSessionAuth, uploadMedia } from "../../../utils/avatarMatrix";
-import { saveToThingCollection, ThingCollection } from "../../../utils/thingsMatrix";
+import { saveToItemCollection, ItemCollection } from "../../../utils/itemsMatrix";
 import UploadIC from "../../../../../res/ic/upload.svg";
+import { itemExtension, upgradeItemExtension } from "../../../../engine/gltf/itemExtension";
 
-export function UploadThing({
+export function UploadItem({
   open,
   onOpenChange,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: (collection: ThingCollection) => void;
+  onSaved: (collection: ItemCollection) => void;
 }) {
   const { session, platform, client } = useMatrix(true);
   const [fileInfo, setFileInfo] = useState<AutoUploadInfo>({});
@@ -50,22 +51,20 @@ export function UploadThing({
     if (file) loadFrom(file);
   }, [file, loadFrom]);
 
-  // Whether it appears in your hold when spawned (HAVEN_thing spawn.held), as the file says and as chosen here.
+  // Whether it appears in your hold when spawned (HAVEN_item spawn.held), as the file says and as chosen here.
   const [fileHeld, setFileHeld] = useState(false);
   const [held, setHeld] = useState(false);
-  // Whether the file already says how it behaves physically (HAVEN_thing collider).
+  // Whether the file already says how it behaves physically (HAVEN_item collider).
   const [fileHasPhysics, setFileHasPhysics] = useState(true);
   useEffect(() => {
     if (!file) return;
     readGlbJson(file)
       .then((json) => {
-        const thing = (
-          json?.extensions as Record<string, { spawn?: { held?: unknown }; collider?: unknown }> | undefined
-        )?.HAVEN_thing;
-        const value = thing?.spawn?.held === true;
+        const item = itemExtension(json as never) as { spawn?: { held?: unknown }; collider?: unknown } | undefined;
+        const value = item?.spawn?.held === true;
         setFileHeld(value);
         setHeld(value);
-        setFileHasPhysics(!!thing?.collider);
+        setFileHasPhysics(!!item?.collider);
       })
       .catch(() => undefined);
   }, [file]);
@@ -87,27 +86,28 @@ export function UploadThing({
       if (held !== fileHeld || bakePhysics) {
         baked = await editGlbJson(baked ?? file, (json) => {
           json.extensions ??= {};
-          const existing = (json.extensions.HAVEN_thing ?? {}) as Record<string, unknown>;
-          const thing = bakePhysics ? thingPhysicsToJSON(bakedThingPhysics(json), existing) : existing;
-          thing.spawn = { ...((thing.spawn as object) ?? {}), held };
-          json.extensions.HAVEN_thing = thing;
-          markExtensionUsed(json, "HAVEN_thing");
+          upgradeItemExtension(json as never);
+          const existing = (json.extensions.HAVEN_item ?? {}) as Record<string, unknown>;
+          const item = bakePhysics ? itemPhysicsToJSON(bakedItemPhysics(json), existing) : existing;
+          item.spawn = { ...((item.spawn as object) ?? {}), held };
+          json.extensions.HAVEN_item = item;
+          markExtensionUsed(json, "HAVEN_item");
         });
       }
-      const url = baked ? await uploadMedia(auth, baked, file.name ?? "thing.glb") : fileInfo.mxc;
-      // Its picture (as the Things screen draws it), saved with it so the hotbar and tiles can show it.
+      const url = baked ? await uploadMedia(auth, baked, file.name ?? "item.glb") : fileInfo.mxc;
+      // Its picture (as the Items screen draws it), saved with it so the hotbar and tiles can show it.
       let previewUrl: string | undefined;
       try {
         const httpUrl = session.mediaRepository.mxcUrl(url);
         if (httpUrl) {
-          const picture = await renderAvatarPreviewFromUrl(url, httpUrl, "thing");
-          previewUrl = await uploadMedia(auth, picture, "thing-preview.png");
+          const picture = await renderAvatarPreviewFromUrl(url, httpUrl, "item");
+          previewUrl = await uploadMedia(auth, picture, "item-preview.png");
         }
       } catch (e) {
-        console.warn("Couldn't make a picture of the Thing; it's saved without one.", e);
+        console.warn("Couldn't make a picture of the Item; it's saved without one.", e);
       }
       onSaved(
-        await saveToThingCollection(auth, session.userId, {
+        await saveToItemCollection(auth, session.userId, {
           url,
           name: name.trim() || undefined,
           preview_url: previewUrl,
@@ -127,14 +127,14 @@ export function UploadThing({
         <ModalContent
           children={
             <Content
-              top={<Header left={<HeaderTitle>Upload Thing</HeaderTitle>} />}
+              top={<Header left={<HeaderTitle>Upload Item</HeaderTitle>} />}
               children={
                 <Scroll>
                   <div className="flex flex-column gap-md" style={{ padding: "var(--sp-md)" }}>
                     <Text variant="b3" color="surface-low">
-                      Upload a .glb object to keep in My Things. A preview is made for you from the file.
+                      Upload a .glb object to keep in My Items. A preview is made for you from the file.
                     </Text>
-                    <SettingTile label={<Label>Thing</Label>}>
+                    <SettingTile label={<Label>Item</Label>}>
                       <AutoFileUpload
                         mimeType=".glb"
                         onUploadInfo={setFileInfo}
@@ -156,11 +156,11 @@ export function UploadThing({
                           options={<Switch checked={held} onCheckedChange={setHeld} />}
                         >
                           <Text variant="b3" color="surface-low">
-                            For things you carry (a torch, a tool): spawning it puts it straight in your hold instead of
+                            For items you carry (a torch, a tool): spawning it puts it straight in your hold instead of
                             setting it down in front of you. Saved into the file.
                           </Text>
                         </SettingTile>
-                        <FileDetailsFields details={details} descriptionLabel="Description" fileLabel="Thing file" />
+                        <FileDetailsFields details={details} descriptionLabel="Description" fileLabel="Item file" />
                       </>
                     )}
                   </div>
@@ -181,7 +181,7 @@ export function UploadThing({
                         </Text>
                       )}
                       <Button onClick={save} disabled={saving || !fileInfo.mxc}>
-                        {saving ? "Saving..." : "Add to My Things"}
+                        {saving ? "Saving..." : "Add to My Items"}
                       </Button>
                     </div>
                   }

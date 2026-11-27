@@ -125,7 +125,7 @@ function WorldBans({ room, canEdit }: { room: Room; canEdit: boolean }) {
   return (
     <SettingTile label={<Label>Banned Accounts and Servers</Label>}>
       <Text variant="b3" color="surface-low">
-        Every visitor&apos;s Buzzar holds these back at once: nobody sees their avatar or Things or hears them, and they
+        Every visitor&apos;s Buzzar holds these back at once: nobody sees their avatar or Items or hears them, and they
         don&apos;t see or hear anyone. They&apos;re standard Matrix ban rules kept in this world&apos;s room, so
         moderation bots (Meowlnir, Draupnir) can follow this world as a ban list too. To also remove someone from the
         world&apos;s room and chat, use Ban in the People list.

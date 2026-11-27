@@ -9,21 +9,21 @@ import { getCamera } from "../../engine/player/getCamera";
 import { RemoteNode } from "../../engine/resource/RemoteResources";
 import { tryGetRemoteResource } from "../../engine/resource/resource.game";
 import { ScriptComponent, scriptQuery } from "../../engine/scripting/scripting.game";
-import { customThingReady, spawnPrefab } from "../spawnables/spawnables.game";
-import { isCustomThingId } from "../../engine/network/spawnRules.common";
+import { customItemReady, spawnPrefab } from "../spawnables/spawnables.game";
+import { isCustomItemId } from "../../engine/network/spawnRules.common";
 import { getSpawnRules, isSpawnAllowed } from "../../engine/network/spawnRules.game";
 import {
   ActionBarItem,
-  CustomThingInfo,
-  DEFAULT_THING_KEYS,
+  CustomItemInfo,
+  DEFAULT_ITEM_KEYS,
   SetActionBarItemsMessage,
-  THING_KEY_COUNT,
-  isThingCloneId,
-  ThingClone,
-  ThingKeys,
+  ITEM_KEY_COUNT,
+  isItemCloneId,
+  ItemClone,
+  ItemKeys,
   ThirdRoomMessageType,
 } from "./thirdroom.common";
-import { ThingVariables } from "../spawnables/thingVariables.common";
+import { ItemVariables } from "../spawnables/itemVariables.common";
 import { ThirdRoomModule } from "./thirdroom.game";
 
 export const actionBarMap: ActionMap = {
@@ -99,94 +99,94 @@ export const defaultActionBarItems: ActionBarItem[] = [
   },
 ];
 
-/** Buzzar: which stock Thing is on which number key (the Things screen sets this; see ThingKeys). */
-let thingKeys: ThingKeys = DEFAULT_THING_KEYS;
+/** Buzzar: which stock Item is on which number key (the Items screen sets this; see ItemKeys). */
+let itemKeys: ItemKeys = DEFAULT_ITEM_KEYS;
 
-/** Buzzar: your cloned Things, by id. */
-const thingClones = new Map<string, ThingClone>();
+/** Buzzar: your cloned Items, by id. */
+const itemClones = new Map<string, ItemClone>();
 
-/** Buzzar: your own Things' names and pictures, by mxc (a custom Thing not listed here still spawns, as "Thing"). */
-const customThings = new Map<string, CustomThingInfo>();
+/** Buzzar: your own Items' names and pictures, by mxc (a custom Item not listed here still spawns, as "Item"). */
+const customItems = new Map<string, CustomItemInfo>();
 
-export function setCustomThings(ctx: GameContext, things: CustomThingInfo[]) {
+export function setCustomItems(ctx: GameContext, items: CustomItemInfo[]) {
   const { actionBarItems } = getModule(ctx, ThirdRoomModule);
   const stock = isStockBar(actionBarItems);
-  customThings.clear();
-  for (const thing of things) if (isCustomThingId(thing.id)) customThings.set(thing.id, thing);
+  customItems.clear();
+  for (const item of items) if (isCustomItemId(item.id)) customItems.set(item.id, item);
   if (stock) setDefaultActionBarItems(ctx);
 }
 
-/** Buzzar: what a Thing id spawns: a stock prefab, with a clone's variables and name, or a custom Thing's file. */
-function resolveThing(id: string): { item: ActionBarItem; prefab: string; variables?: ThingVariables } | undefined {
-  if (isCustomThingId(id)) {
-    const info = customThings.get(id);
+/** Buzzar: what an Item id spawns: a stock prefab, with a clone's variables and name, or a custom Item's file. */
+function resolveItem(id: string): { item: ActionBarItem; prefab: string; variables?: ItemVariables } | undefined {
+  if (isCustomItemId(id)) {
+    const info = customItems.get(id);
     return {
-      item: { id, label: info?.name || "Thing", thumbnail: info?.thumbnail ?? "", spawnable: true },
+      item: { id, label: info?.name || "Item", thumbnail: info?.thumbnail ?? "", spawnable: true },
       prefab: id,
     };
   }
-  const clone = isThingCloneId(id) ? thingClones.get(id) : undefined;
+  const clone = isItemCloneId(id) ? itemClones.get(id) : undefined;
   const base = defaultActionBarItems.find((d) => d.id === (clone ? clone.base : id));
   if (!base) return undefined;
   if (!clone) return { item: base, prefab: base.id };
   return { item: { ...base, id: clone.id, label: clone.name }, prefab: base.id, variables: clone.variables };
 }
 
-/** Whether the bar shows the user's Things (stock or cloned) rather than a world script's own items. */
-const isStockBar = (items: ActionBarItem[]) => items.every((item) => !!resolveThing(item.id));
+/** Whether the bar shows the user's Items (stock or cloned) rather than a world script's own items. */
+const isStockBar = (items: ActionBarItem[]) => items.every((item) => !!resolveItem(item.id));
 
-/** Buzzar: puts the user's Things on their keys, and refreshes the bar if it's the stock one (not a script's). */
-export function setThingKeys(ctx: GameContext, keys: ThingKeys) {
+/** Buzzar: puts the user's Items on their keys, and refreshes the bar if it's the stock one (not a script's). */
+export function setItemKeys(ctx: GameContext, keys: ItemKeys) {
   const { actionBarItems } = getModule(ctx, ThirdRoomModule);
   const stock = isStockBar(actionBarItems);
-  thingKeys = Array.from({ length: THING_KEY_COUNT }, (_, i) => (typeof keys[i] === "string" ? keys[i] : null));
+  itemKeys = Array.from({ length: ITEM_KEY_COUNT }, (_, i) => (typeof keys[i] === "string" ? keys[i] : null));
   if (stock) setDefaultActionBarItems(ctx);
 }
 
-/** Buzzar: your cloned Things (from the Things screen); refreshes the bar like setThingKeys. */
-export function setThingClones(ctx: GameContext, clones: ThingClone[]) {
+/** Buzzar: your cloned Items (from the Items screen); refreshes the bar like setItemKeys. */
+export function setItemClones(ctx: GameContext, clones: ItemClone[]) {
   const { actionBarItems } = getModule(ctx, ThirdRoomModule);
   const stock = isStockBar(actionBarItems);
-  thingClones.clear();
-  for (const clone of clones) if (isThingCloneId(clone.id)) thingClones.set(clone.id, clone);
+  itemClones.clear();
+  for (const clone of clones) if (isItemCloneId(clone.id)) itemClones.set(clone.id, clone);
   if (stock) setDefaultActionBarItems(ctx);
 }
 
-/** Buzzar: Things asked for from the Things screen, spawned on the next frame like a number-key press. */
-const pendingThingSpawns: string[] = [];
+/** Buzzar: Items asked for from the Items screen, spawned on the next frame like a number-key press. */
+const pendingItemSpawns: string[] = [];
 
-export function queueThingSpawn(id: string) {
-  if (resolveThing(id)) pendingThingSpawns.push(id);
+export function queueItemSpawn(id: string) {
+  if (resolveItem(id)) pendingItemSpawns.push(id);
 }
 
-function spawnThing(ctx: GameContext, from: RemoteNode, id: string, isXR: boolean) {
-  const thing = resolveThing(id);
-  if (!thing) return;
-  // A custom Thing spawns once its file has loaded (so it has its own shape from the start).
-  if (isCustomThingId(id)) {
-    const ready = customThingReady(ctx, id, () => pendingThingSpawns.push(id));
+function spawnItem(ctx: GameContext, from: RemoteNode, id: string, isXR: boolean) {
+  const item = resolveItem(id);
+  if (!item) return;
+  // A custom Item spawns once its file has loaded (so it has its own shape from the start).
+  if (isCustomItemId(id)) {
+    const ready = customItemReady(ctx, id, () => pendingItemSpawns.push(id));
     if (ready !== "ready") return;
   }
-  return spawnPrefab(ctx, from, thing.prefab, isXR, thing.variables);
+  return spawnPrefab(ctx, from, item.prefab, isXR, item.variables);
 }
 
 export function setDefaultActionBarItems(ctx: GameContext) {
   const thirdroom = getModule(ctx, ThirdRoomModule);
 
   thirdroom.actionBarItems.length = 0;
-  // Buzzar: the Things on your number keys, leaving out ones this world doesn't allow.
+  // Buzzar: the Items on your number keys, leaving out ones this world doesn't allow.
   const rules = getSpawnRules(ctx);
   // "Ignore world limits for my actions" (Developer settings) shows them all.
   const allowed = (id: string) => getLimitOverrides(ctx).ignoreOwn || isSpawnAllowed(rules, id);
-  thingKeys.forEach((id, slot) => {
-    const thing = id ? resolveThing(id) : undefined;
-    if (thing && allowed(thing.prefab)) thirdroom.actionBarItems.push({ ...thing.item, slot });
+  itemKeys.forEach((id, slot) => {
+    const item = id ? resolveItem(id) : undefined;
+    if (item && allowed(item.prefab)) thirdroom.actionBarItems.push({ ...item.item, slot });
   });
 
   ctx.sendMessage<SetActionBarItemsMessage>(Thread.Main, {
     type: ThirdRoomMessageType.SetActionBarItems,
     actionBarItems: thirdroom.actionBarItems,
-    allowedThings: [...defaultActionBarItems.map((d) => d.id), ...customThings.keys()].filter(allowed),
+    allowedItems: [...defaultActionBarItems.map((d) => d.id), ...customItems.keys()].filter(allowed),
   });
 }
 
@@ -213,15 +213,15 @@ export function ActionBarSystem(ctx: GameContext) {
   });
 
   const eid = ourPlayerQuery(ctx.world)[0];
-  const queued = pendingThingSpawns.splice(0);
+  const queued = pendingItemSpawns.splice(0);
 
   if (eid) {
     const node = tryGetRemoteResource<RemoteNode>(ctx, eid);
     const xr = XRAvatarRig.get(eid);
 
-    // Buzzar: from the Things screen (the overlay is open, so it's never XR).
+    // Buzzar: from the Items screen (the overlay is open, so it's never XR).
     const camera = getCamera(ctx, node).parent;
-    for (const id of queued) if (camera && spawnThing(ctx, camera, id, false) === false) break;
+    for (const id of queued) if (camera && spawnItem(ctx, camera, id, false) === false) break;
 
     processPressedActionBarActions(actionBarItems, input, (actionBarItem) => {
       if (actionBarItem.spawnable !== true) {
@@ -230,12 +230,12 @@ export function ActionBarSystem(ctx: GameContext) {
 
       if (xr && xr.rightRayEid) {
         const rightRayNode = tryGetRemoteResource<RemoteNode>(ctx, xr.rightRayEid);
-        return spawnThing(ctx, rightRayNode, actionBarItem.id, true);
+        return spawnItem(ctx, rightRayNode, actionBarItem.id, true);
       } else {
         const camera = getCamera(ctx, node).parent;
 
         if (camera) {
-          return spawnThing(ctx, camera, actionBarItem.id, true);
+          return spawnItem(ctx, camera, actionBarItem.id, true);
         }
       }
     });
@@ -253,7 +253,7 @@ function processPressedActionBarActions(
 
     if (action?.pressed) {
       const itemIndex = i === 0 ? 9 : i - 1;
-      // Buzzar: the stock bar puts Things on chosen keys (slot); a script's bar fills keys 1, 2… in order.
+      // Buzzar: the stock bar puts Items on chosen keys (slot); a script's bar fills keys 1, 2… in order.
       const actionBarItem = actionBarItems.some((item) => item.slot !== undefined)
         ? actionBarItems.find((item) => item.slot === itemIndex)
         : actionBarItems[itemIndex];

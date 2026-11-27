@@ -13,13 +13,13 @@ import { ownedNetworkedQuery } from "../../engine/network/network.game";
 import { Networked, Owned } from "../../engine/network/NetworkComponents";
 import { CollisionGroup, dynamicObjectCollisionGroups } from "../../engine/physics/CollisionGroups";
 import { scaleTrampolineBounce } from "../../engine/player/trampolines";
-import { ThingPrefabOptions, thingVariablesFor, tintNodeTree, variantMaterial } from "./thingVariables.game";
+import { ItemPrefabOptions, itemVariablesFor, tintNodeTree, variantMaterial } from "./itemVariables.game";
 import {
-  encodeThingVariables,
-  hasThingVariables,
-  sanitizeThingVariables,
-  ThingVariables,
-} from "./thingVariables.common";
+  encodeItemVariables,
+  hasItemVariables,
+  sanitizeItemVariables,
+  ItemVariables,
+} from "./itemVariables.common";
 import {
   addPhysicsBody,
   addPhysicsCollider,
@@ -31,13 +31,13 @@ import {
 import { markUpright } from "../../engine/physics/upright";
 import {
   gltfBounds,
-  loadedThingFile,
+  loadedItemFile,
   physicsFromBounds,
-  readThingPhysics,
-  rememberThingFile,
-  thingPhysics,
-  ThingPhysics,
-} from "./thingFile";
+  readItemPhysics,
+  rememberItemFile,
+  itemPhysics,
+  ItemPhysics,
+} from "./itemFile";
 import {
   createPrefabEntity,
   Prefab,
@@ -47,10 +47,10 @@ import {
   registerPrefabResolver,
 } from "../../engine/prefab/prefab.game";
 import { getSpawnRules, isSpawnAllowed, TakenObject } from "../../engine/network/spawnRules.game";
-import { isCustomThingId, isThingId, rememberThingBehaviours } from "../../engine/network/spawnRules.common";
+import { isCustomItemId, isItemId, rememberItemBehaviours } from "../../engine/network/spawnRules.common";
 import { resolveMxcUri } from "../avatar-pedestals/pedestals.game";
 import { attachSprayer } from "../sprayers/sprayer.game";
-import { usableThings } from "../interaction/usable";
+import { usableItems } from "../interaction/usable";
 import { readAssetMetadata } from "../../engine/gltf/assetMetadata";
 import { getRemoteResource } from "../../engine/resource/resource.game";
 import {
@@ -110,8 +110,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "small-crate",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("small-crate", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("small-crate", options);
         return createCrate(ctx, module, physics, 1 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
@@ -119,8 +119,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "medium-crate",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("medium-crate", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("medium-crate", options);
         return createCrate(ctx, module, physics, 1.75 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
@@ -128,8 +128,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "large-crate",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("large-crate", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("large-crate", options);
         return createCrate(ctx, module, physics, 2.5 * (v.size ?? 1), crateAudioData, options.kinematic, v);
       },
     });
@@ -191,8 +191,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "mirror-ball",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("mirror-ball", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("mirror-ball", options);
         const material =
           v.tint || v.glow !== undefined ? variantMaterial(ctx, mirrorMaterial, v.tint, v.glow) : mirrorMaterial;
         return createBall(ctx, module, physics, 1 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
@@ -202,8 +202,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "black-mirror-ball",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("black-mirror-ball", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("black-mirror-ball", options);
         const material =
           v.tint || v.glow !== undefined
             ? variantMaterial(ctx, blackMirrorMaterial, v.tint, v.glow)
@@ -215,8 +215,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "emissive-ball",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) => {
-        const v = thingVariablesFor("emissive-ball", options);
+      create: (ctx, options: ItemPrefabOptions) => {
+        const v = itemVariablesFor("emissive-ball", options);
         const material =
           v.tint || v.glow !== undefined ? variantMaterial(ctx, emissiveMaterial, v.tint, v.glow) : emissiveMaterial;
         return createBall(ctx, module, physics, 2 * (v.size ?? 1), material, ballAudioData, options.kinematic, v);
@@ -226,8 +226,8 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
     registerPrefab(ctx, {
       name: "trampoline",
       type: PrefabType.Object,
-      create: (ctx, options: ThingPrefabOptions) =>
-        createTrampoline(ctx, physics, options.kinematic, thingVariablesFor("trampoline", options)),
+      create: (ctx, options: ItemPrefabOptions) =>
+        createTrampoline(ctx, physics, options.kinematic, itemVariablesFor("trampoline", options)),
     });
 
     // collision handlers
@@ -274,14 +274,14 @@ export const SpawnablesModule = defineModule<GameContext, SpawnablesModuleState>
       }
     });
 
-    // Buzzar: custom Things, named by their file's mxc:// URI, get a prefab the first time they're spawned or seen.
+    // Buzzar: custom Items, named by their file's mxc:// URI, get a prefab the first time they're spawned or seen.
     const disposeResolver = registerPrefabResolver((_ctx, name) =>
-      isCustomThingId(name)
+      isCustomItemId(name)
         ? {
             name,
             type: PrefabType.Object,
-            create: (ctx: GameContext, options: ThingPrefabOptions) =>
-              createFileThing(ctx, physics, name, !!options.kinematic),
+            create: (ctx: GameContext, options: ItemPrefabOptions) =>
+              createFileItem(ctx, physics, name, !!options.kinematic),
           }
         : undefined
     );
@@ -298,7 +298,7 @@ function createBall(
   material: RemoteMaterial,
   ballAudioData: RemoteAudioData,
   kinematic = false,
-  variables: ThingVariables = {}
+  variables: ItemVariables = {}
 ) {
   const node = new RemoteNode(ctx.resourceManager, {
     mesh: createSphereMesh(ctx, size, material),
@@ -360,10 +360,10 @@ export function preloadSpawnables(ctx: GameContext) {
     cratePreloaded = false;
     console.warn("Couldn't preload the crate model:", error);
   });
-  // Buzzar: Things made from files: preloaded the same way, and read for how they behave (HAVEN_thing).
-  for (const { uri } of Object.values(THING_FILES)) {
+  // Buzzar: Items made from files: preloaded the same way, and read for how they behave (HAVEN_item).
+  for (const { uri } of Object.values(ITEM_FILES)) {
     loadGLTF(ctx, uri)
-      .then((resource) => rememberThingFile(uri, resource.root as never))
+      .then((resource) => rememberItemFile(uri, resource.root as never))
       .catch((error) => console.warn(`Couldn't preload ${uri}:`, error));
   }
 }
@@ -375,7 +375,7 @@ function createCrate(
   size: number,
   crateAudioData: RemoteAudioData,
   kinematic = false,
-  variables: ThingVariables = {}
+  variables: ItemVariables = {}
 ) {
   const tint = variables.tint;
   const node = createNodeFromGLTFURI(
@@ -428,15 +428,15 @@ function createCrate(
   return node;
 }
 
-const TRAMPOLINE_GLTF_URI = "/gltf/things/trampoline.glb";
+const TRAMPOLINE_GLTF_URI = "/gltf/items/trampoline.glb";
 
 /**
- * Buzzar: the stock Trampoline Thing (scripts/buzzar/make-trampoline-thing.py). Its file says how it behaves: the mat
- * is marked with HAVEN_trampoline, which does the bouncing (engine/player/trampolines.ts), and HAVEN_thing makes it a
+ * Buzzar: the stock Trampoline Item (scripts/buzzar/make-trampoline-item.py). Its file says how it behaves: the mat
+ * is marked with HAVEN_trampoline, which does the bouncing (engine/player/trampolines.ts), and HAVEN_item makes it a
  * heavy drum (about 150 kg) that only turns about the vertical, so it always stands flat and nothing tips it over.
  * These are the same values, for before the file has loaded.
  */
-const TRAMPOLINE_PHYSICS: ThingPhysics = {
+const TRAMPOLINE_PHYSICS: ItemPhysics = {
   collider: { type: "cylinder", radius: 1.5, height: 0.53, offset: [0, 0.265, 0] },
   density: 40,
   rotation: "yaw",
@@ -444,12 +444,12 @@ const TRAMPOLINE_PHYSICS: ThingPhysics = {
   spawn: { distance: 2.4, upright: true },
 };
 
-/** The physics of a Thing made from a file: collider, body, rotation lock and upright settling (HAVEN_thing). */
-function addThingPhysics(
+/** The physics of an Item made from a file: collider, body, rotation lock and upright settling (HAVEN_item). */
+function addItemPhysics(
   ctx: GameContext,
   physics: PhysicsModuleState,
   node: RemoteNode,
-  settings: ThingPhysics,
+  settings: ItemPhysics,
   kinematic: boolean,
   mass?: number
 ) {
@@ -488,7 +488,7 @@ function createTrampoline(
   ctx: GameContext,
   physics: PhysicsModuleState,
   kinematic = false,
-  variables: ThingVariables = {}
+  variables: ItemVariables = {}
 ) {
   const { tint, springiness } = variables;
   const node = createNodeFromGLTFURI(ctx, TRAMPOLINE_GLTF_URI, (loaded) => {
@@ -496,79 +496,79 @@ function createTrampoline(
     // The mat's HAVEN_trampoline settings are registered as the file loads, just before this.
     if (springiness !== undefined) scaleTrampolineBounce(loaded, springiness);
   });
-  addThingPhysics(
+  addItemPhysics(
     ctx,
     physics,
     node,
-    thingPhysics(TRAMPOLINE_GLTF_URI, TRAMPOLINE_PHYSICS),
+    itemPhysics(TRAMPOLINE_GLTF_URI, TRAMPOLINE_PHYSICS),
     kinematic,
     variables.weight
   );
   return node;
 }
 
-/** Buzzar: Things made from files, by prefab id (for their spawn placement). */
-const THING_FILES: Record<string, { uri: string; physics: ThingPhysics }> = {
+/** Buzzar: Items made from files, by prefab id (for their spawn placement). */
+const ITEM_FILES: Record<string, { uri: string; physics: ItemPhysics }> = {
   trampoline: { uri: TRAMPOLINE_GLTF_URI, physics: TRAMPOLINE_PHYSICS },
 };
 
 /**
- * Buzzar: how far in front of you a Thing appears (metres; default 1), whether it's stood upright (turned only
+ * Buzzar: how far in front of you an Item appears (metres; default 1), whether it's stood upright (turned only
  * to face the way you look) rather than tilted like your hand or view, and whether it appears in your hold. From the
- * Thing's file (HAVEN_thing spawn).
+ * Item's file (HAVEN_item spawn).
  */
 function spawnPlacement(prefabId: string) {
-  if (isCustomThingId(prefabId)) return fileThingPhysics(prefabId).spawn;
-  const thing = THING_FILES[prefabId];
-  return thing ? thingPhysics(thing.uri, thing.physics).spawn : undefined;
+  if (isCustomItemId(prefabId)) return fileItemPhysics(prefabId).spawn;
+  const item = ITEM_FILES[prefabId];
+  return item ? itemPhysics(item.uri, item.physics).spawn : undefined;
 }
 
 /**
- * Buzzar: a custom Thing's physics: its file's HAVEN_thing, over a box fitted around it (before the file has loaded,
+ * Buzzar: a custom Item's physics: its file's HAVEN_item, over a box fitted around it (before the file has loaded,
  * a small box).
  */
-function fileThingPhysics(mxc: string): ThingPhysics {
-  const file = loadedThingFile(mxc);
-  return readThingPhysics(file, physicsFromBounds(file ? gltfBounds(file) : undefined));
+function fileItemPhysics(mxc: string): ItemPhysics {
+  const file = loadedItemFile(mxc);
+  return readItemPhysics(file, physicsFromBounds(file ? gltfBounds(file) : undefined));
 }
 
-type FileThingState = { status: "loading" | "ready" | "failed"; waiting: (() => void)[] };
-/** Buzzar: custom Thing files by mxc:// URI, as they load. */
-const fileThings = new Map<string, FileThingState>();
+type FileItemState = { status: "loading" | "ready" | "failed"; waiting: (() => void)[] };
+/** Buzzar: custom Item files by mxc:// URI, as they load. */
+const fileItems = new Map<string, FileItemState>();
 
-/** Loads a custom Thing's file (once), learning its physics and behaviours. */
-function loadFileThing(ctx: GameContext, mxc: string) {
+/** Loads a custom Item's file (once), learning its physics and behaviours. */
+function loadFileItem(ctx: GameContext, mxc: string) {
   const url = resolveMxcUri(ctx, mxc);
   if (!url) return Promise.reject(new Error("The homeserver for Matrix files isn't known yet"));
   return loadGLTF(ctx, url).then((resource) => {
-    rememberThingFile(mxc, resource.root as never);
-    rememberThingBehaviours(mxc, resource.root.extensionsUsed);
+    rememberItemFile(mxc, resource.root as never);
+    rememberItemBehaviours(mxc, resource.root.extensionsUsed);
     return resource;
   });
 }
 
 /**
- * Buzzar: whether a custom Thing's file is ready to spawn. If it isn't yet, starts loading it and calls `then` once
+ * Buzzar: whether a custom Item's file is ready to spawn. If it isn't yet, starts loading it and calls `then` once
  * it is ("pending"); "failed" if it can't be loaded.
  */
-export function customThingReady(ctx: GameContext, mxc: string, then: () => void): "ready" | "pending" | "failed" {
-  const known = fileThings.get(mxc);
+export function customItemReady(ctx: GameContext, mxc: string, then: () => void): "ready" | "pending" | "failed" {
+  const known = fileItems.get(mxc);
   if (known?.status === "ready" || known?.status === "failed") return known.status;
   if (known) {
     known.waiting.push(then);
     return "pending";
   }
-  const state: FileThingState = { status: "loading", waiting: [then] };
-  fileThings.set(mxc, state);
-  loadFileThing(ctx, mxc)
+  const state: FileItemState = { status: "loading", waiting: [then] };
+  fileItems.set(mxc, state);
+  loadFileItem(ctx, mxc)
     .then(() => {
       state.status = "ready";
       for (const done of state.waiting.splice(0)) done();
     })
     .catch((error) => {
-      console.warn(`Couldn't load the Thing ${mxc}:`, error);
+      console.warn(`Couldn't load the Item ${mxc}:`, error);
       // Let a later spawn try again (the homeserver may not have been known yet).
-      fileThings.delete(mxc);
+      fileItems.delete(mxc);
       state.status = "failed";
       state.waiting.length = 0;
     });
@@ -576,24 +576,24 @@ export function customThingReady(ctx: GameContext, mxc: string, then: () => void
 }
 
 /**
- * Buzzar: a Thing made from someone's own .glb on Matrix. Ours are only spawned once the file has loaded, so their
+ * Buzzar: an Item made from someone's own .glb on Matrix. Ours are only spawned once the file has loaded, so their
  * physics come from it straight away; one another player spawns may arrive first, so it starts as a small box and is
  * given the file's collider once the file loads. The world's rules are checked again then, against the behaviours
  * the file turns out to have.
  */
-function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: string, kinematic: boolean) {
+function createFileItem(ctx: GameContext, physics: PhysicsModuleState, mxc: string, kinematic: boolean) {
   // When the file is already here (always, for one we spawn), its name and whether it does something while held are
   // known at once, before it goes in our hands (the hover card and left click depend on them).
-  const file = loadedThingFile(mxc);
+  const file = loadedItemFile(mxc);
   const node = new RemoteNode(ctx.resourceManager, {
-    name: (file && readAssetMetadata(file as never).name) || "Thing",
+    name: (file && readAssetMetadata(file as never).name) || "Item",
   });
-  if (file?.extensions?.HAVEN_sprayer) usableThings.add(node.eid);
-  const used = fileThingPhysics(mxc);
-  addThingPhysics(ctx, physics, node, used, kinematic);
+  if (file?.extensions?.HAVEN_sprayer) usableItems.add(node.eid);
+  const used = fileItemPhysics(mxc);
+  addItemPhysics(ctx, physics, node, used, kinematic);
   const url = resolveMxcUri(ctx, mxc);
   if (!url) return node;
-  (loadedThingFile(mxc) ? loadGLTF(ctx, url) : loadFileThing(ctx, mxc))
+  (loadedItemFile(mxc) ? loadGLTF(ctx, url) : loadFileItem(ctx, mxc))
     .then((resource) => {
       if (!getRemoteResource<RemoteNode>(ctx, node.eid)) return; // removed while it loaded
       const ours = hasComponent(ctx.world, Owned, node.eid);
@@ -606,13 +606,13 @@ function createFileThing(ctx: GameContext, physics: PhysicsModuleState, mxc: str
       }
       loadDefaultGLTFScene(ctx, resource, { existingNode: node });
       // Its name from the file's details (HAVEN_metadata), for the hover label.
-      node.name = readAssetMetadata(resource.root).name ?? "Thing";
+      node.name = readAssetMetadata(resource.root).name ?? "Item";
       // Behaviours in the file: spraying (HAVEN_sprayer).
       attachSprayer(ctx, node, resource);
-      const settings = fileThingPhysics(mxc);
-      if (JSON.stringify(settings) !== JSON.stringify(used)) replaceThingPhysics(physics, node, settings);
+      const settings = fileItemPhysics(mxc);
+      if (JSON.stringify(settings) !== JSON.stringify(used)) replaceItemPhysics(physics, node, settings);
     })
-    .catch((error) => console.warn(`Couldn't load the Thing ${mxc}:`, error));
+    .catch((error) => console.warn(`Couldn't load the Item ${mxc}:`, error));
   return node;
 }
 
@@ -626,8 +626,8 @@ function removeColliders(physics: PhysicsModuleState, node: RemoteNode) {
   }
 }
 
-/** Gives a Thing's body a new collider (and rotation lock), once its file says what they are. */
-function replaceThingPhysics(physics: PhysicsModuleState, node: RemoteNode, settings: ThingPhysics) {
+/** Gives an Item's body a new collider (and rotation lock), once its file says what they are. */
+function replaceItemPhysics(physics: PhysicsModuleState, node: RemoteNode, settings: ItemPhysics) {
   const body = node.physicsBody?.body;
   if (!body) return;
   removeColliders(physics, node);
@@ -653,8 +653,8 @@ function replaceThingPhysics(physics: PhysicsModuleState, node: RemoteNode, sett
 
 /** Buzzar: how far up, in steps of SPAWN_LIFT_STEP (m), a spawned object may be moved to clear what's already there. */
 const SPAWN_LIFT_STEP = 0.1;
-/** Things reaching further than this from their centre (metres) are big: see spawnPrefab. */
-const BIG_THING_REACH = 1.5;
+/** Items reaching further than this from their centre (metres) are big: see spawnPrefab. */
+const BIG_ITEM_REACH = 1.5;
 const SPAWN_LIFT_STEPS = 20;
 // Solid, and pushes back: not sensors, nor players' capsules (no solver contacts, so they never shove objects).
 const pushesObjects = (collider: RAPIER.Collider) => !collider.isSensor() && collider.solverGroups() !== 0;
@@ -690,7 +690,7 @@ function standOnFloor(physicsWorld: RAPIER.World, body: RAPIER.RigidBody): boole
   physicsWorld.propagateModifiedBodyPositionsToColliders();
   const t = body.translation();
   const depth = bodyDepth(body);
-  // Look for the floor from its centre down past its bottom (only big Things can be this deep).
+  // Look for the floor from its centre down past its bottom (only big Items can be this deep).
   if (depth < 1) return false;
   _floorRay.origin = { x: t.x, y: t.y, z: t.z };
   const hit = physicsWorld.castRay(_floorRay, depth + 2, true, undefined, undefined, undefined, body, notPlayer);
@@ -727,7 +727,7 @@ function bodyReach(body: RAPIER.RigidBody) {
  */
 function liftClearOfOverlaps(physicsWorld: RAPIER.World, body: RAPIER.RigidBody): boolean {
   const start = body.translation();
-  // A big Thing (a crate cloned at 4×) can start deep in the floor: lift it as far as its own size, in as many steps.
+  // A big Item (a crate cloned at 4×) can start deep in the floor: lift it as far as its own size, in as many steps.
   const step = Math.max(SPAWN_LIFT_STEP, (2 * bodyReach(body)) / SPAWN_LIFT_STEPS);
   const overlaps = () => {
     physicsWorld.propagateModifiedBodyPositionsToColliders();
@@ -851,7 +851,7 @@ export function spawnPrefab(
   spawnFrom: RemoteNode,
   prefabId: string,
   isXR: boolean,
-  variables?: ThingVariables
+  variables?: ItemVariables
 ): boolean {
   const { maxObjectCap } = getModule(ctx, ThirdRoomModule);
   const rules = getSpawnRules(ctx);
@@ -865,7 +865,7 @@ export function spawnPrefab(
   let ownedStock = 0;
   for (let i = 0; i < ownedEnts.length; i++) {
     const prefab = Prefab.get(ownedEnts[i]);
-    if (prefab && isThingId(prefab) && !hasComponent(ctx.world, TakenObject, ownedEnts[i])) ownedStock++;
+    if (prefab && isItemId(prefab) && !hasComponent(ctx.world, TakenObject, ownedEnts[i])) ownedStock++;
   }
   // bounce out of the function if we hit the max object cap
   if (ownedStock >= limit) {
@@ -877,11 +877,11 @@ export function spawnPrefab(
     return false;
   }
 
-  // Buzzar: a cloned Thing's variables (size, colour…), also sent to everyone with the object's create message.
-  const checked = variables ? sanitizeThingVariables(prefabId, variables) : undefined;
-  const prefab = createPrefabEntity(ctx, prefabId, { variables: checked } satisfies ThingPrefabOptions);
+  // Buzzar: a cloned Item's variables (size, colour…), also sent to everyone with the object's create message.
+  const checked = variables ? sanitizeItemVariables(prefabId, variables) : undefined;
+  const prefab = createPrefabEntity(ctx, prefabId, { variables: checked } satisfies ItemPrefabOptions);
   const eid = prefab.eid;
-  if (hasThingVariables(checked)) PrefabCreateData.set(eid, encodeThingVariables(checked));
+  if (hasItemVariables(checked)) PrefabCreateData.set(eid, encodeItemVariables(checked));
 
   addComponent(ctx.world, Owned, eid);
   addComponent(ctx.world, Networked, eid, true);
@@ -894,7 +894,7 @@ export function spawnPrefab(
 
   // place object at direction
   const placement = spawnPlacement(prefabId);
-  // Buzzar: a Thing made to be carried (HAVEN_thing spawn.held) appears where held things sit, already in your hold.
+  // Buzzar: an Item made to be carried (HAVEN_item spawn.held) appears where held things sit, already in your hold.
   const intoHold = !!placement?.held && canHoldSpawned(ctx);
   let distance = intoHold ? HELD_SPAWN_DISTANCE : placement?.distance;
   if (placement?.upright) {
@@ -923,7 +923,7 @@ export function spawnPrefab(
   }
 
   applyTransformToRigidBody(body, prefab);
-  // Buzzar: a Thing taller than where it spawns (a crate cloned at 4× is 10 m) starts deep in the floor, and the
+  // Buzzar: an Item taller than where it spawns (a crate cloned at 4× is 10 m) starts deep in the floor, and the
   // sweep below then hits the floor at once and gives up ("no room"): stand it on the floor under its spawn point.
   if (!intoHold && standOnFloor(getModule(ctx, PhysicsModule).physicsWorld, body)) {
     const t = body.translation();
@@ -939,8 +939,8 @@ export function spawnPrefab(
     direction,
     spawnDistance
   );
-  if (blocked === "no-room" && bodyReach(body) > BIG_THING_REACH) {
-    // A big Thing (a crate cloned at 4×) nearly always has something within its own size: keep the spot it was
+  if (blocked === "no-room" && bodyReach(body) > BIG_ITEM_REACH) {
+    // A big Item (a crate cloned at 4×) nearly always has something within its own size: keep the spot it was
     // given, and the lift below raises it clear of whatever it overlaps there.
     body.setTranslation({ x: prefab.position[0], y: prefab.position[1], z: prefab.position[2] }, true);
     getModule(ctx, PhysicsModule).physicsWorld.propagateModifiedBodyPositionsToColliders();

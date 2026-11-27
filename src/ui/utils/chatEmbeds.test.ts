@@ -31,7 +31,7 @@ describe("room links in messages", () => {
 
 describe("3D model files", () => {
   it("recognises .glb and .vrm", () => {
-    expect(isModelFile("thing.GLB")).toBe(true);
+    expect(isModelFile("item.GLB")).toBe(true);
     expect(isModelFile("me.vrm")).toBe(true);
     expect(isModelFile("photo.png")).toBe(false);
     expect(isModelFile("blob", "model/gltf-binary")).toBe(true);
@@ -42,15 +42,15 @@ describe("3D model files", () => {
     accessors: [{ min: [0, 0, 0], max: [extent, extent / 2, extent / 3], count: 3, componentType: 5126, type: "VEC3" }],
   });
 
-  it("tells avatars, worlds and Things apart", () => {
+  it("tells avatars, worlds and Items apart", () => {
     expect(classifyModel({ asset: { version: "2.0" }, extensionsUsed: ["VRMC_vrm"] } as any)).toBe("avatar");
     expect(classifyModel({ asset: { version: "2.0" } } as any, "me.vrm")).toBe("avatar");
     expect(classifyModel({ asset: { version: "2.0" }, extensionsUsed: ["MX_spawn_point"] } as any)).toBe("world");
     expect(classifyModel({ asset: { version: "2.0" }, nodes: [{ mesh: 0 }], ...mesh(40) } as any)).toBe("world");
-    expect(classifyModel({ asset: { version: "2.0" }, nodes: [{ mesh: 0 }], ...mesh(0.5) } as any)).toBe("thing");
-    // Scaled down by its node: a Thing.
+    expect(classifyModel({ asset: { version: "2.0" }, nodes: [{ mesh: 0 }], ...mesh(0.5) } as any)).toBe("item");
+    // Scaled down by its node: an Item.
     expect(
       classifyModel({ asset: { version: "2.0" }, nodes: [{ mesh: 0, scale: [0.01, 0.01, 0.01] }], ...mesh(100) } as any)
-    ).toBe("thing");
+    ).toBe("item");
   });
 });

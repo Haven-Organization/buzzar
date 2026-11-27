@@ -317,7 +317,7 @@ export function BlogSection() {
           <li>
             <span className="semi-bold">SFU VoIP:</span> Currently the WebRTC networking for VoIP and data channels
             operates as full mesh - meaning that each participant has to redundantly send the same traffic to every
-            other participant. As a result, after 10-20 users, things can start to bog down. We’re{" "}
+            other participant. As a result, after 10-20 users, items can start to bog down. We’re{" "}
             <a
               href="https://twitter.com/matrixdotorg/status/1555620039323275264"
               target="_blank"
@@ -476,7 +476,7 @@ export function BlogSection() {
               Hydrogen SDK
             </a>{" "}
             to power the Matrix layer, and a little bit of React to glue it all together. We hope that people will build
-            amazing things on top of Third Room in turn!
+            amazing items on top of Third Room in turn!
           </li>
           <li>
             <span className="semi-bold">Free, open and equitable.</span> We profoundly believe that the metaverse should
@@ -654,7 +654,7 @@ export function BlogSection() {
           <a href="https://github.com/matrix-org/thirdroom/discussions/20" target="_blank" rel="noreferrer noopener">
             original vision
           </a>{" "}
-          of the project at kick-off back in February to see how things have evolved!
+          of the project at kick-off back in February to see how items have evolved!
         </Text>
 
         <Text id="how-does-this-fit-in" variant="h2" weight="semi-bold">
@@ -684,7 +684,7 @@ export function BlogSection() {
           The fact is that Third Room has been put together by a tiny team of just Robert (project lead, formerly of
           Mozilla Hubs & AltspaceVR), Nate (of bitECS fame) and Ajay (of Cinny fame) - with a bit of input from Rian and
           Jordan (Design), Bruno (Hydrogen) and Hugh (OIDC). On the Matrix side it’s been absolutely invaluable in
-          driving Hydrogen SDK (which also powers things like{" "}
+          driving Hydrogen SDK (which also powers items like{" "}
           <a href="https://element.io/blog/element-launches-chatterbox/" target="_blank" rel="noreferrer noopener">
             Chatterbox
           </a>{" "}

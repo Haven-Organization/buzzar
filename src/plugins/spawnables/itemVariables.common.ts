@@ -1,29 +1,29 @@
 /**
- * Buzzar: Thing variables (Third Room #383, "Crates are way too big"). A clone of a stock Thing ("Smaller Crate")
- * is the stock Thing plus values for some of these. They travel with the object's create message, so everyone sees
+ * Buzzar: Item variables (Third Room #383, "Crates are way too big"). A clone of a stock Item ("Smaller Crate")
+ * is the stock Item plus values for some of these. They travel with the object's create message, so everyone sees
  * the same thing, and every client clamps them to the limits here, so nobody can send a 1000× crate. Clients that
- * don't know about them show the stock Thing.
+ * don't know about them show the stock Item.
  */
 
-export interface ThingVariables {
+export interface ItemVariables {
   /** Scale: 1 is the stock size. */
   size?: number;
-  /** Colour multiplied into the Thing's own (linear RGB, 0–1). White leaves it as it is. */
+  /** Colour multiplied into the Item's own (linear RGB, 0–1). White leaves it as it is. */
   tint?: [number, number, number];
   /** Restitution: 0 doesn't bounce, 1 bounces back as high as it fell. */
   bounciness?: number;
   /** Mass in kg. */
   weight?: number;
-  /** Emissive strength of a glowing Thing: 1 is the stock glow. */
+  /** Emissive strength of a glowing Item: 1 is the stock glow. */
   glow?: number;
   /** A trampoline's surface: how high it bounces you, × the stock bounce. */
   springiness?: number;
 }
 
-export type ThingVariableName = keyof ThingVariables;
+export type ItemVariableName = keyof ItemVariables;
 
 /** The limits every client enforces. */
-export const THING_VARIABLE_LIMITS = {
+export const ITEM_VARIABLE_LIMITS = {
   size: { min: 0.25, max: 4 },
   bounciness: { min: 0, max: 1 },
   weight: { min: 0.1, max: 500 },
@@ -31,16 +31,16 @@ export const THING_VARIABLE_LIMITS = {
   springiness: { min: 0.25, max: 3 },
 } as const;
 
-type Defaults = { [K in ThingVariableName]?: NonNullable<ThingVariables[K]> };
+type Defaults = { [K in ItemVariableName]?: NonNullable<ItemVariables[K]> };
 
 const CRATE: Defaults = { size: 1, tint: [1, 1, 1], bounciness: 0, weight: 1 };
 const BALL: Defaults = { size: 1, tint: [1, 1, 1], bounciness: 1, weight: 1 };
 
 /**
- * Which variables each stock Thing has, and their stock values. (The trampoline's size isn't offered yet: its
+ * Which variables each stock Item has, and their stock values. (The trampoline's size isn't offered yet: its
  * bouncy area and collider come from its file.)
  */
-export const THING_VARIABLE_DEFAULTS: Record<string, Defaults> = {
+export const ITEM_VARIABLE_DEFAULTS: Record<string, Defaults> = {
   "small-crate": CRATE,
   "medium-crate": CRATE,
   "large-crate": CRATE,
@@ -51,25 +51,25 @@ export const THING_VARIABLE_DEFAULTS: Record<string, Defaults> = {
   trampoline: { tint: [1, 1, 1], weight: 1, springiness: 1 },
 };
 
-export function thingVariableNames(thingId: string): ThingVariableName[] {
-  return Object.keys(THING_VARIABLE_DEFAULTS[thingId] ?? {}) as ThingVariableName[];
+export function itemVariableNames(itemId: string): ItemVariableName[] {
+  return Object.keys(ITEM_VARIABLE_DEFAULTS[itemId] ?? {}) as ItemVariableName[];
 }
 
 const clamp = (value: number, { min, max }: { min: number; max: number }) => Math.min(max, Math.max(min, value));
 const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 /**
- * Validates untrusted values (account data, the network) for a stock Thing: keeps only the variables it has, clamped
+ * Validates untrusted values (account data, the network) for a stock Item: keeps only the variables it has, clamped
  * to the limits, and drops ones equal to the stock value.
  */
-export function sanitizeThingVariables(thingId: string, value: unknown): ThingVariables {
-  const defaults = THING_VARIABLE_DEFAULTS[thingId];
-  const out: ThingVariables = {};
+export function sanitizeItemVariables(itemId: string, value: unknown): ItemVariables {
+  const defaults = ITEM_VARIABLE_DEFAULTS[itemId];
+  const out: ItemVariables = {};
   if (!defaults || typeof value !== "object" || value === null) return out;
   const raw = value as Record<string, unknown>;
   for (const name of ["size", "bounciness", "weight", "glow", "springiness"] as const) {
     if (defaults[name] === undefined || !isNumber(raw[name])) continue;
-    const v = clamp(raw[name] as number, THING_VARIABLE_LIMITS[name]);
+    const v = clamp(raw[name] as number, ITEM_VARIABLE_LIMITS[name]);
     if (Math.abs(v - (defaults[name] as number)) > 1e-4) out[name] = v;
   }
   const tint = raw.tint;
@@ -80,24 +80,24 @@ export function sanitizeThingVariables(thingId: string, value: unknown): ThingVa
   return out;
 }
 
-export function hasThingVariables(variables: ThingVariables | undefined): variables is ThingVariables {
+export function hasItemVariables(variables: ItemVariables | undefined): variables is ItemVariables {
   return !!variables && Object.keys(variables).length > 0;
 }
 
-/** A variable's value, or the Thing's stock value. */
-export function thingVariable<K extends ThingVariableName>(
-  thingId: string,
-  variables: ThingVariables | undefined,
+/** A variable's value, or the Item's stock value. */
+export function itemVariable<K extends ItemVariableName>(
+  itemId: string,
+  variables: ItemVariables | undefined,
   name: K
-): NonNullable<ThingVariables[K]> | undefined {
-  return (variables?.[name] ?? THING_VARIABLE_DEFAULTS[thingId]?.[name]) as NonNullable<ThingVariables[K]> | undefined;
+): NonNullable<ItemVariables[K]> | undefined {
+  return (variables?.[name] ?? ITEM_VARIABLE_DEFAULTS[itemId]?.[name]) as NonNullable<ItemVariables[K]> | undefined;
 }
 
 /* On the wire: [version u8 = 1][flags u8][size f32][tint 3×f32][bounciness f32][weight f32][glow f32]
  * [springiness f32], each value only if its flag is set. Little-endian. Newer values go at the end, so older readers
  * just stop before them. */
 const VERSION = 1;
-const FLAGS: [ThingVariableName, number][] = [
+const FLAGS: [ItemVariableName, number][] = [
   ["size", 1],
   ["tint", 2],
   ["bounciness", 4],
@@ -106,7 +106,7 @@ const FLAGS: [ThingVariableName, number][] = [
   ["springiness", 32],
 ];
 
-export function encodeThingVariables(variables: ThingVariables): ArrayBuffer {
+export function encodeItemVariables(variables: ItemVariables): ArrayBuffer {
   let flags = 0;
   let floats = 0;
   for (const [name, bit] of FLAGS) {
@@ -132,8 +132,8 @@ export function encodeThingVariables(variables: ThingVariables): ArrayBuffer {
   return buffer;
 }
 
-/** Reads (untrusted) bytes from a peer; sanitize the result for the Thing before using it. */
-export function decodeThingVariables(buffer: ArrayBuffer | undefined): Record<string, unknown> | undefined {
+/** Reads (untrusted) bytes from a peer; sanitize the result for the Item before using it. */
+export function decodeItemVariables(buffer: ArrayBuffer | undefined): Record<string, unknown> | undefined {
   if (!buffer || buffer.byteLength < 2) return undefined;
   const view = new DataView(buffer);
   if (view.getUint8(0) !== VERSION) return undefined;

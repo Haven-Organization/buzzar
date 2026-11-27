@@ -125,7 +125,7 @@ export function useWorldRules(room: Room, notify: (text: string) => void) {
       ignoreOwn &&
         "• Ignore world limits for my actions: other players' Buzzar still blocks what breaks this world's rules. They won't see those objects, and they'll see you held back if you move too fast. Moderators are told each time and may kick or ban you.",
       ignoreOthers &&
-        "• Don't enforce world limits on others for me: you see everything other players send, even what this world's rules block, so you may see things nobody else does.",
+        "• Don't enforce world limits on others for me: you see everything other players send, even what this world's rules block, so you may see items nobody else does.",
     ].filter(Boolean);
     confirmDialog({
       title: "World Limits Are Off",

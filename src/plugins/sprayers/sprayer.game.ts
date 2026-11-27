@@ -1,9 +1,9 @@
 /**
- * Buzzar: Things that spray (HAVEN_sprayer, sprayer.common.ts), such as a water gun.
+ * Buzzar: Items that spray (HAVEN_sprayer, sprayer.common.ts), such as a water gun.
  *
  * While you hold one, Use (left click) sprays and Pump (right click) works its pump; E lets go. The tank is yours
  * alone: its owner decides when it sprays and when it's pumped, and tells everyone (NetworkAction.HavenSpray), so
- * every client draws the same stream from the Thing's nozzle and plays its sounds there. The stream is drawn locally
+ * every client draws the same stream from the Item's nozzle and plays its sounds there. The stream is drawn locally
  * on each client: drops leave the nozzle, fall, and vanish when they hit something.
  */
 import RAPIER from "@dimforge/rapier3d-compat";
@@ -15,7 +15,7 @@ import { GameContext } from "../../engine/GameTypes";
 import { defineModule, getModule } from "../../engine/module/module.common";
 import { GLTFResource, loadGLTFAudioData } from "../../engine/gltf/gltf.game";
 import { addChild, findChild } from "../../engine/component/transform";
-import { offhandShift, thingsInUse } from "../../engine/avatar/holdPose";
+import { offhandShift, itemsInUse } from "../../engine/avatar/holdPose";
 import { createMesh } from "../../engine/mesh/mesh.game";
 import { playAudio, playOneShotAudio, stopAudio } from "../../engine/audio/audio.game";
 import { InputModule } from "../../engine/input/input.game";
@@ -50,7 +50,7 @@ import { getRemoteResource } from "../../engine/resource/resource.game";
 import { AudioEmitterType, MaterialAlphaMode, MaterialType } from "../../engine/resource/schema";
 import { getRotationNoAlloc } from "../../engine/utils/getRotationNoAlloc";
 import { GrabComponent } from "../interaction/interaction.game";
-import { usableThings } from "../interaction/usable";
+import { usableItems } from "../interaction/usable";
 import { fullTank, pumpStrokeAt, readSprayer, SprayerSpec, stepTank, TankState } from "./sprayer.common";
 
 /** How long a drop lives at most (seconds). */
@@ -170,7 +170,7 @@ function soundFor(resource: GLTFResource, index: number | undefined): RemoteAudi
   }
 }
 
-/** Makes a Thing whose file has HAVEN_sprayer spray. Called once its file has loaded into `node`. */
+/** Makes an Item whose file has HAVEN_sprayer spray. Called once its file has loaded into `node`. */
 export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTFResource) {
   const spec = readSprayer(resource.root as never);
   if (!spec) return;
@@ -234,16 +234,16 @@ export function attachSprayer(ctx: GameContext, node: RemoteNode, resource: GLTF
     pumpNode,
     pumpRest: pumpNode ? vec3.clone(pumpNode.position) : vec3.create(),
   });
-  usableThings.add(node.eid);
+  usableItems.add(node.eid);
 }
 
 function disposeSprayer(ctx: GameContext, eid: number, sprayer: Sprayer) {
   for (const drop of sprayer.drops) removeObjectFromWorld(ctx, drop.node);
   sprayer.drops.length = 0;
   sprayer.mesh.removeRef();
-  usableThings.delete(eid);
+  usableItems.delete(eid);
   offhandShift.delete(eid);
-  thingsInUse.delete(eid);
+  itemsInUse.delete(eid);
   getModule(ctx, SprayerModule).sprayers.delete(eid);
 }
 
@@ -430,7 +430,7 @@ function updatePumpStroke(sprayer: Sprayer) {
   if (travel > 0) offhandShift.set(node.eid, [x * travel, y * travel, z * travel]);
   else offhandShift.delete(node.eid);
   if (pumpNode?.parent) {
-    // The offset is in the Thing's space; the part moves in its parent's.
+    // The offset is in the Item's space; the part moves in its parent's.
     mat4.invert(_inverse, pumpNode.parent.worldMatrix);
     mat4.multiply(_toPart, _inverse, node.worldMatrix);
     vec3.set(_offset, x * travel, y * travel, z * travel);
@@ -504,8 +504,8 @@ export function SprayerSystem(ctx: GameContext) {
 
     updatePumpStroke(sprayer);
     updateSpraySound(ctx, sprayer);
-    if (sprayer.spraying) thingsInUse.add(eid);
-    else thingsInUse.delete(eid);
+    if (sprayer.spraying) itemsInUse.add(eid);
+    else itemsInUse.delete(eid);
 
     if (sprayer.spraying) {
       updateWobble(sprayer, dt);

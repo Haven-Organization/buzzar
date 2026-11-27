@@ -50,7 +50,7 @@ describe("asset metadata", () => {
   });
 });
 
-describe("a Thing's controls", () => {
+describe("an Item's controls", () => {
   it("reads controls by action, skipping unknown actions and empty labels (untrusted)", () => {
     const meta = readAssetMetadata({
       extensions: {

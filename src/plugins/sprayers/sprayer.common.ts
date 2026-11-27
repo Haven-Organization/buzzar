@@ -1,5 +1,5 @@
 /**
- * Buzzar: Things that spray water (or anything liquid): water guns, spray bottles, hoses. Everything about one lives
+ * Buzzar: Items that spray water (or anything liquid): water guns, spray bottles, hoses. Everything about one lives
  * in its file, in the root extension `HAVEN_sprayer` (docs/gltf/HAVEN_sprayer): where the nozzle is, how the stream
  * flies, how much a full tank holds, how pumping refills it, and its sounds (KHR_audio sources in the same file).
  *
@@ -19,7 +19,7 @@ const vec3 = (v: unknown): [number, number, number] | undefined =>
 const index = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : undefined);
 
 export interface SprayerSpec {
-  /** Where the stream leaves, in the Thing's space (metres). */
+  /** Where the stream leaves, in the Item's space (metres). */
   nozzle: [number, number, number];
   /** Which way it leaves (normalised). */
   direction: [number, number, number];
@@ -48,7 +48,7 @@ export interface SprayerSpec {
   startLength: number;
   /**
    * How a pump stroke moves: the hand on the pump (the hold's `offhand`), and the part of the model named `node` if
-   * there is one, slide by `offset` (the Thing's space, metres) and back again over `pumpTime`.
+   * there is one, slide by `offset` (the Item's space, metres) and back again over `pumpTime`.
    */
   pumpStroke: { offset: [number, number, number]; node?: string };
   /**

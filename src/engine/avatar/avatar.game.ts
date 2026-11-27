@@ -585,7 +585,7 @@ function createAvatarAnimationExtras(
     return node ? loaderCtx.nodeToObject3D.get(node) : undefined;
   };
 
-  // Buzzar: arms and hands for holding Things (holdPose.ts), from the bind pose the skeleton is in now.
+  // Buzzar: arms and hands for holding Items (holdPose.ts), from the bind pose the skeleton is in now.
   let holdRig: HoldRig | undefined;
   try {
     rootObj.updateMatrixWorld(true);

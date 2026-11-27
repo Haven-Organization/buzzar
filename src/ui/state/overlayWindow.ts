@@ -11,11 +11,11 @@ export enum OverlayWindow {
   Worlds = "worlds",
   /** Buzzar: your avatars (stock, bookmarked) and in-world avatars. */
   Avatars = "avatars",
-  /** Buzzar: Things: objects to spawn and use with your avatar (stock and bookmarked). */
-  Things = "things",
+  /** Buzzar: Items: objects to spawn and use with your avatar (stock and bookmarked). */
+  Items = "items",
   /** Buzzar: people in the world you're in, and friends. */
   People = "people",
-  /** Buzzar: everything about one world, avatar or Thing. */
+  /** Buzzar: everything about one world, avatar or Item. */
   Details = "details",
 }
 
@@ -32,7 +32,7 @@ export type DetailsItem =
       builtinId?: string;
       format?: AvatarFormat;
     }
-  | { kind: "thing"; name: string; url?: string; previewUrl?: string; description?: string; stockId?: string };
+  | { kind: "item"; name: string; url?: string; previewUrl?: string; description?: string; stockId?: string };
 
 export type WorldsTab = "yours" | "explore";
 export type AvatarsTab = "yours" | "world";
@@ -46,7 +46,7 @@ export type OverlayWindowValue =
   | { type: OverlayWindow.WorldSettings; roomId: string }
   | { type: OverlayWindow.Worlds; tab?: WorldsTab }
   | { type: OverlayWindow.Avatars; tab?: AvatarsTab }
-  | { type: OverlayWindow.Things }
+  | { type: OverlayWindow.Items }
   | { type: OverlayWindow.People; tab?: PeopleTab }
   /** Buzzar: `back` is the window to return to. */
   | { type: OverlayWindow.Details; item: DetailsItem; back?: OverlayWindowValue };

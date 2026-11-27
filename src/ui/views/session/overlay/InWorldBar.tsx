@@ -1,5 +1,5 @@
 /**
- * Buzzar: a reminder across the top of the menu's full-screen windows (Worlds, Avatars, Things, Settings…) that
+ * Buzzar: a reminder across the top of the menu's full-screen windows (Worlds, Avatars, Items, Settings…) that
  * you're still in a world, where people can see and hear you, with Return and Leave World.
  */
 import { Room } from "../../../../matrix";

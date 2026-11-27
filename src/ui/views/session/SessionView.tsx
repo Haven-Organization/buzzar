@@ -27,8 +27,8 @@ import { editorEnabledAtom } from "../../state/editor";
 import { hudHiddenAtom } from "../../state/hud";
 import { FirefoxPerfAlert } from "./dialogs/FirefoxPerfAlert";
 import { DeviceVerificationDialog } from "./verification/DeviceVerificationDialog";
-import { useThingKeysSync } from "../../hooks/useThingKeys";
-import { useCustomThingsSync, useThingClonesSync } from "../../hooks/useThingClones";
+import { useItemKeysSync } from "../../hooks/useItemKeys";
+import { useCustomItemsSync, useItemClonesSync } from "../../hooks/useItemClones";
 import { useAutoRunSync } from "../../hooks/useAutoRun";
 import { ConfirmDialogHost } from "../components/confirm-dialog/ConfirmDialog";
 import { CallMethodDialogHost } from "../components/call-method-dialog/CallMethodDialog";
@@ -106,7 +106,7 @@ export default function SessionView() {
           <canvas className="SessionView__viewport" ref={canvasRef} />
           {mainThread ? (
             <MainThreadContextProvider value={mainThread}>
-              <ThingKeysSync />
+              <ItemKeysSync />
               <AutoRunSync />
               <EnterHomeOnStartup worldId={worldId} worldAlias={worldAlias} />
               <Outlet />
@@ -134,11 +134,11 @@ export default function SessionView() {
   );
 }
 
-/** Buzzar: keeps the game's number-key Things in step with your account (needs the main thread context). */
-function ThingKeysSync() {
-  useThingKeysSync();
-  useThingClonesSync();
-  useCustomThingsSync();
+/** Buzzar: keeps the game's number-key Items in step with your account (needs the main thread context). */
+function ItemKeysSync() {
+  useItemKeysSync();
+  useItemClonesSync();
+  useCustomItemsSync();
   return null;
 }
 

@@ -1,13 +1,17 @@
 import type { MatrixAuth } from "./avatarMatrix";
 
 /**
- * Buzzar: account data types renamed on 2026-11-17 to the `software.haven.world.*` prefix, mapped to their old name.
+ * Buzzar: account data types renamed, mapped to their old name: on 2026-11-17 to the `software.haven.world.*` prefix,
+ * and on 2026-11-27 when Things became Items.
  */
 export const LEGACY_ACCOUNT_DATA_TYPES: Record<string, string> = {
   "software.haven.world.avatars": "software.haven.avatars",
   "software.haven.world.script_grants": "software.haven.script_grants",
   "software.haven.world.explore_servers": "software.haven.explore_servers",
   "software.haven.world.space": "software.haven.space",
+  "software.haven.world.items": "software.haven.world.things",
+  "software.haven.world.item_keys": "software.haven.world.thing_keys",
+  "software.haven.world.item_clones": "software.haven.world.thing_clones",
 };
 
 function accountDataUrl(auth: MatrixAuth, userId: string, type: string) {

@@ -11,7 +11,7 @@
 </div>
 
 Buzzar is a platform for shared virtual worlds built on [Matrix](https://matrix.org): explore, build and hang out in
-3D worlds with your Matrix account, wearing your own avatar, talking with spatial voice. Worlds, avatars and Things are
+3D worlds with your Matrix account, wearing your own avatar, talking with spatial voice. Worlds, avatars and Items are
 open glTF files their creators own, hosted on Matrix or anywhere else.
 
 Buzzar is a fork of [Third Room](https://github.com/matrix-org/thirdroom), the Matrix.org Foundation's virtual world
@@ -47,14 +47,14 @@ Upload a `.vrm` or `.glb` humanoid (VRM, Mixamo or VRChat-style bone names) unde
 or in one world only, or pick one up from a world's pedestal. See the
 [avatars guide](https://haven.software/buzzar/docs/guides/avatars).
 
-### Things
+### Items
 
-Things are objects players spawn, grab and throw. Each is a glTF file whose physical behaviour (shape, weight, where it
-appears) travels with it in [`HAVEN_thing`](./docs/gltf/HAVEN_thing/README.md), and each world chooses which Things
-are allowed (**World Settings → Things**). Spawn the stock Things, or clones of them with your own size, colour,
-bounciness, weight and glow, or upload your own `.glb` files to **My Things** and spawn those. A Thing can come straight
+Items are objects players spawn, grab and throw. Each is a glTF file whose physical behaviour (shape, weight, where it
+appears) travels with it in [`HAVEN_item`](./docs/gltf/HAVEN_item/README.md), and each world chooses which Items
+are allowed (**World Settings → Items**). Spawn the stock Items, or clones of them with your own size, colour,
+bounciness, weight and glow, or upload your own `.glb` files to **My Items** and spawn those. An Item can come straight
 into your hold when spawned, and its file can say how your avatar holds it: in one hand, or aimed with both like a
-water gun, its arms and fingers posed to match and the aim following your view. Things can also do things, such as
+water gun, its arms and fingers posed to match and the aim following your view. Items can also do things, such as
 spray water from a tank you pump to refill
 ([`HAVEN_sprayer`](./docs/gltf/HAVEN_sprayer/README.md)), and list their controls, shown when you pick one up.
 

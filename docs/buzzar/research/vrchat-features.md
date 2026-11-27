@@ -3,6 +3,7 @@
 This is a research inventory of VRChat's creator and user features, for Buzzar (a Matrix/WebXR/three.js social VR client forked from Third Room). It was compiled 2026-11-13 from creators.vrchat.com, docs.vrchat.com, the VRChat creator guidelines, ask.vrchat.com developer updates, and community wiki/guides.
 
 **Confidence markers:**
+
 - **[doc]** means the official documentation states it.
 - **[community]** means it comes from the wiki, feedback boards, or third-party guides.
 - **[inferred]** means it is my own synthesis or recollection and should be verified.
@@ -13,18 +14,18 @@ Most fetches went through a summarizing fetcher. Treat exact numbers as "as docu
 
 ## 0. Buzzar parity priorities (summary)
 
-| Priority | Feature cluster | Why it matters |
-|---|---|---|
-| P0 | Instance ownership, synced state (manual and continuous), network events with sender identity, late-joiner state | Every game world (Audience Anarchy) depends on these |
-| P0 | Player API: teleport, speed, jump, gravity, immobilize, voice gain and distance per player, tags | Stage and audience control, broadcast "host" voice |
-| P0 | Avatar scaling with world-set min and max, plus eye-height-changed events | The user's requirement and anti-exploit |
-| P0 | Safety and shield system, block, mute, hide avatar, performance ranks | Table stakes for public social VR |
-| P1 | Group roles and permissions, instance types, instance moderation (warn, mute, kick, ban), audit log, age-gated instances | Communities and events |
-| P1 | Pickups, ObjectSync, ObjectPool, Stations, PlayerObjects, Persistence (PlayerData) | Interactive worlds |
-| P1 | Expression menu, parameters, Action layer emotes with audio, PhysBones, Contacts, OSC | Avatar expressiveness |
-| P1 | Purchase and entitlement queries from world script (Udon Store API equivalent), backed by external servers | Paid benefits |
-| P2 | Video players with URL allowlist, string and image loading with allowlist and rate limits, MIDI | Media and dynamic content |
-| P2 | Items/props inventory, placement zones | User-spawned objects |
+| Priority | Feature cluster                                                                                                          | Why it matters                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| P0       | Instance ownership, synced state (manual and continuous), network events with sender identity, late-joiner state         | Every game world (Audience Anarchy) depends on these |
+| P0       | Player API: teleport, speed, jump, gravity, immobilize, voice gain and distance per player, tags                         | Stage and audience control, broadcast "host" voice   |
+| P0       | Avatar scaling with world-set min and max, plus eye-height-changed events                                                | The user's requirement and anti-exploit              |
+| P0       | Safety and shield system, block, mute, hide avatar, performance ranks                                                    | Table stakes for public social VR                    |
+| P1       | Group roles and permissions, instance types, instance moderation (warn, mute, kick, ban), audit log, age-gated instances | Communities and events                               |
+| P1       | Pickups, ObjectSync, ObjectPool, Stations, PlayerObjects, Persistence (PlayerData)                                       | Interactive worlds                                   |
+| P1       | Expression menu, parameters, Action layer emotes with audio, PhysBones, Contacts, OSC                                    | Avatar expressiveness                                |
+| P1       | Purchase and entitlement queries from world script (Udon Store API equivalent), backed by external servers               | Paid benefits                                        |
+| P2       | Video players with URL allowlist, string and image loading with allowlist and rate limits, MIDI                          | Media and dynamic content                            |
+| P2       | Items/props inventory, placement zones                                                                                   | User-spawned objects                                 |
 
 ---
 
@@ -108,7 +109,7 @@ https://creators.vrchat.com/avatars/expression-menu-and-controls/ and https://cr
 
 - A sender/receiver pair with Sphere, Capsule, or Box shapes. Max radius is 3 m; max box dimension is 6 m.
 - Collision tags are case-sensitive, up to 16 per contact.
-- Built-in tags: Head, Torso, Hand, Foot, Finger*.
+- Built-in tags: Head, Torso, Hand, Foot, Finger\*.
 - Avatar filters: Allow Self, Allow Others, Local Only. Local-only receivers don't count toward rank, up to 256.
 - Receiver types: Constant, OnEnter (with min velocity), Proximity (0–1 float).
 - In worlds, `OnContactEnter(ContactEnterInfo)` and `OnContactExit` Udon events fire. Content-type filters cover worlds, avatars, and items.
@@ -129,48 +130,49 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 
 **PC (Excellent / Good / Medium / Poor):**
 
-| Stat | Excellent | Good | Medium | Poor |
-|---|---|---|---|---|
-| Triangles | 32k | 70k | 70k | 70k |
-| Texture memory | 40 MB | 75 MB | 110 MB | 150 MB |
-| Skinned meshes | 1 | 2 | 8 | 16 |
-| Basic meshes | 4 | 8 | 16 | 24 |
-| Material slots | 4 | 8 | 16 | 32 |
-| PhysBone components | 4 | 8 | 16 | 32 |
-| PhysBone affected transforms | 16 | 64 | 128 | 256 |
-| PhysBone colliders | 4 | 8 | 16 | 32 |
-| PhysBone collision checks | 32 | 128 | 256 | 512 |
-| Contacts | 8 | 16 | 24 | 32 |
-| Constraints | 100 | 250 | 300 | 350 |
-| Constraint depth | 20 | 50 | 80 | 100 |
-| Animators | 1 | 4 | 16 | 32 |
-| Bones | 75 | 150 | 256 | 400 |
-| Lights | 0 | 0 | 0 | 1 |
-| Particle systems | 0 | 4 | 8 | 16 |
-| Active particles | 0 | 300 | 1,000 | 2,500 |
-| Mesh-particle active polys | 0 | 1,000 | 2,000 | 5,000 |
-| Trail renderers | 1 | 2 | 4 | 8 |
-| Line renderers | 1 | 2 | 4 | 8 |
-| Raycasts | 1 | 4 | 8 | 15 |
-| Cloths | 0 | 1 | 1 | 1 |
-| Cloth vertices | 0 | 50 | 100 | 200 |
-| Physics colliders | 0 | 1 | 8 | 8 |
-| Rigidbodies | 0 | 1 | 8 | 8 |
-| **Audio sources** | 1 | 4 | 8 | 8 |
-| Forwarded parameters | 10 | 20 | 30 | 40 |
-| Bounds | 2.5 m³ | 4 m³ | 5×6×5 m | 5×6×5 m |
+| Stat                         | Excellent | Good  | Medium  | Poor    |
+| ---------------------------- | --------- | ----- | ------- | ------- |
+| Triangles                    | 32k       | 70k   | 70k     | 70k     |
+| Texture memory               | 40 MB     | 75 MB | 110 MB  | 150 MB  |
+| Skinned meshes               | 1         | 2     | 8       | 16      |
+| Basic meshes                 | 4         | 8     | 16      | 24      |
+| Material slots               | 4         | 8     | 16      | 32      |
+| PhysBone components          | 4         | 8     | 16      | 32      |
+| PhysBone affected transforms | 16        | 64    | 128     | 256     |
+| PhysBone colliders           | 4         | 8     | 16      | 32      |
+| PhysBone collision checks    | 32        | 128   | 256     | 512     |
+| Contacts                     | 8         | 16    | 24      | 32      |
+| Constraints                  | 100       | 250   | 300     | 350     |
+| Constraint depth             | 20        | 50    | 80      | 100     |
+| Animators                    | 1         | 4     | 16      | 32      |
+| Bones                        | 75        | 150   | 256     | 400     |
+| Lights                       | 0         | 0     | 0       | 1       |
+| Particle systems             | 0         | 4     | 8       | 16      |
+| Active particles             | 0         | 300   | 1,000   | 2,500   |
+| Mesh-particle active polys   | 0         | 1,000 | 2,000   | 5,000   |
+| Trail renderers              | 1         | 2     | 4       | 8       |
+| Line renderers               | 1         | 2     | 4       | 8       |
+| Raycasts                     | 1         | 4     | 8       | 15      |
+| Cloths                       | 0         | 1     | 1       | 1       |
+| Cloth vertices               | 0         | 50    | 100     | 200     |
+| Physics colliders            | 0         | 1     | 8       | 8       |
+| Rigidbodies                  | 0         | 1     | 8       | 8       |
+| **Audio sources**            | 1         | 4     | 8       | 8       |
+| Forwarded parameters         | 10        | 20    | 30      | 40      |
+| Bounds                       | 2.5 m³    | 4 m³  | 5×6×5 m | 5×6×5 m |
 
 **Mobile (Quest, Android, iOS):**
 
-| Stat | Excellent | Good | Medium | Poor |
-|---|---|---|---|---|
-| Triangles | 7.5k | 10k | 15k | 20k |
-| Texture memory | 10 MB | 18 MB | 25 MB | 40 MB |
+| Stat           | Excellent | Good  | Medium | Poor  |
+| -------------- | --------- | ----- | ------ | ----- |
+| Triangles      | 7.5k      | 10k   | 15k    | 20k   |
+| Texture memory | 10 MB     | 18 MB | 25 MB  | 40 MB |
 
 - Mobile avatars have no lights, cloth, rigidbodies, or audio sources.
 - Hard caps strip the components even if "Show Avatar" is on: 8 PhysBones / 64 transforms / 16 colliders / 64 checks, 16 contacts, and 150 constraints at depth 50.
 
 **Default blocking:**
+
 - PC: Minimum Displayed Performance Rank defaults to Very Poor (nothing blocked).
 - Mobile: defaults to Medium (Poor and Very Poor are hidden). It can be relaxed only to Poor.
 - Bounds never block an avatar.
@@ -318,42 +320,43 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 
 **Forces** (local player only) — [doc] https://creators.vrchat.com/worlds/udon/players/player-forces/
 
-| Method | Default | Range |
-|---|---|---|
-| `Set/GetWalkSpeed` | 2 | ~0–5 |
-| `RunSpeed` | 4 | ~0–10 |
-| `StrafeSpeed` | 2 | ~0–5 |
-| `JumpImpulse` | 0, i.e. no jump (VRCWorld prefab sets 3) | ~0–10 |
-| `GravityStrength` | 1 | ~0–10 |
+| Method             | Default                                  | Range |
+| ------------------ | ---------------------------------------- | ----- |
+| `Set/GetWalkSpeed` | 2                                        | ~0–5  |
+| `RunSpeed`         | 4                                        | ~0–10 |
+| `StrafeSpeed`      | 2                                        | ~0–5  |
+| `JumpImpulse`      | 0, i.e. no jump (VRCWorld prefab sets 3) | ~0–10 |
+| `GravityStrength`  | 1                                        | ~0–10 |
 
 - `Immobilize(bool)` and `UseLegacyLocomotion`.
 
 **Voice, per remote player, set locally** — [doc] https://creators.vrchat.com/worlds/udon/players/player-audio/
 
-| Method | Range | Default |
-|---|---|---|
-| `SetVoiceGain` | 0–24 dB | 15 |
-| `SetVoiceDistanceNear` | 0–1e6 m | 0 |
-| `SetVoiceDistanceFar` | 0–1e6 m | 25 m |
-| `SetVoiceVolumetricRadius` | 0–1,000 m | 0 |
+| Method                     | Range     | Default |
+| -------------------------- | --------- | ------- |
+| `SetVoiceGain`             | 0–24 dB   | 15      |
+| `SetVoiceDistanceNear`     | 0–1e6 m   | 0       |
+| `SetVoiceDistanceFar`      | 0–1e6 m   | 25 m    |
+| `SetVoiceVolumetricRadius` | 0–1,000 m | 0       |
 
 - `SetVoiceLowpass(bool)`.
 - These calls are **per-listener**: each client sets how it hears another player. That is how "stage microphones", "megaphones", and private rooms work.
 
 **Avatar audio, per player** — [doc] same page
 
-| Method | Default |
-|---|---|
+| Method               | Default            |
+| -------------------- | ------------------ |
 | `SetAvatarAudioGain` | 10 dB (range 0–10) |
-| `FarRadius` | 40 |
-| `NearRadius` | 0 |
-| `VolumetricRadius` | 0 |
-| `ForceSpatial` | off |
-| `CustomCurve` | off |
+| `FarRadius`          | 40                 |
+| `NearRadius`         | 0                  |
+| `VolumetricRadius`   | 0                  |
+| `ForceSpatial`       | off                |
+| `CustomCurve`        | off                |
 
 **Scaling:** see §1.7.
 
 **Interaction:**
+
 - `EnablePickups(bool)`, `GetPickupInHand(hand)`, `UseAttachedStation()`.
 - `PlayHapticEventInHand(hand, duration, amplitude, frequency)`.
 - Source: [doc] https://creators.vrchat.com/worlds/udon/players/
@@ -367,6 +370,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 [doc] https://creators.vrchat.com/worlds/components/
 
 **VRC_SceneDescriptor** (required) — [doc] https://creators.vrchat.com/worlds/components/vrc_scenedescriptor
+
 - Spawns[] with Spawn Radius.
 - Spawn Order: First, Sequential, Random, Demo.
 - Spawn Orientation.
@@ -378,6 +382,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - Interact Passthrough layer mask.
 
 **VRC_Pickup** — [doc] https://creators.vrchat.com/worlds/components/vrc_pickup
+
 - AutoHold, UseText, InteractionText, Proximity.
 - Orientation (Any, Gun, Grip) with ExactGun/ExactGrip.
 - `pickupable`, DisallowTheft, allowManipulationWhenEquipped, momentum transfer, ThrowVelocityBoost.
@@ -387,6 +392,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - VR hover sphere of 0.4 m × avatar scale.
 
 **VRC_Station** (seats, vehicles, also used to "lock" players in place) — [doc] https://creators.vrchat.com/worlds/components/vrc_station
+
 - PlayerMobility: Mobile, Immobilize, ImmobilizeForVehicle.
 - canUseStationFromStation.
 - Custom animatorController for seated or other poses.
@@ -396,6 +402,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - `OnStationEntered/Exited(player)`.
 
 **Other components:**
+
 - **VRC_MirrorReflection:** reflect layers; resolution Auto (≤2048² per eye) or Unlimited; MSAA cap; disable pixel lights; clear flags and custom skybox; alpha clear for cutouts. Mirrors should be off by default and toggled. [doc] https://creators.vrchat.com/worlds/components/vrc_mirrorreflection
 - **VRC_PortalMarker:** portals to other worlds or instances. [doc]
 - **VRC_PlacementZone:** box zones with per-content-type modes (Unaffected, Block Here, Only Allow Here) for portals, stickers, sharing pedestals, and surface-attached items. [doc] https://creators.vrchat.com/worlds/components/vrc_placementzone
@@ -418,11 +425,13 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 ### 2.6 PlayerObjects and Persistence
 
 **Persistence** — [doc] https://creators.vrchat.com/worlds/udon/persistence/
+
 - Per-world, per-user server-side storage, shared across instances and platforms.
 - Limits: **100 KB PlayerData + 100 KB PlayerObject data per player per world**, compressed (more than 300 KB raw if compressible). Saves over the limit fail.
 - Can't be shared across worlds. Users can wipe their data.
 
 **PlayerData** — [doc] https://creators.vrchat.com/worlds/udon/persistence/player-data/
+
 - A key-value store with typed accessors: ints, floats, doubles, vectors, colors, strings, byte[].
 - Anyone can **read** any player's data; only the local player **writes** their own.
 - Keys can't be deleted.
@@ -431,6 +440,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - Any change re-sends all of that player's data.
 
 **PlayerObjects** (`VRCPlayerObject`) — [doc] https://creators.vrchat.com/worlds/udon/persistence/player-object/
+
 - A template GameObject is auto-instantiated per player on join.
 - Ownership is fixed to that player and can't be transferred.
 - `VRCEnablePersistence` makes its synced variables persistent.
@@ -457,6 +467,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 ### 2.8 Remote string and image loading
 
 **VRCStringDownloader** — [doc] https://creators.vrchat.com/worlds/udon/string-loading/
+
 - `LoadUrl(VRCUrl, behaviour)` then `OnStringLoadSuccess` or `OnStringLoadError`, with `Result` (UTF-8) or `ResultBytes`.
 - Size up to 100 MB.
 - **One request per 5 s** per world, with a queue of 1,000 served in random order.
@@ -464,6 +475,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - GET only. No headers, POST, or cookies [inferred].
 
 **VRCImageDownloader** — [doc] https://creators.vrchat.com/worlds/udon/image-loading/
+
 - Up to 2048×2048, one image per 5 s per scene, queue of 1,000, 32 MB buffers.
 - No redirects.
 - Allowlist: Dropbox, GitHub Pages, Imgur, ImgBB, imgbox, ImageBam, Postimages, Reddit, Twitter pbs, VRCDN, assets.vrchat.com, ytimg, DisBridge.
@@ -512,6 +524,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 [doc] https://creators.vrchat.com/economy/ and https://creators.vrchat.com/economy/sdk/udon-documentation
 
 **Model:**
+
 - Sellers apply and are approved.
 - **Products** unlock content:
   - Avatar Product: avatar access.
@@ -523,12 +536,14 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - **Payouts** go through Tilia and PayPal.
 
 **Udon Products** — [doc] https://creators.vrchat.com/economy/products/udon
+
 - Created on the website (Marketplace → Storefront → My Products).
 - An `UdonProduct` asset (ID, Name, Description) is referenced in the world.
 - "Owner Names in Udon" is optional.
 - Editing doesn't require re-upload.
 
 **Store API (`VRC.Economy.Store`):**
+
 - `DoesPlayerOwnProduct(player, product)`, `DoesAnyPlayerOwnProduct`, `GetPlayersWhoOwnProduct` — an **instance-wide view of others' entitlements**, which matters for group perks like "if anyone owns X, unlock for all".
 - `ListPurchases(behaviour, player)` → `OnListPurchases`.
 - `ListAvailableProducts` → `OnListAvailableProducts`.
@@ -537,6 +552,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
 - `OpenListing(id)`, `OpenWorldStorePage()`, `OpenGroupPage(groupId)`, `OpenGroupStorePage(groupId)`, `OpenMarketplaceStore(section, listingId, ctx)`, `VRCOpenMenu.OpenAvatarListing(avatarId)`.
 
 **Events:**
+
 - `OnPurchaseConfirmedMultiple(product, player, isNew, quantity)` (the older `OnPurchaseConfirmed` is deprecated).
 - `OnPurchasesLoaded(products[], player)`; wait for it before `DoesPlayerOwnProduct`.
 - `OnPurchaseExpired(product, player)`.
@@ -706,7 +722,7 @@ Ranks are Excellent, Good, Medium, Poor, and Very Poor. An avatar takes the wors
   - `EnablePickups(false)`.
   - `Immobilize`.
 - **Policy constraints** ([doc] https://hello.vrchat.com/creator-guidelines):
-  - Allowed: post rules at the entrance; inform moderated users; teleport or mute misbehaving users; allowlists to *enable* features.
+  - Allowed: post rules at the entrance; inform moderated users; teleport or mute misbehaving users; allowlists to _enable_ features.
   - Forbidden: forcibly changing avatars; crashing users; preventing users from leaving; **preemptive static or dynamic block lists** (ban lists for people who haven't misbehaved in the instance).
 
 ### 6.6 Content gating

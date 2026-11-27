@@ -266,7 +266,7 @@ export async function createMatrixNetworkInterface(
   const userId = session.userId;
 
   // Buzzar: players you blocked and players the world's ban lists ban are held back: they get no network peer (no
-  // avatar, voice, movement or Things either way), and on LiveKit the server doesn't send them our voice.
+  // avatar, voice, movement or Items either way), and on LiveKit the server doesn't send them our voice.
   // Anyone no longer in the world room (banned or kicked by a moderator or a moderation bot) is held back too: the
   // call server only checks room membership when someone connects, so they could otherwise stay in the instance.
   // Members not loaded yet (lazy loading) count as still in.

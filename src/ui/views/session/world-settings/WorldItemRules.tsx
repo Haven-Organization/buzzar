@@ -1,8 +1,8 @@
 /**
- * Buzzar: World Settings → Things: which Things people may spawn in this world (software.haven.world.rules →
- * `objects`). Either a block list (everything except the Things marked blocked) or an allow list (nothing except
- * the Things marked allowed), plus behaviours turned off for every Thing (e.g. trampolines). Custom Things are
- * listed by their exact file, so a world can allow its own Things and nothing else. Every visitor's client enforces
+ * Buzzar: World Settings → Items: which Items people may spawn in this world (software.haven.world.rules →
+ * `objects`). Either a block list (everything except the Items marked blocked) or an allow list (nothing except
+ * the Items marked allowed), plus behaviours turned off for every Item (e.g. trampolines). Custom Items are
+ * listed by their exact file, so a world can allow its own Items and nothing else. Every visitor's client enforces
  * it (engine/network/spawnRules.game.ts).
  */
 import { useEffect, useState } from "react";
@@ -19,74 +19,74 @@ import { SelectInput } from "../../components/property-panel/SelectInput";
 import { TileFallback, WorldTile, WorldTileGrid } from "../../components/world-tile/WorldTile";
 import { AlertDialog } from "../dialogs/AlertDialog";
 import { useMatrix } from "../../../hooks/useMatrix";
-import { useThingPreview } from "../../../hooks/useThingPreview";
+import { useItemPreview } from "../../../hooks/useItemPreview";
 import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
-import { fetchThingCollection, SavedThing, STOCK_THINGS } from "../../../utils/thingsMatrix";
+import { fetchItemCollection, SavedItem, STOCK_ITEMS } from "../../../utils/itemsMatrix";
 import {
   isSpawnAllowed,
-  isThingId,
-  ListedThing,
-  MAX_LISTED_THINGS,
+  isItemId,
+  ListedItem,
+  MAX_LISTED_ITEMS,
   SpawnRules,
-  thingBehaviours,
+  itemBehaviours,
 } from "../../../../engine/network/spawnRules.common";
 
-export interface ThingRulesDraft {
+export interface ItemRulesDraft {
   default: "allow" | "block";
-  things: ListedThing[];
+  items: ListedItem[];
   blockedBehaviours: string[];
 }
 
 const BEHAVIOURS: { id: string; label: string; short: string }[] = [
-  { id: "HAVEN_trampoline", label: "Trampolines and other bouncy Things", short: "bouncy Things are off" },
+  { id: "HAVEN_trampoline", label: "Trampolines and other bouncy Items", short: "bouncy Items are off" },
 ];
 
 const MODES = [
-  { value: "allow" as const, label: "Allow every Thing except the ones blocked below" },
-  { value: "block" as const, label: "Block every Thing except the ones allowed below" },
+  { value: "allow" as const, label: "Allow every Item except the ones blocked below" },
+  { value: "block" as const, label: "Block every Item except the ones allowed below" },
 ];
 
-function toRules(draft: ThingRulesDraft): SpawnRules {
+function toRules(draft: ItemRulesDraft): SpawnRules {
   return {
     default: draft.default,
-    things: Object.fromEntries(draft.things.map((t) => [t.id, t.allow])),
+    items: Object.fromEntries(draft.items.map((t) => [t.id, t.allow])),
     blockedBehaviours: draft.blockedBehaviours,
   };
 }
 
 interface Props {
-  value: ThingRulesDraft;
-  onChange: (value: ThingRulesDraft) => void;
+  value: ItemRulesDraft;
+  onChange: (value: ItemRulesDraft) => void;
   disabled?: boolean;
 }
 
-export function WorldThingRules({ value, onChange, disabled }: Props) {
+export function WorldItemRules({ value, onChange, disabled }: Props) {
   const [adding, setAdding] = useState(false);
   const rules = toRules(value);
-  const custom = value.things.filter((t) => !STOCK_THINGS.some((s) => s.id === t.id));
+  const custom = value.items.filter((t) => !STOCK_ITEMS.some((s) => s.id === t.id));
 
-  /** Flips a Thing. Stock Things leave the list when they're back to the default; custom ones stay listed. */
-  const toggle = (id: string, extra?: Partial<ListedThing>) => {
-    const allow = !(rules.things[id] ?? rules.default !== "block");
-    const isStock = STOCK_THINGS.some((s) => s.id === id);
-    const existing = value.things.find((t) => t.id === id);
-    let things: ListedThing[];
-    if (isStock && allow === (value.default !== "block")) things = value.things.filter((t) => t.id !== id);
-    else if (existing) things = value.things.map((t) => (t.id === id ? { ...t, allow } : t));
-    else things = [...value.things, { id, allow, ...extra }];
-    onChange({ ...value, things });
+  /** Flips an Item. Stock Items leave the list when they're back to the default; custom ones stay listed. */
+  const toggle = (id: string, extra?: Partial<ListedItem>) => {
+    const allow = !(rules.items[id] ?? rules.default !== "block");
+    const isStock = STOCK_ITEMS.some((s) => s.id === id);
+    const existing = value.items.find((t) => t.id === id);
+    let items: ListedItem[];
+    if (isStock && allow === (value.default !== "block")) items = value.items.filter((t) => t.id !== id);
+    else if (existing) items = value.items.map((t) => (t.id === id ? { ...t, allow } : t));
+    else items = [...value.items, { id, allow, ...extra }];
+    onChange({ ...value, items });
   };
 
-  const add = (thing: ListedThing) => {
-    if (value.things.some((t) => t.id === thing.id)) return;
-    onChange({ ...value, things: [...value.things, thing].slice(0, MAX_LISTED_THINGS) });
+  const add = (item: ListedItem) => {
+    if (value.items.some((t) => t.id === item.id)) return;
+    onChange({ ...value, items: [...value.items, item].slice(0, MAX_LISTED_ITEMS) });
   };
 
-  const remove = (id: string) => onChange({ ...value, things: value.things.filter((t) => t.id !== id) });
+  const remove = (id: string) => onChange({ ...value, items: value.items.filter((t) => t.id !== id) });
 
   const behaviourBlock = (id: string) =>
-    BEHAVIOURS.find((b) => value.blockedBehaviours.includes(b.id) && thingBehaviours(id).includes(b.id));
+    BEHAVIOURS.find((b) => value.blockedBehaviours.includes(b.id) && itemBehaviours(id).includes(b.id));
 
   const tile = (id: string, name: string, image: { src?: string; loading?: boolean }, removable: boolean) => {
     const allowed = isSpawnAllowed(rules, id);
@@ -135,7 +135,7 @@ export function WorldThingRules({ value, onChange, disabled }: Props) {
 
   return (
     <>
-      <SettingTile label={<Label>Things People Can Spawn</Label>}>
+      <SettingTile label={<Label>Items People Can Spawn</Label>}>
         <SelectInput
           options={MODES}
           value={value.default}
@@ -144,8 +144,8 @@ export function WorldThingRules({ value, onChange, disabled }: Props) {
         />
         <Text variant="b3" color="surface-low">
           {value.default === "block"
-            ? "Only the Things marked Allowed can be spawned here. Use this to allow just your own Things."
-            : "Any Thing can be spawned here, including people's own, except the ones marked Blocked."}
+            ? "Only the Items marked Allowed can be spawned here. Use this to allow just your own Items."
+            : "Any Item can be spawned here, including people's own, except the ones marked Blocked."}
         </Text>
       </SettingTile>
       <SettingTile label={<Label>Behaviours</Label>}>
@@ -167,41 +167,41 @@ export function WorldThingRules({ value, onChange, disabled }: Props) {
           </label>
         ))}
         <Text variant="b3" color="surface-low">
-          Unchecked behaviours are off for every spawned Thing that has them, whatever the list says, so nobody gets
-          round the rule with a Thing of their own.
+          Unchecked behaviours are off for every spawned Item that has them, whatever the list says, so nobody gets
+          round the rule with an Item of their own.
         </Text>
       </SettingTile>
-      <SettingTile label={<Label>Stock Things</Label>}>
+      <SettingTile label={<Label>Stock Items</Label>}>
         <WorldTileGrid tall>
-          {STOCK_THINGS.map((thing) => tile(thing.id, thing.name, { src: thing.preview }, false))}
+          {STOCK_ITEMS.map((item) => tile(item.id, item.name, { src: item.preview }, false))}
         </WorldTileGrid>
       </SettingTile>
-      <SettingTile label={<Label>Other Things</Label>}>
+      <SettingTile label={<Label>Other Items</Label>}>
         {custom.length > 0 && (
           <WorldTileGrid tall>
-            {custom.map((thing) => (
-              <CustomThingTile key={thing.id} thing={thing} render={tile} />
+            {custom.map((item) => (
+              <CustomItemTile key={item.id} item={item} render={tile} />
             ))}
           </WorldTileGrid>
         )}
         <Text variant="b3" color="surface-low">
           {custom.length === 0 &&
             (value.default === "block"
-              ? "None yet. Add the Things you've made for this world to allow them. "
-              : "None yet. Add a Thing to block that exact file. ")}
-          Each one is a single file, so another upload of the same model counts as a different Thing.
+              ? "None yet. Add the Items you've made for this world to allow them. "
+              : "None yet. Add an Item to block that exact file. ")}
+          Each one is a single file, so another upload of the same model counts as a different Item.
         </Text>
         {!disabled && (
           <div>
             <Button fill="outline" onClick={() => setAdding(true)}>
-              Add Thing
+              Add Item
             </Button>
           </div>
         )}
       </SettingTile>
       {adding && (
-        <AddThingDialog
-          listed={value.things}
+        <AddItemDialog
+          listed={value.items}
           allow={value.default === "block"}
           onAdd={add}
           requestClose={() => setAdding(false)}
@@ -211,31 +211,31 @@ export function WorldThingRules({ value, onChange, disabled }: Props) {
   );
 }
 
-function CustomThingTile({
-  thing,
+function CustomItemTile({
+  item,
   render,
 }: {
-  thing: ListedThing;
+  item: ListedItem;
   render: (id: string, name: string, image: { src?: string; loading?: boolean }, removable: boolean) => JSX.Element;
 }) {
-  const image = useThingPreview(thing.id, thing.preview_url);
-  return render(thing.id, thing.name || "Thing", image, true);
+  const image = useItemPreview(item.id, item.preview_url);
+  return render(item.id, item.name || "Item", image, true);
 }
 
-/** Pick from your saved Things (with their pictures), or paste a Thing's link. */
-function AddThingDialog({
+/** Pick from your saved Items (with their pictures), or paste an Item's link. */
+function AddItemDialog({
   listed,
   allow,
   onAdd,
   requestClose,
 }: {
-  listed: ListedThing[];
+  listed: ListedItem[];
   allow: boolean;
-  onAdd: (thing: ListedThing) => void;
+  onAdd: (item: ListedItem) => void;
   requestClose: () => void;
 }) {
   const { session, platform, client } = useMatrix(true);
-  const [saved, setSaved] = useState<SavedThing[]>();
+  const [saved, setSaved] = useState<SavedItem[]>();
   const [error, setError] = useState<string>();
   const [link, setLink] = useState("");
 
@@ -244,9 +244,9 @@ function AddThingDialog({
     getSessionAuth(platform, client.sessionId)
       .then((auth) => {
         if (!auth) throw new Error("Not signed in");
-        return fetchThingCollection(auth, session.userId);
+        return fetchItemCollection(auth, session.userId);
       })
-      .then((c) => !cancelled && setSaved(c.things))
+      .then((c) => !cancelled && setSaved(c.items))
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       cancelled = true;
@@ -254,17 +254,17 @@ function AddThingDialog({
   }, [session, platform, client]);
 
   const linkId = link.trim();
-  const linkValid = isThingId(linkId) && linkId.startsWith("mxc://");
+  const linkValid = isItemId(linkId) && linkId.startsWith("mxc://");
   const isListed = (id: string) => listed.some((t) => t.id === id);
 
   return (
     <AlertDialog
       open
-      title={allow ? "Allow a Thing" : "Block a Thing"}
+      title={allow ? "Allow an Item" : "Block an Item"}
       requestClose={requestClose}
       content={
         <div className="flex flex-column gap-md">
-          <SettingTile label={<Label>Thing Link</Label>}>
+          <SettingTile label={<Label>Item Link</Label>}>
             <div className="flex gap-xs">
               <Input
                 className="grow"
@@ -283,10 +283,10 @@ function AddThingDialog({
               </Button>
             </div>
             <Text variant="b3" color="surface-low">
-              Use "Copy Thing Link" on a Thing in My Things, or on one posted in chat.
+              Use "Copy Item Link" on an Item in My Items, or on one posted in chat.
             </Text>
           </SettingTile>
-          <SettingTile label={<Label>My Things</Label>}>
+          <SettingTile label={<Label>My Items</Label>}>
             {error && (
               <Text variant="b3" color="danger">
                 {error}
@@ -295,18 +295,18 @@ function AddThingDialog({
             {!saved && !error && <Dots size="md" />}
             {saved?.length === 0 && (
               <Text variant="b3" color="surface-low">
-                You haven't saved any Things yet. Upload one from the Things screen.
+                You haven't saved any Items yet. Upload one from the Items screen.
               </Text>
             )}
             {saved && saved.length > 0 && (
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
                 <WorldTileGrid tall>
-                  {saved.map((thing) => (
-                    <SavedThingPick
-                      key={thing.url}
-                      thing={thing}
-                      listed={isListed(thing.url)}
-                      onAdd={() => onAdd({ id: thing.url, allow, name: thing.name, preview_url: thing.preview_url })}
+                  {saved.map((item) => (
+                    <SavedItemPick
+                      key={item.url}
+                      item={item}
+                      listed={isListed(item.url)}
+                      onAdd={() => onAdd({ id: item.url, allow, name: item.name, preview_url: item.preview_url })}
                     />
                   ))}
                 </WorldTileGrid>
@@ -319,9 +319,9 @@ function AddThingDialog({
   );
 }
 
-function SavedThingPick({ thing, listed, onAdd }: { thing: SavedThing; listed: boolean; onAdd: () => void }) {
-  const image = useThingPreview(thing.url, thing.preview_url);
-  const name = thing.name || "Thing";
+function SavedItemPick({ item, listed, onAdd }: { item: SavedItem; listed: boolean; onAdd: () => void }) {
+  const image = useItemPreview(item.url, item.preview_url);
+  const name = item.name || "Item";
   return (
     <WorldTile
       shape="tall"
@@ -332,7 +332,7 @@ function SavedThingPick({ thing, listed, onAdd }: { thing: SavedThing; listed: b
             <Dots size="md" />
           </div>
         ) : (
-          <TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(thing.url)})`} />
+          <TileFallback name={name} color={`var(--usercolor${getIdentifierColorNumber(item.url)})`} />
         )
       }
       title={name}

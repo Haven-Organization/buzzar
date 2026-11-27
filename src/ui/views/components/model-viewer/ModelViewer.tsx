@@ -1,5 +1,5 @@
 /**
- * Buzzar: a 3D view of an avatar or Thing on its details page: drag to turn it round, scroll (or pinch) to zoom.
+ * Buzzar: a 3D view of an avatar or Item on its details page: drag to turn it round, scroll (or pinch) to zoom.
  * Poses avatars the way their preview pictures do (utils/avatarPreview). Renders only while something changes.
  */
 import { useEffect, useRef, useState } from "react";
@@ -33,7 +33,7 @@ export function ModelViewer({
 }: {
   /** An http(s) URL or app path to the .glb / .vrm. */
   url: string;
-  kind: "avatar" | "thing";
+  kind: "avatar" | "item";
   onLoaded?: (model: LoadedModel) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);

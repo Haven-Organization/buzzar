@@ -1,7 +1,7 @@
 /**
- * Buzzar: the Things screen: objects you can spawn into worlds and use with your avatar. "Shortcuts" is a shelf of
- * the Things on number keys 1–0 (you choose which, and their order, by dragging or from their menus; utils/thingKeys), and "My Things" has the rest: the other stock
- * Things, then Things you've bookmarked (e.g. from a .glb posted in chat; kept in account data, see thingsMatrix.ts).
+ * Buzzar: the Items screen: objects you can spawn into worlds and use with your avatar. "Shortcuts" is a shelf of
+ * the Items on number keys 1–0 (you choose which, and their order, by dragging or from their menus; utils/itemKeys), and "My Items" has the rest: the other stock
+ * Items, then Items you've bookmarked (e.g. from a .glb posted in chat; kept in account data, see itemsMatrix.ts).
  */
 import { ReactNode, useCallback, useEffect, useState } from "react";
 import { ConnectDropTarget, useDrag, useDrop } from "react-dnd";
@@ -27,47 +27,47 @@ import { getIdentifierColorNumber } from "../../../utils/avatar";
 import { copyToClipboard } from "../../../utils/common";
 import { getSessionAuth } from "../../../utils/avatarMatrix";
 import {
-  fetchThingCollection,
-  removeFromThingCollection,
-  SavedThing,
-  STOCK_THINGS,
-  StockThing,
-  ThingCollection,
-} from "../../../utils/thingsMatrix";
-import { useThingPreview } from "../../../hooks/useThingPreview";
+  fetchItemCollection,
+  removeFromItemCollection,
+  SavedItem,
+  STOCK_ITEMS,
+  StockItem,
+  ItemCollection,
+} from "../../../utils/itemsMatrix";
+import { useItemPreview } from "../../../hooks/useItemPreview";
 import { worldAtom } from "../../../state/world";
 import { Thread } from "../../../../engine/module/module.common";
 import {
-  SpawnThingMessage,
-  ThingKeys,
-  thingKeyName,
+  SpawnItemMessage,
+  ItemKeys,
+  itemKeyName,
   ThirdRoomMessageType,
 } from "../../../../plugins/thirdroom/thirdroom.common";
-import { thingKeysAtom } from "../../../state/thingKeys";
-import { useSetThingKeys } from "../../../hooks/useThingKeys";
-import { mapThing, moveMapped, unmapThing } from "../../../utils/thingKeys";
+import { itemKeysAtom } from "../../../state/itemKeys";
+import { useSetItemKeys } from "../../../hooks/useItemKeys";
+import { mapItem, moveMapped, unmapItem } from "../../../utils/itemKeys";
 import BoxIC from "../../../../../res/ic/box-3d.svg";
 import UploadIC from "../../../../../res/ic/upload.svg";
-import { UploadThing } from "./UploadThing";
-import { describeVariables, ThingCloneDialog } from "./ThingCloneDialog";
+import { UploadItem } from "./UploadItem";
+import { describeVariables, ItemCloneDialog } from "./ItemCloneDialog";
 import { Dialog } from "../../../atoms/dialog/Dialog";
-import { thingClonesAtom } from "../../../state/thingClones";
-import { sendCustomThings, useAllowedThings, useSetThingClones } from "../../../hooks/useThingClones";
-import { ThingClone } from "../../../../plugins/thirdroom/thirdroom.common";
-import "./ThingsView.css";
+import { itemClonesAtom } from "../../../state/itemClones";
+import { sendCustomItems, useAllowedItems, useSetItemClones } from "../../../hooks/useItemClones";
+import { ItemClone } from "../../../../plugins/thirdroom/thirdroom.common";
+import "./ItemsView.css";
 
-export function ThingsView() {
+export function ItemsView() {
   const { session, platform, client } = useMatrix(true);
   const mainThread = useMainThreadContext();
   const { worldId, entered } = useAtomValue(worldAtom);
   const inWorld = entered && !!worldId;
   const allowed = useActionBar();
-  const allowedThings = useAllowedThings();
-  const clones = useAtomValue(thingClonesAtom) ?? [];
-  const setThingClones = useSetThingClones();
-  // Cloning or editing: the stock Thing, and the clone when editing one.
-  const [cloning, setCloning] = useState<{ base: StockThing; existing?: ThingClone }>();
-  const [collection, setCollection] = useState<ThingCollection>();
+  const allowedItems = useAllowedItems();
+  const clones = useAtomValue(itemClonesAtom) ?? [];
+  const setItemClones = useSetItemClones();
+  // Cloning or editing: the stock Item, and the clone when editing one.
+  const [cloning, setCloning] = useState<{ base: StockItem; existing?: ItemClone }>();
+  const [collection, setCollection] = useState<ItemCollection>();
   const [error, setError] = useState<string>();
 
   const getAuth = useCallback(async () => {
@@ -78,26 +78,26 @@ export function ThingsView() {
 
   useEffect(() => {
     getAuth()
-      .then((auth) => fetchThingCollection(auth, session.userId))
+      .then((auth) => fetchItemCollection(auth, session.userId))
       .then(setCollection)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [getAuth, session]);
 
-  // The game shows your own Things' names and pictures on the action bar.
+  // The game shows your own Items' names and pictures on the action bar.
   useEffect(() => {
-    if (collection) sendCustomThings(mainThread, session, collection);
+    if (collection) sendCustomItems(mainThread, session, collection);
   }, [mainThread, session, collection]);
 
   const [uploadOpen, setUploadOpen] = useState(false);
-  const keys = useAtomValue(thingKeysAtom);
-  const setThingKeys = useSetThingKeys();
-  const changeKeys = (next: ThingKeys) => {
+  const keys = useAtomValue(itemKeysAtom);
+  const setItemKeys = useSetItemKeys();
+  const changeKeys = (next: ItemKeys) => {
     setError(undefined);
-    setThingKeys(next).catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    setItemKeys(next).catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
-  // Buzzar: your cloned Things show like stock ones, with their base's picture.
-  const cloneThings: StockThing[] = clones.flatMap((clone) => {
-    const base = STOCK_THINGS.find((t) => t.id === clone.base);
+  // Buzzar: your cloned Items show like stock ones, with their base's picture.
+  const cloneItems: StockItem[] = clones.flatMap((clone) => {
+    const base = STOCK_ITEMS.find((t) => t.id === clone.base);
     return base
       ? [
           {
@@ -109,40 +109,40 @@ export function ThingsView() {
         ]
       : [];
   });
-  // Your own Things (uploaded or bookmarked files) work like the rest: spawn them, put them on keys.
-  const customThings: StockThing[] = (collection?.things ?? []).map((thing) => ({
-    id: thing.url,
-    name: thing.name || "Thing",
+  // Your own Items (uploaded or bookmarked files) work like the rest: spawn them, put them on keys.
+  const customItems: StockItem[] = (collection?.items ?? []).map((item) => ({
+    id: item.url,
+    name: item.name || "Item",
     preview: "",
-    description: thing.added_ts ? `Saved ${new Date(thing.added_ts).toLocaleDateString()}` : "Saved Thing",
-    custom: thing,
+    description: item.added_ts ? `Saved ${new Date(item.added_ts).toLocaleDateString()}` : "Saved Item",
+    custom: item,
   }));
-  const allThings = [...STOCK_THINGS, ...cloneThings, ...customThings];
+  const allItems = [...STOCK_ITEMS, ...cloneItems, ...customItems];
   const cloneOf = (id: string) => clones.find((c) => c.id === id);
-  // Things on keys (in key order) sit on the shelf; the rest are in My Things below.
+  // Items on keys (in key order) sit on the shelf; the rest are in My Items below.
   const mapped = (keys ?? [])
-    .map((id, slot) => ({ thing: allThings.find((t) => t.id === id), slot }))
-    .filter((entry): entry is { thing: StockThing; slot: number } => !!entry.thing);
-  const unmapped = allThings.filter((thing) => !keys?.includes(thing.id));
+    .map((id, slot) => ({ item: allItems.find((t) => t.id === id), slot }))
+    .filter((entry): entry is { item: StockItem; slot: number } => !!entry.item);
+  const unmapped = allItems.filter((item) => !keys?.includes(item.id));
 
-  const saveClone = async (clone: ThingClone) => {
+  const saveClone = async (clone: ItemClone) => {
     const next = clones.some((c) => c.id === clone.id)
       ? clones.map((c) => (c.id === clone.id ? clone : c))
       : [...clones, clone];
-    await setThingClones(next);
+    await setItemClones(next);
   };
   const deleteClone = (id: string) => {
     setError(undefined);
-    if (keys?.includes(id)) changeKeys(unmapThing(keys, id));
-    setThingClones(clones.filter((c) => c.id !== id)).catch((e) =>
+    if (keys?.includes(id)) changeKeys(unmapItem(keys, id));
+    setItemClones(clones.filter((c) => c.id !== id)).catch((e) =>
       setError(e instanceof Error ? e.message : String(e))
     );
   };
-  // Menu items for cloning a stock Thing, or editing/deleting a clone.
+  // Menu items for cloning a stock Item, or editing/deleting a clone.
   const cloneMenu = (id: string) => {
     const clone = cloneOf(id);
     if (clone) {
-      const base = STOCK_THINGS.find((t) => t.id === clone.base);
+      const base = STOCK_ITEMS.find((t) => t.id === clone.base);
       return (
         <>
           {base && <DropdownMenuItem onSelect={() => setCloning({ base, existing: clone })}>Edit…</DropdownMenuItem>}
@@ -159,25 +159,25 @@ export function ThingsView() {
         </>
       );
     }
-    const custom = collection?.things.find((t) => t.url === id);
+    const custom = collection?.items.find((t) => t.url === id);
     if (custom) {
       return (
         <>
-          <DropdownMenuItem onSelect={() => copyToClipboard(custom.url)}>Copy Thing Link</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => copyToClipboard(custom.url)}>Copy Item Link</DropdownMenuItem>
           <DropdownMenuItem variant="danger" onSelect={() => unbookmark(custom.url)}>
             Remove Bookmark
           </DropdownMenuItem>
         </>
       );
     }
-    const stock = STOCK_THINGS.find((t) => t.id === id);
+    const stock = STOCK_ITEMS.find((t) => t.id === id);
     return stock ? <DropdownMenuItem onSelect={() => setCloning({ base: stock })}>Clone…</DropdownMenuItem> : null;
   };
-  const freeKeys = (keys ?? []).flatMap((id, slot) => (id ? [] : [thingKeyName(slot)]));
+  const freeKeys = (keys ?? []).flatMap((id, slot) => (id ? [] : [itemKeyName(slot)]));
 
   const spawnAction = (id: string) =>
     inWorld ? (
-      allowed.some((item) => item.id === id) || allowedThings.includes(cloneOf(id)?.base ?? id) ? (
+      allowed.some((item) => item.id === id) || allowedItems.includes(cloneOf(id)?.base ?? id) ? (
         <Button size="sm" onClick={() => spawn(id)}>
           Spawn
         </Button>
@@ -189,13 +189,13 @@ export function ThingsView() {
     ) : undefined;
 
   const spawn = (id: string) =>
-    mainThread.sendMessage<SpawnThingMessage>(Thread.Game, { type: ThirdRoomMessageType.SpawnThing, id });
+    mainThread.sendMessage<SpawnItemMessage>(Thread.Game, { type: ThirdRoomMessageType.SpawnItem, id });
 
   const unbookmark = async (url: string) => {
     setError(undefined);
-    if (keys?.includes(url)) changeKeys(unmapThing(keys, url));
+    if (keys?.includes(url)) changeKeys(unmapItem(keys, url));
     try {
-      setCollection(await removeFromThingCollection(await getAuth(), session.userId, url));
+      setCollection(await removeFromItemCollection(await getAuth(), session.userId, url));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -203,10 +203,10 @@ export function ThingsView() {
 
   return (
     <Window className="TileScreen">
-      <UploadThing open={uploadOpen} onOpenChange={setUploadOpen} onSaved={setCollection} />
+      <UploadItem open={uploadOpen} onOpenChange={setUploadOpen} onSaved={setCollection} />
       <Dialog open={!!cloning} onOpenChange={(open) => !open && setCloning(undefined)}>
         {cloning && (
-          <ThingCloneDialog
+          <ItemCloneDialog
             base={cloning.base}
             // "Clone…" on a clone starts from its values as a new clone (empty id).
             existing={cloning.existing?.id ? cloning.existing : undefined}
@@ -219,11 +219,11 @@ export function ThingsView() {
       <Content
         top={
           <Header
-            left={<HeaderTitle icon={<Icon color="surface" className="shrink-0" src={BoxIC} />}>Things</HeaderTitle>}
+            left={<HeaderTitle icon={<Icon color="surface" className="shrink-0" src={BoxIC} />}>Items</HeaderTitle>}
             right={
               <Button size="sm" onClick={() => setUploadOpen(true)}>
                 <Icon src={UploadIC} size="sm" color="on-primary" />
-                Upload Thing
+                Upload Item
               </Button>
             }
           />
@@ -231,7 +231,7 @@ export function ThingsView() {
       >
         <div className="TileScreen__bar flex items-center gap-sm">
           <Text variant="b3" color="surface-low">
-            Things to spawn into worlds and play with: grab, carry and throw them.
+            Items to spawn into worlds and play with: grab, carry and throw them.
             {inWorld ? "" : " Enter a world to spawn them."}
           </Text>
         </div>
@@ -247,8 +247,8 @@ export function ThingsView() {
                 Shortcuts
               </Text>
               <Text variant="b3" color="surface-low">
-                Press a Thing’s number key in a world to spawn it. Drag Things here, along the row or back down to My
-                Things, or use their menus.{keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""}
+                Press an Item’s number key in a world to spawn it. Drag Items here, along the row or back down to My
+                Items, or use their menus.{keys && freeKeys.length > 0 ? ` Free keys: ${freeKeys.join(", ")}.` : ""}
               </Text>
               {keys && (
                 <ShortcutShelf
@@ -261,26 +261,26 @@ export function ThingsView() {
               )}
             </div>
             <Text variant="b2" weight="semi-bold">
-              My Things
+              My Items
             </Text>
-            <MyThingsDropArea keys={keys} onChangeKeys={changeKeys}>
-              {unmapped.map((thing) => (
-                <DraggableThing key={thing.id} id={thing.id} onShelf={false}>
-                  <StockThingTile
-                    thing={thing}
+            <MyItemsDropArea keys={keys} onChangeKeys={changeKeys}>
+              {unmapped.map((item) => (
+                <DraggableItem key={item.id} id={item.id} onShelf={false}>
+                  <StockItemTile
+                    item={item}
                     keys={keys}
-                    action={spawnAction(thing.id)}
-                    extraMenu={cloneMenu(thing.id)}
+                    action={spawnAction(item.id)}
+                    extraMenu={cloneMenu(item.id)}
                     onChangeKeys={changeKeys}
                   />
-                </DraggableThing>
+                </DraggableItem>
               ))}
-            </MyThingsDropArea>
+            </MyItemsDropArea>
             {!collection
               ? !error && <Dots size="md" />
-              : collection.things.length === 0 && (
+              : collection.items.length === 0 && (
                   <Text variant="b3" color="surface-low">
-                    Things you bookmark show up here too: when someone posts a Thing (.glb) in chat, bookmark it from
+                    Items you bookmark show up here too: when someone posts an Item (.glb) in chat, bookmark it from
                     its tile.
                   </Text>
                 )}
@@ -291,22 +291,22 @@ export function ThingsView() {
   );
 }
 
-/** Buzzar: the model file behind each stock Thing, for its details page (the balls are made in code: no file). */
-const STOCK_THING_FILES: Record<string, string> = {
+/** Buzzar: the model file behind each stock Item, for its details page (the balls are made in code: no file). */
+const STOCK_ITEM_FILES: Record<string, string> = {
   "small-crate": "/gltf/sci_fi_crate.glb",
   "medium-crate": "/gltf/sci_fi_crate.glb",
   "large-crate": "/gltf/sci_fi_crate.glb",
-  trampoline: "/gltf/things/trampoline.glb",
+  trampoline: "/gltf/items/trampoline.glb",
 };
 
-const THING_DRAG = "buzzar-thing";
-interface ThingDragItem {
+const ITEM_DRAG = "buzzar-item";
+interface ItemDragItem {
   id: string;
   onShelf: boolean;
 }
 
-/** Wraps a Thing's tile so it can be dragged onto, along or off the Shortcuts shelf. */
-function DraggableThing({
+/** Wraps an Item's tile so it can be dragged onto, along or off the Shortcuts shelf. */
+function DraggableItem({
   id,
   onShelf,
   dropRef,
@@ -321,8 +321,8 @@ function DraggableThing({
 }) {
   const [{ dragging }, drag] = useDrag(
     () => ({
-      type: THING_DRAG,
-      item: { id, onShelf } as ThingDragItem,
+      type: ITEM_DRAG,
+      item: { id, onShelf } as ItemDragItem,
       collect: (m) => ({ dragging: m.isDragging() }),
     }),
     [id, onShelf]
@@ -333,15 +333,15 @@ function DraggableThing({
         drag(el);
         dropRef?.(el);
       }}
-      className={classNames("ThingDrag", { "ThingDrag--dragging": dragging, "ThingDrag--over": over })}
+      className={classNames("ItemDrag", { "ItemDrag--dragging": dragging, "ItemDrag--over": over })}
     >
       {children}
     </div>
   );
 }
 
-/** One Thing on the shelf: drop another Thing on it to put that one here (this one and the rest move along). */
-function ShelfThing({
+/** One Item on the shelf: drop another Item on it to put that one here (this one and the rest move along). */
+function ShelfItem({
   entry,
   index,
   keys,
@@ -350,34 +350,34 @@ function ShelfThing({
   extraMenu,
   onChangeKeys,
 }: {
-  entry: { thing: StockThing; slot: number };
+  entry: { item: StockItem; slot: number };
   index: number;
-  keys: ThingKeys;
+  keys: ItemKeys;
   count: number;
   action?: ReactNode;
   extraMenu?: ReactNode;
-  onChangeKeys: (keys: ThingKeys) => void;
+  onChangeKeys: (keys: ItemKeys) => void;
 }) {
   const [{ over }, drop] = useDrop(
     () => ({
-      accept: THING_DRAG,
-      drop: (item: ThingDragItem) => {
+      accept: ITEM_DRAG,
+      drop: (item: ItemDragItem) => {
         const next = moveMapped(keys, item.id, index);
         if (next) onChangeKeys(next);
       },
-      canDrop: (item: ThingDragItem) => item.id !== entry.thing.id && (item.onShelf || keys.includes(null)),
+      canDrop: (item: ItemDragItem) => item.id !== entry.item.id && (item.onShelf || keys.includes(null)),
       collect: (m) => ({ over: m.isOver() && m.canDrop() }),
     }),
-    [keys, index, entry.thing.id, onChangeKeys]
+    [keys, index, entry.item.id, onChangeKeys]
   );
   const move = (to: number) => {
-    const next = moveMapped(keys, entry.thing.id, to);
+    const next = moveMapped(keys, entry.item.id, to);
     if (next) onChangeKeys(next);
   };
   return (
-    <DraggableThing id={entry.thing.id} onShelf dropRef={drop} over={over}>
-      <StockThingTile
-        thing={entry.thing}
+    <DraggableItem id={entry.item.id} onShelf dropRef={drop} over={over}>
+      <StockItemTile
+        item={entry.item}
         slot={entry.slot}
         action={action}
         menu={
@@ -388,18 +388,18 @@ function ShelfThing({
             <DropdownMenuItem disabled={index === count - 1} onSelect={() => move(index + 1)}>
               Move Right
             </DropdownMenuItem>
-            <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapThing(keys, entry.thing.id))}>
+            <DropdownMenuItem variant="danger" onSelect={() => onChangeKeys(unmapItem(keys, entry.item.id))}>
               Remove from Shortcuts
             </DropdownMenuItem>
             {extraMenu}
           </>
         }
       />
-    </DraggableThing>
+    </DraggableItem>
   );
 }
 
-/** The Shortcuts shelf: Things on number keys, in key order. Dropping on its empty space adds to the end. */
+/** The Shortcuts shelf: Items on number keys, in key order. Dropping on its empty space adds to the end. */
 function ShortcutShelf({
   keys,
   mapped,
@@ -407,42 +407,42 @@ function ShortcutShelf({
   cloneMenu,
   onChangeKeys,
 }: {
-  keys: ThingKeys;
-  mapped: { thing: StockThing; slot: number }[];
+  keys: ItemKeys;
+  mapped: { item: StockItem; slot: number }[];
   spawnAction: (id: string) => ReactNode;
   cloneMenu: (id: string) => ReactNode;
-  onChangeKeys: (keys: ThingKeys) => void;
+  onChangeKeys: (keys: ItemKeys) => void;
 }) {
   const [{ over }, drop] = useDrop(
     () => ({
-      accept: THING_DRAG,
-      drop: (item: ThingDragItem, monitor) => {
-        if (monitor.didDrop()) return; // dropped on a Thing on the shelf
+      accept: ITEM_DRAG,
+      drop: (item: ItemDragItem, monitor) => {
+        if (monitor.didDrop()) return; // dropped on an Item on the shelf
         const next = moveMapped(keys, item.id, mapped.length);
         if (next) onChangeKeys(next);
       },
-      canDrop: (item: ThingDragItem) => item.onShelf || keys.includes(null),
+      canDrop: (item: ItemDragItem) => item.onShelf || keys.includes(null),
       collect: (m) => ({ over: m.isOver({ shallow: true }) && m.canDrop() }),
     }),
     [keys, mapped.length, onChangeKeys]
   );
   return (
-    <div ref={drop} className={classNames("ThingShelf", { "ThingShelf--over": over })}>
+    <div ref={drop} className={classNames("ItemShelf", { "ItemShelf--over": over })}>
       {mapped.length === 0 ? (
         <Text variant="b3" color="surface-low">
-          No shortcuts yet: drag a Thing here, or choose Add to Shortcuts from its menu.
+          No shortcuts yet: drag an Item here, or choose Add to Shortcuts from its menu.
         </Text>
       ) : (
         <WorldTileGrid tall>
           {mapped.map((entry, index) => (
-            <ShelfThing
-              key={entry.thing.id}
+            <ShelfItem
+              key={entry.item.id}
               entry={entry}
               index={index}
               keys={keys}
               count={mapped.length}
-              action={spawnAction(entry.thing.id)}
-              extraMenu={cloneMenu(entry.thing.id)}
+              action={spawnAction(entry.item.id)}
+              extraMenu={cloneMenu(entry.item.id)}
               onChangeKeys={onChangeKeys}
             />
           ))}
@@ -452,62 +452,62 @@ function ShortcutShelf({
   );
 }
 
-/** My Things: dropping a Thing from the shelf here removes it from Shortcuts. */
-function MyThingsDropArea({
+/** My Items: dropping an Item from the shelf here removes it from Shortcuts. */
+function MyItemsDropArea({
   keys,
   onChangeKeys,
   children,
 }: {
-  keys?: ThingKeys;
-  onChangeKeys: (keys: ThingKeys) => void;
+  keys?: ItemKeys;
+  onChangeKeys: (keys: ItemKeys) => void;
   children: ReactNode;
 }) {
   const [{ over }, drop] = useDrop(
     () => ({
-      accept: THING_DRAG,
-      canDrop: (item: ThingDragItem) => item.onShelf && !!keys,
-      drop: (item: ThingDragItem) => {
-        if (keys) onChangeKeys(unmapThing(keys, item.id));
+      accept: ITEM_DRAG,
+      canDrop: (item: ItemDragItem) => item.onShelf && !!keys,
+      drop: (item: ItemDragItem) => {
+        if (keys) onChangeKeys(unmapItem(keys, item.id));
       },
       collect: (m) => ({ over: m.isOver() && m.canDrop() }),
     }),
     [keys, onChangeKeys]
   );
   return (
-    <div ref={drop} className={classNames("ThingShelf", { "ThingShelf--over": over })}>
+    <div ref={drop} className={classNames("ItemShelf", { "ItemShelf--over": over })}>
       <WorldTileGrid tall>{children}</WorldTileGrid>
     </div>
   );
 }
 
-interface ThingTileProps {
-  thing: StockThing;
+interface ItemTileProps {
+  item: StockItem;
   slot?: number;
-  keys?: ThingKeys;
+  keys?: ItemKeys;
   action?: ReactNode;
   menu?: ReactNode;
   extraMenu?: ReactNode;
-  onChangeKeys?: (keys: ThingKeys) => void;
+  onChangeKeys?: (keys: ItemKeys) => void;
 }
 
-/** A Thing's tile: a built-in one's picture, or your own Thing's preview (rendered from its file if it has none). */
-function StockThingTile(props: ThingTileProps) {
-  return props.thing.custom ? (
-    <SavedThingTile {...props} saved={props.thing.custom} />
+/** An Item's tile: a built-in one's picture, or your own Item's preview (rendered from its file if it has none). */
+function StockItemTile(props: ItemTileProps) {
+  return props.item.custom ? (
+    <SavedItemTile {...props} saved={props.item.custom} />
   ) : (
-    <BuiltinThingTile {...props} />
+    <BuiltinItemTile {...props} />
   );
 }
 
 /** The "Add to Shortcuts" item, or the shelf's own menu. */
-function tileMenu({ thing, keys, menu, extraMenu, onChangeKeys }: ThingTileProps) {
+function tileMenu({ item, keys, menu, extraMenu, onChangeKeys }: ItemTileProps) {
   const free = keys ? keys.indexOf(null) : -1;
   return (
     menu ?? (
       <>
         {keys && onChangeKeys && (
-          <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
-            {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
+          <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapItem(keys, item.id, free))}>
+            {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${itemKeyName(free)})`}
           </DropdownMenuItem>
         )}
         {extraMenu}
@@ -516,9 +516,9 @@ function tileMenu({ thing, keys, menu, extraMenu, onChangeKeys }: ThingTileProps
   );
 }
 
-/** A stock Thing's tile: its key badge when it's a shortcut, and Add to Shortcuts (or the shelf's own menu). */
-function BuiltinThingTile({
-  thing,
+/** A stock Item's tile: its key badge when it's a shortcut, and Add to Shortcuts (or the shelf's own menu). */
+function BuiltinItemTile({
+  item,
   slot,
   keys,
   action,
@@ -526,35 +526,35 @@ function BuiltinThingTile({
   extraMenu,
   onChangeKeys,
 }: {
-  thing: StockThing;
+  item: StockItem;
   slot?: number;
-  keys?: ThingKeys;
+  keys?: ItemKeys;
   action?: ReactNode;
   menu?: ReactNode;
   extraMenu?: ReactNode;
-  onChangeKeys?: (keys: ThingKeys) => void;
+  onChangeKeys?: (keys: ItemKeys) => void;
 }) {
   const free = keys ? keys.indexOf(null) : -1;
   const openDetails = useOpenDetails();
   return (
     <WorldTile
       shape="tall"
-      imageSrc={thing.preview}
-      title={thing.name}
+      imageSrc={item.preview}
+      title={item.name}
       onTitleClick={() =>
         openDetails({
-          kind: "thing",
-          name: thing.name,
-          url: STOCK_THING_FILES[thing.id],
-          previewUrl: thing.preview,
-          description: thing.description,
-          stockId: thing.id,
+          kind: "item",
+          name: item.name,
+          url: STOCK_ITEM_FILES[item.id],
+          previewUrl: item.preview,
+          description: item.description,
+          stockId: item.id,
         })
       }
-      badge={slot !== undefined ? `Key ${thingKeyName(slot)}` : undefined}
+      badge={slot !== undefined ? `Key ${itemKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
-          {thing.description}
+          {item.description}
         </Text>
       }
       action={action}
@@ -562,8 +562,8 @@ function BuiltinThingTile({
         menu ?? (
           <>
             {keys && onChangeKeys && (
-              <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapThing(keys, thing.id, free))}>
-                {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${thingKeyName(free)})`}
+              <DropdownMenuItem disabled={free === -1} onSelect={() => onChangeKeys(mapItem(keys, item.id, free))}>
+                {free === -1 ? "Shortcuts Full" : `Add to Shortcuts (Key ${itemKeyName(free)})`}
               </DropdownMenuItem>
             )}
             {extraMenu}
@@ -574,10 +574,10 @@ function BuiltinThingTile({
   );
 }
 
-/** One of your own Things: its preview (rendered from the file when it has none). */
-function SavedThingTile(props: ThingTileProps & { saved: SavedThing }) {
-  const { saved, thing, slot, action } = props;
-  const { src, rendered, loading } = useThingPreview(saved.url, saved.preview_url);
+/** One of your own Items: its preview (rendered from the file when it has none). */
+function SavedItemTile(props: ItemTileProps & { saved: SavedItem }) {
+  const { saved, item, slot, action } = props;
+  const { src, rendered, loading } = useItemPreview(saved.url, saved.preview_url);
   const openDetails = useOpenDetails();
   return (
     <WorldTile
@@ -592,17 +592,17 @@ function SavedThingTile(props: ThingTileProps & { saved: SavedThing }) {
             </Text>
           </div>
         ) : (
-          <TileFallback name={thing.name} color={`var(--usercolor${getIdentifierColorNumber(saved.url)})`} />
+          <TileFallback name={item.name} color={`var(--usercolor${getIdentifierColorNumber(saved.url)})`} />
         )
       }
-      title={thing.name}
+      title={item.name}
       onTitleClick={() =>
-        openDetails({ kind: "thing", name: thing.name, url: saved.url, previewUrl: saved.preview_url ?? rendered })
+        openDetails({ kind: "item", name: item.name, url: saved.url, previewUrl: saved.preview_url ?? rendered })
       }
-      badge={slot !== undefined ? `Key ${thingKeyName(slot)}` : undefined}
+      badge={slot !== undefined ? `Key ${itemKeyName(slot)}` : undefined}
       subtitle={
         <Text variant="b3" color="surface-low">
-          {thing.description}
+          {item.description}
         </Text>
       }
       action={action}

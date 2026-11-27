@@ -1,11 +1,11 @@
 /**
- * Buzzar: avatars holding Things in their hands (HAVEN_thing `hold`, holdSpec.ts).
+ * Buzzar: avatars holding Items in their hands (HAVEN_item `hold`, holdSpec.ts).
  *
- * When you hold a Thing that says how it's held, it stops floating in front of you:
- * - "aim" Things (a water gun) point where you look, held out from your shoulder; your hands reach for their grips.
- * - "hand" Things ride in your hand as your arm swings.
+ * When you hold an Item that says how it's held, it stops floating in front of you:
+ * - "aim" Items (a water gun) point where you look, held out from your shoulder; your hands reach for their grips.
+ * - "hand" Items ride in your hand as your arm swings.
  * Either way your arms are posed with two-bone IK so the hands sit on the grips, the wrists turn to them, and the
- * fingers curl round. Your client places the Thing (it becomes kinematic while held, and its position goes out as
+ * fingers curl round. Your client places the Item (it becomes kinematic while held, and its position goes out as
  * usual); everyone else is told who holds what (NetworkAction.HavenHold) and poses your avatar's arms to reach it.
  *
  * The arm posing runs in each avatar's animation post-update (avatar.game.ts), after the animation mixer, on the
@@ -56,11 +56,11 @@ interface LocalHold {
 }
 
 let localHold: LocalHold | undefined;
-/** peerId → network id of the Thing they hold. */
+/** peerId → network id of the Item they hold. */
 const remoteHolds = new Map<string, number>();
 /** peerId → the entity we made a sensor for them (put back when they let go). */
 const remoteSensors = new Map<string, RemoteNode>();
-/** How a Thing (by entity) is held, if it says (set by the Things plugin: thingFile.ts). */
+/** How an Item (by entity) is held, if it says (set by the Items plugin: itemFile.ts). */
 let resolveHold: (eid: number) => HoldSpec | undefined = () => undefined;
 
 export function setHoldResolver(resolver: (eid: number) => HoldSpec | undefined) {
@@ -83,7 +83,7 @@ function announce(ctx: GameContext, eid: number | undefined) {
 }
 
 /**
- * Things held in someone's hands don't collide: one at your shoulder would sit inside your own player capsule and
+ * Items held in someone's hands don't collide: one at your shoulder would sit inside your own player capsule and
  * shove you around (and anyone you walk past). Entities made sensors here, to put back when let go.
  */
 const madeSensors = new Set<number>();
@@ -111,7 +111,7 @@ export function beginLocalHold(ctx: GameContext, node: RemoteNode, spec: HoldSpe
   announce(ctx, node.eid);
 }
 
-/** Stops holding: the Thing is a normal physical object again (call before throwing it). */
+/** Stops holding: the Item is a normal physical object again (call before throwing it). */
 export function endLocalHold(ctx: GameContext) {
   if (!localHold) return;
   const body = localHold.node.physicsBody?.body;
@@ -124,7 +124,7 @@ export function endLocalHold(ctx: GameContext) {
   announce(ctx, undefined);
 }
 
-/** Re-announces now and then, and places the Thing from the camera when no avatar did this frame (none loaded). */
+/** Re-announces now and then, and places the Item from the camera when no avatar did this frame (none loaded). */
 export function updateLocalHold(ctx: GameContext, player: RemoteNode | undefined) {
   if (!localHold) return;
   if (!getRemoteResource<RemoteNode>(ctx, localHold.eid)) {
@@ -159,14 +159,14 @@ export function registerHoldNetwork(ctx: GameContext) {
 }
 
 /**
- * How far the off hand has moved from its `offhand` grip right now, in the Thing's space (metres), by Thing entity:
+ * How far the off hand has moved from its `offhand` grip right now, in the Item's space (metres), by Item entity:
  * set while something moves it, such as a water gun's pump stroke (HAVEN_sprayer pumpStroke).
  */
 export const offhandShift = new Map<number, [number, number, number]>();
-/** Held Things in use right now (a water gun spraying), by entity, set by what uses them: a hand on a trigger squeezes. */
-export const thingsInUse = new Set<number>();
+/** Held Items in use right now (a water gun spraying), by entity, set by what uses them: a hand on a trigger squeezes. */
+export const itemsInUse = new Set<number>();
 
-/* ---------- Placing your own held Thing ---------- */
+/* ---------- Placing your own held Item ---------- */
 
 /** A node's world matrix from its and its ancestors' transforms as they are now (not the last computed one). */
 function currentWorldMatrix(node: RemoteNode) {
@@ -189,7 +189,7 @@ const _r = new Quaternion();
 const _s = new Vector3();
 
 const AIM_REACH = 0.62; // of the arm's length, out from the shoulder
-/** Where an aimed Thing's grip sits from that point, in view space (x towards the holding hand's side): out past
+/** Where an aimed Item's grip sits from that point, in view space (x towards the holding hand's side): out past
  * the shoulder and a little down, so it's held low at the side of the view like a first-person shooter's, not
  * in the middle. */
 const AIM_SIDE = 0.06;
@@ -201,14 +201,14 @@ const _ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 });
 const isSolid = (collider: RAPIER.Collider) => !collider.isSensor();
 
 /**
- * Places an aimed Thing: pointed where you look, its grip held out from your shoulder (or, without an avatar, low
+ * Places an aimed Item: pointed where you look, its grip held out from your shoulder (or, without an avatar, low
  * and to the side of your view), and turned slightly so its aim line meets what you're looking at.
  */
 function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: HoldRig | undefined): Matrix4 {
   const { spec, node } = hold;
   const camera = getCamera(ctx, player);
   // Where the camera is this tick: its worldMatrix is last tick's (world matrices update at the end of the tick),
-  // so the Thing trailed a tick behind the view, and on bumpy ground (the camera bobbing) it jittered.
+  // so the Item trailed a tick behind the view, and on bumpy ground (the camera bobbing) it jittered.
   const camMatrix = currentWorldMatrix(camera);
   const camPos = new Vector3().setFromMatrixPosition(camMatrix);
   const camRot = new Quaternion().setFromRotationMatrix(camMatrix);
@@ -218,7 +218,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
 
   let anchor: Vector3;
   if (arm) {
-    // From the camera, not the live shoulder bone: the idle animation's sway moved the Thing in your view.
+    // From the camera, not the live shoulder bone: the idle animation's sway moved the Item in your view.
     const shoulder = rig ? restShoulder(rig, arm, camPos) : worldPos(arm.upper)!;
     const { length } = arm;
     anchor = shoulder
@@ -228,7 +228,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
     anchor = camPos.clone().add(new Vector3(0.24 * side, -0.27, -0.45).applyQuaternion(camRot));
   }
 
-  // Point the Thing's aim direction where the camera looks, keeping it upright with the view.
+  // Point the Item's aim direction where the camera looks, keeping it upright with the view.
   const aimDir = new Vector3(...spec.aim.direction);
   const rotation = camRot.clone().multiply(new Quaternion().setFromUnitVectors(aimDir, new Vector3(0, 0, -1)));
   // Its grip's palm on the anchor.
@@ -274,15 +274,15 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
   return new Matrix4().compose(position, rotation, new Vector3(1, 1, 1));
 }
 
-/** Places a carried Thing in the animated hand. */
+/** Places a carried Item in the animated hand. */
 function placeInHand(ctx: GameContext, hold: LocalHold, arm: ArmChain): Matrix4 {
   const frame = arm.hand.getWorldQuaternion(new Quaternion()).multiply(arm.toFrame);
   const palm = arm.hand.localToWorld(arm.palm.clone());
   const handFrame = new Matrix4().compose(palm, frame, new Vector3(1, 1, 1));
-  const thing = handFrame.multiply(gripMatrix(hold.spec.grip).invert());
+  const item = handFrame.multiply(gripMatrix(hold.spec.grip).invert());
   const position = new Vector3();
   const rotation = new Quaternion();
-  thing.decompose(position, rotation, new Vector3());
+  item.decompose(position, rotation, new Vector3());
   position.toArray(hold.node.position);
   rotation.toArray(hold.node.quaternion);
   hold.placedTick = ctx.tick;
@@ -290,7 +290,7 @@ function placeInHand(ctx: GameContext, hold: LocalHold, arm: ArmChain): Matrix4 
 }
 
 /**
- * Poses an avatar holding a Thing, if its player holds one that says how (called each frame after the animation
+ * Poses an avatar holding an Item, if its player holds one that says how (called each frame after the animation
  * mixer, with world matrices up to date). Puts the arms back when it no longer does.
  */
 export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: RemoteNode) {
@@ -298,42 +298,42 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   const player = avatarNode.parent;
   if (!player) return;
 
-  let thing: RemoteNode | undefined;
+  let item: RemoteNode | undefined;
   let spec: HoldSpec | undefined;
   let ours: LocalHold | undefined;
   if (hasComponent(ctx.world, OurPlayer, player.eid)) {
     ours = localHold;
-    thing = ours?.node;
+    item = ours?.node;
     spec = ours?.spec;
   } else if (player.name) {
     const nid = remoteHolds.get(player.name);
     const eid = nid !== undefined ? getModule(ctx, NetworkModule).networkIdToEntityId.get(nid) : undefined;
-    thing = eid !== undefined ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
-    spec = thing ? resolveHold(thing.eid) : undefined;
-    if (thing && spec && remoteSensors.get(player.name) !== thing) {
-      setHeldCollisions(thing, true);
-      remoteSensors.set(player.name, thing);
+    item = eid !== undefined ? getRemoteResource<RemoteNode>(ctx, eid) : undefined;
+    spec = item ? resolveHold(item.eid) : undefined;
+    if (item && spec && remoteSensors.get(player.name) !== item) {
+      setHeldCollisions(item, true);
+      remoteSensors.set(player.name, item);
     }
   }
-  if (!thing || !spec) return;
+  if (!item || !spec) return;
 
   const primary = rig[spec.hand];
   const body = new Quaternion().setFromRotationMatrix(
     new Matrix4().fromArray(player.worldMatrix as unknown as number[])
   );
 
-  let thingMatrix: Matrix4;
-  if (ours && spec.pose === "hand" && primary) thingMatrix = placeInHand(ctx, ours, primary);
-  else if (ours) thingMatrix = placeAimed(ctx, player, ours, rig);
-  else thingMatrix = new Matrix4().fromArray(thing.worldMatrix as unknown as number[]);
+  let itemMatrix: Matrix4;
+  if (ours && spec.pose === "hand" && primary) itemMatrix = placeInHand(ctx, ours, primary);
+  else if (ours) itemMatrix = placeAimed(ctx, player, ours, rig);
+  else itemMatrix = new Matrix4().fromArray(item.worldMatrix as unknown as number[]);
 
   poseHands(
     rig,
     spec,
-    thingMatrix,
+    itemMatrix,
     body,
     !(ours && spec.pose === "hand"),
-    offhandShift.get(thing.eid),
-    thingsInUse.has(thing.eid)
+    offhandShift.get(item.eid),
+    itemsInUse.has(item.eid)
   );
 }

@@ -1,6 +1,6 @@
 /**
  * Buzzar (Third Room #461): draws the world from straight above, once, when its creator presses "Generate Map" in
- * World Settings. Only the world's own geometry is drawn (not people or spawned Things), fitted to its extent with
+ * World Settings. Only the world's own geometry is drawn (not people or spawned Items), fitted to its extent with
  * north (-Z) up; `cutHeight` leaves out everything above that height so the insides of buildings show. The picture
  * goes back to the main thread to be uploaded (see plugins/world-map).
  */

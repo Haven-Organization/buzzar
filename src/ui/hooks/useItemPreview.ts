@@ -1,12 +1,12 @@
 /**
- * Buzzar: a custom Thing's picture: its preview image when it has one, otherwise one rendered from its .glb.
+ * Buzzar: a custom Item's picture: its preview image when it has one, otherwise one rendered from its .glb.
  */
 import { useEffect, useState } from "react";
 
 import { useMatrix } from "./useMatrix";
 import { renderAvatarPreviewFromUrl } from "../utils/avatarPreview";
 
-export function useThingPreview(url: string | undefined, previewUrl: string | undefined) {
+export function useItemPreview(url: string | undefined, previewUrl: string | undefined) {
   const { session } = useMatrix(true);
   const [rendered, setRendered] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -22,13 +22,13 @@ export function useThingPreview(url: string | undefined, previewUrl: string | un
     let objectUrl: string | undefined;
     let cancelled = false;
     setLoading(true);
-    renderAvatarPreviewFromUrl(url, httpUrl, "thing")
+    renderAvatarPreviewFromUrl(url, httpUrl, "item")
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
         setRendered(objectUrl);
       })
-      .catch((e) => console.warn("Couldn't render a Thing preview", e))
+      .catch((e) => console.warn("Couldn't render an Item preview", e))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;

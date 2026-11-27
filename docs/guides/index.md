@@ -44,18 +44,18 @@ After you sign in you start in your Home world. Your worlds are listed in the pa
 
 ### 3. Get around
 
-| Action                        | Keyboard and mouse                           |
-| ----------------------------- | -------------------------------------------- |
-| Move                          | W A S D                                      |
-| Look                          | Mouse (click the world to capture the mouse) |
-| Jump                          | Space                                        |
-| Run                           | Left Shift                                   |
-| Crouch                        | C                                            |
-| First / third person          | V                                            |
-| Interact, sit, enter a portal | E or left click                              |
-| Free the mouse (click to play) | Escape                                      |
-| Menu                          | Tab (Escape closes it)                       |
-| Hide / show the HUD           | H                                            |
+| Action                         | Keyboard and mouse                           |
+| ------------------------------ | -------------------------------------------- |
+| Move                           | W A S D                                      |
+| Look                           | Mouse (click the world to capture the mouse) |
+| Jump                           | Space                                        |
+| Run                            | Left Shift                                   |
+| Crouch                         | C                                            |
+| First / third person           | V                                            |
+| Interact, sit, enter a portal  | E or left click                              |
+| Free the mouse (click to play) | Escape                                       |
+| Menu                           | Tab (Escape closes it)                       |
+| Hide / show the HUD            | H                                            |
 
 You can change any of these keys in **Settings → Controls**: click an action's key, then press the new one.
 
@@ -83,7 +83,7 @@ On a phone or tablet, Buzzar shows touch controls:
 - **Jump, crouch, use and throw** with the round buttons in the lower right.
 - **Flick** to keep the view turning for a moment; touch the world again to stop it.
 - **Chat** by tapping the chat box above the joystick.
-- **More** (the ⋯ button on the right edge, under the mic) holds your Things to spawn, and Menu, People, Names, Controls, Delete Aimed
+- **More** (the ⋯ button on the right edge, under the mic) holds your Items to spawn, and Menu, People, Names, Controls, Delete Aimed
   (removes your object at the centre of the screen), Fly, Straighten Held, Turn Held, Fullscreen and Leave World.
 
 You can turn touch controls on or off in **Settings → Controls**, for example to use them on a touch-screen laptop.
@@ -119,7 +119,7 @@ You only see and hear the players in the same call. If you arrive while a call o
 
 #### Instances
 
-A world with a LiveKit call can have several **instances**: separate copies of the world, each with its own players, voices and Things (chat is shared by all of them). When you enter, Buzzar puts you in the busiest instance with room, and starts a new one when they're all full. The world sets how many players fit in one in **World Settings → Calls**.
+A world with a LiveKit call can have several **instances**: separate copies of the world, each with its own players, voices and Items (chat is shared by all of them). When you enter, Buzzar puts you in the busiest instance with room, and starts a new one when they're all full. The world sets how many players fit in one in **World Settings → Calls**.
 
 Open **Instances** from a world's ⋯ menu to see who is in which instance, join any of them (even a full one), copy a link to one to invite people, or start a new instance. Give it a name, or leave the name empty and it gets a number, like `#48213`.
 
@@ -129,7 +129,7 @@ In a world with a LiveKit call, press **Alt + S** or use the **Share Screen** bu
 
 #### Leaving a world
 
-Opening the menu doesn't take you out of a world: you stay in it, and its call, until you leave. People there can still see your avatar and hear you. While a full-screen window (Worlds, Things, Settings…) is open, a bar at the top says so, with **Return** and **Leave World**; the panel under the chat list has **Leave World** too.
+Opening the menu doesn't take you out of a world: you stay in it, and its call, until you leave. People there can still see your avatar and hear you. While a full-screen window (Worlds, Items, Settings…) is open, a bar at the top says so, with **Return** and **Leave World**; the panel under the chat list has **Leave World** too.
 
 If you're away from a world (the menu open, or Buzzar hidden) for 15 minutes, Buzzar asks if you're still there, and a minute later takes you out of it. Choose how long, or **Never**, in **Settings → Worlds & Scripts → Leave Worlds When Away**.
 

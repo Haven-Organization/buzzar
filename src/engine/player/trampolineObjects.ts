@@ -1,5 +1,5 @@
 /**
- * Buzzar: Things (crates, balls, anything with a dynamic physics body) bounce on trampolines too, when thrown or
+ * Buzzar: Items (crates, balls, anything with a dynamic physics body) bounce on trampolines too, when thrown or
  * dropped on them. Runs right after the physics step: a body that was moving into the mat and has just been stopped
  * (or slowed hard) with its centre over a trampoline's bouncy area bounces off it (trampolines.ts,
  * objectBounceVelocity): its speed across the mat carries on and its speed into the mat comes back out, so one
@@ -30,7 +30,7 @@ const REBOUND_WINDOW = 6000;
 const MIN_IMPACT_SPEED = 1.5;
 const _v = new RAPIER.Vector3(0, 0, 0);
 
-/** The physics body a trampoline belongs to (the stock Thing's own), so it doesn't bounce on itself. */
+/** The physics body a trampoline belongs to (the stock Item's own), so it doesn't bounce on itself. */
 function ownBody(trampoline: Trampoline): RAPIER.RigidBody | undefined {
   for (let node: RemoteNode | undefined = trampoline.node; node; node = node.parent as RemoteNode | undefined) {
     const body = node.physicsBody?.body;

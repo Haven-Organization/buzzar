@@ -8,12 +8,12 @@
  *   `face` from a JSON file (e.g. hand-tuned `eyelids.moves`), which the bake then keeps.
  * - `--name`, `--description` (or `--description-file`, for several lines), `--author`, `--source`, `--version`:
  *   write `HAVEN_metadata` (only the fields given; existing ones are kept).
- * - `--thing`: writes `HAVEN_thing` from what Buzzar would do with the Thing today (a box collider fitted round it, how
- *   far off it appears), keeping whatever the file already says. `--thing-json f` first merges a JSON file into
- *   `HAVEN_thing` (e.g. `hold`, `spawn`). `--sprayer-json f` writes `HAVEN_sprayer` (docs/gltf/HAVEN_sprayer); its
+ * - `--item`: writes `HAVEN_item` from what Buzzar would do with the Item today (a box collider fitted round it, how
+ *   far off it appears), keeping whatever the file already says. `--item-json f` first merges a JSON file into
+ *   `HAVEN_item` (e.g. `hold`, `spawn`). `--sprayer-json f` writes `HAVEN_sprayer` (docs/gltf/HAVEN_sprayer); its
  *   `sounds` can name sounds embedded with `--sound`.
  * - `--sound Name=file.wav` (repeatable): embeds a sound (KHR_audio audio + source, .wav/.mp3/.ogg) named Name.
- * - `--control action=label` (repeatable): a Thing's controls in `HAVEN_metadata` (docs/gltf/HAVEN_metadata), e.g.
+ * - `--control action=label` (repeatable): an Item's controls in `HAVEN_metadata` (docs/gltf/HAVEN_metadata), e.g.
  *   `--control use="Spray (hold)" --control secondary=Pump`. Replaces the file's list.
  * - `--map picture.webp --map-min x,z --map-max x,z`: embeds a world's map picture as `HAVEN_map` (docs/gltf/HAVEN_map),
  *   covering that ground area in metres (top-left is the north-west corner). A picture from World Settings → Map →
@@ -24,7 +24,7 @@
  *
  * Usage (from the repo root):
  *   node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- in.glb out.glb --avatar --name "Haru Urara" --version 1
- *   node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- gun.glb out.glb --thing --thing-json hold.json \
+ *   node_modules/.bin/vite-node scripts/buzzar/bake-gltf.ts -- gun.glb out.glb --item --item-json hold.json \
  *     --sound Spray=spray.wav --sound Pump=pump.wav --sprayer-json sprayer.json --control use="Spray (hold)"
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -40,12 +40,13 @@ import {
 import {
   makeAssetMetadata,
   readAssetMetadata,
-  THING_CONTROL_ACTIONS,
-  ThingControl,
+  ITEM_CONTROL_ACTIONS,
+  ItemControl,
 } from "../../src/engine/gltf/assetMetadata";
-import { bakedThingPhysics, thingPhysicsToJSON } from "../../src/plugins/spawnables/thingFile";
+import { bakedItemPhysics, itemPhysicsToJSON } from "../../src/plugins/spawnables/itemFile";
 import { readSprayer } from "../../src/plugins/sprayers/sprayer.common";
 import type { GLTFRoot } from "../../src/engine/gltf/GLTF";
+import { upgradeItemExtension } from "../../src/engine/gltf/itemExtension";
 
 const args = process.argv.slice(2).filter((a) => a !== "--");
 const positional: string[] = [];
@@ -58,14 +59,14 @@ const lists = new Map<string, string[]>([
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (!a.startsWith("--")) positional.push(a);
-  else if (["--avatar", "--no-ear-motion", "--thing"].includes(a)) flags.set(a, true);
+  else if (["--avatar", "--no-ear-motion", "--item"].includes(a)) flags.set(a, true);
   else if (lists.has(a)) lists.get(a)!.push(args[++i] ?? "");
   else flags.set(a, args[++i] ?? "");
 }
 const [src, dst] = positional;
 if (!src || !dst) {
   console.error(
-    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--face-json f] [--thing] [--thing-json f] [--sound Name=file]… [--sprayer-json f] [--control action=label]… [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …] [--map picture --map-min x,z --map-max x,z]"
+    "usage: bake-gltf.ts in.glb out.glb [--avatar] [--no-ear-motion] [--face-json f] [--item] [--item-json f] [--sound Name=file]… [--sprayer-json f] [--control action=label]… [--name …] [--description …|--description-file f] [--author …] [--source url] [--version …] [--map picture --map-min x,z --map-max x,z]"
   );
   process.exit(2);
 }
@@ -113,17 +114,19 @@ for (const entry of lists.get("--sound")!) {
   console.log(`sound: ${name} = source ${audio.sources.length - 1} (${file})`);
 }
 
-if (flags.has("--thing-json")) {
-  const given = JSON.parse(readFileSync(String(flags.get("--thing-json")), "utf8")) as Record<string, unknown>;
-  gltf.extensions.HAVEN_thing = { ...((gltf.extensions.HAVEN_thing as object) ?? {}), ...given };
-  used.add("HAVEN_thing");
+if (flags.has("--item-json")) {
+  const given = JSON.parse(readFileSync(String(flags.get("--item-json")), "utf8")) as Record<string, unknown>;
+  upgradeItemExtension(gltf as never);
+  gltf.extensions.HAVEN_item = { ...((gltf.extensions.HAVEN_item as object) ?? {}), ...given };
+  used.add("HAVEN_item");
 }
 
-if (flags.has("--thing")) {
-  const existing = (gltf.extensions.HAVEN_thing ?? {}) as Record<string, unknown>;
-  gltf.extensions.HAVEN_thing = thingPhysicsToJSON(bakedThingPhysics(gltf as never), existing);
-  used.add("HAVEN_thing");
-  console.log("thing:", JSON.stringify(gltf.extensions.HAVEN_thing));
+if (flags.has("--item")) {
+  upgradeItemExtension(gltf as never);
+  const existing = (gltf.extensions.HAVEN_item ?? {}) as Record<string, unknown>;
+  gltf.extensions.HAVEN_item = itemPhysicsToJSON(bakedItemPhysics(gltf as never), existing);
+  used.add("HAVEN_item");
+  console.log("item:", JSON.stringify(gltf.extensions.HAVEN_item));
 }
 
 if (flags.has("--sprayer-json")) {
@@ -143,11 +146,11 @@ if (flags.has("--sprayer-json")) {
   console.log("sprayer:", JSON.stringify(gltf.extensions.HAVEN_sprayer));
 }
 
-const controls: ThingControl[] = lists.get("--control")!.map((entry) => {
+const controls: ItemControl[] = lists.get("--control")!.map((entry) => {
   const at = entry.indexOf("=");
-  const action = entry.slice(0, at) as ThingControl["action"];
-  if (at < 1 || !THING_CONTROL_ACTIONS.includes(action)) {
-    throw new Error(`--control needs action=label with action one of ${THING_CONTROL_ACTIONS.join(", ")}`);
+  const action = entry.slice(0, at) as ItemControl["action"];
+  if (at < 1 || !ITEM_CONTROL_ACTIONS.includes(action)) {
+    throw new Error(`--control needs action=label with action one of ${ITEM_CONTROL_ACTIONS.join(", ")}`);
   }
   return { action, label: entry.slice(at + 1) };
 });

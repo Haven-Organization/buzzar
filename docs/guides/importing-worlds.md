@@ -21,7 +21,7 @@ Check the model's license before you upload it. Worlds are shared with everyone 
 
 From Blender: **File → Export → glTF 2.0**, format **glTF Binary (.glb)**, with **Apply Modifiers** on. Draco compression is fine to leave on: Buzzar decodes it, as well as Meshopt, quantized meshes, WebP and KTX2 textures.
 
-Things that often go wrong:
+Items that often go wrong:
 
 - **Lights are far too bright.** Blender converts watts to candela physically. Fix it with `tune-lights.mjs` (step 3).
 - **Missing textures.** Downloaded `.blend` files often point at texture paths on the author's computer. Relink them in Blender (**File → External Data → Find Missing Files**) before exporting.

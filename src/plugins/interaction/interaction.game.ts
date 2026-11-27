@@ -49,8 +49,8 @@ import { jitterDirection } from "../../engine/utils/jitterDirection";
 import { PlayerModule } from "../../engine/player/Player.game";
 import { ZoomComponent, orbitAnchorQuery, OrbitAnchor, CameraRigAction } from "../../engine/player/CameraRig";
 import { heldRotation } from "../../engine/player/heldRotation";
-import { usableThings } from "./usable";
-import { isCustomThingId } from "../../engine/network/spawnRules.common";
+import { usableItems } from "./usable";
+import { isCustomItemId } from "../../engine/network/spawnRules.common";
 import { endLocalHold, getLocalHold } from "../../engine/avatar/holdPose";
 import {
   GameRendererModuleState,
@@ -203,7 +203,7 @@ const InteractionActionMap: ActionMap = {
         { type: BindingType.Button, path: padButton(PadButton.X) },
       ],
     },
-    // Buzzar: for Things that do something while held (plugins/interaction/usable.ts): use it (spray a water gun),
+    // Buzzar: for Items that do something while held (plugins/interaction/usable.ts): use it (spray a water gun),
     // work its pump, or let go of it.
     {
       id: "useHeld",
@@ -316,7 +316,7 @@ export const GrabComponent = defineComponent(
 
 const MAX_FOCUS_DISTANCE = 3.3;
 const MIN_HELD_DISTANCE = 1.5;
-/** Buzzar: how far in front of you a Thing spawned into your hold appears (where held things sit). */
+/** Buzzar: how far in front of you an Item spawned into your hold appears (where held things sit). */
 export const HELD_SPAWN_DISTANCE = MIN_HELD_DISTANCE;
 const MAX_HELD_DISTANCE = 8;
 export const GRAB_DISTANCE = 3.3;
@@ -808,8 +808,8 @@ function updateGrabThrow(
 
   if (ourPlayer) heldRotation.active = false;
   const heldBehaviour = heldEntity ? grabBehaviours.get(heldEntity) : undefined;
-  // Buzzar: a Thing that does something while held (a water gun) takes left and right click; E lets go of it.
-  const heldUsable = !!heldEntity && usableThings.has(heldEntity);
+  // Buzzar: an Item that does something while held (a water gun) takes left and right click; E lets go of it.
+  const heldUsable = !!heldEntity && usableItems.has(heldEntity);
   const dropPressed = (input.actionStates.get("DropHeld") as ButtonActionState | undefined)?.pressed ?? false;
   const releasePressed = heldUsable ? dropPressed : grabPressed || (throwPressed && !!heldBehaviour?.noThrow);
 
@@ -831,7 +831,7 @@ function updateGrabThrow(
       throw new Error(`No physics body found on entity ${heldEntity}`);
     }
 
-    // Buzzar: a Thing held in the hands is kinematic; make it physical again before it flies.
+    // Buzzar: an Item held in the hands is kinematic; make it physical again before it flies.
     if (getLocalHold()?.eid === heldEntity) endLocalHold(ctx);
     heldNode.physicsBody.body.applyImpulse(_impulse, true);
 
@@ -955,9 +955,9 @@ function updateGrabThrow(
 
   const heldNode = getRemoteResource<RemoteNode>(ctx, heldEntity);
 
-  // Buzzar: a Thing held in your avatar's hands is placed by the avatar (engine/avatar/holdPose.ts).
+  // Buzzar: an Item held in your avatar's hands is placed by the avatar (engine/avatar/holdPose.ts).
   if (heldNode && getLocalHold()?.eid !== heldNode.eid) {
-    // Buzzar: R does two things. Tap it: straighten what you hold. Hold it and move the mouse (or right stick): turn
+    // Buzzar: R does two items. Tap it: straighten what you hold. Hold it and move the mouse (or right stick): turn
     // it, while the view stays still. A 45° step comes from Turn Held (touch controls).
     const rKey = input.actionStates.get("RecenterHeld") as ButtonActionState | undefined;
     if (rKey?.pressed) rotatePress.set(rig.eid, { since: ctx.elapsed, moved: 0 });
@@ -1139,9 +1139,9 @@ export function isHeldByUs(ctx: GameContext, eid: number) {
 export function sendInteractionMessage(ctx: GameContext, action: InteractableAction, eid = NOOP) {
   const network = getModule(ctx, NetworkModule);
 
-  // Buzzar: no hover card for a Thing that does something while held (a water gun): it would sit over your aim for as
+  // Buzzar: no hover card for an Item that does something while held (a water gun): it would sit over your aim for as
   // long as you hold it, and its Drop/Throw hints don't apply (left click uses it, right click pumps, E lets go).
-  if (action === InteractableAction.Grab && usableThings.has(eid)) {
+  if (action === InteractableAction.Grab && usableItems.has(eid)) {
     ctx.sendMessage<InteractionMessage>(Thread.Main, {
       type: InteractionMessageType,
       action: InteractableAction.Unfocus,
@@ -1179,11 +1179,11 @@ export function sendInteractionMessage(ctx: GameContext, action: InteractableAct
       uri = PortalComponent.get(eid)?.uri;
     }
 
-    // Buzzar: a custom Thing's prefab is its file's mxc; it's labelled with the file's own name instead.
+    // Buzzar: a custom Item's prefab is its file's mxc; it's labelled with the file's own name instead.
     const prefab = Prefab.get(eid);
     const name =
       getRemoteResource<RemoteUIButton>(ctx, eid)?.label ||
-      (prefab && isCustomThingId(prefab) ? getRemoteResource<RemoteNode>(ctx, eid)?.name || "Thing" : prefab) ||
+      (prefab && isCustomItemId(prefab) ? getRemoteResource<RemoteNode>(ctx, eid)?.name || "Item" : prefab) ||
       getRemoteResource<RemoteNode>(ctx, eid)?.name;
 
     ctx.sendMessage<InteractionMessage>(Thread.Main, {
@@ -1269,7 +1269,7 @@ export function getOurFocusedEntity(ctx: GameContext): number {
 }
 
 /**
- * Buzzar: whether a Thing spawned now can go straight into our hold: not in XR (controllers hold with squeeze), and
+ * Buzzar: whether an Item spawned now can go straight into our hold: not in XR (controllers hold with squeeze), and
  * not already holding something.
  */
 export function canHoldSpawned(ctx: GameContext): boolean {
@@ -1280,7 +1280,7 @@ export function canHoldSpawned(ctx: GameContext): boolean {
   return !(hasComponent(ctx.world, GrabComponent, rigEid) && GrabComponent.grabbedEntity[rigEid]);
 }
 
-/** Buzzar: puts a Thing we just spawned in our hold, as if we'd grabbed it (HAVEN_thing spawn.held). */
+/** Buzzar: puts an Item we just spawned in our hold, as if we'd grabbed it (HAVEN_item spawn.held). */
 export function holdSpawnedObject(ctx: GameContext, eid: number) {
   const rigEid = ourPlayerQuery(ctx.world)[0];
   if (!rigEid || !canHoldSpawned(ctx)) return false;

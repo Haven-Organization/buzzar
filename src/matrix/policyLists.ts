@@ -1,7 +1,7 @@
 /**
  * Buzzar: the ban lists a world follows (Matrix policy lists, MSC2313: the format Meowlnir, Draupnir and Mjolnir
  * publish). The world names its lists in a `software.haven.world.moderation` state event; every visitor's client reads
- * them and holds back anyone they ban (createMatrixNetworkInterface.ts): no avatar, voice, movement or Things either
+ * them and holds back anyone they ban (createMatrixNetworkInterface.ts): no avatar, voice, movement or Items either
  * way. That works without any bot running, and takes effect as soon as a list changes. A moderation bot or a
  * moderator then follows up in Matrix (room bans, redactions).
  *

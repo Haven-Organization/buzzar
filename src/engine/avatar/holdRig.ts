@@ -1,7 +1,7 @@
 /**
- * Buzzar: how an avatar's arms and hands hold a Thing: hand frames worked out from the finger bones, two-bone IK
+ * Buzzar: how an avatar's arms and hands hold an Item: hand frames worked out from the finger bones, two-bone IK
  * that puts a palm on a grip, and curled fingers. Pure three.js, no game state, so tests and the dev pose lab can use
- * it as it is; holdPose.ts decides where the Thing is and calls poseHands each frame.
+ * it as it is; holdPose.ts decides where the Item is and calls poseHands each frame.
  */
 import { Matrix4, Object3D, Quaternion, Vector3 } from "three";
 
@@ -125,8 +125,8 @@ export function createHoldRig(
   const right = buildArm("right", boneFor);
   const left = buildArm("left", boneFor);
   if (!right && !left) return undefined;
-  // Where each shoulder rests from the eyes (the first-person camera), so an aimed Thing can be placed from the
-  // camera alone: the live shoulder sways with the idle animation, and the Thing jumped with it.
+  // Where each shoulder rests from the eyes (the first-person camera), so an aimed Item can be placed from the
+  // camera alone: the live shoulder sways with the idle animation, and the Item jumped with it.
   const head = worldPos(boneFor("head"));
   const leftEye = worldPos(boneFor("leftEye"));
   const rightEye = worldPos(boneFor("rightEye"));
@@ -256,18 +256,18 @@ function elbowPole(arm: ArmChain, body: Quaternion) {
 }
 
 /**
- * Poses both arms on a Thing at `thingMatrix` (world): the holding hand on `grip` (moved there only when
- * `movePrimary`; a carried Thing follows the animated hand instead), the other on `offhand`, moved by `shift` (the
- * Thing's space) if given, and the fingers curled. `body` is the avatar's world rotation. Also for the pose lab.
+ * Poses both arms on an Item at `itemMatrix` (world): the holding hand on `grip` (moved there only when
+ * `movePrimary`; a carried Item follows the animated hand instead), the other on `offhand`, moved by `shift` (the
+ * Item's space) if given, and the fingers curled. `body` is the avatar's world rotation. Also for the pose lab.
  */
 export function poseHands(
   rig: HoldRig,
   spec: HoldSpec,
-  thingMatrix: Matrix4,
+  itemMatrix: Matrix4,
   body: Quaternion,
   movePrimary: boolean,
   shift?: [number, number, number],
-  /** The Thing is in use (a water gun spraying): a hand on a `trigger` squeezes it. */
+  /** The Item is in use (a water gun spraying): a hand on a `trigger` squeezes it. */
   using = false
 ) {
   const primary = rig[spec.hand];
@@ -279,13 +279,13 @@ export function poseHands(
       grip = { ...grip, position: [x + shift[0], y + shift[1], z + shift[2]] };
     }
     if (move) {
-      const frame = thingMatrix.clone().multiply(gripMatrix(grip));
+      const frame = itemMatrix.clone().multiply(gripMatrix(grip));
       frame.decompose(_a, _q2, _b);
       solveArm(rig, arm, _a.clone(), _q2.clone(), elbowPole(arm, body));
     }
     curlFingers(rig, arm, grip.curl ?? spec.curl, grip.trigger ? 0 : undefined);
     if (grip.trigger) {
-      const target = new Vector3(...grip.trigger.position).applyMatrix4(thingMatrix);
+      const target = new Vector3(...grip.trigger.position).applyMatrix4(itemMatrix);
       reachTrigger(rig, arm, target, using ? grip.trigger.pull : 0);
     }
   };
@@ -297,8 +297,8 @@ export function poseHands(
 const OFFHAND_REACH = 0.93;
 
 /**
- * How far to bring an aimed Thing back towards you (along `back`, metres) so the other hand can reach its `offhand`
- * grip, given where it would be (`position`, `rotation`). A long Thing held out from one shoulder can have its
+ * How far to bring an aimed Item back towards you (along `back`, metres) so the other hand can reach its `offhand`
+ * grip, given where it would be (`position`, `rotation`). A long Item held out from one shoulder can have its
  * forend out of the other arm's reach, which left that hand stretched and unable to follow a pump.
  */
 export function offhandPullback(
@@ -312,7 +312,7 @@ export function offhandPullback(
   const arm = rig[spec.hand === "right" ? "left" : "right"];
   if (!arm || !spec.offhand) return 0;
   const shoulder = eyes ? restShoulder(rig, arm, eyes) : worldPos(arm.upper)!;
-  // The bind-pose lengths: measuring the live bones read a stale pose once per idle loop, and the Thing jumped.
+  // The bind-pose lengths: measuring the live bones read a stale pose once per idle loop, and the Item jumped.
   const { length } = arm;
   const reach = (length + arm.palmLength) * OFFHAND_REACH;
   const grip = new Vector3(...spec.offhand.position).applyQuaternion(rotation).add(position);

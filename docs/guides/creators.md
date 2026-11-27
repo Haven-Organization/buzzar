@@ -42,7 +42,7 @@ People press O in a world to see a map with a dot for everyone in it. To give yo
 
 1. Enter your world, open its settings and go to **Map**.
 1. For an indoor world, turn on **Leave Out Everything Above a Height** and set it just under the ceiling, so the rooms show instead of the roof.
-1. Click **Generate Map**. Buzzar draws the world from straight above on your computer (only the world itself: not people or spawned Things). Check the picture, then click **Save Map**.
+1. Click **Generate Map**. Buzzar draws the world from straight above on your computer (only the world itself: not people or spawned Items). Check the picture, then click **Save Map**.
 
 Visitors only download the saved picture, so a map costs them nothing to draw. Generate it again whenever you change the world.
 

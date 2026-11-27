@@ -1,5 +1,5 @@
 /**
- * Buzzar: the details page for a world, avatar or Thing, opened from its name on a tile. Avatars and Things get a 3D
+ * Buzzar: the details page for a world, avatar or Item, opened from its name on a tile. Avatars and Items get a 3D
  * view you can turn round and zoom; worlds get a large picture, their chat and member list, and (for moderators)
  * their settings. Every page shows what the file says about itself (HAVEN_metadata: author, version, source,
  * description) and facts about the file.
@@ -77,7 +77,7 @@ export function DetailsView() {
               <div className="flex items-center gap-xs">
                 <IconButton label="Back" iconSrc={ArrowBackIC} onClick={goBack} />
                 <HeaderTitle>
-                  {item.kind === "world" ? "World" : item.kind === "avatar" ? "Avatar" : "Thing"}
+                  {item.kind === "world" ? "World" : item.kind === "avatar" ? "Avatar" : "Item"}
                 </HeaderTitle>
               </div>
             }
@@ -192,15 +192,15 @@ export function modelFacts(json: GLTFRoot & { extensions?: Record<string, unknow
   ] as [string, string][];
 }
 
-// --- Avatars and Things ---------------------------------------------------------------------------------------------
+// --- Avatars and Items ---------------------------------------------------------------------------------------------
 
-function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | "thing" }> }) {
+function ModelDetails({ item }: { item: Extract<DetailsItem, { kind: "avatar" | "item" }> }) {
   const fileUrl = useHttp(item.url);
   const previewUrl = useHttp(item.previewUrl, { width: 720, height: 960 });
   const [model, setModel] = useState<LoadedModel>();
   const meta = model ? readAssetMetadata(model.json) : {};
   const name = meta.name ?? item.name;
-  const description = meta.description ?? (item.kind === "thing" ? item.description : undefined);
+  const description = meta.description ?? (item.kind === "item" ? item.description : undefined);
 
   return (
     <Scroll type="hover">

@@ -2,7 +2,7 @@
  * Buzzar: what chat messages can show as tiles (parity checklist §8):
  * - rooms a message links to (#alias:server, a room pill, a matrix.to or matrix: link), shown with a Join button
  *   when the room is a world;
- * - .glb / .vrm files, classified as an avatar, a world or a Thing from the file's own description (its glTF JSON),
+ * - .glb / .vrm files, classified as an avatar, a world or an Item from the file's own description (its glTF JSON),
  *   read without downloading the whole file.
  */
 import { getHumanoidMapping } from "../../engine/avatar/humanoid";
@@ -47,7 +47,7 @@ export function extractRoomLinks(content: Record<string, unknown> | undefined): 
   return out;
 }
 
-export type ModelKind = "avatar" | "world" | "thing";
+export type ModelKind = "avatar" | "world" | "item";
 
 /** File names chat tiles treat as 3D models. */
 export function isModelFile(name: string | undefined, mimetype?: string) {
@@ -68,7 +68,7 @@ const WORLD_EXTENSIONS = [
   "HAVEN_grabbable",
   "OMI_spawn_point",
 ];
-/** A model bigger than this (metres across) is a place, not a Thing. */
+/** A model bigger than this (metres across) is a place, not an Item. */
 const WORLD_SIZE = 12;
 
 /** Roughly how big a model is (metres across): its meshes' bounds scaled by their nodes, ignoring rotation. */
@@ -99,14 +99,14 @@ export function approximateSize(json: GLTFRoot): number {
   return biggest;
 }
 
-/** Avatar (VRM, or a humanoid skeleton), world (world features, or big), else a Thing. */
+/** Avatar (VRM, or a humanoid skeleton), world (world features, or big), else an Item. */
 export function classifyModel(json: GLTFRoot, fileName?: string): ModelKind {
   if (/\.vrm$/i.test(fileName ?? "")) return "avatar";
   const extensions = new Set([...(json.extensionsUsed ?? []), ...Object.keys(json.extensions ?? {})]);
   if (extensions.has("VRM") || extensions.has("VRMC_vrm")) return "avatar";
   if (WORLD_EXTENSIONS.some((e) => extensions.has(e))) return "world";
   if ((json.skins?.length ?? 0) > 0 && getHumanoidMapping(json)) return "avatar";
-  return approximateSize(json) > WORLD_SIZE ? "world" : "thing";
+  return approximateSize(json) > WORLD_SIZE ? "world" : "item";
 }
 
 /** Reads just a .glb's JSON chunk from `url`, streaming and stopping as soon as it has it. */

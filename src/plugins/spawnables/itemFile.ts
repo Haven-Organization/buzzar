@@ -1,24 +1,25 @@
 /**
- * Buzzar: how a Thing behaves as a physical object, from its own file (root extension `HAVEN_thing`,
- * docs/gltf/HAVEN_thing): its collision shape, weight, whether it can tip over, and where it appears when spawned.
- * Buzzar's built-in values for a stock Thing are only the fallback, used until (or unless) its file says otherwise.
+ * Buzzar: how an Item behaves as a physical object, from its own file (root extension `HAVEN_item`,
+ * docs/gltf/HAVEN_item): its collision shape, weight, whether it can tip over, and where it appears when spawned.
+ * Buzzar's built-in values for a stock Item are only the fallback, used until (or unless) its file says otherwise.
  */
 import { mat4, vec3 as v3 } from "gl-matrix";
 
 import { HoldSpec, readHold } from "../../engine/avatar/holdSpec";
-import { isCustomThingId } from "../../engine/network/spawnRules.common";
+import { isCustomItemId } from "../../engine/network/spawnRules.common";
+import { itemExtension } from "../../engine/gltf/itemExtension";
 
 type AnyRecord = Record<string, unknown>;
 const isRecord = (v: unknown): v is AnyRecord => typeof v === "object" && v !== null && !Array.isArray(v);
 const positive = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined);
 
-export type ThingCollider =
+export type ItemCollider =
   | { type: "box"; size: [number, number, number]; offset: [number, number, number] }
   | { type: "sphere"; radius: number; offset: [number, number, number] }
   | { type: "cylinder"; radius: number; height: number; offset: [number, number, number] };
 
-export interface ThingPhysics {
-  collider: ThingCollider;
+export interface ItemPhysics {
+  collider: ItemCollider;
   /** kg per cubic metre. */
   density?: number;
   /** "yaw": only turns about the vertical, so it can't tip over. "free": turns any way. */
@@ -27,7 +28,7 @@ export interface ThingPhysics {
   upright: boolean;
   /**
    * Metres in front of you it appears, whether it's stood level facing the way you look, and whether it appears in
-   * your hold instead of being set down (for Things you carry, like a torch).
+   * your hold instead of being set down (for Items you carry, like a torch).
    */
   spawn?: { distance: number; upright: boolean; held?: boolean };
 }
@@ -38,7 +39,7 @@ function vec3(v: unknown, fallback: [number, number, number]): [number, number, 
     : fallback;
 }
 
-function parseCollider(v: unknown): ThingCollider | undefined {
+function parseCollider(v: unknown): ItemCollider | undefined {
   if (!isRecord(v)) return undefined;
   const offset = vec3(v.offset, [0, 0, 0]);
   if (v.type === "box") {
@@ -53,9 +54,9 @@ function parseCollider(v: unknown): ThingCollider | undefined {
   return undefined;
 }
 
-/** A Thing file's HAVEN_thing, over `fallback` (fields it leaves out, or gets wrong, keep the fallback's). */
-export function readThingPhysics(gltf: { extensions?: AnyRecord } | undefined, fallback: ThingPhysics): ThingPhysics {
-  const ext = gltf?.extensions?.HAVEN_thing;
+/** An Item file's HAVEN_item, over `fallback` (fields it leaves out, or gets wrong, keep the fallback's). */
+export function readItemPhysics(gltf: { extensions?: AnyRecord } | undefined, fallback: ItemPhysics): ItemPhysics {
+  const ext = itemExtension(gltf);
   if (!isRecord(ext)) return fallback;
   const spawn = isRecord(ext.spawn)
     ? {
@@ -73,20 +74,20 @@ export function readThingPhysics(gltf: { extensions?: AnyRecord } | undefined, f
   };
 }
 
-/** Thing files whose HAVEN_thing has been read, by URI (filled as they load). */
+/** Item files whose HAVEN_item has been read, by URI (filled as they load). */
 const loaded = new Map<string, GLTFGeometry & { extensions?: AnyRecord }>();
 
-export function rememberThingFile(uri: string, gltf: GLTFGeometry & { extensions?: AnyRecord }) {
+export function rememberItemFile(uri: string, gltf: GLTFGeometry & { extensions?: AnyRecord }) {
   loaded.set(uri, gltf);
 }
 
-/** A Thing file's glTF JSON, once it has loaded. */
-export function loadedThingFile(uri: string) {
+/** An Item file's glTF JSON, once it has loaded. */
+export function loadedItemFile(uri: string) {
   return loaded.get(uri);
 }
 
-export function thingPhysics(uri: string, fallback: ThingPhysics): ThingPhysics {
-  return readThingPhysics(loaded.get(uri), fallback);
+export function itemPhysics(uri: string, fallback: ItemPhysics): ItemPhysics {
+  return readItemPhysics(loaded.get(uri), fallback);
 }
 
 /** The parts of a glTF file's JSON that bounds are worked out from. */
@@ -155,8 +156,8 @@ export function gltfBounds(
   return { min: min as [number, number, number], max: max as [number, number, number] };
 }
 
-/** Physics for a custom Thing whose file has no HAVEN_thing: a box around it, appearing just clear of you. */
-export function physicsFromBounds(bounds: ReturnType<typeof gltfBounds>): ThingPhysics {
+/** Physics for a custom Item whose file has no HAVEN_item: a box around it, appearing just clear of you. */
+export function physicsFromBounds(bounds: ReturnType<typeof gltfBounds>): ItemPhysics {
   if (!bounds)
     return { collider: { type: "box", size: [0.3, 0.3, 0.3], offset: [0, 0.15, 0] }, rotation: "free", upright: false };
   const size = [0, 1, 2].map((a) => Math.max(0.02, bounds.max[a] - bounds.min[a])) as [number, number, number];
@@ -169,17 +170,17 @@ export function physicsFromBounds(bounds: ReturnType<typeof gltfBounds>): ThingP
   };
 }
 
-/** How a Thing is held in the hands (HAVEN_thing hold), once its file has loaded; stock Things don't say. */
-export function thingHoldOf(prefab: string | undefined): HoldSpec | undefined {
-  return prefab && isCustomThingId(prefab) ? readHold(loadedThingFile(prefab)) : undefined;
+/** How an Item is held in the hands (HAVEN_item hold), once its file has loaded; stock Items don't say. */
+export function itemHoldOf(prefab: string | undefined): HoldSpec | undefined {
+  return prefab && isCustomItemId(prefab) ? readHold(loadedItemFile(prefab)) : undefined;
 }
 
 /**
- * `HAVEN_thing` for these physics (what a file would say to get them), keeping any other properties `existing` has
+ * `HAVEN_item` for these physics (what a file would say to get them), keeping any other properties `existing` has
  * (hold, …). Used to bake Buzzar's own guesses into a file, so every client handles it the same way.
  */
-export function thingPhysicsToJSON(
-  physics: ThingPhysics,
+export function itemPhysicsToJSON(
+  physics: ItemPhysics,
   existing: Record<string, unknown> = {}
 ): Record<string, unknown> {
   const c = physics.collider;
@@ -202,7 +203,7 @@ export function thingPhysicsToJSON(
   return out;
 }
 
-/** A Thing file's physics as Buzzar would use them: its HAVEN_thing over a box fitted around the model. */
-export function bakedThingPhysics(gltf: GLTFGeometry & { extensions?: AnyRecord }): ThingPhysics {
-  return readThingPhysics(gltf, physicsFromBounds(gltfBounds(gltf)));
+/** An Item file's physics as Buzzar would use them: its HAVEN_item over a box fitted around the model. */
+export function bakedItemPhysics(gltf: GLTFGeometry & { extensions?: AnyRecord }): ItemPhysics {
+  return readItemPhysics(gltf, physicsFromBounds(gltfBounds(gltf)));
 }

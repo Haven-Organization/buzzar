@@ -41,7 +41,7 @@ export function FixedControlsList() {
       {renderItem("Free Mouse (also closes menus)", key("Esc"))}
       {renderItem("Chat", key("Enter"))}
       {renderItem(
-        "Spawn Your Shortcut Things",
+        "Spawn Your Shortcut Items",
         <>
           {key("1")} - {key("0")}
         </>

@@ -1,23 +1,23 @@
 /**
- * Buzzar: applying Thing variables (thingVariables.common.ts) to the objects the stock Things are built from.
+ * Buzzar: applying Item variables (itemVariables.common.ts) to the objects the stock Items are built from.
  */
 import { GameContext } from "../../engine/GameTypes";
 import { RemoteMaterial, RemoteMesh, RemoteMeshPrimitive, RemoteNode } from "../../engine/resource/RemoteResources";
-import { decodeThingVariables, sanitizeThingVariables, ThingVariables } from "./thingVariables.common";
+import { decodeItemVariables, sanitizeItemVariables, ItemVariables } from "./itemVariables.common";
 
-/** The options a stock Thing's prefab is created with. */
-export interface ThingPrefabOptions {
+/** The options a stock Item's prefab is created with. */
+export interface ItemPrefabOptions {
   kinematic?: boolean;
   /** Spawned here: already validated. */
-  variables?: ThingVariables;
+  variables?: ItemVariables;
   /** From a peer's create message: untrusted bytes. */
   createData?: ArrayBuffer;
 }
 
-/** The variables a Thing is created with, validated for it. */
-export function thingVariablesFor(thingId: string, options: ThingPrefabOptions | undefined): ThingVariables {
-  if (options?.variables) return sanitizeThingVariables(thingId, options.variables);
-  return sanitizeThingVariables(thingId, decodeThingVariables(options?.createData));
+/** The variables an Item is created with, validated for it. */
+export function itemVariablesFor(itemId: string, options: ItemPrefabOptions | undefined): ItemVariables {
+  if (options?.variables) return sanitizeItemVariables(itemId, options.variables);
+  return sanitizeItemVariables(itemId, decodeItemVariables(options?.createData));
 }
 
 /** A copy of a material with its colour (and glow colour) multiplied by `tint`, and its glow strength set. */
@@ -52,7 +52,7 @@ export function variantMaterial(
 }
 
 /**
- * Tints every mesh under `root` (a Thing loaded from a file). Meshes and materials from a file are shared by every
+ * Tints every mesh under `root` (an Item loaded from a file). Meshes and materials from a file are shared by every
  * copy of it, so this object gets its own copies; the geometry itself stays shared.
  */
 export function tintNodeTree(ctx: GameContext, root: RemoteNode, tint: [number, number, number]) {

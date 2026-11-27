@@ -87,7 +87,7 @@ export const RESERVED_KEYS = new Set([
   "AltRight",
   "ContextMenu",
   "CapsLock",
-  ...Array.from({ length: 10 }, (_, i) => `Digit${i}`), // Things on the action bar
+  ...Array.from({ length: 10 }, (_, i) => `Digit${i}`), // Items on the action bar
   ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`),
 ]);
 

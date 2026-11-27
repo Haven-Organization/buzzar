@@ -1,6 +1,6 @@
 /**
- * Buzzar: clone a stock Thing with your own name and variables (Third Room #383), or edit a clone. Only the variables
- * the Thing has are offered (see plugins/spawnables/thingVariables.common.ts).
+ * Buzzar: clone a stock Item with your own name and variables (Third Room #383), or edit a clone. Only the variables
+ * the Item has are offered (see plugins/spawnables/itemVariables.common.ts).
  */
 import { CSSProperties, FormEvent, ReactNode, useState } from "react";
 
@@ -13,20 +13,20 @@ import { Label } from "../../../atoms/text/Label";
 import { Text } from "../../../atoms/text/Text";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import CrossIC from "../../../../../res/ic/cross.svg";
-import { StockThing } from "../../../utils/thingsMatrix";
-import { MAX_CLONE_NAME, newCloneId } from "../../../utils/thingClones";
-import { ThingClone } from "../../../../plugins/thirdroom/thirdroom.common";
+import { StockItem } from "../../../utils/itemsMatrix";
+import { MAX_CLONE_NAME, newCloneId } from "../../../utils/itemClones";
+import { ItemClone } from "../../../../plugins/thirdroom/thirdroom.common";
 import {
-  sanitizeThingVariables,
-  THING_VARIABLE_DEFAULTS,
-  THING_VARIABLE_LIMITS,
-  thingVariable,
-  ThingVariables,
-} from "../../../../plugins/spawnables/thingVariables.common";
-import "./ThingCloneDialog.css";
+  sanitizeItemVariables,
+  ITEM_VARIABLE_DEFAULTS,
+  ITEM_VARIABLE_LIMITS,
+  itemVariable,
+  ItemVariables,
+} from "../../../../plugins/spawnables/itemVariables.common";
+import "./ItemCloneDialog.css";
 
-/** A stock Thing's size in metres at ×1 (for showing what a size multiplier means). */
-export const STOCK_THING_METRES: Record<string, number> = {
+/** A stock Item's size in metres at ×1 (for showing what a size multiplier means). */
+export const STOCK_ITEM_METRES: Record<string, number> = {
   "small-crate": 1,
   "medium-crate": 1.75,
   "large-crate": 2.5,
@@ -49,16 +49,16 @@ const hexToTint = (value: string): [number, number, number] => [
 ];
 
 // Weight runs 0.1–500 kg on a log scale, so light and heavy are both easy to pick.
-const { min: W_MIN, max: W_MAX } = THING_VARIABLE_LIMITS.weight;
+const { min: W_MIN, max: W_MAX } = ITEM_VARIABLE_LIMITS.weight;
 const weightToSlider = (kg: number) => Math.log(kg / W_MIN) / Math.log(W_MAX / W_MIN);
 const sliderToWeight = (t: number) => W_MIN * Math.pow(W_MAX / W_MIN, t);
 const formatKg = (kg: number) => (kg < 10 ? kg.toFixed(1) : Math.round(kg).toString());
 
 /** A short line describing a clone's variables, e.g. "0.5× · tinted · 20 kg". */
-export function describeVariables(base: string, variables: ThingVariables): string {
+export function describeVariables(base: string, variables: ItemVariables): string {
   const parts: string[] = [];
   if (variables.size !== undefined) {
-    const metres = STOCK_THING_METRES[base];
+    const metres = STOCK_ITEM_METRES[base];
     parts.push(metres ? `${(metres * variables.size).toFixed(2)} m` : `${variables.size.toFixed(2)}×`);
   }
   if (variables.tint) parts.push("tinted");
@@ -69,7 +69,7 @@ export function describeVariables(base: string, variables: ThingVariables): stri
   return parts.length ? parts.join(" · ") : "Same as the original";
 }
 
-/** The slider's filled share, for its track (see ThingCloneDialog.css). */
+/** The slider's filled share, for its track (see ItemCloneDialog.css). */
 const fill = (value: number, min: number, max: number) =>
   ({ "--fill": `${(Math.min(1, Math.max(0, (value - min) / (max - min))) * 100).toFixed(1)}%` } as CSSProperties);
 
@@ -90,29 +90,29 @@ function Row({ label, value, children }: { label: string; value: ReactNode; chil
   );
 }
 
-export function ThingCloneDialog({
+export function ItemCloneDialog({
   base,
   existing,
   initial,
   onSave,
   requestClose,
 }: {
-  base: StockThing;
-  existing?: ThingClone;
+  base: StockItem;
+  existing?: ItemClone;
   /** Starting values for a new clone (cloning a clone). */
-  initial?: ThingClone;
-  onSave: (clone: ThingClone) => Promise<void> | void;
+  initial?: ItemClone;
+  onSave: (clone: ItemClone) => Promise<void> | void;
   requestClose: () => void;
 }) {
-  const defaults = THING_VARIABLE_DEFAULTS[base.id] ?? {};
+  const defaults = ITEM_VARIABLE_DEFAULTS[base.id] ?? {};
   const [name, setName] = useState(existing?.name ?? initial?.name ?? `My ${base.name}`);
-  const [vars, setVars] = useState<ThingVariables>(existing?.variables ?? initial?.variables ?? {});
+  const [vars, setVars] = useState<ItemVariables>(existing?.variables ?? initial?.variables ?? {});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
 
-  const get = <K extends keyof ThingVariables>(key: K) =>
-    thingVariable(base.id, vars, key) as NonNullable<ThingVariables[K]>;
-  const set = (patch: ThingVariables) => setVars((v) => ({ ...v, ...patch }));
+  const get = <K extends keyof ItemVariables>(key: K) =>
+    itemVariable(base.id, vars, key) as NonNullable<ItemVariables[K]>;
+  const set = (patch: ItemVariables) => setVars((v) => ({ ...v, ...patch }));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -124,7 +124,7 @@ export function ThingCloneDialog({
         id: existing?.id ?? newCloneId(),
         base: base.id,
         name: name.trim().slice(0, MAX_CLONE_NAME) || base.name,
-        variables: sanitizeThingVariables(base.id, vars),
+        variables: sanitizeItemVariables(base.id, vars),
       });
       requestClose();
     } catch (err) {
@@ -134,7 +134,7 @@ export function ThingCloneDialog({
   };
 
   const size = get("size");
-  const metres = STOCK_THING_METRES[base.id];
+  const metres = STOCK_ITEM_METRES[base.id];
 
   return (
     <div className="flex flex-column">
@@ -143,7 +143,7 @@ export function ThingCloneDialog({
         left={<HeaderTitle size="lg">{existing ? `Edit ${existing.name}` : `Clone ${base.name}`}</HeaderTitle>}
         right={<IconButton iconSrc={CrossIC} onClick={requestClose} label="Close" />}
       />
-      <form onSubmit={submit} className="ThingCloneDialog flex flex-column gap-md">
+      <form onSubmit={submit} className="ItemCloneDialog flex flex-column gap-md">
         <SettingTile label={<Label>Name</Label>}>
           <Input
             value={name}
@@ -157,11 +157,11 @@ export function ThingCloneDialog({
           <Row label="Size" value={metres ? `${(metres * size).toFixed(2)} m (${size.toFixed(2)}×)` : `${size.toFixed(2)}×`}>
             <input
               type="range"
-              min={THING_VARIABLE_LIMITS.size.min}
-              max={THING_VARIABLE_LIMITS.size.max}
+              min={ITEM_VARIABLE_LIMITS.size.min}
+              max={ITEM_VARIABLE_LIMITS.size.max}
               step={0.05}
               value={size}
-              style={fill(size, THING_VARIABLE_LIMITS.size.min, THING_VARIABLE_LIMITS.size.max)}
+              style={fill(size, ITEM_VARIABLE_LIMITS.size.min, ITEM_VARIABLE_LIMITS.size.max)}
               onChange={(e) => set({ size: Number(e.target.value) })}
               aria-label="Size"
             />
@@ -211,11 +211,11 @@ export function ThingCloneDialog({
           <Row label="Glow" value={get("glow").toFixed(1)}>
             <input
               type="range"
-              min={THING_VARIABLE_LIMITS.glow.min}
-              max={THING_VARIABLE_LIMITS.glow.max}
+              min={ITEM_VARIABLE_LIMITS.glow.min}
+              max={ITEM_VARIABLE_LIMITS.glow.max}
               step={0.1}
               value={get("glow")}
-              style={fill(get("glow"), THING_VARIABLE_LIMITS.glow.min, THING_VARIABLE_LIMITS.glow.max)}
+              style={fill(get("glow"), ITEM_VARIABLE_LIMITS.glow.min, ITEM_VARIABLE_LIMITS.glow.max)}
               onChange={(e) => set({ glow: Number(e.target.value) })}
               aria-label="Glow"
             />
@@ -225,11 +225,11 @@ export function ThingCloneDialog({
           <Row label="Surface Bounce" value={`${Math.round(get("springiness") * 100)}%`}>
             <input
               type="range"
-              min={THING_VARIABLE_LIMITS.springiness.min}
-              max={THING_VARIABLE_LIMITS.springiness.max}
+              min={ITEM_VARIABLE_LIMITS.springiness.min}
+              max={ITEM_VARIABLE_LIMITS.springiness.max}
               step={0.05}
               value={get("springiness")}
-              style={fill(get("springiness"), THING_VARIABLE_LIMITS.springiness.min, THING_VARIABLE_LIMITS.springiness.max)}
+              style={fill(get("springiness"), ITEM_VARIABLE_LIMITS.springiness.min, ITEM_VARIABLE_LIMITS.springiness.max)}
               onChange={(e) => set({ springiness: Number(e.target.value) })}
               aria-label="Surface bounce"
             />

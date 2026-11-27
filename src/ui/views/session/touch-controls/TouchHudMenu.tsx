@@ -1,6 +1,6 @@
 /**
  * Buzzar (Third Room #156): with touch controls the HUD is just the mic and a "More" button, which opens this panel:
- * your Things to spawn (instead of the numbered bar) and the HUD's other buttons, with names to tap.
+ * your Items to spawn (instead of the numbered bar) and the HUD's other buttons, with names to tap.
  */
 import { ReactNode, useState } from "react";
 import classNames from "classnames";
@@ -13,12 +13,12 @@ import { useActionBar } from "../../../hooks/useActionBar";
 import { useMainThreadContext } from "../../../hooks/useMainThread";
 import { Thread } from "../../../../engine/module/module.common";
 import {
-  isThingCloneId,
-  SpawnThingMessage,
-  thingKeyName,
+  isItemCloneId,
+  SpawnItemMessage,
+  itemKeyName,
   ThirdRoomMessageType,
 } from "../../../../plugins/thirdroom/thirdroom.common";
-import { STOCK_THINGS } from "../../../utils/thingsMatrix";
+import { STOCK_ITEMS } from "../../../utils/itemsMatrix";
 import "./TouchHudMenu.css";
 
 export interface TouchHudAction {
@@ -28,7 +28,7 @@ export interface TouchHudAction {
   danger?: boolean;
 }
 
-/** A world script's own bar item isn't a Thing: it's used like pressing its number key. */
+/** A world script's own bar item isn't an Item: it's used like pressing its number key. */
 function pressNumberKey(key: string) {
   const code = `Digit${key}`;
   window.dispatchEvent(new KeyboardEvent("keydown", { code, key, bubbles: true }));
@@ -49,8 +49,8 @@ export function TouchHudMenu({ actions, children }: { actions: TouchHudAction[];
 
   const spawn = (id: string, key: string) => {
     close();
-    if (isThingCloneId(id) || STOCK_THINGS.some((thing) => thing.id === id)) {
-      mainThread.sendMessage<SpawnThingMessage>(Thread.Game, { type: ThirdRoomMessageType.SpawnThing, id });
+    if (isItemCloneId(id) || STOCK_ITEMS.some((item) => item.id === id)) {
+      mainThread.sendMessage<SpawnItemMessage>(Thread.Game, { type: ThirdRoomMessageType.SpawnItem, id });
     } else {
       pressNumberKey(key);
     }
@@ -73,17 +73,17 @@ export function TouchHudMenu({ actions, children }: { actions: TouchHudAction[];
             {items.length > 0 && (
               <>
                 <Text variant="b3" color="world" weight="semi-bold">
-                  Things
+                  Items
                 </Text>
-                <div className="TouchHudMenu__things">
+                <div className="TouchHudMenu__items">
                   {items.map((item, index) => {
-                    const key = item.slot !== undefined ? thingKeyName(item.slot) : String((index + 1) % 10);
+                    const key = item.slot !== undefined ? itemKeyName(item.slot) : String((index + 1) % 10);
                     return (
                       <button
                         key={item.id}
                         type="button"
                         role="menuitem"
-                        className="TouchHudMenu__thing"
+                        className="TouchHudMenu__item"
                         onClick={() => spawn(item.id, key)}
                       >
                         <img src={item.thumbnail} alt="" />

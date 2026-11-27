@@ -49,9 +49,9 @@ export function SpacesView() {
           variant="surface-low"
         />
         <SidebarTab
-          onClick={() => setOverlayWindow({ type: OverlayWindow.Things })}
-          isActive={overlayWindow.type === OverlayWindow.Things}
-          name="Things"
+          onClick={() => setOverlayWindow({ type: OverlayWindow.Items })}
+          isActive={overlayWindow.type === OverlayWindow.Items}
+          name="Items"
           iconSrc={BoxIC}
           variant="surface-low"
         />

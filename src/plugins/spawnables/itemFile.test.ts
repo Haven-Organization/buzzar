@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { gltfBounds, physicsFromBounds, readThingPhysics, ThingPhysics } from "./thingFile";
+import { gltfBounds, physicsFromBounds, readItemPhysics, ItemPhysics } from "./itemFile";
 
-const fallback: ThingPhysics = {
+const fallback: ItemPhysics = {
   collider: { type: "cylinder", radius: 1.5, height: 0.53, offset: [0, 0.265, 0] },
   density: 40,
   rotation: "yaw",
@@ -10,17 +10,17 @@ const fallback: ThingPhysics = {
   spawn: { distance: 2.4, upright: true },
 };
 
-describe("HAVEN_thing", () => {
+describe("HAVEN_item", () => {
   it("uses Buzzar's values when the file says nothing", () => {
-    expect(readThingPhysics({}, fallback)).toEqual(fallback);
-    expect(readThingPhysics(undefined, fallback)).toEqual(fallback);
+    expect(readItemPhysics({}, fallback)).toEqual(fallback);
+    expect(readItemPhysics(undefined, fallback)).toEqual(fallback);
   });
 
   it("takes the file's values, keeping the fallback for missing or bad ones", () => {
-    const physics = readThingPhysics(
+    const physics = readItemPhysics(
       {
         extensions: {
-          HAVEN_thing: {
+          HAVEN_item: {
             collider: { type: "box", size: [1, 2, 1], offset: [0, 1, 0] },
             density: -3,
             rotation: "free",
@@ -41,24 +41,24 @@ describe("HAVEN_thing", () => {
   });
 
   it("ignores a collider it can't build", () => {
-    const physics = readThingPhysics(
-      { extensions: { HAVEN_thing: { collider: { type: "cone", radius: 1 } } } },
+    const physics = readItemPhysics(
+      { extensions: { HAVEN_item: { collider: { type: "cone", radius: 1 } } } },
       fallback
     );
     expect(physics.collider).toEqual(fallback.collider);
   });
 });
 
-describe("Things spawned into your hold", () => {
+describe("Items spawned into your hold", () => {
   it("reads spawn.held", () => {
-    const held = readThingPhysics({ extensions: { HAVEN_thing: { spawn: { held: true } } } }, fallback);
+    const held = readItemPhysics({ extensions: { HAVEN_item: { spawn: { held: true } } } }, fallback);
     expect(held.spawn).toEqual({ distance: 2.4, upright: true, held: true });
-    const notHeld = readThingPhysics({ extensions: { HAVEN_thing: { spawn: { held: "yes" } } } }, fallback);
+    const notHeld = readItemPhysics({ extensions: { HAVEN_item: { spawn: { held: "yes" } } } }, fallback);
     expect(notHeld.spawn).toEqual({ distance: 2.4, upright: true });
   });
 });
 
-describe("custom Things without HAVEN_thing", () => {
+describe("custom Items without HAVEN_item", () => {
   it("fits a box around the file's scene, through node transforms", () => {
     const gltf = {
       scene: 0,
@@ -82,21 +82,21 @@ describe("custom Things without HAVEN_thing", () => {
   });
 });
 
-describe("baking a Thing's physics into its file", () => {
+describe("baking an Item's physics into its file", () => {
   it("writes Buzzar's fitted box, keeping what the file already says", async () => {
-    const { bakedThingPhysics, thingPhysicsToJSON, readThingPhysics: read } = await import("./thingFile");
+    const { bakedItemPhysics, itemPhysicsToJSON, readItemPhysics: read } = await import("./itemFile");
     const gltf = {
       scenes: [{ nodes: [0] }],
       nodes: [{ mesh: 0 }],
       meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
       accessors: [{ min: [-0.1, 0, -0.3], max: [0.1, 0.2, 0.3] }],
-      extensions: { HAVEN_thing: { spawn: { held: true }, hold: { grip: { position: [0, 0, 0] } } } },
+      extensions: { HAVEN_item: { spawn: { held: true }, hold: { grip: { position: [0, 0, 0] } } } },
     };
-    const json = thingPhysicsToJSON(bakedThingPhysics(gltf), gltf.extensions.HAVEN_thing);
+    const json = itemPhysicsToJSON(bakedItemPhysics(gltf), gltf.extensions.HAVEN_item);
     expect(json.collider).toEqual({ type: "box", size: [0.2, 0.2, 0.6], offset: [0, 0.1, 0] });
     expect(json.hold).toEqual({ grip: { position: [0, 0, 0] } });
     // Reading the baked file back gives the same physics, whatever a client's own fallback is.
-    const back = read({ extensions: { HAVEN_thing: json } }, fallback);
+    const back = read({ extensions: { HAVEN_item: json } }, fallback);
     expect(back.collider).toEqual(json.collider);
     expect(back.rotation).toBe("free");
     expect(back.spawn).toEqual({ distance: 1, upright: false, held: true });

@@ -1,12 +1,14 @@
 /**
- * Buzzar: how a Thing is held (HAVEN_thing `hold`, docs/gltf/HAVEN_thing): read from its file, used by the avatar
+ * Buzzar: how an Item is held (HAVEN_item `hold`, docs/gltf/HAVEN_item): read from its file, used by the avatar
  * hold rig (holdPose.ts). Pure: no engine imports, so files and tests can use it.
  *
- * Grips are given as a hand's "handshake" frame in the Thing's space: the palm's centre at `position`, and with
+ * Grips are given as a hand's "handshake" frame in the Item's space: the palm's centre at `position`, and with
  * `rotation` applied to a hand held out straight ahead as for a handshake: fingers along -Z, thumb up (+Y), and the
  * palm facing the other hand (-X for the right hand, +X for the left). A vertical handle held in a fist runs along
  * +Y; a pistol grip is that, tilted.
  */
+import { itemExtension } from "../gltf/itemExtension";
+
 type AnyRecord = Record<string, unknown>;
 const isRecord = (v: unknown): v is AnyRecord => typeof v === "object" && v !== null && !Array.isArray(v);
 const vec3 = (v: unknown): [number, number, number] | undefined =>
@@ -20,8 +22,8 @@ export interface HoldGrip {
   /** Degrees this hand's fingers curl, when it differs from the hold's `curl` (a slim pump handle needs less). */
   curl?: number;
   /**
-   * This hand's index finger rests on a trigger at `position` (in the Thing's space: where the finger's pad touches
-   * it), reaching for it whatever the hand's size, and curls `pull` degrees further while the Thing is in use (a water
+   * This hand's index finger rests on a trigger at `position` (in the Item's space: where the finger's pad touches
+   * it), reaching for it whatever the hand's size, and curls `pull` degrees further while the Item is in use (a water
    * gun spraying).
    */
   trigger?: { position: [number, number, number]; pull: number };
@@ -39,7 +41,7 @@ export interface HoldSpec {
   offhand?: HoldGrip;
   /** Degrees the fingers curl round what they hold (the thumb half as much). */
   curl: number;
-  /** What points where you look in the "aim" pose: a point and direction in the Thing's space. */
+  /** What points where you look in the "aim" pose: a point and direction in the Item's space. */
   aim: { position: [number, number, number]; direction: [number, number, number] };
 }
 
@@ -63,10 +65,10 @@ function readGrip(v: unknown): HoldGrip | undefined {
   return { position, rotation, curl, trigger };
 }
 
-/** A Thing file's `HAVEN_thing.hold` (untrusted), or undefined when it doesn't say how it's held. */
+/** An Item file's `HAVEN_item.hold` (untrusted), or undefined when it doesn't say how it's held. */
 export function readHold(gltf: { extensions?: AnyRecord } | undefined): HoldSpec | undefined {
-  const thing = gltf?.extensions?.HAVEN_thing;
-  const hold = isRecord(thing) ? thing.hold : undefined;
+  const item = itemExtension(gltf);
+  const hold = isRecord(item) ? item.hold : undefined;
   if (!isRecord(hold)) return undefined;
   const grip = readGrip(hold.grip);
   if (!grip) return undefined;

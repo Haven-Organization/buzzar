@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Buzzar: turns the "Water gun" model by Mr.Nein (Sketchfab, CC-BY-4.0) into a Buzzar Thing that sprays water.
+Buzzar: turns the "Water gun" model by Mr.Nein (Sketchfab, CC-BY-4.0) into a Buzzar Item that sprays water.
 
-    python3 scripts/buzzar/make-water-gun-thing.py water_gun.glb pump.wav spray-loop.wav out.glb \
+    python3 scripts/buzzar/make-water-gun-item.py water_gun.glb pump.wav spray-loop.wav out.glb \
         [--spray-start start.wav] [--sound-credits "..."] [--version 0.3.0]
 
 With --spray-start, that clip plays once when spraying begins and the loop takes over where it ends.
@@ -13,7 +13,7 @@ With --spray-start, that clip plays once when spraying begins and the loop takes
 - HAVEN_sprayer: the nozzle, the stream, a tank of 6 seconds' spraying, a pump that refills it.
 - Splits the pump handle (and the ring at its front) out of the single mesh into its own node, "Pump", so it slides
   back and forth with the hand on it when you pump.
-- HAVEN_thing: a box collider, it spawns straight into your hold, and how your avatar holds it (hold).
+- HAVEN_item: a box collider, it spawns straight into your hold, and how your avatar holds it (hold).
 - HAVEN_metadata: name, description with the credits, author and source.
 
 The geometry and textures are copied unchanged. Positions below were measured from the model (scene space, its
@@ -189,11 +189,11 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
     )
     scene["nodes"] = [len(gltf["nodes"]) - 1]
 
-    def thing_space(p):
+    def item_space(p):
         return [round((p[i] - GRIP[i]) * s, 4) for i in range(3)]
 
     # The model's box (scene units, measured): x ±0.665, y -1.157..3.639, z -7.653..3.854.
-    lo, hi = thing_space((-0.665, -1.157, -7.653)), thing_space((0.665, 3.639, 3.854))
+    lo, hi = item_space((-0.665, -1.157, -7.653)), item_space((0.665, 3.639, 3.854))
     collider = {
         "type": "box",
         "size": [round(hi[i] - lo[i], 4) for i in range(3)],
@@ -220,7 +220,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
         start_length = round(start_length or wav_seconds(spray_start), 3)
 
     gltf["extensions"]["HAVEN_sprayer"] = {
-        "nozzle": {"position": thing_space(NOZZLE), "direction": [0, 0, -1]},
+        "nozzle": {"position": item_space(NOZZLE), "direction": [0, 0, -1]},
         "speed": 22,  # high pressure: it holds its line well past the crosshair before it falls
         "spread": 0.8,
         "rate": 110,
@@ -236,7 +236,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
     }
     if start_length:
         gltf["extensions"]["HAVEN_sprayer"]["startLength"] = start_length
-    gltf["extensions"]["HAVEN_thing"] = {
+    gltf["extensions"]["HAVEN_item"] = {
         "collider": collider,
         "density": 300,
         "rotation": "free",
@@ -258,7 +258,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
                 "trigger": {"position": [0, 0.035, -0.072], "pull": 10},
             },
             "offhand": {
-                "position": [-0.03, 0.045, thing_space((0, 0.85, -3.75))[2]],
+                "position": [-0.03, 0.045, item_space((0, 0.85, -3.75))[2]],
                 "rotation": [-0.5964, -0.3799, 0.3799, 0.5964],
                 "curl": 40,
             },
@@ -283,12 +283,12 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
         "version": version,
     }
     used = set(gltf.get("extensionsUsed", []))
-    used.update(["KHR_audio", "HAVEN_sprayer", "HAVEN_thing", "HAVEN_metadata"])
+    used.update(["KHR_audio", "HAVEN_sprayer", "HAVEN_item", "HAVEN_metadata"])
     gltf["extensionsUsed"] = sorted(used)
 
     write_glb(out, gltf, binary)
     print(f"pump: {pump_tris} triangles split off, {rest_tris} left")
-    print(f"wrote {out}: scale {s:.5f}, nozzle {thing_space(NOZZLE)}, collider {collider}")
+    print(f"wrote {out}: scale {s:.5f}, nozzle {item_space(NOZZLE)}, collider {collider}")
 
 
 if __name__ == "__main__":

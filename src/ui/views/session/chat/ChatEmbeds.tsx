@@ -24,7 +24,7 @@ import {
   setWorldAvatar,
   uploadMedia,
 } from "../../../utils/avatarMatrix";
-import { fetchThingCollection, saveToThingCollection } from "../../../utils/thingsMatrix";
+import { fetchItemCollection, saveToItemCollection } from "../../../utils/itemsMatrix";
 import { classifyModel, fetchGlbJson, ModelKind } from "../../../utils/chatEmbeds";
 import { renderAvatarPreviewFromUrl } from "../../../utils/avatarPreview";
 import { refreshWorldAvatar } from "../../../../engine/avatar/avatar.main";
@@ -112,7 +112,7 @@ function useAuth() {
   }, [platform, client]);
 }
 
-const KIND_LABEL: Record<ModelKind, string> = { avatar: "Avatar", world: "World", thing: "Thing" };
+const KIND_LABEL: Record<ModelKind, string> = { avatar: "Avatar", world: "World", item: "Item" };
 
 /** A .glb/.vrm posted in chat: what it is, a preview, and what you can do with it. */
 function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?: number }) {
@@ -177,13 +177,13 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
 
   // Already bookmarked?
   useEffect(() => {
-    if (kind !== "avatar" && kind !== "thing") return;
+    if (kind !== "avatar" && kind !== "item") return;
     let cancelled = false;
     getAuth()
       .then((auth) =>
         kind === "avatar"
           ? fetchAvatarCollection(auth, session.userId).then((c) => c.avatars.some((a) => a.url === mxc))
-          : fetchThingCollection(auth, session.userId).then((c) => c.things.some((t) => t.url === mxc))
+          : fetchItemCollection(auth, session.userId).then((c) => c.items.some((t) => t.url === mxc))
       )
       .then((isSaved) => !cancelled && setSaved(isSaved))
       .catch(() => undefined);
@@ -222,14 +222,14 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
       if (kind === "avatar") await saveToAvatarCollection(auth, session.userId, await avatarContent());
       else {
         const previewUrl = await uploadPreview();
-        await saveToThingCollection(auth, session.userId, {
+        await saveToItemCollection(auth, session.userId, {
           url: mxc,
           name: title,
           ...(previewUrl ? { preview_url: previewUrl } : {}),
         });
       }
       setSaved(true);
-      return kind === "avatar" ? "Added to Your Avatars." : "Added to Things.";
+      return kind === "avatar" ? "Added to Your Avatars." : "Added to Items.";
     });
 
   const wear = () =>
@@ -288,8 +288,8 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
         onTitleClick={
           kind === "avatar"
             ? () => openDetails({ kind: "avatar", name: title, url: mxc, format })
-            : kind === "thing"
-            ? () => openDetails({ kind: "thing", name: title, url: mxc, description: meta.description })
+            : kind === "item"
+            ? () => openDetails({ kind: "item", name: title, url: mxc, description: meta.description })
             : undefined
         }
         subtitle={
@@ -333,7 +333,7 @@ function ChatModelEmbed({ mxc, name, size }: { mxc: string; name: string; size?:
             <Button size="sm" disabled={!!busy || previewLoading} onClick={createWorld}>
               {busy === "world" ? <Dots size="sm" color="on-primary" /> : "Create World"}
             </Button>
-          ) : kind === "thing" ? (
+          ) : kind === "item" ? (
             <Button size="sm" fill={saved ? "outline" : undefined} disabled={!!busy || saved} onClick={bookmark}>
               {busy === "bookmark" ? <Dots size="sm" /> : saved ? "Bookmarked" : "Bookmark"}
             </Button>

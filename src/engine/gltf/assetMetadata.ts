@@ -1,5 +1,5 @@
 /**
- * Buzzar: what an avatar, Thing or world file says about itself: `HAVEN_metadata` (docs/gltf/HAVEN_metadata), falling
+ * Buzzar: what an avatar, Item or world file says about itself: `HAVEN_metadata` (docs/gltf/HAVEN_metadata), falling
  * back to VRM's own meta and to the `asset.extras` that Sketchfab and other exporters write (title, author, source).
  */
 export interface AssetMetadata {
@@ -9,37 +9,37 @@ export interface AssetMetadata {
   author?: string;
   sourceUrl?: string;
   version?: string;
-  /** A Thing's controls while you hold it, shown when you pick it up. */
-  controls?: ThingControl[];
+  /** An Item's controls while you hold it, shown when you pick it up. */
+  controls?: ItemControl[];
 }
 
 /**
- * The inputs a held Thing responds to, by what they do rather than which key: each client shows its own binding
+ * The inputs a held Item responds to, by what they do rather than which key: each client shows its own binding
  * (left click / RT for `use`, and so on). `use`: the main action (fire, spray); `secondary`: the second one (pump,
  * reload); `drop`: let go; `throw`; `rotate`: turn it in your hand.
  */
-export const THING_CONTROL_ACTIONS = ["use", "secondary", "drop", "throw", "rotate"] as const;
-export type ThingControlAction = (typeof THING_CONTROL_ACTIONS)[number];
+export const ITEM_CONTROL_ACTIONS = ["use", "secondary", "drop", "throw", "rotate"] as const;
+export type ItemControlAction = (typeof ITEM_CONTROL_ACTIONS)[number];
 
-export interface ThingControl {
-  action: ThingControlAction;
-  /** What it does with this Thing, e.g. "Spray (hold)". */
+export interface ItemControl {
+  action: ItemControlAction;
+  /** What it does with this Item, e.g. "Spray (hold)". */
   label: string;
 }
 
 /** At most this many controls are shown. */
-export const MAX_THING_CONTROLS = 8;
+export const MAX_ITEM_CONTROLS = 8;
 
-function readControls(v: unknown): ThingControl[] | undefined {
+function readControls(v: unknown): ItemControl[] | undefined {
   if (!Array.isArray(v)) return undefined;
-  const controls: ThingControl[] = [];
+  const controls: ItemControl[] = [];
   for (const entry of v) {
     if (!isRecord(entry)) continue;
-    const action = entry.action as ThingControlAction;
+    const action = entry.action as ItemControlAction;
     const label = text(entry.label, 80);
-    if (!THING_CONTROL_ACTIONS.includes(action) || !label) continue;
+    if (!ITEM_CONTROL_ACTIONS.includes(action) || !label) continue;
     controls.push({ action, label });
-    if (controls.length >= MAX_THING_CONTROLS) break;
+    if (controls.length >= MAX_ITEM_CONTROLS) break;
   }
   return controls.length > 0 ? controls : undefined;
 }

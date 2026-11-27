@@ -17,7 +17,7 @@ import {
   parseAvatarCulling,
   SHOW_NEAREST_RANGE,
 } from "../../../../engine/avatar/avatarCulling.common";
-import "../things/ThingCloneDialog.css";
+import "../items/ItemCloneDialog.css";
 
 const fill = (value: number, [min, max]: [number, number]) =>
   ({ "--fill": `${(((value - min) / (max - min)) * 100).toFixed(1)}%` } as CSSProperties);
@@ -43,7 +43,7 @@ function SliderRow({
 }) {
   return (
     <SettingTile label={<Label>{`${label}: ${value}${unit}`}</Label>}>
-      <div className="ThingCloneDialog flex flex-column gap-xxs" style={{ padding: 0 }}>
+      <div className="ItemCloneDialog flex flex-column gap-xxs" style={{ padding: 0 }}>
         <div className="flex items-center gap-sm">
           <Switch checked={on} onCheckedChange={onToggle} aria-label={label} />
           <input

@@ -28,8 +28,8 @@ interface ThirdRoomModuleState {
   messageId: number;
   environmentUrl?: string;
   actionBarItems: ActionBarItem[];
-  /** Buzzar: the stock Things this world allows (see SetActionBarItemsMessage). */
-  allowedThings: string[];
+  /** Buzzar: the stock Items this world allows (see SetActionBarItemsMessage). */
+  allowedItems: string[];
 }
 
 export const ThirdroomModule = defineModule<MainContext, ThirdRoomModuleState>({
@@ -38,7 +38,7 @@ export const ThirdroomModule = defineModule<MainContext, ThirdRoomModuleState>({
     return {
       messageId: 0,
       actionBarItems: [],
-      allowedThings: [],
+      allowedItems: [],
     };
   },
   init(ctx) {
@@ -210,5 +210,5 @@ export function exitWorld(context: MainContext) {
 function onSetActionBarItems(ctx: MainContext, message: SetActionBarItemsMessage) {
   const thirdroom = getModule(ctx, ThirdroomModule);
   thirdroom.actionBarItems = message.actionBarItems;
-  if (message.allowedThings) thirdroom.allowedThings = message.allowedThings;
+  if (message.allowedItems) thirdroom.allowedItems = message.allowedItems;
 }

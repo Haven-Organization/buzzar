@@ -248,7 +248,7 @@ function writeCreation(network: GameNetworkState, v: CursorView, eid: number) {
 
   const replicator = getReplicator(network, prefabName);
   if (!replicator) {
-    // Buzzar: a stock prefab's create data (e.g. a cloned Thing's size and colour).
+    // Buzzar: a stock prefab's create data (e.g. a cloned Item's size and colour).
     const data = PrefabCreateData.get(eid);
     writeDataByteLength(data?.byteLength || 0);
     if (data && data.byteLength) writeArrayBuffer(v, data);
@@ -329,7 +329,7 @@ export function deserializeCreates(ctx: GameContext, v: CursorView, peerId: stri
       });
       network.deferredUpdates.set(nid, []);
     } else {
-      // Buzzar: a stock prefab's create data (a cloned Thing's variables); the prefab validates it.
+      // Buzzar: a stock prefab's create data (a cloned Item's variables); the prefab validates it.
       const data = dataByteLength > 0 ? readArrayBuffer(v, dataByteLength) : undefined;
       const node = createRemoteNetworkedEntity(ctx, network, nid, prefabName, data);
       if (check.taken) addComponent(ctx.world, TakenObject, node.eid);

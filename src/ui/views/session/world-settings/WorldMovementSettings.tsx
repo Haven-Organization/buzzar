@@ -11,7 +11,7 @@ import { Text } from "../../../atoms/text/Text";
 import { Switch } from "../../../atoms/button/Switch";
 import { SettingTile } from "../../components/setting-tile/SettingTile";
 import { DEFAULT_MOVEMENT, MovementRules } from "../../../../engine/player/movement.common";
-import "../things/ThingCloneDialog.css";
+import "../items/ItemCloneDialog.css";
 
 const fill = (value: number, min: number, max: number) =>
   ({ "--fill": `${(((value - min) / (max - min)) * 100).toFixed(1)}%` } as CSSProperties);
@@ -89,7 +89,7 @@ export function WorldMovementSettings({
   );
 
   return (
-    <div className="ThingCloneDialog flex flex-column gap-md" style={{ padding: 0 }}>
+    <div className="ItemCloneDialog flex flex-column gap-md" style={{ padding: 0 }}>
       <Slider
         label="Walk Speed"
         unit="m/s"

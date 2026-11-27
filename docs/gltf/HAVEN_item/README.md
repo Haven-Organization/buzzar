@@ -1,4 +1,4 @@
-# HAVEN_thing
+# HAVEN_item
 
 ## Contributors
 
@@ -14,13 +14,13 @@ Written against the glTF 2.0 spec.
 
 ## Overview
 
-This extension says how a Thing (an object people spawn, grab and throw) behaves physically: its collision shape, how heavy it is, whether it can tip over, and where it appears when someone spawns it. The behaviour travels with the file, so it isn't hard-coded in a client.
+This extension says how an Item (an object people spawn, grab and throw) behaves physically: its collision shape, how heavy it is, whether it can tip over, and where it appears when someone spawns it. The behaviour travels with the file, so it isn't hard-coded in a client.
 
 Buzzar's stock Trampoline uses it: a heavy drum that only turns about the vertical, so it always stands flat and nothing tips it over, and it appears a little way off so it doesn't land on you.
 
-Buzzar keeps its own values for each stock Thing as a fallback, used until the file has loaded and for any property the file leaves out or gets wrong.
+Buzzar keeps its own values for each stock Item as a fallback, used until the file has loaded and for any property the file leaves out or gets wrong.
 
-Your own Things (a `.glb` you upload or bookmark in **Things**) work the same way. Without `HAVEN_thing`, Buzzar fits a box collider around the file's scene and spawns it just clear of you. Your Buzzar loads the file before spawning it, so it has its own shape from the start. Other players' Buzzar loads it when the object arrives: it starts as a small box and takes the file's collider once the file has loaded. Each client also checks the file's behaviours (like `HAVEN_trampoline`) against the world's Things rules as it loads.
+Your own Items (a `.glb` you upload or bookmark in **Items**) work the same way. Without `HAVEN_item`, Buzzar fits a box collider around the file's scene and spawns it just clear of you. Your Buzzar loads the file before spawning it, so it has its own shape from the start. Other players' Buzzar loads it when the object arrives: it starts as a small box and takes the file's collider once the file has loaded. Each client also checks the file's behaviours (like `HAVEN_trampoline`) against the world's Items rules as it loads.
 
 ## glTF Schema Updates
 
@@ -28,15 +28,15 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 
 ```json
 "extensionsUsed": [
-  "HAVEN_thing"
+  "HAVEN_item"
 ]
 ```
 
-`HAVEN_thing` goes in the glTF root's `extensions`. It describes the whole file, placed with its origin on the floor.
+`HAVEN_item` goes in the glTF root's `extensions`. It describes the whole file, placed with its origin on the floor.
 
 ```json
 "extensions": {
-  "HAVEN_thing": {
+  "HAVEN_item": {
     "collider": { "type": "cylinder", "radius": 1.5, "height": 0.53, "offset": [0, 0.265, 0] },
     "density": 40,
     "rotation": "yaw",
@@ -56,11 +56,11 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 
 ### spawn.held
 
-A Thing with `"held": true` appears where held things sit (1.5 m in front of you), already in your hold, as if you had just grabbed it. That way a hand-held Thing doesn't have to be picked up off the floor. When you're already holding something, or in VR (where controllers hold with squeeze), it's set down as usual. **Upload Thing → Appears in Your Hold** writes this into the file.
+An Item with `"held": true` appears where held things sit (1.5 m in front of you), already in your hold, as if you had just grabbed it. That way a hand-held Item doesn't have to be picked up off the floor. When you're already holding something, or in VR (where controllers hold with squeeze), it's set down as usual. **Upload Item → Appears in Your Hold** writes this into the file.
 
 ### hold
 
-How your avatar holds the Thing in its hands. Without it, a held Thing floats in front of you. With it, Buzzar places the Thing for your pose, and turns your arms (two-bone IK), wrists and fingers so your hands sit on its grips. Everyone else sees your avatar holding it.
+How your avatar holds the Item in its hands. Without it, a held Item floats in front of you. With it, Buzzar places the Item for your pose, and turns your arms (two-bone IK), wrists and fingers so your hands sit on its grips. Everyone else sees your avatar holding it.
 
 ```json
 "hold": {
@@ -77,11 +77,11 @@ How your avatar holds the Thing in its hands. Without it, a held Thing floats in
 | `pose`    | `string` | `"aim"`: held out from your shoulder and pointed where you look (a gun's aim follows your crosshair). `"hand"`: carried in your hand, swinging with your arm as you walk. | `"aim"`                                         |
 | `hand`    | `string` | `"right"` or `"left"`: the hand on `grip`.                                                                                                                                | `"right"`                                       |
 | `grip`    | `object` | Where that hand holds it: a hand frame (below). Required.                                                                                                                 |                                                 |
-| `offhand` | `object` | Where the other hand holds it, for two-handed Things. Leave it out for one hand.                                                                                          | none                                            |
+| `offhand` | `object` | Where the other hand holds it, for two-handed Items. Leave it out for one hand.                                                                                           | none                                            |
 | `curl`    | `number` | Degrees the fingers curl round the grip (the thumb half as much), 0–120. `grip` and `offhand` can each give their own `curl`, and a `trigger` (below).                    | 70                                              |
 | `aim`     | `object` | `{ "position", "direction" }`: what points where you look in the `"aim"` pose.                                                                                            | a HAVEN_sprayer's nozzle, else -Z from the grip |
 
-A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the Thing's space. Picture a hand held out for a handshake, with:
+A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the Item's space. Picture a hand held out for a handshake, with:
 
 - the palm's centre at `position`;
 - the fingers pointing along -Z;
@@ -90,28 +90,28 @@ A **hand frame** is `{ "position": [x, y, z], "rotation": [x, y, z, w] }` in the
 
 `rotation` turns that hand onto the grip. A vertical handle held in a fist runs along +Y through the curled fingers, so a pistol grip is a handshake frame tilted to match the handle. A hand on a forend or pump handle holds it like a shotgun's: palm underneath, fingers across under it and up its far side, thumb along the near side pointing forward. For the left hand that maps the handshake frame's fingers (−Z) to +X, its thumb (+Y) to −Z and its palm (+X) to +Y, `[-0.5, -0.5, 0.5, 0.5]`; the water gun tilts that 25° so the palm faces up and a little outward. A slim handle needs less `curl` than a pistol grip, or the fingertips come over the top.
 
-A hand frame can also have a `trigger`: `{ "position": [0, 0.035, -0.072], "pull": 10 }` puts that hand's index finger on a trigger instead of round the grip. `position` is where the finger's pad touches the trigger, in the Thing's space; Buzzar turns and curls the finger to reach it, so it fits any hand. While the Thing is in use, such as a water gun spraying, the finger curls `pull` degrees further (default 10)..
+A hand frame can also have a `trigger`: `{ "position": [0, 0.035, -0.072], "pull": 10 }` puts that hand's index finger on a trigger instead of round the grip. `position` is where the finger's pad touches the trigger, in the Item's space; Buzzar turns and curls the finger to reach it, so it fits any hand. While the Item is in use, such as a water gun spraying, the finger curls `pull` degrees further (default 10)..
 
-An aimed Thing is held out from your shoulder, but never further than your other hand can reach its `offhand` grip: a long Thing comes back towards you until that arm reaches with its elbow a little bent.
+An aimed Item is held out from your shoulder, but never further than your other hand can reach its `offhand` grip: a long Item comes back towards you until that arm reaches with its elbow a little bent.
 
 In VR, your controllers are your hands, so `hold` isn't used there.
 
 ### collider
 
-| `type`       | Properties                                          |
-| ------------ | --------------------------------------------------- |
-| `"box"`      | `size`: `[x, y, z]` in metres                       |
-| `"sphere"`   | `radius`                                            |
-| `"cylinder"` | `radius`, `height` (along the Thing's vertical, +Y) |
+| `type`       | Properties                                         |
+| ------------ | -------------------------------------------------- |
+| `"box"`      | `size`: `[x, y, z]` in metres                      |
+| `"sphere"`   | `radius`                                           |
+| `"cylinder"` | `radius`, `height` (along the Item's vertical, +Y) |
 
-Every collider can have an `offset` (`[x, y, z]`, metres) from the Thing's origin to the shape's centre. A Thing whose origin is on its base usually needs half its height here. A collider with a missing or non-positive size is ignored.
+Every collider can have an `offset` (`[x, y, z]`, metres) from the Item's origin to the shape's centre. An Item whose origin is on its base usually needs half its height here. A collider with a missing or non-positive size is ignored.
 
 ### JSON Schema
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema",
-  "title": "HAVEN_thing",
+  "title": "HAVEN_item",
   "type": "object",
   "properties": {
     "collider": {
@@ -144,8 +144,10 @@ Every collider can have an `offset` (`[x, y, z]`, metres) from the Thing's origi
 
 ## Compatibility
 
-Clients that don't know this extension ignore it and give the Thing their own physics, if any. Don't list `HAVEN_thing` in `extensionsRequired`.
+Clients that don't know this extension ignore it and give the Item their own physics, if any. Don't list `HAVEN_item` in `extensionsRequired`.
+
+Items were called Things until November 2026, and files from then use the name `HAVEN_thing` for this extension. Buzzar reads those the same way, and moves them to `HAVEN_item` when it writes to the file (Upload Item, `bake-gltf.ts`).
 
 ## Known Implementations
 
-- Buzzar (`src/plugins/spawnables/thingFile.ts`, used by `spawnables.game.ts`). Example: `public/gltf/things/trampoline.glb`, made by `scripts/buzzar/make-trampoline-thing.py`.
+- Buzzar (`src/plugins/spawnables/itemFile.ts`, used by `spawnables.game.ts`). Example: `public/gltf/items/trampoline.glb`, made by `scripts/buzzar/make-trampoline-item.py`.

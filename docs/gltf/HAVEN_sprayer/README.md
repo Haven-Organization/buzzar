@@ -14,15 +14,15 @@ Written against the glTF 2.0 spec. Sounds use [KHR_audio](https://github.com/Khr
 
 ## Overview
 
-This extension makes a Thing spray a liquid when you hold it: a water gun, a spray bottle, a hose. It says where the nozzle is, how the stream flies, how much a full tank holds, how pumping refills it, and which sounds play.
+This extension makes an Item spray a liquid when you hold it: a water gun, a spray bottle, a hose. It says where the nozzle is, how the stream flies, how much a full tank holds, how pumping refills it, and which sounds play.
 
 While you hold a sprayer:
 
 - **Hold left click** (gamepad RT) to spray. With a `start` sound, that plays once and the `spray` loop carries on from where it leaves off. The stream drains the tank and stops when the tank is empty.
-- **Right click** (gamepad X) works the pump, and so does **left click** once the tank is empty. The pump sound plays, the hand on the pump (the [hold](../HAVEN_thing/README.md)'s `offhand`) slides it back and forward again (`pumpStroke`), and when the stroke is done the tank has `refill` seconds more. You can't spray mid-stroke.
+- **Right click** (gamepad X) works the pump, and so does **left click** once the tank is empty. The pump sound plays, the hand on the pump (the [hold](../HAVEN_item/README.md)'s `offhand`) slides it back and forward again (`pumpStroke`), and when the stroke is done the tank has `refill` seconds more. You can't spray mid-stroke.
 - **E** (gamepad RB) puts it down. A sprayer can't be thrown.
 
-Whoever holds a sprayer tells everyone else when it starts and stops spraying and when it's pumped. Every client draws the stream from the Thing's nozzle and plays the sounds there. The tank itself is only kept by its holder.
+Whoever holds a sprayer tells everyone else when it starts and stops spraying and when it's pumped. Every client draws the stream from the Item's nozzle and plays the sounds there. The tank itself is only kept by its holder.
 
 The stream is drawn as one unbroken jet: each drop draws a tube to the drop fired after it, and the newest one to the nozzle. Each drop falls under gravity, so the jet arcs; it thickens as it goes, sways a little within `spread`, and ends where it hits anything solid (players excepted). Where it hits a loose object (a ball, a crate), it pushes it with `force`: light things are swept along, heavy ones hardly move.
 
@@ -36,7 +36,7 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 ]
 ```
 
-`HAVEN_sprayer` goes in the glTF root's `extensions`. Positions and directions are in the file's scene space, the same space as [HAVEN_thing](../HAVEN_thing/README.md).
+`HAVEN_sprayer` goes in the glTF root's `extensions`. Positions and directions are in the file's scene space, the same space as [HAVEN_item](../HAVEN_item/README.md).
 
 ```json
 "extensions": {
@@ -75,8 +75,8 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 
 ## Compatibility
 
-Clients that don't know this extension show the Thing as an ordinary object. Don't list `HAVEN_sprayer` in `extensionsRequired`.
+Clients that don't know this extension show the Item as an ordinary object. Don't list `HAVEN_sprayer` in `extensionsRequired`.
 
 ## Known Implementations
 
-- Buzzar (`src/plugins/sprayers/`). Example: `scripts/buzzar/make-water-gun-thing.py`, which makes a water gun from a Sketchfab model and two CC0 Freesound recordings.
+- Buzzar (`src/plugins/sprayers/`). Example: `scripts/buzzar/make-water-gun-item.py`, which makes a water gun from a Sketchfab model and two CC0 Freesound recordings.

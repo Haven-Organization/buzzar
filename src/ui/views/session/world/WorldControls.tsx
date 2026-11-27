@@ -47,7 +47,7 @@ import { inputFocused } from "../../../utils/common";
 import { useDisableInput } from "../../../hooks/useDisableInput";
 import { useWorldNavigator } from "../../../hooks/useWorldNavigator";
 import { useActionBar } from "../../../hooks/useActionBar";
-import { thingKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
+import { itemKeyName } from "../../../../plugins/thirdroom/thirdroom.common";
 import { useMicLevel, useSpeaking } from "../../../hooks/useMicLevel";
 import { useKeyBindings } from "../../../hooks/useKeyBindings";
 import { isActionKey, keyLabel } from "../../../../engine/input/keyBindings";
@@ -66,7 +66,7 @@ export function HotbarControls() {
         <HotbarSlot
           key={item.id}
           imageSrc={item.thumbnail}
-          shortcutKey={item.slot !== undefined ? thingKeyName(item.slot) : String((index + 1) % 10)}
+          shortcutKey={item.slot !== undefined ? itemKeyName(item.slot) : String((index + 1) % 10)}
           label={item.label}
         />
       ))}
@@ -213,7 +213,7 @@ export function WorldControls({
     </Dialog>
   );
 
-  // Buzzar (Third Room #156): with touch controls, only the mic and a "More" button; the rest (and your Things, in
+  // Buzzar (Third Room #156): with touch controls, only the mic and a "More" button; the rest (and your Items, in
   // place of the numbered bar) are in its panel.
   if (touchControls) {
     const actions: TouchHudAction[] = [

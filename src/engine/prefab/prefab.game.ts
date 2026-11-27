@@ -37,13 +37,13 @@ export interface PrefabTemplate {
 export const Prefab: Map<number, string> = new Map();
 
 /**
- * Buzzar: extra data an object of a stock prefab was created with (e.g. a cloned Thing's variables), sent with its
- * create message so other peers build the same thing. Cleared when the entity goes away.
+ * Buzzar: extra data an object of a stock prefab was created with (e.g. a cloned Item's variables), sent with its
+ * create message so other peers build the same item. Cleared when the entity goes away.
  */
 export const PrefabCreateData: Map<number, ArrayBuffer> = new Map();
 
 /**
- * Buzzar: makes prefab templates on demand for names that aren't registered up front, such as a custom Thing's file
+ * Buzzar: makes prefab templates on demand for names that aren't registered up front, such as a custom Item's file
  * (its mxc:// URI). Returns undefined for names it doesn't handle.
  */
 export type PrefabResolver = (ctx: GameContext, name: string) => PrefabTemplate | undefined;

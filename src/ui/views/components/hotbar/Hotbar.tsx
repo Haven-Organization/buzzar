@@ -12,7 +12,7 @@ interface HotbarSlotProps {
 }
 
 export function HotbarSlot({ imageSrc, label = "Object", shortcutKey }: HotbarSlotProps) {
-  // Buzzar: a Thing with no picture (or one that won't load) shows its initial instead of a broken image.
+  // Buzzar: an Item with no picture (or one that won't load) shows its initial instead of a broken image.
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [imageSrc]);
   return (

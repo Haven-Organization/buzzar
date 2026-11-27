@@ -1,5 +1,5 @@
-import type { ThingVariables } from "../spawnables/thingVariables.common";
-import type { ThingControl } from "../../engine/gltf/assetMetadata";
+import type { ItemVariables } from "../spawnables/itemVariables.common";
+import type { ItemControl } from "../../engine/gltf/assetMetadata";
 
 export enum ThirdRoomMessageType {
   EnterWorld = "enter-world",
@@ -22,25 +22,25 @@ export enum ThirdRoomMessageType {
   ReloadWorldError = "reload-world-error",
   /** Buzzar: the world script failed to load or crashed; the world carries on without it. */
   ScriptFailed = "script-failed",
-  /** Buzzar: spawn a stock Thing in front of the player (from the Things screen). */
-  SpawnThing = "spawn-thing",
-  /** Buzzar: your cloned Things (from the Things screen). */
-  SetThingClones = "set-thing-clones",
-  /** Buzzar: which Thing is on each number key (from the Things screen). */
-  SetThingKeys = "set-thing-keys",
-  /** Buzzar: your own Things (uploaded or bookmarked files), for their names and pictures on the action bar. */
-  SetCustomThings = "set-custom-things",
-  /** Buzzar: you just picked up (or spawned into your hold) a Thing that lists its controls. */
-  ThingEquipped = "thing-equipped",
+  /** Buzzar: spawn a stock Item in front of the player (from the Items screen). */
+  SpawnItem = "spawn-item",
+  /** Buzzar: your cloned Items (from the Items screen). */
+  SetItemClones = "set-item-clones",
+  /** Buzzar: which Item is on each number key (from the Items screen). */
+  SetItemKeys = "set-item-keys",
+  /** Buzzar: your own Items (uploaded or bookmarked files), for their names and pictures on the action bar. */
+  SetCustomItems = "set-custom-items",
+  /** Buzzar: you just picked up (or spawned into your hold) an Item that lists its controls. */
+  ItemEquipped = "item-equipped",
 }
 
 /**
- * Buzzar: the Thing (a stock Thing's prefab id) on each number key, or null: index 0 is key 1, index 8 key 9 and
+ * Buzzar: the Item (a stock Item's prefab id) on each number key, or null: index 0 is key 1, index 8 key 9 and
  * index 9 key 0, left to right along the keyboard.
  */
-export type ThingKeys = (string | null)[];
-export const THING_KEY_COUNT = 10;
-export const DEFAULT_THING_KEYS: ThingKeys = [
+export type ItemKeys = (string | null)[];
+export const ITEM_KEY_COUNT = 10;
+export const DEFAULT_ITEM_KEYS: ItemKeys = [
   "small-crate",
   "medium-crate",
   "large-crate",
@@ -53,47 +53,47 @@ export const DEFAULT_THING_KEYS: ThingKeys = [
   null,
 ];
 /** The key printed for a slot (slot 9 is the 0 key). */
-export const thingKeyName = (slot: number) => String((slot + 1) % 10);
+export const itemKeyName = (slot: number) => String((slot + 1) % 10);
 
-export interface SetThingKeysMessage {
-  type: ThirdRoomMessageType.SetThingKeys;
-  keys: ThingKeys;
+export interface SetItemKeysMessage {
+  type: ThirdRoomMessageType.SetItemKeys;
+  keys: ItemKeys;
 }
 
 /**
- * Buzzar: a cloned Thing: a stock Thing (`base`) with its own name and variables (size, colour…; see
- * plugins/spawnables/thingVariables.common.ts). Its id (`clone:…`) can go on a number key like a stock Thing's.
+ * Buzzar: a cloned Item: a stock Item (`base`) with its own name and variables (size, colour…; see
+ * plugins/spawnables/itemVariables.common.ts). Its id (`clone:…`) can go on a number key like a stock Item's.
  */
-export interface ThingClone {
+export interface ItemClone {
   id: string;
   base: string;
   name: string;
-  variables: ThingVariables;
+  variables: ItemVariables;
 }
 
-export const isThingCloneId = (id: string) => id.startsWith("clone:");
+export const isItemCloneId = (id: string) => id.startsWith("clone:");
 
-export interface SetThingClonesMessage {
-  type: ThirdRoomMessageType.SetThingClones;
-  clones: ThingClone[];
+export interface SetItemClonesMessage {
+  type: ThirdRoomMessageType.SetItemClones;
+  clones: ItemClone[];
 }
 
-/** Buzzar: one of your own Things: a .glb file on Matrix, whose id is its mxc:// URI. */
-export interface CustomThingInfo {
+/** Buzzar: one of your own Items: a .glb file on Matrix, whose id is its mxc:// URI. */
+export interface CustomItemInfo {
   id: string;
   name: string;
   /** A loadable picture of it, if it has one. */
   thumbnail?: string;
 }
 
-export interface SetCustomThingsMessage {
-  type: ThirdRoomMessageType.SetCustomThings;
-  things: CustomThingInfo[];
+export interface SetCustomItemsMessage {
+  type: ThirdRoomMessageType.SetCustomItems;
+  items: CustomItemInfo[];
 }
 
-export interface SpawnThingMessage {
-  type: ThirdRoomMessageType.SpawnThing;
-  /** A stock Thing's prefab id (an action bar item id, e.g. "small-crate"), a clone's id, or a custom Thing's mxc. */
+export interface SpawnItemMessage {
+  type: ThirdRoomMessageType.SpawnItem;
+  /** A stock Item's prefab id (an action bar item id, e.g. "small-crate"), a clone's id, or a custom Item's mxc. */
   id: string;
 }
 
@@ -189,15 +189,15 @@ export interface ActionBarItem {
   label: string;
   thumbnail: string;
   spawnable?: boolean;
-  /** Buzzar: the slot (see ThingKeys) it's on; items without one (a world script's bar) go on keys 1, 2… in order. */
+  /** Buzzar: the slot (see ItemKeys) it's on; items without one (a world script's bar) go on keys 1, 2… in order. */
   slot?: number;
 }
 
 export interface SetActionBarItemsMessage {
   type: ThirdRoomMessageType.SetActionBarItems;
   actionBarItems: ActionBarItem[];
-  /** Buzzar: the stock and custom Things this world's rules allow (clones go by their base). */
-  allowedThings?: string[];
+  /** Buzzar: the stock and custom Items this world's rules allow (clones go by their base). */
+  allowedItems?: string[];
 }
 
 export interface ObjectCapReachedMessage {
@@ -208,9 +208,9 @@ export interface SetObjectCapMessage {
   value: number;
 }
 
-/** Buzzar: game → main: a Thing's name and controls (HAVEN_metadata controls), shown for a few seconds. */
-export interface ThingEquippedMessage {
-  type: ThirdRoomMessageType.ThingEquipped;
+/** Buzzar: game → main: an Item's name and controls (HAVEN_metadata controls), shown for a few seconds. */
+export interface ItemEquippedMessage {
+  type: ThirdRoomMessageType.ItemEquipped;
   name: string;
-  controls: ThingControl[];
+  controls: ItemControl[];
 }

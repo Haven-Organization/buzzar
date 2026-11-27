@@ -616,12 +616,12 @@ describe("Network Tests", () => {
     });
   });
   describe("creates serialization", () => {
-    it("carries a stock prefab's create data (a cloned Thing's variables) to the other peer", () => {
+    it("carries a stock prefab's create data (a cloned Item's variables) to the other peer", () => {
       const state = mockGameState();
       const network = getModule(state, NetworkModule);
       const received: (ArrayBuffer | undefined)[] = [];
       registerPrefab(state, {
-        name: "test-thing",
+        name: "test-item",
         type: PrefabType.Object,
         create: (ctx: GameContext, options?: { createData?: ArrayBuffer }) => {
           received.push(options?.createData);
@@ -633,7 +633,7 @@ describe("Network Tests", () => {
       addComponent(state.world, Owned, node.eid);
       addComponent(state.world, Networked, node.eid);
       Networked.networkId[node.eid] = senderNid(node.eid);
-      addPrefabComponent(state.world, node.eid, "test-thing");
+      addPrefabComponent(state.world, node.eid, "test-item");
       PrefabCreateData.set(node.eid, new Uint8Array([1, 2, 3, 4, 5]).buffer);
 
       const writer = createCursorView();
