@@ -51,6 +51,11 @@ export interface SprayerSpec {
    * there is one, slide by `offset` (the Thing's space, metres) and back again over `pumpTime`.
    */
   pumpStroke: { offset: [number, number, number]; node?: string };
+  /**
+   * Newtons the whole stream pushes with: each drop that hits a loose object gives it `force / rate` newton-seconds
+   * along its flight, so light things (a ball) are pushed along and heavy ones barely move. 0: it pushes nothing.
+   */
+  force: number;
 }
 
 /** How far through its travel a pump stroke is, `t` (0..1) of the way through it: out and back. */
@@ -93,10 +98,13 @@ export function readSprayer(gltf: { extensions?: AnyRecord } | undefined): Spray
     },
     startLength: num(ext.startLength, 0, 30) ?? 0,
     pumpStroke: readPumpStroke(ext.pumpStroke, direction),
+    force: num(ext.force, 0, 100) ?? DEFAULT_FORCE,
   };
 }
 
 const DEFAULT_PUMP_TRAVEL = 0.07;
+/** A garden-hose-ish push: rolls a 1 kg ball along, hardly nudges a heavy crate. */
+const DEFAULT_FORCE = 4;
 
 function readPumpStroke(raw: unknown, direction: [number, number, number]): SprayerSpec["pumpStroke"] {
   const stroke = isRecord(raw) ? raw : {};

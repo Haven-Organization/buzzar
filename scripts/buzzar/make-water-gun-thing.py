@@ -231,6 +231,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
         "pumpTime": round(wav_seconds(pump_wav), 2),
         # The handle slides back towards you and forward again; the hand on it goes with it.
         "pumpStroke": {"offset": [0, 0, PUMP_TRAVEL_M], "node": "Pump"},
+        "force": 4,  # newtons: rolls a ball along, barely nudges a crate
         "sounds": sounds,
     }
     if start_length:

@@ -24,7 +24,7 @@ While you hold a sprayer:
 
 Whoever holds a sprayer tells everyone else when it starts and stops spraying and when it's pumped. Every client draws the stream from the Thing's nozzle and plays the sounds there. The tank itself is only kept by its holder.
 
-The stream is drawn as one unbroken jet: each drop draws a tube to the drop fired after it, and the newest one to the nozzle. Each drop falls under gravity, so the jet arcs; it thickens as it goes, sways a little within `spread`, and ends where it hits anything solid (players excepted).
+The stream is drawn as one unbroken jet: each drop draws a tube to the drop fired after it, and the newest one to the nozzle. Each drop falls under gravity, so the jet arcs; it thickens as it goes, sways a little within `spread`, and ends where it hits anything solid (players excepted). Where it hits a loose object (a ball, a crate), it pushes it with `force`: light things are swept along, heavy ones hardly move.
 
 ## glTF Schema Updates
 
@@ -51,6 +51,7 @@ Usage of the extension must be listed in the `extensionsUsed` array:
     "refill": 6,
     "pumpTime": 2.05,
     "pumpStroke": { "offset": [0, 0, 0.04], "node": "Pump" },
+    "force": 4,
     "sounds": { "spray": 0, "pump": 1 }
   }
 }
@@ -68,6 +69,7 @@ Usage of the extension must be listed in the `extensionsUsed` array:
 | `refill`      | `number`   | Seconds of spraying one pump adds.                                                                                                                                                                                                                                | a full tank                                |
 | `pumpTime`    | `number`   | Seconds a pump stroke takes. Match it to the pump sound.                                                                                                                                                                                                          | 1                                          |
 | `pumpStroke`  | `object`   | How a pump stroke moves. `offset`: how far the pump handle travels, in metres in the file's scene space (out and back over `pumpTime`). `node`: the name of the node that is the handle, which moves by that much. The hand on the pump moves with it either way. | 7 cm back from `nozzle.direction`, no node |
+| `force`       | `number`   | Newtons the whole stream pushes loose objects with (0–100). A 1 kg ball is pushed along at about `force` m/s². 0: it pushes nothing.                                                                                                                              | 4                                          |
 | `sounds`      | `object`   | KHR_audio **source** indices: `start` (once, when spraying begins), `spray` (looped while spraying, after `start`), `pump` (each stroke), `empty` (when the tank runs dry). All optional.                                                                         | none                                       |
 | `startLength` | `number`   | Seconds into `start` where the `spray` loop takes over. Make `start` a little longer and fade it out, so the two overlap rather than leave a gap.                                                                                                                 | 0                                          |
 

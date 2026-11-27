@@ -359,7 +359,9 @@ function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
     if (step > 1e-5) {
       _ray.origin = { x: p[0], y: p[1], z: p[2] };
       _ray.dir = { x: v[0] / (step / dt), y: v[1] / (step / dt), z: v[2] / (step / dt) };
-      hit = !!physicsWorld.castRay(_ray, step, true, undefined, undefined, undefined, body, isSolid);
+      const found = physicsWorld.castRay(_ray, step, true, undefined, undefined, undefined, body, isSolid);
+      hit = !!found;
+      if (found) pushWithDrop(ctx, sprayer, found, v);
     }
     if (hit || drop.life <= 0) {
       drop.active = false;
@@ -372,6 +374,46 @@ function updateDrops(ctx: GameContext, sprayer: Sprayer, dt: number) {
   }
   // Shape after everything has moved, so each tube meets its neighbour where it is now.
   for (const drop of sprayer.drops) if (drop.active) shapeDrop(sprayer, drop);
+}
+
+const _impulse = new RAPIER.Vector3(0, 0, 0);
+const _hitPoint = new RAPIER.Vector3(0, 0, 0);
+
+/**
+ * A drop that hits a loose object pushes it along its flight (HAVEN_sprayer `force`). Every client draws every
+ * stream, so each pushes only what it moves itself: its own objects, and ones nobody shares (not networked). The
+ * others' owners push theirs, and everyone sees the result.
+ */
+function pushWithDrop(ctx: GameContext, sprayer: Sprayer, found: RAPIER.RayColliderToi, velocity: vec3) {
+  const { force, rate } = sprayer.spec;
+  if (force <= 0) return;
+  const target = found.collider.parent();
+  if (!target || !target.isDynamic()) return;
+  const { handleToEid } = getModule(ctx, PhysicsModule);
+  const eid = handleToEid.get(found.collider.handle);
+  if (eid === undefined || !weMove(ctx, eid)) return;
+  const speed = vec3.length(velocity);
+  if (speed < 1e-4) return;
+  const scale = force / rate / speed;
+  _impulse.x = velocity[0] * scale;
+  _impulse.y = velocity[1] * scale;
+  _impulse.z = velocity[2] * scale;
+  const o = _ray.origin;
+  const d = _ray.dir;
+  _hitPoint.x = o.x + d.x * found.toi;
+  _hitPoint.y = o.y + d.y * found.toi;
+  _hitPoint.z = o.z + d.z * found.toi;
+  target.applyImpulseAtPoint(_impulse, _hitPoint, true);
+}
+
+/** Whether this client moves the object `eid` belongs to: the first networked node up from it is ours, or none is. */
+function weMove(ctx: GameContext, eid: number) {
+  let node = getRemoteResource<RemoteNode>(ctx, eid);
+  while (node) {
+    if (hasComponent(ctx.world, Networked, node.eid)) return hasComponent(ctx.world, Owned, node.eid);
+    node = node.parent;
+  }
+  return true;
 }
 
 const _inverse = mat4.create();
