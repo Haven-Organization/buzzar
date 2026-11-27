@@ -26,6 +26,9 @@ export interface ArmChain {
   /** The palm's centre, in the hand bone's space. */
   palm: Vector3;
   fingers: Finger[];
+  /** Shoulder to elbow plus elbow to wrist, and wrist to palm (metres, from the bind pose: bones keep their length). */
+  length: number;
+  palmLength: number;
   /** The shoulder from between the eyes in the bind pose, in the avatar root's space (see restShoulder). */
   shoulderFromEyes?: Vector3;
 }
@@ -106,7 +109,9 @@ function buildArm(side: "left" | "right", boneFor: (bone: HumanBone) => Object3D
       }
     }
   }
-  return { side, upper, lower, hand, toFrame, palm: palmCentre, fingers };
+  const length = worldPos(upper)!.distanceTo(lowerPos) + lowerPos.distanceTo(handPos);
+  const palmLength = handPos.distanceTo(hand.localToWorld(palmCentre.clone()));
+  return { side, upper, lower, hand, toFrame, palm: palmCentre, fingers, length, palmLength };
 }
 
 /**
@@ -307,11 +312,9 @@ export function offhandPullback(
   const arm = rig[spec.hand === "right" ? "left" : "right"];
   if (!arm || !spec.offhand) return 0;
   const shoulder = eyes ? restShoulder(rig, arm, eyes) : worldPos(arm.upper)!;
-  const elbow = worldPos(arm.lower)!;
-  const wrist = worldPos(arm.hand)!;
-  const palm = arm.hand.localToWorld(arm.palm.clone());
-  const length = shoulder.distanceTo(elbow) + elbow.distanceTo(wrist);
-  const reach = (length + wrist.distanceTo(palm)) * OFFHAND_REACH;
+  // The bind-pose lengths: measuring the live bones read a stale pose once per idle loop, and the Thing jumped.
+  const { length } = arm;
+  const reach = (length + arm.palmLength) * OFFHAND_REACH;
   const grip = new Vector3(...spec.offhand.position).applyQuaternion(rotation).add(position);
   let pull = 0;
   for (let i = 0; i < 6; i++) {

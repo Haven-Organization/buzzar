@@ -203,8 +203,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
   if (arm) {
     // From the camera, not the live shoulder bone: the idle animation's sway moved the Thing in your view.
     const shoulder = rig ? restShoulder(rig, arm, camPos) : worldPos(arm.upper)!;
-    const length =
-      worldPos(arm.upper)!.distanceTo(worldPos(arm.lower)!) + worldPos(arm.lower)!.distanceTo(worldPos(arm.hand)!);
+    const { length } = arm;
     anchor = shoulder
       .addScaledVector(forward, length * AIM_REACH)
       .add(new Vector3(AIM_SIDE * side, -AIM_DROP, 0).applyQuaternion(camRot));
