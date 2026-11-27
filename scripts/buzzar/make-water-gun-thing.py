@@ -221,7 +221,7 @@ def main(src, pump_wav, spray_wav, out, spray_start=None, sound_credits=CC0_SOUN
 
     gltf["extensions"]["HAVEN_sprayer"] = {
         "nozzle": {"position": thing_space(NOZZLE), "direction": [0, 0, -1]},
-        "speed": 10,
+        "speed": 22,  # high pressure: it holds its line well past the crosshair before it falls
         "spread": 0.8,
         "rate": 110,
         "dropSize": 0.013,
