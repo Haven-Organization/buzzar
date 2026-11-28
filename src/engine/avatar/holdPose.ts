@@ -39,6 +39,7 @@ import {
   poseHands,
   restoreUntouched,
   restShoulder,
+  unturnHead,
   unturnTorso,
   worldPos,
 } from "./holdRig";
@@ -325,6 +326,7 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   if (spec.pose === "aim" && spec.offhand) {
     unturnTorso(rig);
     bladeTorso(rig, spec.hand, AIM_BLADE);
+    unturnHead(rig);
   }
   const primary = rig[spec.hand];
   const body = new Quaternion().setFromRotationMatrix(
@@ -335,6 +337,12 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   if (ours && spec.pose === "hand" && primary) itemMatrix = placeInHand(ctx, ours, primary);
   else if (ours) itemMatrix = placeAimed(ctx, player, ours, rig);
   else itemMatrix = new Matrix4().fromArray(item.worldMatrix as unknown as number[]);
+  // We place our own Item from where we are this tick, but the skeleton is posed against last tick's place (the
+  // avatar's world matrix updates at the end of the tick): moving, the hands landed a tick's travel off the Item.
+  // Bring the Item into last tick's frame for the arms.
+  if (ours && spec.pose !== "hand" && rig.root) {
+    itemMatrix = rig.root.matrixWorld.clone().multiply(currentWorldMatrix(avatarNode).invert()).multiply(itemMatrix);
+  }
 
   poseHands(
     rig,

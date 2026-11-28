@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Object3D, Quaternion, Vector3 } from "three";
 
 import { createHoldRig, handFrameNow, reachFor } from "./holdPose";
-import { bladeTorso, unturnTorso } from "./holdRig";
+import { bladeTorso, unturnHead, unturnTorso } from "./holdRig";
 import { HumanBone } from "./humanoid";
 
 /** A right arm in a T-pose: along +X, palm down, thumb forward (-Z). */
@@ -79,6 +79,7 @@ describe("holding Items: bladed stance", () => {
     const rig = createHoldRig((bone: HumanBone) => bones.get(bone), root)!;
 
     bladeTorso(rig, "right", 30);
+    unturnHead(rig);
     const at = (o: Object3D) => o.getWorldPosition(new Vector3());
     expect(at(left).z).toBeLessThan(-0.08);
     expect(at(right).z).toBeGreaterThan(0.08);

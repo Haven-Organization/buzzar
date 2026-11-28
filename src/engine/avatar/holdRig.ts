@@ -40,13 +40,15 @@ export interface HoldRig {
   touched: Map<Object3D, { before: Quaternion; after: Quaternion }>;
   /** The avatar's root, when the rig knows where the shoulders rest (restShoulder). */
   root?: Object3D;
-  /** The chest bones (chest, upperChest; spine without them) and the neck, for bladeTorso. */
+  /** The chest bones (chest, upperChest; spine without them), for bladeTorso. */
   chest: Object3D[];
-  neck?: Object3D;
   /** Spine bones from the hips up, each with the body's up axis in its own space (bind pose), for unturnTorso. */
   spine: { bone: Object3D; up: Vector3 }[];
   /** The top spine bone's bind-pose rotation in the root's space. */
   torsoRest?: Quaternion;
+  /** The neck and head, the same way, for unturnHead. */
+  neckChain: { bone: Object3D; up: Vector3 }[];
+  headRest?: Quaternion;
 }
 
 const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"] as const;
@@ -147,19 +149,31 @@ export function createHoldRig(
   const chest = (["chest", "upperChest"] as const).flatMap((name) => boneFor(name) ?? []);
   if (chest.length === 0) chest.push(...(boneFor("spine") ? [boneFor("spine")!] : []));
   const rootUp = root ? new Vector3(0, 1, 0).applyQuaternion(root.getWorldQuaternion(new Quaternion())) : undefined;
-  const spine = rootUp
-    ? (["spine", "chest", "upperChest"] as const).flatMap((name) => {
-        const bone = boneFor(name);
-        if (!bone) return [];
-        return [{ bone, up: rootUp.clone().applyQuaternion(bone.getWorldQuaternion(new Quaternion()).invert()) }];
-      })
-    : [];
-  const top = spine[spine.length - 1]?.bone;
-  const torsoRest =
-    root && top
-      ? root.getWorldQuaternion(new Quaternion()).invert().multiply(top.getWorldQuaternion(new Quaternion()))
+  const chain = (names: readonly HumanBone[]) =>
+    rootUp
+      ? names.flatMap((name) => {
+          const bone = boneFor(name);
+          if (!bone) return [];
+          return [{ bone, up: rootUp.clone().applyQuaternion(bone.getWorldQuaternion(new Quaternion()).invert()) }];
+        })
+      : [];
+  const restOf = (bone: Object3D | undefined) =>
+    root && bone
+      ? root.getWorldQuaternion(new Quaternion()).invert().multiply(bone.getWorldQuaternion(new Quaternion()))
       : undefined;
-  return { right, left, touched: new Map(), root, chest, neck: boneFor("neck") ?? boneFor("head"), spine, torsoRest };
+  const spine = chain(["spine", "chest", "upperChest"]);
+  const neckChain = chain(["neck", "head"]);
+  return {
+    right,
+    left,
+    touched: new Map(),
+    root,
+    chest,
+    spine,
+    torsoRest: restOf(spine[spine.length - 1]?.bone),
+    neckChain,
+    headRest: restOf(neckChain[neckChain.length - 1]?.bone),
+  };
 }
 
 /**
@@ -169,19 +183,32 @@ export function createHoldRig(
  * head over).
  */
 export function unturnTorso(rig: HoldRig) {
-  const { root, spine, torsoRest } = rig;
-  if (!root || !torsoRest || spine.length === 0) return;
+  unturn(rig, rig.spine, rig.torsoRest);
+}
+
+/**
+ * Turns the head back to face the way the avatar does. The strafe clips turn the neck against the chest's turn to
+ * keep the head ahead; with the chest unturned (and bladed), that left the head looking off to the side.
+ */
+export function unturnHead(rig: HoldRig) {
+  unturn(rig, rig.neckChain, rig.headRest);
+}
+
+/** Twists `chain` (each bone about its own up axis) until its last bone is turned as `rest` says (root space). */
+function unturn(rig: HoldRig, chain: { bone: Object3D; up: Vector3 }[], rest: Quaternion | undefined) {
+  const { root } = rig;
+  if (!root || !rest || chain.length === 0) return;
   const rootRotation = root.getWorldQuaternion(new Quaternion());
   const up = new Vector3(0, 1, 0).applyQuaternion(rootRotation);
-  const top = spine[spine.length - 1].bone;
+  const top = chain[chain.length - 1].bone;
   for (let pass = 0; pass < 2; pass++) {
-    const expected = rootRotation.clone().multiply(torsoRest);
+    const expected = rootRotation.clone().multiply(rest);
     const off = top.getWorldQuaternion(new Quaternion()).multiply(expected.invert());
     if (off.w < 0) off.set(-off.x, -off.y, -off.z, -off.w);
     const angle = 2 * Math.atan2(off.x * up.x + off.y * up.y + off.z * up.z, off.w);
     if (Math.abs(angle) < 1e-3) return;
-    for (const { bone, up: localUp } of spine) {
-      const twist = new Quaternion().setFromAxisAngle(localUp, -angle / spine.length);
+    for (const { bone, up: localUp } of chain) {
+      const twist = new Quaternion().setFromAxisAngle(localUp, -angle / chain.length);
       setLocalRotation(rig, bone, bone.quaternion.clone().multiply(twist));
     }
   }
@@ -196,8 +223,8 @@ function turnBone(rig: HoldRig, bone: Object3D, axis: Vector3, angle: number) {
 
 /**
  * Turns the chest towards the holding hand's side, as people stand to hold a long gun to the shoulder: the other
- * shoulder comes forward, so that arm reaches the forend in front of the chest instead of across (through) it. The
- * neck turns back so the head still faces forward.
+ * shoulder comes forward, so that arm reaches the forend in front of the chest instead of across (through) it.
+ * Follow it with unturnHead so the head still faces forward.
  */
 export function bladeTorso(rig: HoldRig, hand: "left" | "right", degrees: number) {
   if (!rig.root || rig.chest.length === 0 || !degrees) return;
@@ -205,7 +232,6 @@ export function bladeTorso(rig: HoldRig, hand: "left" | "right", degrees: number
   // Turning right is clockwise seen from above: negative about up.
   const angle = ((hand === "right" ? -1 : 1) * degrees * Math.PI) / 180;
   for (const bone of rig.chest) turnBone(rig, bone, up, angle / rig.chest.length);
-  if (rig.neck) turnBone(rig, rig.neck, up, -angle);
 }
 
 /**
