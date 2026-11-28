@@ -40,10 +40,6 @@ export interface HoldRig {
   touched: Map<Object3D, { before: Quaternion; after: Quaternion }>;
   /** The avatar's root, when the rig knows where the shoulders rest (restShoulder). */
   root?: Object3D;
-  /** Spine bones from the hips up (spine, chest, upperChest), for squareShoulders. */
-  spine: Object3D[];
-  /** The top spine bone's bind-pose rotation in the root's space. */
-  torsoRest?: Quaternion;
 }
 
 const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"] as const;
@@ -141,39 +137,7 @@ export function createHoldRig(
     const local = (v: Vector3) => root.worldToLocal(v.clone());
     for (const arm of [right, left]) if (arm) arm.shoulderFromEyes = local(worldPos(arm.upper)!).sub(local(eyes));
   }
-  const spine = (["spine", "chest", "upperChest"] as const).flatMap((name) => boneFor(name) ?? []);
-  const top = spine[spine.length - 1];
-  const torsoRest =
-    root && top
-      ? root.getWorldQuaternion(new Quaternion()).invert().multiply(top.getWorldQuaternion(new Quaternion()))
-      : undefined;
-  return { right, left, touched: new Map(), root, spine, torsoRest };
-}
-
-/**
- * Turns the spine back so the chest faces the way the avatar does (its look direction), undoing the turn the
- * walk animation gave it. Aimed Items point where you look: walking sideways, the strafe clip turned the hips and
- * chest towards the step, and the arms crossed through the body to reach the gun. The legs keep their step.
- */
-export function squareShoulders(rig: HoldRig) {
-  const { root, spine, torsoRest } = rig;
-  if (!root || !torsoRest || spine.length === 0) return;
-  const rootRotation = root.getWorldQuaternion(new Quaternion());
-  const up = new Vector3(0, 1, 0).applyQuaternion(rootRotation);
-  const top = spine[spine.length - 1];
-  // How the chest is turned from where it rests, in world space; only its turn about the body's up axis.
-  const expected = rootRotation.multiply(torsoRest);
-  const off = top.getWorldQuaternion(new Quaternion()).multiply(expected.invert());
-  const along = off.x * up.x + off.y * up.y + off.z * up.z;
-  const angle = 2 * Math.atan2(along, off.w);
-  if (Math.abs(angle) < 1e-3) return;
-  // Shared along the spine so no one joint kinks.
-  const step = new Quaternion().setFromAxisAngle(up, -angle / spine.length);
-  for (const bone of spine) {
-    const parent = bone.parent?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
-    const local = parent.clone().invert().multiply(step).multiply(parent).multiply(bone.quaternion);
-    setLocalRotation(rig, bone, local);
-  }
+  return { right, left, touched: new Map(), root };
 }
 
 /**
