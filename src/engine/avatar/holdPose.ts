@@ -187,6 +187,23 @@ function currentWorldMatrix(node: RemoteNode) {
   }
   return world;
 }
+/**
+ * The camera's world matrix as if in first person: without the third-person pull-back (CharacterController's
+ * swapToThirdPerson moves the camera back along its Z and its pitch node to the side).
+ */
+function eyeWorldMatrix(camera: RemoteNode) {
+  const pitch = camera.parent;
+  if (!pitch?.parent) return currentWorldMatrix(camera);
+  const local = (n: RemoteNode, x: number, z: number) =>
+    new Matrix4().compose(
+      _p.set(x, n.position[1], z),
+      _r.fromArray(n.quaternion as unknown as number[]),
+      _s.fromArray(n.scale as unknown as number[])
+    );
+  return currentWorldMatrix(pitch.parent)
+    .multiply(local(pitch, 0, pitch.position[2]))
+    .multiply(local(camera, camera.position[0], 0));
+}
 const _p = new Vector3();
 const _r = new Quaternion();
 const _s = new Vector3();
@@ -215,7 +232,10 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
   // Where the camera is this tick: its worldMatrix is last tick's (world matrices update at the end of the tick),
   // so the Item trailed a tick behind the view, and on bumpy ground (the camera bobbing) it jittered.
   const camMatrix = currentWorldMatrix(camera);
-  const camPos = new Vector3().setFromMatrixPosition(camMatrix);
+  // The Item is held from your eyes: in third person the camera is pulled back behind you (zoomed out along its Z,
+  // and its pitch node 0.4 m to the side), and the Item went with it.
+  const camPos = new Vector3().setFromMatrixPosition(eyeWorldMatrix(camera));
+  const viewPos = new Vector3().setFromMatrixPosition(camMatrix);
   const camRot = new Quaternion().setFromRotationMatrix(camMatrix);
   const forward = new Vector3(0, 0, -1).applyQuaternion(camRot);
   const side = spec.hand === "right" ? 1 : -1;
@@ -247,7 +267,8 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
 
   // Converge: turn about the anchor so the aim line meets what's under the crosshair.
   const { physicsWorld } = getModule(ctx, PhysicsModule);
-  _ray.origin = { x: camPos.x, y: camPos.y, z: camPos.z };
+  // What's under the crosshair, seen from the camera (pulled back in third person).
+  _ray.origin = { x: viewPos.x, y: viewPos.y, z: viewPos.z };
   _ray.dir = { x: forward.x, y: forward.y, z: forward.z };
   const exclude = player.physicsBody?.body;
   const hit = physicsWorld.castRay(
@@ -261,7 +282,7 @@ function placeAimed(ctx: GameContext, player: RemoteNode, hold: LocalHold, rig: 
     (c) => isSolid(c) && c.parent() !== node.physicsBody?.body
   );
   const distance = Math.max(MIN_AIM_DISTANCE, hit ? hit.toi : MAX_AIM_DISTANCE);
-  const lookAt = camPos.clone().addScaledVector(forward, distance);
+  const lookAt = viewPos.clone().addScaledVector(forward, distance);
   const muzzle = new Vector3(...spec.aim.position).applyQuaternion(rotation).add(position);
   const current = aimDir.clone().applyQuaternion(rotation);
   const wanted = lookAt.sub(muzzle).normalize();
