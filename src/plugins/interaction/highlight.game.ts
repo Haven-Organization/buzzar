@@ -1,7 +1,8 @@
 /**
  * Buzzar: outline whatever interactable thing the local player is pointing at (like VRChat's hover highlight),
  * in addition to the "E / Interact" prompt. While holding something, the held object stays outlined instead, so it's
- * clear what you've picked up (Third Room #376).
+ * clear what you've picked up (Third Room #376) — except an Item held in your avatar's hands (holdPose.ts), which
+ * plainly is.
  *
  * Works by putting the focused object's meshes on `Layer.InteractableHighlight`, which the render pipeline's
  * outline pass draws. Not shown in XR or on Low quality (no post-processing there yet).
@@ -15,6 +16,7 @@ import { RemoteNode } from "../../engine/resource/RemoteResources";
 import { getRemoteResource } from "../../engine/resource/resource.game";
 import { InteractableType } from "../../engine/resource/schema";
 import { ourPlayerQuery } from "../../engine/player/Player";
+import { getLocalHold } from "../../engine/avatar/holdPose";
 import { GrabComponent, Interactable, getOurFocusedEntity } from "./interaction.game";
 
 const HIGHLIGHTED_TYPES = new Set([InteractableType.Interactable, InteractableType.Grabbable, InteractableType.Portal]);
@@ -41,7 +43,9 @@ export function collectHighlightNodes(focused: RemoteNode): RemoteNode[] {
 export function InteractableHighlightSystem(ctx: GameContext) {
   const player = ourPlayerQuery(ctx.world)[0];
   const heldEid = player && hasComponent(ctx.world, GrabComponent, player) ? GrabComponent.grabbedEntity[player] : 0;
-  let focusedEid = heldEid || getOurFocusedEntity(ctx);
+  // Held in the avatar's hands: no outline (nor on whatever is behind it).
+  const inHands = heldEid !== 0 && getLocalHold()?.eid === heldEid;
+  let focusedEid = inHands ? 0 : heldEid || getOurFocusedEntity(ctx);
   if (!heldEid && focusedEid && !HIGHLIGHTED_TYPES.has(Interactable.type[focusedEid])) focusedEid = 0;
   if (focusedEid === highlightedEid) return;
 
