@@ -40,6 +40,9 @@ export interface HoldRig {
   touched: Map<Object3D, { before: Quaternion; after: Quaternion }>;
   /** The avatar's root, when the rig knows where the shoulders rest (restShoulder). */
   root?: Object3D;
+  /** The chest bones (chest, upperChest; spine without them) and the neck, for bladeTorso. */
+  chest: Object3D[];
+  neck?: Object3D;
 }
 
 const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"] as const;
@@ -137,7 +140,30 @@ export function createHoldRig(
     const local = (v: Vector3) => root.worldToLocal(v.clone());
     for (const arm of [right, left]) if (arm) arm.shoulderFromEyes = local(worldPos(arm.upper)!).sub(local(eyes));
   }
-  return { right, left, touched: new Map(), root };
+  const chest = (["chest", "upperChest"] as const).flatMap((name) => boneFor(name) ?? []);
+  if (chest.length === 0) chest.push(...(boneFor("spine") ? [boneFor("spine")!] : []));
+  return { right, left, touched: new Map(), root, chest, neck: boneFor("neck") ?? boneFor("head") };
+}
+
+/** Turns `bone` by `angle` about the world axis `axis`. */
+function turnBone(rig: HoldRig, bone: Object3D, axis: Vector3, angle: number) {
+  const parent = bone.parent?.getWorldQuaternion(new Quaternion()) ?? new Quaternion();
+  const turn = new Quaternion().setFromAxisAngle(axis, angle);
+  setLocalRotation(rig, bone, parent.clone().invert().multiply(turn).multiply(parent).multiply(bone.quaternion));
+}
+
+/**
+ * Turns the chest towards the holding hand's side, as people stand to hold a long gun to the shoulder: the other
+ * shoulder comes forward, so that arm reaches the forend in front of the chest instead of across (through) it. The
+ * neck turns back so the head still faces forward.
+ */
+export function bladeTorso(rig: HoldRig, hand: "left" | "right", degrees: number) {
+  if (!rig.root || rig.chest.length === 0 || !degrees) return;
+  const up = new Vector3(0, 1, 0).applyQuaternion(rig.root.getWorldQuaternion(new Quaternion()));
+  // Turning right is clockwise seen from above: negative about up.
+  const angle = ((hand === "right" ? -1 : 1) * degrees * Math.PI) / 180;
+  for (const bone of rig.chest) turnBone(rig, bone, up, angle / rig.chest.length);
+  if (rig.neck) turnBone(rig, rig.neck, up, -angle);
 }
 
 /**
