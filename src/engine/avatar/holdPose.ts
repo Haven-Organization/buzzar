@@ -39,6 +39,7 @@ import {
   poseHands,
   restoreUntouched,
   restShoulder,
+  unturnTorso,
   worldPos,
 } from "./holdRig";
 
@@ -190,7 +191,7 @@ const _r = new Quaternion();
 const _s = new Vector3();
 
 /** How far (degrees) the chest turns towards the holding hand's side for a two-handed aimed Item. */
-const AIM_BLADE = 30;
+const AIM_BLADE = 40;
 const AIM_REACH = 0.62; // of the arm's length, out from the shoulder
 /** Where an aimed Item's grip sits from that point, in view space (x towards the holding hand's side): out past
  * the shoulder and a little down, so it's held low at the side of the view like a first-person shooter's, not
@@ -321,7 +322,10 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   if (!item || !spec) return;
 
   // Two-handed aimed Items: stand side-on a little, so the far arm reaches the forend in front of the chest.
-  if (spec.pose === "aim" && spec.offhand) bladeTorso(rig, spec.hand, AIM_BLADE);
+  if (spec.pose === "aim" && spec.offhand) {
+    unturnTorso(rig);
+    bladeTorso(rig, spec.hand, AIM_BLADE);
+  }
   const primary = rig[spec.hand];
   const body = new Quaternion().setFromRotationMatrix(
     new Matrix4().fromArray(player.worldMatrix as unknown as number[])

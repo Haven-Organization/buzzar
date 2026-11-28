@@ -43,6 +43,10 @@ export interface HoldRig {
   /** The chest bones (chest, upperChest; spine without them) and the neck, for bladeTorso. */
   chest: Object3D[];
   neck?: Object3D;
+  /** Spine bones from the hips up, each with the body's up axis in its own space (bind pose), for unturnTorso. */
+  spine: { bone: Object3D; up: Vector3 }[];
+  /** The top spine bone's bind-pose rotation in the root's space. */
+  torsoRest?: Quaternion;
 }
 
 const FINGERS = ["Thumb", "Index", "Middle", "Ring", "Little"] as const;
@@ -142,7 +146,45 @@ export function createHoldRig(
   }
   const chest = (["chest", "upperChest"] as const).flatMap((name) => boneFor(name) ?? []);
   if (chest.length === 0) chest.push(...(boneFor("spine") ? [boneFor("spine")!] : []));
-  return { right, left, touched: new Map(), root, chest, neck: boneFor("neck") ?? boneFor("head") };
+  const rootUp = root ? new Vector3(0, 1, 0).applyQuaternion(root.getWorldQuaternion(new Quaternion())) : undefined;
+  const spine = rootUp
+    ? (["spine", "chest", "upperChest"] as const).flatMap((name) => {
+        const bone = boneFor(name);
+        if (!bone) return [];
+        return [{ bone, up: rootUp.clone().applyQuaternion(bone.getWorldQuaternion(new Quaternion()).invert()) }];
+      })
+    : [];
+  const top = spine[spine.length - 1]?.bone;
+  const torsoRest =
+    root && top
+      ? root.getWorldQuaternion(new Quaternion()).invert().multiply(top.getWorldQuaternion(new Quaternion()))
+      : undefined;
+  return { right, left, touched: new Map(), root, chest, neck: boneFor("neck") ?? boneFor("head"), spine, torsoRest };
+}
+
+/**
+ * Undoes the turn the walk animation gives the chest (the strafe clips turn it towards the step), so a two-handed
+ * aimed Item, placed from where the shoulders rest, stays in reach of both hands. Each spine bone twists about its
+ * own up axis, so the animation's lean is kept (turning about the vertical swung a lean sideways and tipped the
+ * head over).
+ */
+export function unturnTorso(rig: HoldRig) {
+  const { root, spine, torsoRest } = rig;
+  if (!root || !torsoRest || spine.length === 0) return;
+  const rootRotation = root.getWorldQuaternion(new Quaternion());
+  const up = new Vector3(0, 1, 0).applyQuaternion(rootRotation);
+  const top = spine[spine.length - 1].bone;
+  for (let pass = 0; pass < 2; pass++) {
+    const expected = rootRotation.clone().multiply(torsoRest);
+    const off = top.getWorldQuaternion(new Quaternion()).multiply(expected.invert());
+    if (off.w < 0) off.set(-off.x, -off.y, -off.z, -off.w);
+    const angle = 2 * Math.atan2(off.x * up.x + off.y * up.y + off.z * up.z, off.w);
+    if (Math.abs(angle) < 1e-3) return;
+    for (const { bone, up: localUp } of spine) {
+      const twist = new Quaternion().setFromAxisAngle(localUp, -angle / spine.length);
+      setLocalRotation(rig, bone, bone.quaternion.clone().multiply(twist));
+    }
+  }
 }
 
 /** Turns `bone` by `angle` about the world axis `axis`. */
