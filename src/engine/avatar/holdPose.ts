@@ -38,6 +38,7 @@ import {
   poseHands,
   restoreUntouched,
   restShoulder,
+  squareShoulders,
   worldPos,
 } from "./holdRig";
 
@@ -317,6 +318,7 @@ export function updateHoldPose(ctx: GameContext, rig: HoldRig, avatarNode: Remot
   }
   if (!item || !spec) return;
 
+  if (spec.pose !== "hand") squareShoulders(rig);
   const primary = rig[spec.hand];
   const body = new Quaternion().setFromRotationMatrix(
     new Matrix4().fromArray(player.worldMatrix as unknown as number[])
